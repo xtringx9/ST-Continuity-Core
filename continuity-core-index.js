@@ -35,12 +35,27 @@ function onExampleInput(event) {
 }
 
 // This function is called when the button is clicked
+// function onButtonClick() {
+//     // You can do whatever you want here
+//     // Let's make a popup appear with the checked setting
+//     toastr.info(
+//         `The checkbox is ${extension_settings[extensionName].example_setting ? "checked" : "not checked"}`,
+//         "A popup appeared because you clicked the button!"
+//     );
+// }
 function onButtonClick() {
-    // You can do whatever you want here
-    // Let's make a popup appear with the checked setting
+    // 获取第2条聊天消息（索引为1）
+    const messageElem = $('#chat .mes').eq(2);
+    let messageText = '';
+    if (messageElem.length > 0) {
+        // 获取消息文本内容
+        messageText = messageElem.find('.mes_text').text() || '[无内容]';
+    } else {
+        messageText = '[未找到该楼层]';
+    }
     toastr.info(
-        `The checkbox is ${extension_settings[extensionName].example_setting ? "checked" : "not checked"}`,
-        "A popup appeared because you clicked the button!"
+        `第3条消息内容：${messageText}`,
+        "按钮点击调试"
     );
 }
 
