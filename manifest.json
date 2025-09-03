@@ -1,0 +1,12 @@
+{
+    "display_name": "Continuity Core",
+    "loading_order": 2,
+    "requires": [],
+    "optional": [],
+    "js": "continuity-core-index.js",
+    "css": "continuity-core-style.css",
+    "author": "xtringx9",
+    "version": "1.0.0",
+    "description": "",
+    "homePage": ""
+}
