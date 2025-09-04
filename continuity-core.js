@@ -11,12 +11,32 @@ const backendUrl = "http://192.168.0.119:8888/simple-process";
 console.log("♥️ Continuity Core LOADED!");
 
 // 当文档加载完毕后执行
-$(document).ready(function () {
-    const button = $('<button id="send-to-backend-btn">发送最新楼层到后端</button>');
-    $('body').append(button);
+jQuery(async function () {
+    // 1. 创建更复杂的HTML结构，并默认展开
+    const fabContainer = $(`
+        <div id="continuity-fab-container" class="open">
+            <div class="continuity-fab-menu">
+                <button id="send-to-backend-btn" class="continuity-fab-item">发送最新楼层</button>
+                <button class="continuity-fab-item">功能二</button>
+                <button class="continuity-fab-item">功能三</button>
+            </div>
+            <button id="continuity-fab-main-btn" class="continuity-fab-item">
+                <span>&#43;</span>
+            </button>
+        </div>
+    `);
 
-    // Bind the click event - notice we removed 'async' as it's no longer needed
-    button.on('click', function () {
+    // 2. 将整个容器添加到body
+    $('body').append(fabContainer);
+
+    // 3. 为主按钮绑定点击事件，用于展开/收起菜单
+    $('#continuity-fab-main-btn').on('click', function () {
+        $('#continuity-fab-container').toggleClass('open');
+    });
+
+
+    // 4. 为“发送最新楼层”按钮绑定原有功能
+    $('#send-to-backend-btn').on('click', function () {
 
         // 2. Now we can directly and reliably use the imported 'chat' variable.
         // It will always be the up-to-date chat history.
