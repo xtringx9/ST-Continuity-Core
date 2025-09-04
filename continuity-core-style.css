@@ -1,1 +1,41 @@
-/* All style elements for your extension go here */
+#send-to-backend-btn {
+    /* --- 1. 核心定位：实现右侧垂直居中 --- */
+    position: fixed !important;
+    /* 强制！使用固定定位，相对于浏览器窗口 */
+    top: 50%;
+    /* 将按钮的上边缘移动到屏幕垂直中心 */
+    right: 20px;
+    /* 将按钮的右边缘固定在距离屏幕右侧 20px 的位置 */
+    transform: translateY(-50%);
+    /* 仅在垂直方向上，将按钮向上回移自身高度的50%，实现完美垂直居中 */
+
+    /* --- 2. 强制显示与层级 (保持最高优先级) --- */
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 2147483647 !important;
+
+    /* --- 3. 外观样式：调整为更小巧的尺寸 --- */
+    padding: 8px 12px;
+    /* 减小内边距 */
+    font-size: 12px;
+    /* 减小字体大小 */
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    /* 减小圆角 */
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    /* 减小阴影 */
+    white-space: nowrap;
+    /* 防止文字换行 */
+}
+
+#send-to-backend-btn:hover {
+    background-color: #0056b3;
+    /* 在 Y 轴不变的情况下，稍微放大一点点 */
+    transform: translateY(-50%) scale(1.05);
+    transition: all 0.2s ease;
+    /* 让所有变化的过渡都更平滑 */
+}
