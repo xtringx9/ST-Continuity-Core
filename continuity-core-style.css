@@ -1,41 +1,93 @@
-#send-to-backend-btn {
-    /* --- 1. 核心定位：实现右侧垂直居中 --- */
-    position: fixed !important;
-    /* 强制！使用固定定位，相对于浏览器窗口 */
-    top: 50%;
-    /* 将按钮的上边缘移动到屏幕垂直中心 */
-    right: 20px;
-    /* 将按钮的右边缘固定在距离屏幕右侧 20px 的位置 */
-    transform: translateY(-50%);
-    /* 仅在垂直方向上，将按钮向上回移自身高度的50%，实现完美垂直居中 */
+/* --- 容器：定位在右下角 --- */
+#continuity-fab-container {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-    /* --- 2. 强制显示与层级 (保持最高优先级) --- */
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    z-index: 2147483647 !important;
-
-    /* --- 3. 外观样式：调整为更小巧的尺寸 --- */
-    padding: 8px 12px;
-    /* 减小内边距 */
-    font-size: 12px;
-    /* 减小字体大小 */
+/* --- 主按钮样式 --- */
+#continuity-fab-main-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
     background-color: #007bff;
     color: white;
     border: none;
-    border-radius: 5px;
-    /* 减小圆角 */
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    /* 减小阴影 */
-    white-space: nowrap;
-    /* 防止文字换行 */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 36px;
+    line-height: 56px;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    position: relative;
+    z-index: 10;
 }
 
-#send-to-backend-btn:hover {
+#continuity-fab-main-btn:hover {
     background-color: #0056b3;
-    /* 在 Y 轴不变的情况下，稍微放大一点点 */
-    transform: translateY(-50%) scale(1.05);
-    transition: all 0.2s ease;
-    /* 让所有变化的过渡都更平滑 */
+}
+
+#continuity-fab-main-btn span {
+    transition: transform 0.3s ease;
+}
+
+/* --- 菜单容器 --- */
+.continuity-fab-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    /* 确保菜单本身不捕获点击事件，除非子项可见 */
+    pointer-events: none;
+}
+
+/* --- 菜单项（默认隐藏） --- */
+.continuity-fab-menu .continuity-fab-item {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px) scale(0.8);
+    transition: all 0.3s ease;
+
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.continuity-fab-menu .continuity-fab-item:hover {
+    background-color: #0056b3;
+    transform: scale(1.1);
+    /* 鼠标悬浮时放大 */
+}
+
+
+/* --- 展开状态下的样式 --- */
+#continuity-fab-container.open #continuity-fab-main-btn span {
+    transform: rotate(45deg);
+    /* 主按钮的加号旋转成叉 */
+}
+
+#continuity-fab-container.open .continuity-fab-menu {
+    /* 展开时允许菜单项捕获事件 */
+    pointer-events: auto;
+}
+
+#continuity-fab-container.open .continuity-fab-menu .continuity-fab-item {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
 }
