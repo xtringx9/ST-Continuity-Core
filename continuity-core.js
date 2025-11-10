@@ -116,30 +116,11 @@ console.log("♥️ Continuity Core LOADED!");
 // 当文档加载完毕后执行
 jQuery(async function () {
     // 初始化设置
-    initializeSettings();
+    const settings = initializeSettings();
 
-    // 加载设置HTML到扩展设置面板
-    const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
+    // 从外部HTML文件加载设置面板结构
+    const settingsHtml = await $.get(`${extensionFolderPath}/settings-panel.html`);
     $("#extensions_settings").append(settingsHtml);
-
-    // 添加全局开关和后端URL设置
-    $("#example_setting").parent().before(`
-        <div class="example-extension_block flex-container">
-            <input id="continuity_enabled" type="checkbox" />
-            <label for="continuity_enabled">启用 Continuity Core</label>
-        </div>
-        <div class="example-extension_block flex-container">
-            <label for="continuity_backend_url">后端服务器地址:</label>
-            <input id="continuity_backend_url" type="text" style="width: 100%;" placeholder="http://localhost:8888" />
-        </div>
-    `);
-
-    // 绑定设置变更事件
-    $("#continuity_enabled").on("input", onEnabledToggle);
-    $("#continuity_backend_url").on("input", onBackendUrlChange);
-
-    // 加载设置到UI
-    loadSettingsToUI();
 
     // 1. 创建更复杂的HTML结构，并默认展开
     const fabContainer = $(`
@@ -156,13 +137,20 @@ jQuery(async function () {
     `);
 
     // 2. 将整个容器添加到body
-    $('body').append(fabContainer);
+    $("body").append(fabContainer);
+
+    // 绑定设置变更事件
+    $("#continuity_enabled").on("input", onEnabledToggle);
+    $("#continuity_backend_url").on("input", onBackendUrlChange);
+
+    // 加载设置到UI (必须在UI元素创建后调用)
+    loadSettingsToUI();
 
     // 3. 为主按钮绑定点击事件，用于展开/收起菜单
-    $('#continuity-fab-main-btn').on('click', function () {
-        $('#continuity-fab-container').toggleClass('open');
+    $("#continuity-fab-main-btn").on('click', function () {
+        $("#continuity-fab-container").toggleClass('open');
     });
 
     // 4. 为"发送最新楼层"按钮绑定功能
-    $('#send-to-backend-btn').on('click', sendToBackend);
+    $("#send-to-backend-btn").on('click', sendToBackend);
 });
