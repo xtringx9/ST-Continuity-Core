@@ -16,7 +16,7 @@
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background-color: #007bff;
+    background-color: #7c89a4;
     color: white;
     border: none;
     cursor: pointer;
@@ -32,7 +32,7 @@
 }
 
 #continuity-fab-main-btn:hover {
-    background-color: #0056b3;
+    background-color: #b4c0e8;
 }
 
 #continuity-fab-main-btn span {
@@ -66,7 +66,7 @@
     margin-bottom: 10px;
     padding: 8px 12px;
     border-radius: 8px;
-    background-color: #007bff;
+    background-color: #7c89a4;
     color: white;
     border: none;
     cursor: pointer;
@@ -81,7 +81,7 @@
 }
 
 .continuity-fab-menu .continuity-fab-item:hover {
-    background-color: #0056b3;
+    background-color: #b4c0e8;
     transform: scale(1.1);
     /* 鼠标悬浮时放大 */
 }
