@@ -129,6 +129,11 @@ export function renderModulesFromConfig(config) {
         
         // 设置模块名称
         moduleItem.find('.module-name').val(module.name);
+        
+        // 设置模块提示词
+        if (module.prompt) {
+            moduleItem.find('.module-prompt-input').val(module.prompt);
+        }
 
         // 清空默认变量
         moduleItem.find('.variable-item').not('.variable-template').remove();
