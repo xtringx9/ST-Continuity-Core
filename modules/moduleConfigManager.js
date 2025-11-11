@@ -1,6 +1,17 @@
 // 模块配置管理模块
 import { extensionFolderPath } from "./config.js";
 
+// 声明外部函数（在uiManager.js中定义）
+let bindModuleEvents = null;
+
+/**
+ * 设置bindModuleEvents函数引用
+ * @param {Function} fn bindModuleEvents函数
+ */
+export function setBindModuleEvents(fn) {
+    bindModuleEvents = fn;
+}
+
 /**
  * 保存模块配置到本地存储
  * @param {Array} modules 模块配置数组
@@ -9,10 +20,10 @@ export function saveModuleConfig(modules) {
     const config = { modules };
     try {
         localStorage.setItem('continuity_module_config', JSON.stringify(config));
-        console.log('模块配置已保存到本地存储');
+        console.log('[Continuity] 模块配置已保存到本地存储');
         return true;
     } catch (error) {
-        console.error('保存模块配置失败:', error);
+        console.error('[Continuity] 保存模块配置失败:', error);
         return false;
     }
 }
@@ -26,11 +37,11 @@ export function loadModuleConfig() {
         const configStr = localStorage.getItem('continuity_module_config');
         if (configStr) {
             const config = JSON.parse(configStr);
-            console.log('从本地存储加载模块配置:', config);
+            console.log('[Continuity] 从本地存储加载模块配置:', config);
             return config;
         }
     } catch (error) {
-        console.error('加载模块配置失败:', error);
+        console.error('[Continuity] 加载模块配置失败:', error);
     }
     return null;
 }
@@ -51,7 +62,7 @@ export function exportModuleConfig(modules) {
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
 
-    console.log('模块配置已导出为JSON文件');
+    console.log('[Continuity] 模块配置已导出为JSON文件');
 }
 
 /**
@@ -67,7 +78,7 @@ export function importModuleConfig(file) {
         }
 
         if (file.type && file.type !== 'application/json') {
-            console.error('文件类型错误，需要JSON文件');
+            console.error('[Continuity] 文件类型错误，需要JSON文件');
             toastr.error('文件类型错误，请选择JSON文件');
             resolve(null);
             return;
@@ -84,16 +95,16 @@ export function importModuleConfig(file) {
                 if (!config.modules || !Array.isArray(config.modules)) {
                     throw new Error('无效的配置格式，缺少modules数组');
                 }
-                console.log('成功导入模块配置:', config);
+                console.log('[Continuity] 成功导入模块配置:', config);
                 resolve(config);
             } catch (error) {
-                console.error('解析JSON文件失败:', error);
+                console.error('[Continuity] 解析JSON文件失败:', error);
                 toastr.error('解析JSON文件失败，请检查文件格式');
                 resolve(null);
             }
         };
         reader.onerror = () => {
-            console.error('读取文件失败');
+            console.error('[Continuity] 读取文件失败');
             toastr.error('读取文件失败');
             resolve(null);
         };
@@ -170,6 +181,11 @@ export function renderModulesFromConfig(config) {
 
         // 添加到custom-modules-container
         $('.custom-modules-container').append(moduleElement);
+
+        // 绑定模块事件
+        if (bindModuleEvents) {
+            bindModuleEvents(moduleItem);
+        }
 
         // 更新模块预览
         updateModulePreview(moduleItem);

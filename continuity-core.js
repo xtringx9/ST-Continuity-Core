@@ -2,7 +2,7 @@
 import { initializeSettings } from "./modules/settingsManager.js";
 import { loadSettingsPanel, createFabMenu } from "./modules/uiManager.js";
 
-console.log("♥️ Continuity Core LOADED!");
+console.log("[Continuity] ♥️ Continuity Core LOADED!");
 
 // 当文档加载完毕后执行
 jQuery(async function () {

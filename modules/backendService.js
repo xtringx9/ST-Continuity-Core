@@ -47,7 +47,7 @@ export async function sendToBackend() {
         const result = await response.json();
         toastr.success(`后端返回: "${result.response}"`);
     } catch (error) {
-        console.error("发送到后端失败:", error);
+        console.error("[Continuity] 发送到后端失败:", error);
         toastr.error(`发送失败: ${error.message}`);
     }
 }
