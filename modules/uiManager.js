@@ -70,35 +70,136 @@ export async function openModuleConfigWindow() {
             $("#continuity-window-close").on('click', closeModuleConfigWindow);
             $("#module-cancel-btn").on('click', closeModuleConfigWindow);
 
-            // 绑定确认按钮事件
-            $("#module-save-btn").on('click', function () {
-                // 获取所有模块配置
-                const moduleConfigs = {
-                    // 伏笔模块配置
-                    seedModule: {
-                        enabled: $("#seed-module-toggle").is(":checked"),
-                        updateInterval: $("#seed-update-interval").val(),
-                        maxCount: $("#seed-max-count").val(),
-                        formatTemplate: $("#seed-format-template").val()
-                    },
-                    // 人物关系模块配置
-                    relationshipModule: {
-                        enabled: $("#relationship-module-toggle").is(":checked"),
-                        trackingMode: $("#relationship-tracking-mode").val(),
-                        strengthRange: $("#relationship-strength-range").val()
-                    },
-                    // 世界设定模块配置
-                    worldModule: {
-                        enabled: $("#world-module-toggle").is(":checked"),
-                        autoIncludePriority: $("#world-auto-include").val(),
-                        categories: $("#world-categories").val()
-                    }
-                };
-
-                console.log("模块配置数据:", moduleConfigs);
-                toastr.success("模块配置已保存！");
-                closeModuleConfigWindow();
+            // 添加模块功能
+        function addModule() {
+            const template = $('.module-template').clone();
+            template.removeClass('module-template').css('display', 'block');
+            $('.custom-modules-container').append(template);
+            
+            // 绑定事件
+            bindModuleEvents(template);
+            
+            // 初始化预览
+            updateModulePreview(template.find('.module-item'));
+        }
+        
+        // 添加变量功能
+        function addVariable(moduleItem) {
+            const template = moduleItem.find('.variable-template').clone();
+            template.removeClass('variable-template').css('display', 'block');
+            moduleItem.find('.variables-container').append(template);
+            
+            // 绑定删除变量事件
+            template.find('.remove-variable').on('click', function() {
+                $(this).closest('.variable-item').remove();
+                updateModulePreview(moduleItem);
             });
+            
+            // 绑定输入事件
+            template.find('input').on('input', function() {
+                updateModulePreview(moduleItem);
+            });
+            
+            // 更新预览
+            updateModulePreview(moduleItem);
+        }
+        
+        // 更新模块预览
+        function updateModulePreview(moduleItem) {
+            const moduleName = moduleItem.find('.module-name').val() || '模块名';
+            const variables = moduleItem.find('.variable-item').map(function() {
+                const varName = $(this).find('.variable-name').val() || '变量名';
+                return varName + ':值';
+            }).get();
+            
+            const previewText = variables.length > 0 
+                ? `[${moduleName}|${variables.join('|')}]` 
+                : `[${moduleName}]`;
+                
+            moduleItem.find('.module-preview-text').val(previewText);
+        }
+        
+        // 绑定模块相关事件
+        function bindModuleEvents(moduleElement) {
+            const moduleItem = moduleElement.find('.module-item');
+            
+            // 模块名称输入事件
+            moduleItem.find('.module-name').on('input', function() {
+                updateModulePreview(moduleItem);
+            });
+            
+            // 添加变量按钮事件
+            moduleItem.find('.add-variable').on('click', function() {
+                addVariable(moduleItem);
+            });
+            
+            // 删除模块按钮事件
+            moduleItem.find('.remove-module').on('click', function() {
+                if (confirm('确定要删除这个模块吗？')) {
+                    moduleElement.remove();
+                }
+            });
+            
+            // 已有的变量事件绑定
+            moduleItem.find('.variable-item').each(function() {
+                const variableItem = $(this);
+                
+                // 变量输入事件
+                variableItem.find('input').on('input', function() {
+                    updateModulePreview(moduleItem);
+                });
+                
+                // 删除变量事件
+                variableItem.find('.remove-variable').on('click', function() {
+                    variableItem.remove();
+                    updateModulePreview(moduleItem);
+                });
+            });
+        }
+        
+        // 绑定确认按钮事件
+        $("#module-save-btn").on('click', function () {
+            const modules = [];
+            
+            // 收集所有模块数据
+            $('.module-item').each(function() {
+                const moduleName = $(this).find('.module-name').val();
+                if (!moduleName) return; // 跳过没有名称的模块
+                
+                const variables = [];
+                $(this).find('.variable-item').each(function() {
+                    const varName = $(this).find('.variable-name').val();
+                    const varDesc = $(this).find('.variable-desc').val();
+                    
+                    if (varName) {
+                        variables.push({
+                            name: varName,
+                            description: varDesc
+                        });
+                    }
+                });
+                
+                modules.push({
+                    name: moduleName,
+                    variables: variables
+                });
+            });
+            
+            // 保存配置
+            const config = {
+                modules: modules
+            };
+            
+            console.log('保存模块配置:', config);
+            toastr.success("模块配置已保存！");
+            closeModuleConfigWindow();
+        });
+        
+        // 添加模块按钮事件
+        $('#add-module-btn').on('click', addModule);
+        
+        // 绑定默认模块的事件
+        bindModuleEvents($('.module-item').first().parent());
         }
 
         // 显示窗口和背景
