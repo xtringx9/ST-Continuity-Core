@@ -16,19 +16,19 @@
 
 #continuity-module-config-window {
     background-color: #7c89a4;
-    border-radius: 8px 0 0 8px;
+    border-radius: 0 8px 8px 0;
     padding: 20px;
-    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
     width: 90%;
     max-width: 450px;
     height: 100vh;
     overflow-y: auto;
-    transform: translateX(100%);
+    transform: translateX(-100%);
     opacity: 0;
     transition: all 0.3s ease;
     position: fixed;
     top: 0;
-    right: 0;
+    left: 0;
     color: white;
     display: block;
     z-index: 10000;
@@ -36,11 +36,6 @@
 
 #continuity-module-config-window.show {
     transform: translateX(0);
-    opacity: 1;
-}
-
-#continuity-module-config-window.show {
-    transform: scale(1);
     opacity: 1;
 }
 
@@ -183,34 +178,52 @@ input:checked+.toggle-slider:before {
     align-items: center;
     margin-bottom: 15px;
     font-weight: 600;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.btn-small {
-    padding: 6px 12px;
-    background-color: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    color: white;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
+.header-actions {
+    display: flex;
+    gap: 8px;
     align-items: center;
-    gap: 5px;
+
+    .btn-small {
+        padding: 6px 12px;
+        background-color: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 4px;
+        color: white;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .btn-small:hover {
+        background-color: rgba(255, 255, 255, 0.3);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
 }
 
-.btn-small:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
+/* 模块样式 - 移到.header-actions外并增强 */
 .module-item {
     background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    margin-bottom: 20px;
+    border-radius: 8px;
+    padding: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    margin-bottom: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.module-item:hover {
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
 }
 
 .module-header {
@@ -411,6 +424,13 @@ input:checked+.toggle-slider:before {
     font-family: monospace;
     min-height: 60px;
     resize: vertical;
+    margin-bottom: 15px;
+}
+
+.module-preview-text:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* 按钮区域 */

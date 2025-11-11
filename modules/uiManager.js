@@ -2,6 +2,7 @@
 import { extensionFolderPath } from "./config.js";
 import { loadSettingsToUI, onEnabledToggle, onBackendUrlChange } from "./settingsManager.js";
 import { sendToBackend } from "./backendService.js";
+import { saveModuleConfig, loadModuleConfig, exportModuleConfig, importModuleConfig, renderModulesFromConfig } from "./moduleConfigManager.js";
 
 // 加载CSS文件
 function loadCSS() {
@@ -157,6 +158,77 @@ export async function openModuleConfigWindow() {
             });
         }
         
+        // 初始化JSON导入功能
+        function initJsonImportExport() {
+            // 创建隐藏的文件输入框
+            let importInput = $('#json-import-input');
+            if (!importInput.length) {
+                importInput = $(`<input type="file" id="json-import-input" accept=".json" style="display: none;">`);
+                $('body').append(importInput);
+            }
+            
+            // 导入按钮事件
+            $('#import-config-btn').on('click', function() {
+                importInput.click();
+            });
+            
+            // 文件选择事件
+            importInput.on('change', async function(event) {
+                // 使用event.target并断言为HTMLInputElement
+                const target = event.target;
+                if (target instanceof HTMLInputElement && target.files && target.files[0]) {
+                    const config = await importModuleConfig(target.files[0]);
+                    if (config) {
+                        renderModulesFromConfig(config);
+                        // 重新绑定所有模块的事件（选择模块容器而不是.module-item）
+                        $('.custom-modules-container > div:not(.module-template)').each(function() {
+                            bindModuleEvents($(this));
+                        });
+                        toastr.success('模块配置导入成功！');
+                    }
+                    // 清空文件输入，允许重复选择同一文件
+                    target.value = '';
+                }
+            });
+            
+            // 导出按钮事件
+            $('#export-config-btn').on('click', function() {
+                const modules = [];
+                
+                // 收集所有模块数据
+                $('.module-item').each(function() {
+                    const moduleName = $(this).find('.module-name').val();
+                    if (!moduleName) return; // 跳过没有名称的模块
+                    
+                    const variables = [];
+                    $(this).find('.variable-item').each(function() {
+                        const varName = $(this).find('.variable-name').val();
+                        const varDesc = $(this).find('.variable-desc').val();
+                        
+                        if (varName) {
+                            variables.push({
+                                name: varName,
+                                description: varDesc
+                            });
+                        }
+                    });
+                    
+                    modules.push({
+                        name: moduleName,
+                        variables: variables
+                    });
+                });
+                
+                if (modules.length === 0) {
+                    toastr.warning('没有可导出的模块配置');
+                    return;
+                }
+                
+                exportModuleConfig(modules);
+                toastr.success('模块配置已导出');
+            });
+        }
+        
         // 绑定确认按钮事件
         $("#module-save-btn").on('click', function () {
             const modules = [];
@@ -185,14 +257,13 @@ export async function openModuleConfigWindow() {
                 });
             });
             
-            // 保存配置
-            const config = {
-                modules: modules
-            };
-            
-            console.log('保存模块配置:', config);
-            toastr.success("模块配置已保存！");
-            closeModuleConfigWindow();
+            // 保存配置到本地存储
+            if (saveModuleConfig(modules)) {
+                toastr.success("模块配置已保存！");
+                closeModuleConfigWindow();
+            } else {
+                toastr.error("保存模块配置失败");
+            }
         });
         
         // 添加模块按钮事件
@@ -200,6 +271,20 @@ export async function openModuleConfigWindow() {
         
         // 绑定默认模块的事件
         bindModuleEvents($('.module-item').first().parent());
+        
+        // 初始化JSON导入导出功能
+        initJsonImportExport();
+        
+        // 尝试从本地存储加载配置
+        const savedConfig = loadModuleConfig();
+        if (savedConfig) {
+            renderModulesFromConfig(savedConfig);
+            // 重新绑定所有模块的事件
+            $('.module-item').each(function() {
+                bindModuleEvents($(this).parent());
+                updateModulePreview($(this));
+            });
+        }
         }
 
         // 显示窗口和背景
