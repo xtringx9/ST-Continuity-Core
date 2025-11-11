@@ -7,6 +7,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* 防止容器大小变化影响按钮 */
+    width: fit-content;
+    height: fit-content;
+}
+
+/* 为移动设备优化容器位置 */
+@media (max-width: 768px) {
+    #continuity-fab-container {
+        bottom: 150px;
+        left: 15px;
+        /* 确保容器不会压缩按钮 */
+        padding: 5px;
+    }
 }
 
 /* --- 主按钮样式 - 使用用户提供的样式 --- */
@@ -16,17 +29,35 @@
     justify-content: center;
     width: 32px;
     height: 32px;
+    min-width: 32px;
+    min-height: 32px;
     background-color: #7c89a4;
     border-radius: 50%;
     cursor: pointer;
     margin: 0px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: rgba(0, 0, 0, 0.3) 0px 4px 12px;
-    transition: 0.3s;
     border: none;
     color: white;
     font-size: 20px;
     line-height: 32px;
+    box-shadow: rgba(0, 0, 0, 0.3) 0px 4px 12px;
+    transition: 0.3s;
+    /* 确保在任何情况下都保持正方形/圆形 */
+    aspect-ratio: 1;
+    /* 防止被其他CSS覆盖 */
+    padding: 0 !important;
+    flex-shrink: 0;
+}
+
+/* 响应式调整 - 为移动设备优化 */
+@media (max-width: 768px) {
+    #continuity-fab-main-btn {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        font-size: 24px;
+        line-height: 40px;
+    }
 }
 
 #continuity-fab-main-btn:hover {
@@ -35,6 +66,28 @@
 
 #continuity-fab-main-btn span {
     transition: transform 0.3s ease;
+    /* 确保内部元素不会影响按钮形状 */
+    display: block;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    line-height: inherit;
+}
+
+/* 添加更强大的覆盖保护 */
+#continuity-fab-main-btn {
+    /* 确保边框不影响尺寸计算 */
+    box-sizing: content-box !important;
+    /* 防止被其他样式覆盖的关键属性 */
+    width: 32px !important;
+    height: 32px !important;
+}
+
+@media (max-width: 768px) {
+    #continuity-fab-main-btn {
+        width: 40px !important;
+        height: 40px !important;
+    }
 }
 
 /* --- 菜单容器样式 --- */

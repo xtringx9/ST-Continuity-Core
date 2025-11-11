@@ -122,9 +122,9 @@ jQuery(async function () {
     const settingsHtml = await $.get(`${extensionFolderPath}/settings-panel.html`);
     $("#extensions_settings").append(settingsHtml);
 
-    // 1. 创建更复杂的HTML结构，并默认展开
+    // 1. 创建更复杂的HTML结构，默认关闭菜单
     const fabContainer = $(`
-        <div id="continuity-fab-container" class="open">
+        <div id="continuity-fab-container">
             <div class="continuity-fab-menu">
                 <button id="send-to-backend-btn" class="continuity-fab-item">发送最新楼层</button>
                 <button class="continuity-fab-item">功能二</button>
