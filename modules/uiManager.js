@@ -2,7 +2,7 @@
 import { extensionFolderPath } from "./config.js";
 import { loadSettingsToUI, onEnabledToggle, onBackendUrlChange } from "./settingsManager.js";
 import { sendToBackend } from "./backendService.js";
-import { saveModuleConfig, loadModuleConfig, exportModuleConfig, importModuleConfig, renderModulesFromConfig } from "./moduleConfigManager.js";
+import { saveModuleConfig, loadModuleConfig, exportModuleConfig, importModuleConfig, renderModulesFromConfig, setBindModuleEvents } from "./moduleConfigManager.js";
 
 // 加载CSS文件
 function loadCSS() {
@@ -86,23 +86,67 @@ export async function openModuleConfigWindow() {
 
             // 添加变量功能
             function addVariable(moduleItem) {
-                const template = moduleItem.find('.variable-template').clone();
-                template.removeClass('variable-template').css('display', 'block');
-                moduleItem.find('.variables-container').append(template);
+                console.log('[Continuity] addVariable函数开始执行');
+                console.log('[Continuity] 传入的moduleItem:', moduleItem);
+                console.log('[Continuity] moduleItem长度:', moduleItem.length);
+                console.log('[Continuity] moduleItem选择器:', moduleItem.selector || '无选择器');
+
+                // 检查变量容器
+                const variablesContainer = moduleItem.find('.variables-container');
+                console.log('[Continuity] 找到的变量容器数量:', variablesContainer.length);
+
+                if (variablesContainer.length === 0) {
+                    console.error('[Continuity] 未找到变量容器');
+                    return;
+                }
+
+                // 创建新的变量项HTML（因为模板是空的）
+                const variableItemHTML = `
+                    <div class="variable-item">
+                        <div class="variable-name-group">
+                            <label>变量名</label>
+                            <input type="text" class="variable-name" placeholder="变量名">
+                        </div>
+                        <div class="variable-desc-group">
+                            <label>变量解释</label>
+                            <input type="text" class="variable-desc" placeholder="变量含义说明">
+                        </div>
+                        <div class="variable-actions">
+                            <button class="btn-small remove-variable">-</button>
+                        </div>
+                    </div>
+                `;
+
+                console.log('[Continuity] 创建变量项HTML成功');
+
+                // 将HTML转换为jQuery对象
+                const variableItem = $(variableItemHTML);
+                console.log('[Continuity] 变量项创建成功');
+                console.log('[Continuity] 变量项类名:', variableItem.attr('class'));
+
+                variablesContainer.append(variableItem);
+                console.log('[Continuity] 变量项添加到容器成功');
+
+                // 检查添加后的容器内容
+                console.log('[Continuity] 添加后容器内.variable-item数量:', variablesContainer.find('.variable-item').length);
+                console.log('[Continuity] 添加后容器内HTML:', variablesContainer.html());
 
                 // 绑定删除变量事件
-                template.find('.remove-variable').on('click', function () {
+                variableItem.find('.remove-variable').on('click', function () {
+                    console.log('[Continuity] 删除变量按钮被点击');
                     $(this).closest('.variable-item').remove();
                     updateModulePreview(moduleItem);
                 });
 
                 // 绑定输入事件
-                template.find('input').on('input', function () {
+                variableItem.find('input').on('input', function () {
+                    console.log('[Continuity] 变量输入框内容变化');
                     updateModulePreview(moduleItem);
                 });
 
                 // 更新预览
                 updateModulePreview(moduleItem);
+                console.log('[Continuity] addVariable函数执行完成');
             }
 
             // 更新模块预览
@@ -126,7 +170,16 @@ export async function openModuleConfigWindow() {
 
             // 绑定模块相关事件
             function bindModuleEvents(moduleElement) {
-                const moduleItem = moduleElement.find('.module-item');
+                // 如果传入的是.module-item元素，直接使用
+                // 如果传入的是父容器，则查找.module-item
+                const moduleItem = moduleElement.hasClass('module-item') ? moduleElement : moduleElement.find('.module-item');
+
+                // 先解绑所有事件，避免重复绑定
+                moduleItem.find('.module-name').off('input');
+                moduleItem.find('.add-variable').off('click');
+                moduleItem.find('.remove-module').off('click');
+                moduleItem.find('.variable-item input').off('input');
+                moduleItem.find('.variable-item .remove-variable').off('click');
 
                 // 模块名称输入事件
                 moduleItem.find('.module-name').on('input', function () {
@@ -135,19 +188,37 @@ export async function openModuleConfigWindow() {
 
                 // 添加变量按钮事件
                 moduleItem.find('.add-variable').on('click', function () {
-                    addVariable(moduleItem);
+                    console.log('[Continuity] 添加变量按钮被点击');
+                    console.log('[Continuity] 按钮元素:', this);
+                    console.log('[Continuity] 按钮类名:', this.className);
+                    console.log('[Continuity] 按钮文本:', this.textContent || this.innerText);
+                    console.log('[Continuity] 模块项:', moduleItem);
+                    console.log('[Continuity] 模块项长度:', moduleItem.length);
+                    console.log('[Continuity] 模块项选择器:', moduleItem.selector || '无选择器');
+                    console.log('[Continuity] 当前模块变量数量:', moduleItem.find('.variable-item').length);
+
+                    try {
+                        addVariable(moduleItem);
+                        console.log('[Continuity] addVariable函数调用成功');
+                    } catch (error) {
+                        console.error('[Continuity] addVariable函数调用失败:', error);
+                    }
                 });
 
                 // 删除模块按钮事件
                 moduleItem.find('.remove-module').on('click', function () {
                     if (confirm('确定要删除这个模块吗？')) {
-                        moduleElement.remove();
+                        moduleItem.closest('.custom-modules-container > div').remove();
                     }
                 });
 
                 // 已有的变量事件绑定
                 moduleItem.find('.variable-item').each(function () {
                     const variableItem = $(this);
+
+                    // 先解绑事件
+                    variableItem.find('input').off('input');
+                    variableItem.find('.remove-variable').off('click');
 
                     // 变量输入事件
                     variableItem.find('input').on('input', function () {
@@ -161,6 +232,9 @@ export async function openModuleConfigWindow() {
                     });
                 });
             }
+
+            // 设置bindModuleEvents函数引用给moduleConfigManager
+            setBindModuleEvents(bindModuleEvents);
 
             // 初始化JSON导入功能
             function initJsonImportExport() {
@@ -281,11 +355,10 @@ export async function openModuleConfigWindow() {
             // 添加模块按钮事件
             $('#add-module-btn').on('click', addModule);
 
-            // 检查是否有模块项，如果有则绑定事件
-            const firstModule = $('.module-item').first();
-            if (firstModule.length > 0) {
-                bindModuleEvents(firstModule.parent());
-            }
+            // 绑定所有现有模块的事件
+            $('.module-item').each(function () {
+                bindModuleEvents($(this));
+            });
 
             // 初始化JSON导入导出功能
             initJsonImportExport();
@@ -294,10 +367,15 @@ export async function openModuleConfigWindow() {
             const savedConfig = loadModuleConfig();
             if (savedConfig) {
                 renderModulesFromConfig(savedConfig);
-                // 重新绑定所有模块的事件
-                $('.module-item').each(function () {
-                    bindModuleEvents($(this).parent());
-                    updateModulePreview($(this));
+                // 重新绑定所有模块的事件，包括添加变量按钮
+                $('.custom-modules-container > div:not(.module-template)').each(function () {
+                    const moduleItem = $(this).find('.module-item');
+                    if (moduleItem.length) {
+                        // 重新绑定模块事件
+                        bindModuleEvents(moduleItem);
+                        // 更新模块预览
+                        updateModulePreview(moduleItem);
+                    }
                 });
             }
         }
