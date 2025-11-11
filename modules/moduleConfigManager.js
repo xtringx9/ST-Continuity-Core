@@ -109,7 +109,7 @@ export function renderModulesFromConfig(config) {
     if (!config || !config.modules) return;
 
     // 清空现有模块（保留模板和标题区域）
-    $('.custom-modules-container > div').each(function() {
+    $('.custom-modules-container > div').each(function () {
         if (!$(this).hasClass('module-template') && !$(this).hasClass('section-title')) {
             $(this).remove();
         }
@@ -126,10 +126,10 @@ export function renderModulesFromConfig(config) {
 
         // 获取模块内部的module-item
         const moduleItem = moduleElement.find('.module-item');
-        
+
         // 设置模块名称
         moduleItem.find('.module-name').val(module.name);
-        
+
         // 设置模块提示词
         if (module.prompt) {
             moduleItem.find('.module-prompt-input').val(module.prompt);
@@ -146,18 +146,50 @@ export function renderModulesFromConfig(config) {
             module.variables.forEach(variable => {
                 if (!variable.name) return;
 
-                // 直接创建变量项HTML结构
-                const templateItem = $('<div class="variable-item" style="display: block;"></div>');
-                templateItem.append('<input type="text" class="variable-name" placeholder="变量名" value="' + (variable.name || '') + '">');
-                templateItem.append('<input type="text" class="variable-desc" placeholder="变量描述" value="' + (variable.description || '') + '">');
-                templateItem.append('<button class="remove-variable">移除变量</button>');
+                // 创建与HTML模板一致的变量项结构
+                const templateItem = $(`
+                    <div class="variable-item">
+                        <div class="variable-name-group">
+                            <label>变量名</label>
+                            <input type="text" class="variable-name" placeholder="变量名" value="${variable.name || ''}">
+                        </div>
+                        <div class="variable-desc-group">
+                            <label>变量解释</label>
+                            <input type="text" class="variable-desc" placeholder="变量含义说明" value="${variable.description || ''}">
+                        </div>
+                        <div class="variable-actions">
+                            <button class="btn-small remove-variable">-</button>
+                        </div>
+                    </div>
+                `);
 
-                // 直接添加variable-item到容器
+                // 添加variable-item到容器
                 variablesContainer.append(templateItem);
             });
         }
 
         // 添加到custom-modules-container
         $('.custom-modules-container').append(moduleElement);
+
+        // 更新模块预览
+        updateModulePreview(moduleItem);
     });
+}
+
+/**
+ * 更新模块预览
+ * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
+ */
+function updateModulePreview(moduleItem) {
+    const moduleName = moduleItem.find('.module-name').val() || '模块名';
+    const variables = moduleItem.find('.variable-item').map(function () {
+        const varName = $(this).find('.variable-name').val() || '变量名';
+        return varName + ':值';
+    }).get();
+
+    const previewText = variables.length > 0
+        ? `[${moduleName}|${variables.join('|')}]`
+        : `[${moduleName}]`;
+
+    moduleItem.find('.module-preview-text').val(previewText);
 }
