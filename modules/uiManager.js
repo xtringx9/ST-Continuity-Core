@@ -277,8 +277,11 @@ export async function openModuleConfigWindow() {
         // 添加模块按钮事件
         $('#add-module-btn').on('click', addModule);
         
-        // 绑定默认模块的事件
-        bindModuleEvents($('.module-item').first().parent());
+        // 检查是否有模块项，如果有则绑定事件
+        const firstModule = $('.module-item').first();
+        if (firstModule.length > 0) {
+            bindModuleEvents(firstModule.parent());
+        }
         
         // 初始化JSON导入导出功能
         initJsonImportExport();
