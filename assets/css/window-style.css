@@ -168,82 +168,89 @@ input:checked+.toggle-slider:before {
 .custom-modules-container {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 15px;
 }
 
 .section-title {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 8px;
     font-weight: 600;
-    padding-bottom: 10px;
+    padding-bottom: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .header-actions {
     display: flex;
-    gap: 8px;
+    gap: 5px;
     align-items: center;
 
     .btn-small {
-        padding: 6px 12px;
+        padding: 4px 8px;
         background-color: rgba(255, 255, 255, 0.2);
         border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 4px;
         color: white;
-        font-size: 13px;
+        font-size: 12px;
         cursor: pointer;
         transition: all 0.2s;
         display: inline-flex;
         align-items: center;
-        gap: 5px;
+        gap: 3px;
     }
 
     .btn-small:hover {
         background-color: rgba(255, 255, 255, 0.3);
-        transform: translateY(-1px);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 }
 
-/* 模块样式 - 移到.header-actions外并增强 */
+/* 模块样式 - 优化信息密度 */
 .module-item {
     background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 20px;
-    border: 3px solid rgba(255, 255, 255, 0.4);
-    margin-bottom: 25px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    padding: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    margin-bottom: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
-    position: relative;
 }
 
 .module-item:hover {
-    border-color: rgba(255, 255, 255, 0.6);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
 
 .module-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 15px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.module-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
 }
 
 .module-name-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     flex: 1;
-    margin-right: 15px;
+    max-width: 200px;
 }
 
 .module-name-group label {
-    display: block;
-    margin-bottom: 5px;
+    white-space: nowrap;
     font-weight: 500;
-    font-size: 13px;
+    font-size: 12px;
     color: rgba(255, 255, 255, 0.9);
+    margin: 0;
 }
 
 .module-name {
@@ -251,10 +258,37 @@ input:checked+.toggle-slider:before {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
-    padding: 8px 12px;
-    font-size: 14px;
+    padding: 6px 8px;
+    font-size: 13px;
     color: #333;
     transition: border-color 0.2s;
+}
+
+.module-limit-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 120px;
+}
+
+.module-limit-group label {
+    white-space: nowrap;
+    font-weight: 500;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+}
+
+.module-limit {
+    width: 60px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #333;
+    transition: border-color 0.2s;
+    text-align: center;
 }
 
 .module-name:focus {
@@ -265,53 +299,76 @@ input:checked+.toggle-slider:before {
 
 .module-actions {
     display: flex;
-    gap: 5px;
+    gap: 3px;
 }
 
 .module-actions .btn-small {
-    padding: 6px 10px;
-    min-width: 30px;
+    padding: 4px 8px;
+    min-width: 28px;
     justify-content: center;
+    font-size: 11px;
 }
 
 /* 变量样式 */
 .variables-container {
-    margin-bottom: 15px;
+    margin-bottom: 8px;
 }
 
 .variable-item {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 10px;
-    margin-bottom: 10px;
-    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    padding: 6px;
     background-color: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-wrap: wrap;
 }
 
 .variable-name-group,
 .variable-desc-group {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.variable-name-group {
+    min-width: 120px;
+}
+
+.variable-desc-group {
+    flex: 1;
 }
 
 .variable-name-group label,
 .variable-desc-group label {
-    margin-bottom: 5px;
-    font-size: 12px;
+    white-space: nowrap;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.9);
+    margin: 0;
 }
 
-.variable-name,
+.variable-name {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 11px;
+    color: #333;
+    transition: border-color 0.2s;
+    width: 100px;
+}
+
 .variable-desc {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
-    padding: 6px 8px;
-    font-size: 12px;
+    padding: 4px 6px;
+    font-size: 11px;
     color: #333;
     transition: border-color 0.2s;
+    flex: 1;
 }
 
 .variable-name:focus,
@@ -323,20 +380,57 @@ input:checked+.toggle-slider:before {
 
 .variable-actions {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
+    white-space: nowrap;
 }
 
 .variable-actions .btn-small {
-    padding: 6px 10px;
-    min-width: 30px;
+    padding: 4px 8px;
+    min-width: 28px;
     justify-content: center;
+    font-size: 11px;
 }
 
 /* 预览样式 */
-.module-preview {
-    margin-top: 15px;
+.module-prompt {
+    margin-top: 8px;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.module-prompt label {
+    white-space: nowrap;
+    font-weight: 500;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+}
+
+.module-prompt-input {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 12px;
+    color: #333;
+    font-family: monospace;
+    min-height: 30px;
+    resize: vertical;
+    flex: 1;
+}
+
+.module-prompt-input:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.module-preview {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .form-grid {
@@ -386,45 +480,46 @@ input:checked+.toggle-slider:before {
 /* 信息区域 */
 .info-section {
     background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 12px 16px;
-    margin-bottom: 15px;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
     border-left: 3px solid #b4c0e8;
 }
 
 .info-section p {
-    margin: 5px 0;
-    font-size: 13px;
-    line-height: 1.4;
+    margin: 3px 0;
+    font-size: 12px;
+    line-height: 1.3;
 }
 
 .info-section .example {
     font-style: italic;
     color: rgba(255, 255, 255, 0.8);
-    margin-top: 8px;
-    padding-top: 8px;
+    margin-top: 5px;
+    padding-top: 5px;
     border-top: 1px dashed rgba(255, 255, 255, 0.2);
 }
 
 /* 预览文本样式 */
 .module-preview label {
-    margin-bottom: 5px;
+    white-space: nowrap;
     font-weight: 500;
-    font-size: 13px;
+    font-size: 12px;
     color: rgba(255, 255, 255, 0.9);
+    margin: 0;
 }
 
 .module-preview-text {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
-    padding: 8px 12px;
-    font-size: 13px;
+    padding: 6px 8px;
+    font-size: 12px;
     color: #333;
     font-family: monospace;
-    min-height: 60px;
+    min-height: 30px;
     resize: vertical;
-    margin-bottom: 15px;
+    flex: 1;
 }
 
 .module-preview-text:focus {
@@ -437,10 +532,10 @@ input:checked+.toggle-slider:before {
 .window-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 2px solid rgba(255, 255, 255, 0.2);
+    gap: 8px;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 #module-cancel-btn,
@@ -448,10 +543,10 @@ input:checked+.toggle-slider:before {
     background-color: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: white;
-    padding: 8px 20px;
+    padding: 6px 16px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     transition: all 0.2s;
 }
@@ -459,7 +554,6 @@ input:checked+.toggle-slider:before {
 #module-cancel-btn:hover,
 #module-save-btn:hover {
     background-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 

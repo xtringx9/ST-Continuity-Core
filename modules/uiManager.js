@@ -213,9 +213,13 @@ export async function openModuleConfigWindow() {
                         }
                     });
                     
+                    // 获取模块提示词
+                    const modulePrompt = $(this).find('.module-prompt-input').val();
+                    
                     modules.push({
                         name: moduleName,
-                        variables: variables
+                        variables: variables,
+                        prompt: modulePrompt || ''
                     });
                 });
                 
@@ -251,9 +255,13 @@ export async function openModuleConfigWindow() {
                     }
                 });
                 
+                // 获取模块提示词
+                const modulePrompt = $(this).find('.module-prompt-input').val();
+                
                 modules.push({
                     name: moduleName,
-                    variables: variables
+                    variables: variables,
+                    prompt: modulePrompt || ''
                 });
             });
             
