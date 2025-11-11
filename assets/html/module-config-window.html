@@ -4,14 +4,14 @@
         <h2>Continuity 配置面板</h2>
         <button id="continuity-window-close" class="close-btn">✕</button>
     </div>
-    
+
     <div class="info-section">
         <p><strong>配置说明：</strong>在此页面可配置各模块的参数，模块格式为 [模块名|键A:值A|键B:值B...]</p>
         <div class="example">
             <p>示例：[seed|id:编号|desc:伏笔描述|time:植入时间|trigger:触发条件|status:状态]</p>
         </div>
     </div>
-    
+
     <div class="modules-container">
         <!-- 伏笔模块 -->
         <div class="module-section">
@@ -22,37 +22,38 @@
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            
+
             <div class="info-section">
                 <p><strong>功能：</strong>管理伏笔列表，自动根据正文进展增删改未结束的伏笔内容。</p>
                 <p><strong>格式要求：</strong>[seed|id:编号|desc:伏笔描述|time:植入时间|trigger:触发条件|status:状态]</p>
                 <p><strong>状态选项：</strong>已植入/发展中/已触发/已解决/休眠中</p>
             </div>
-            
+
             <div class="form-grid">
                 <div class="form-group">
                     <label for="seed-update-interval">更新间隔(轮次)</label>
                     <input type="number" id="seed-update-interval" min="1" max="10" value="1">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="seed-max-count">最大伏笔数量</label>
                     <input type="number" id="seed-max-count" min="1" max="50" value="10">
                 </div>
-                
+
                 <div class="form-group" style="grid-column: 1 / -1;">
                     <label for="seed-format-template">格式模板</label>
-                    <input type="text" id="seed-format-template" value="[seed|id:{id}|desc:{desc}|time:{time}|trigger:{trigger}|status:{status}]" readonly>
+                    <input type="text" id="seed-format-template"
+                        value="[seed|id:{id}|desc:{desc}|time:{time}|trigger:{trigger}|status:{status}]" readonly>
                 </div>
             </div>
-            
+
             <div>
                 <button class="action-btn add">+ 添加伏笔</button>
                 <button class="action-btn">导入伏笔</button>
                 <button class="action-btn">导出伏笔</button>
             </div>
         </div>
-        
+
         <!-- 人物关系模块 -->
         <div class="module-section">
             <div class="module-header">
@@ -62,12 +63,12 @@
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            
+
             <div class="info-section">
                 <p><strong>功能：</strong>跟踪和维护角色之间的关系状态，自动记录关系变化。</p>
                 <p><strong>格式要求：</strong>[relationship|char1:角色1|char2:角色2|type:关系类型|strength:强度|notes:备注]</p>
             </div>
-            
+
             <div class="form-grid">
                 <div class="form-group">
                     <label for="relationship-tracking-mode">跟踪模式</label>
@@ -77,14 +78,14 @@
                         <option value="hybrid">混合模式</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="relationship-strength-range">强度范围</label>
                     <input type="text" id="relationship-strength-range" value="-100 到 100" readonly>
                 </div>
             </div>
         </div>
-        
+
         <!-- 世界设定模块 -->
         <div class="module-section">
             <div class="module-header">
@@ -94,18 +95,18 @@
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            
+
             <div class="info-section">
                 <p><strong>功能：</strong>管理世界背景、规则和设定，确保故事世界的一致性。</p>
                 <p><strong>格式要求：</strong>[world|key:键名|value:值|category:类别|priority:优先级]</p>
             </div>
-            
+
             <div class="form-grid">
                 <div class="form-group">
                     <label for="world-auto-include">自动包含优先级</label>
                     <input type="number" id="world-auto-include" min="0" max="10" value="5">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="world-categories">启用类别</label>
                     <select id="world-categories" multiple style="min-height: 80px;">
@@ -120,7 +121,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="window-actions">
         <button id="module-cancel-btn">取消</button>
         <button id="module-save-btn">保存配置</button>
