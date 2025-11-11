@@ -26,6 +26,8 @@ export function loadSettingsToUI() {
     $("#continuity_enabled").prop("checked", settings.enabled).trigger("input");
     // 更新后端URL输入框
     $("#continuity_backend_url").val(settings.backendUrl).trigger("input");
+    // 更新调试日志开关
+    $("#continuity_debug_logs").prop("checked", settings.debugLogs).trigger("input");
 
     // 根据设置启用或禁用扩展UI
     updateExtensionUIState(settings.enabled);
@@ -54,6 +56,18 @@ export function onBackendUrlChange(event) {
     const url = $(event.target).val();
     extension_settings[extensionName].backendUrl = url;
     saveSettingsDebounced();
+}
+
+/**
+ * 处理调试日志开关变更
+ * @param {Event} event 事件对象
+ */
+export function onDebugLogsToggle(event) {
+    const debugLogs = Boolean($(event.target).prop("checked"));
+    extension_settings[extensionName].debugLogs = debugLogs;
+    saveSettingsDebounced();
+    
+    toastr.info(debugLogs ? "调试日志已启用" : "调试日志已禁用");
 }
 
 /**

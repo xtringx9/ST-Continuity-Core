@@ -3,6 +3,8 @@ import { extensionFolderPath } from "./config.js";
 import { loadSettingsToUI, onEnabledToggle, onBackendUrlChange } from "./settingsManager.js";
 import { sendToBackend } from "./backendService.js";
 import { saveModuleConfig, loadModuleConfig, exportModuleConfig, importModuleConfig, renderModulesFromConfig, setBindModuleEvents } from "./moduleConfigManager.js";
+import { debugLog, errorLog, infoLog } from "./logger.js";
+import { onDebugLogsToggle } from "./settingsManager.js";
 
 // 加载CSS文件
 function loadCSS() {
@@ -29,6 +31,7 @@ export async function loadSettingsPanel() {
         // 绑定设置变更事件
         $("#continuity_enabled").on("input", onEnabledToggle);
         $("#continuity_backend_url").on("input", onBackendUrlChange);
+        $("#continuity_debug_logs").on("input", onDebugLogsToggle);
 
         // 加载设置到UI
         loadSettingsToUI();
@@ -117,36 +120,36 @@ export async function openModuleConfigWindow() {
                     </div>
                 `;
 
-                console.log('[Continuity] 创建变量项HTML成功');
-
+                debugLog('创建变量项HTML成功');
+                
                 // 将HTML转换为jQuery对象
                 const variableItem = $(variableItemHTML);
-                console.log('[Continuity] 变量项创建成功');
-                console.log('[Continuity] 变量项类名:', variableItem.attr('class'));
-
+                debugLog('变量项创建成功');
+                debugLog('变量项类名:', variableItem.attr('class'));
+                
                 variablesContainer.append(variableItem);
-                console.log('[Continuity] 变量项添加到容器成功');
-
+                debugLog('变量项添加到容器成功');
+                
                 // 检查添加后的容器内容
-                console.log('[Continuity] 添加后容器内.variable-item数量:', variablesContainer.find('.variable-item').length);
-                console.log('[Continuity] 添加后容器内HTML:', variablesContainer.html());
+                debugLog('添加后容器内.variable-item数量:', variablesContainer.find('.variable-item').length);
+                debugLog('添加后容器内HTML:', variablesContainer.html());
 
                 // 绑定删除变量事件
                 variableItem.find('.remove-variable').on('click', function () {
-                    console.log('[Continuity] 删除变量按钮被点击');
+                    debugLog('删除变量按钮被点击');
                     $(this).closest('.variable-item').remove();
                     updateModulePreview(moduleItem);
                 });
 
                 // 绑定输入事件
                 variableItem.find('input').on('input', function () {
-                    console.log('[Continuity] 变量输入框内容变化');
+                    debugLog('变量输入框内容变化');
                     updateModulePreview(moduleItem);
                 });
 
                 // 更新预览
                 updateModulePreview(moduleItem);
-                console.log('[Continuity] addVariable函数执行完成');
+                debugLog('addVariable函数执行完成');
             }
 
             // 更新模块预览
@@ -188,20 +191,20 @@ export async function openModuleConfigWindow() {
 
                 // 添加变量按钮事件
                 moduleItem.find('.add-variable').on('click', function () {
-                    console.log('[Continuity] 添加变量按钮被点击');
-                    console.log('[Continuity] 按钮元素:', this);
-                    console.log('[Continuity] 按钮类名:', this.className);
-                    console.log('[Continuity] 按钮文本:', this.textContent || this.innerText);
-                    console.log('[Continuity] 模块项:', moduleItem);
-                    console.log('[Continuity] 模块项长度:', moduleItem.length);
-                    console.log('[Continuity] 模块项选择器:', moduleItem.selector || '无选择器');
-                    console.log('[Continuity] 当前模块变量数量:', moduleItem.find('.variable-item').length);
+                    debugLog('添加变量按钮被点击');
+                    debugLog('按钮元素:', this);
+                    debugLog('按钮类名:', this.className);
+                    debugLog('按钮文本:', this.textContent || this.innerText);
+                    debugLog('模块项:', moduleItem);
+                    debugLog('模块项长度:', moduleItem.length);
+                    debugLog('模块项选择器:', moduleItem.selector || '无选择器');
+                    debugLog('当前模块变量数量:', moduleItem.find('.variable-item').length);
 
                     try {
                         addVariable(moduleItem);
-                        console.log('[Continuity] addVariable函数调用成功');
+                        debugLog('addVariable函数调用成功');
                     } catch (error) {
-                        console.error('[Continuity] addVariable函数调用失败:', error);
+                        errorLog('addVariable函数调用失败:', error);
                     }
                 });
 

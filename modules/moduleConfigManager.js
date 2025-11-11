@@ -1,5 +1,6 @@
 // 模块配置管理模块
 import { extensionFolderPath } from "./config.js";
+import { debugLog, errorLog, infoLog } from "./logger.js";
 
 // 声明外部函数（在uiManager.js中定义）
 let bindModuleEvents = null;
@@ -20,10 +21,10 @@ export function saveModuleConfig(modules) {
     const config = { modules };
     try {
         localStorage.setItem('continuity_module_config', JSON.stringify(config));
-        console.log('[Continuity] 模块配置已保存到本地存储');
+        infoLog('模块配置已保存到本地存储');
         return true;
     } catch (error) {
-        console.error('[Continuity] 保存模块配置失败:', error);
+        errorLog('保存模块配置失败:', error);
         return false;
     }
 }
@@ -37,11 +38,11 @@ export function loadModuleConfig() {
         const configStr = localStorage.getItem('continuity_module_config');
         if (configStr) {
             const config = JSON.parse(configStr);
-            console.log('[Continuity] 从本地存储加载模块配置:', config);
+            debugLog('从本地存储加载模块配置:', config);
             return config;
         }
     } catch (error) {
-        console.error('[Continuity] 加载模块配置失败:', error);
+        errorLog('加载模块配置失败:', error);
     }
     return null;
 }
@@ -62,7 +63,7 @@ export function exportModuleConfig(modules) {
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
 
-    console.log('[Continuity] 模块配置已导出为JSON文件');
+    infoLog('模块配置已导出为JSON文件');
 }
 
 /**
@@ -78,7 +79,7 @@ export function importModuleConfig(file) {
         }
 
         if (file.type && file.type !== 'application/json') {
-            console.error('[Continuity] 文件类型错误，需要JSON文件');
+            errorLog('文件类型错误，需要JSON文件');
             toastr.error('文件类型错误，请选择JSON文件');
             resolve(null);
             return;
@@ -95,16 +96,16 @@ export function importModuleConfig(file) {
                 if (!config.modules || !Array.isArray(config.modules)) {
                     throw new Error('无效的配置格式，缺少modules数组');
                 }
-                console.log('[Continuity] 成功导入模块配置:', config);
+                debugLog('成功导入模块配置:', config);
                 resolve(config);
             } catch (error) {
-                console.error('[Continuity] 解析JSON文件失败:', error);
+                errorLog('解析JSON文件失败:', error);
                 toastr.error('解析JSON文件失败，请检查文件格式');
                 resolve(null);
             }
         };
         reader.onerror = () => {
-            console.error('[Continuity] 读取文件失败');
+            errorLog('读取文件失败');
             toastr.error('读取文件失败');
             resolve(null);
         };
