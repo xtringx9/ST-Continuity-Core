@@ -2,10 +2,10 @@
 // The following are examples of some basic extension functionality
 
 //You'll likely need to import extension_settings, getContext, and loadExtensionSettings from extensions.js
-import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
+import { extension_settings, getContext, loadExtensionSettings } from "../../../../extensions.js";
 
 //You'll likely need to import some other functions from the main script
-import { saveSettingsDebounced } from "../../../../script.js";
+import { saveSettingsDebounced } from "../../../../../script.js";
 
 // Keep track of where your extension is located, name should match repo name
 const extensionName = "ST-Continuity-Core";
@@ -68,7 +68,7 @@ jQuery(async () => {
 
     // Append settingsHtml to extensions_settings
     // extension_settings and extensions_settings2 are the left and right columns of the settings menu
-    // Left should be extensions that deal with system functions and right should be visual/UI related 
+    // Left should be extensions that deal with system functions and right should be visual/UI related
     $("#extensions_settings").append(settingsHtml);
 
     // These are examples of listening for events

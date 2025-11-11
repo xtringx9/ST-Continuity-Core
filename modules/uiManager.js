@@ -10,7 +10,7 @@ import { sendToBackend } from "./backendService.js";
 export async function loadSettingsPanel() {
     try {
         // 从外部HTML文件加载设置面板结构
-        const settingsHtml = await $.get(`${extensionFolderPath}/settings-panel.html`);
+        const settingsHtml = await $.get(`${extensionFolderPath}/assets/html/settings-panel.html`);
         $("#extensions_settings").append(settingsHtml);
 
         // 绑定设置变更事件
