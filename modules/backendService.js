@@ -2,6 +2,7 @@
 import { chat } from "../../../../../script.js";
 import { extension_settings } from "../../../../extensions.js";
 import { extensionName } from "./config.js";
+import { debugLog, errorLog, infoLog } from "./logger.js";
 
 /**
  * 发送消息到后端服务器
@@ -47,7 +48,7 @@ export async function sendToBackend() {
         const result = await response.json();
         toastr.success(`后端返回: "${result.response}"`);
     } catch (error) {
-        console.error("[Continuity] 发送到后端失败:", error);
+        errorLog("发送到后端失败:", error);
         toastr.error(`发送失败: ${error.message}`);
     }
 }

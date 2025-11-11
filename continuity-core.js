@@ -1,8 +1,9 @@
 // 主模块 - ST-Continuity-Core
 import { initializeSettings } from "./modules/settingsManager.js";
 import { loadSettingsPanel, createFabMenu } from "./modules/uiManager.js";
+import { infoLog } from "./modules/logger.js";
 
-console.log("[Continuity] ♥️ Continuity Core LOADED!");
+infoLog("♥️ Continuity Core LOADED!");
 
 // 当文档加载完毕后执行
 jQuery(async function () {
