@@ -121,15 +121,15 @@ export async function openModuleConfigWindow() {
                 `;
 
                 debugLog('创建变量项HTML成功');
-                
+
                 // 将HTML转换为jQuery对象
                 const variableItem = $(variableItemHTML);
                 debugLog('变量项创建成功');
                 debugLog('变量项类名:', variableItem.attr('class'));
-                
+
                 variablesContainer.append(variableItem);
                 debugLog('变量项添加到容器成功');
-                
+
                 // 检查添加后的容器内容
                 debugLog('添加后容器内.variable-item数量:', variablesContainer.find('.variable-item').length);
                 debugLog('添加后容器内HTML:', variablesContainer.html());
@@ -159,7 +159,10 @@ export async function openModuleConfigWindow() {
              */
             function updateModulePreview(moduleItem) {
                 const moduleName = moduleItem.find('.module-name').val() || '模块名';
-                const variables = moduleItem.find('.variable-item').map(function () {
+                // 只计算可见的变量项，排除隐藏的模板
+                const variables = moduleItem.find('.variable-item').filter(function () {
+                    return $(this).closest('.variable-template').length === 0;
+                }).map(function () {
                     const varName = $(this).find('.variable-name').val() || '变量名';
                     return varName + ':值';
                 }).get();
