@@ -79,6 +79,30 @@ export function bindModuleEvents(moduleElement) {
         updateModulePreview(moduleItem);
     });
 
+    // 更新变量数量显示
+    function updateVariableCount() {
+        const variableCount = moduleItem.find('.variable-item').filter(function () {
+            return $(this).closest('.variable-template').length === 0;
+        }).length;
+        const countElement = moduleItem.find('.toggle-variables .variable-count');
+        countElement.text(`(${variableCount})`);
+    }
+
+    // 初始化变量数量
+    updateVariableCount();
+
+    // 设置默认折叠状态
+    const wrapper = moduleItem.find('.variables-container-wrapper');
+    const button = moduleItem.find('.toggle-variables');
+    const arrow = button.find('.arrow');
+    const text = button.find('.text');
+    
+    // 默认折叠状态
+    wrapper.addClass('collapsed');
+    button.addClass('collapsed');
+    arrow.text('▶');
+    text.text('展开变量');
+
     // 折叠/展开变量按钮事件
     moduleItem.find('.toggle-variables').on('click', function () {
         const wrapper = moduleItem.find('.variables-container-wrapper');
@@ -115,6 +139,8 @@ export function bindModuleEvents(moduleElement) {
         try {
             addVariable(moduleItem);
             debugLog('addVariable函数调用成功');
+            // 更新变量数量
+            updateVariableCount();
         } catch (error) {
             errorLog('addVariable函数调用失败:', error);
         }
@@ -184,6 +210,8 @@ export function bindModuleEvents(moduleElement) {
         variableItem.find('.remove-variable').on('click', function () {
             variableItem.remove();
             updateModulePreview(moduleItem);
+            // 更新变量数量
+            updateVariableCount();
         });
     });
 
