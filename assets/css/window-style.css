@@ -346,6 +346,11 @@ input:checked+.toggle-slider:before {
     transition: all 0.3s ease;
 }
 
+/* 默认折叠状态 */
+.variables-container-wrapper {
+    display: block;
+}
+
 .variables-container-wrapper.collapsed .variables-container {
     display: none;
 }
@@ -382,6 +387,12 @@ input:checked+.toggle-slider:before {
 
 .toggle-variables .text {
     display: inline-block;
+}
+
+.toggle-variables .variable-count {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-left: 4px;
 }
 
 .variable-item {
