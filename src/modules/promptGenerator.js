@@ -1,6 +1,12 @@
 // 提示词生成器模块
 import { debugLog, errorLog, infoLog, getModulesData } from "../index.js";
 
+// 默认插入设置
+const DEFAULT_INSERTION_SETTINGS = {
+    depth: 1,
+    role: 'system'
+};
+
 /**
  * 生成正式提示词
  * @returns {string} 生成的正式提示词
@@ -61,6 +67,34 @@ export function generateFormalPrompt() {
         
     } catch (error) {
         errorLog('生成正式提示词失败:', error);
+        return '生成提示词时发生错误：' + error.message;
+    }
+}
+
+/**
+ * 生成带有插入设置的提示词
+ * @param {Object} insertionSettings 插入设置
+ * @param {number} insertionSettings.depth 插入深度
+ * @param {string} insertionSettings.role 插入角色
+ * @returns {string} 带有插入设置的提示词
+ */
+export function generatePromptWithInsertion(insertionSettings = DEFAULT_INSERTION_SETTINGS) {
+    try {
+        const { depth, role } = insertionSettings;
+        const prompt = generateFormalPrompt();
+        
+        // 根据st-memory-enhancement插件的格式生成扩展提示词
+        const extensionPrompt = `{
+    "depth": ${depth},
+    "role": "${role}",
+    "content": "${prompt.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"
+}`;
+        
+        debugLog(`生成带有插入设置的提示词: 深度=${depth}, 角色=${role}`);
+        return extensionPrompt;
+        
+    } catch (error) {
+        errorLog('生成带有插入设置的提示词失败:', error);
         return '生成提示词时发生错误：' + error.message;
     }
 }
