@@ -210,59 +210,59 @@ input:checked+.toggle-slider:before {
 /* 模块样式 - 优化信息密度 */
 .module-item {
     background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 12px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    margin-bottom: 12px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
 }
 
 .module-item:hover {
     border-color: rgba(255, 255, 255, 0.5);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .module-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .module-header-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     flex: 1;
 }
 
 .module-name-group {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     flex: 1;
-    max-width: 200px;
+    max-width: 180px;
 }
 
 .module-order-number {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+    border-radius: 3px;
     color: white;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: bold;
-    min-width: 20px;
+    min-width: 18px;
 }
 
 .module-name-group label {
     white-space: nowrap;
     font-weight: 500;
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.9);
     margin: 0;
 }
@@ -271,9 +271,9 @@ input:checked+.toggle-slider:before {
     width: 100%;
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    padding: 6px 8px;
-    font-size: 13px;
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 12px;
     color: #333;
     transition: border-color 0.2s;
 }
@@ -281,28 +281,27 @@ input:checked+.toggle-slider:before {
 .module-limit-group {
     display: flex;
     align-items: center;
-    gap: 6px;
-    min-width: 120px;
+    gap: 4px;
+    margin-bottom: 6px;
 }
 
 .module-limit-group label {
     white-space: nowrap;
     font-weight: 500;
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.9);
     margin: 0;
 }
 
 .module-limit {
-    width: 60px;
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    padding: 6px 8px;
-    font-size: 13px;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 11px;
     color: #333;
+    width: 50px;
     transition: border-color 0.2s;
-    text-align: center;
 }
 
 .module-name:focus {
@@ -313,21 +312,21 @@ input:checked+.toggle-slider:before {
 
 .module-actions {
     display: flex;
-    gap: 3px;
+    gap: 2px;
 }
 
 .module-actions .btn-small {
-    padding: 4px 8px;
-    min-width: 28px;
+    padding: 3px 6px;
+    min-width: 24px;
     justify-content: center;
-    font-size: 11px;
+    font-size: 10px;
 }
 
 .move-module-up,
 .move-module-down {
-    font-size: 12px;
-    padding: 4px 6px;
-    min-width: 26px;
+    font-size: 11px;
+    padding: 3px 5px;
+    min-width: 22px;
     background-color: rgba(255, 255, 255, 0.15);
 }
 
@@ -398,11 +397,11 @@ input:checked+.toggle-slider:before {
 .variable-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
-    padding: 6px;
+    gap: 4px;
+    margin-bottom: 4px;
+    padding: 4px;
     background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
+    border-radius: 3px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     flex-wrap: wrap;
 }
@@ -411,11 +410,11 @@ input:checked+.toggle-slider:before {
 .variable-desc-group {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
 }
 
 .variable-name-group {
-    min-width: 120px;
+    min-width: 100px;
 }
 
 .variable-desc-group {
@@ -425,7 +424,7 @@ input:checked+.toggle-slider:before {
 .variable-name-group label,
 .variable-desc-group label {
     white-space: nowrap;
-    font-size: 11px;
+    font-size: 10px;
     color: rgba(255, 255, 255, 0.9);
     margin: 0;
 }
@@ -433,20 +432,20 @@ input:checked+.toggle-slider:before {
 .variable-name {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    padding: 4px 6px;
-    font-size: 11px;
+    border-radius: 3px;
+    padding: 3px 5px;
+    font-size: 10px;
     color: #333;
     transition: border-color 0.2s;
-    width: 100px;
+    width: 80px;
 }
 
 .variable-desc {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    padding: 4px 6px;
-    font-size: 11px;
+    border-radius: 3px;
+    padding: 3px 5px;
+    font-size: 10px;
     color: #333;
     transition: border-color 0.2s;
     flex: 1;
@@ -466,24 +465,24 @@ input:checked+.toggle-slider:before {
 }
 
 .variable-actions .btn-small {
-    padding: 4px 8px;
-    min-width: 28px;
+    padding: 3px 6px;
+    min-width: 24px;
     justify-content: center;
-    font-size: 11px;
+    font-size: 10px;
 }
 
 /* 预览样式 */
 .module-prompt {
-    margin-top: 8px;
+    margin-top: 6px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .module-prompt label {
     white-space: nowrap;
     font-weight: 500;
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.9);
     margin: 0;
 }
@@ -491,12 +490,12 @@ input:checked+.toggle-slider:before {
 .module-prompt-input {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    padding: 6px 8px;
-    font-size: 12px;
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 11px;
     color: #333;
     font-family: monospace;
-    min-height: 30px;
+    min-height: 24px;
     resize: vertical;
     flex: 1;
 }
@@ -593,12 +592,12 @@ input:checked+.toggle-slider:before {
 .module-preview-text {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    padding: 6px 8px;
-    font-size: 12px;
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 11px;
     color: #333;
     font-family: monospace;
-    min-height: 30px;
+    min-height: 24px;
     resize: vertical;
     flex: 1;
 }
