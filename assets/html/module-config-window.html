@@ -13,11 +13,37 @@
         </div>
     </div>
 
+    <!-- 提示词预览区域 -->
+    <div class="prompt-preview-section">
+        <div class="section-title">
+            <h3>提示词预览</h3>
+            <div class="header-actions">
+                <button id="toggle-preview-btn" class="btn-small">
+                    <span class="toggle-arrow">▶</span> 展开预览
+                </button>
+                <button id="copy-prompt-btn" class="btn-small">复制提示词</button>
+            </div>
+        </div>
+        
+        <div id="prompt-preview-content" class="preview-content" style="display: none;">
+            <div class="preview-section">
+                <h4>生成的正式提示词</h4>
+                <textarea id="prompt-preview-textarea" class="prompt-preview-textarea" readonly></textarea>
+            </div>
+
+            <div class="preview-section">
+                <h4>模块组织方式</h4>
+                <div id="prompt-preview-structure" class="prompt-structure">
+                    <!-- 模块结构预览将动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="custom-modules-container">
         <div class="section-title">
             <h3>自定义模块</h3>
             <div class="header-actions">
-                <button id="preview-prompt-btn" class="btn-small">预览提示词</button>
                 <button id="import-config-btn" class="btn-small">导入JSON</button>
                 <button id="export-config-btn" class="btn-small">导出JSON</button>
                 <button id="add-module-btn" class="btn-small">
@@ -99,32 +125,5 @@
     <div class="window-actions">
         <button id="module-cancel-btn">取消</button>
         <button id="module-save-btn">保存配置</button>
-    </div>
-</div>
-
-<!-- 提示词预览窗口 -->
-<div id="continuity-prompt-preview-window" class="continuity-modal-window">
-    <div class="window-header">
-        <h2>提示词预览</h2>
-        <button id="prompt-preview-close" class="close-btn">✕</button>
-    </div>
-
-    <div class="preview-content">
-        <div class="preview-section">
-            <h3>生成的正式提示词</h3>
-            <textarea id="prompt-preview-textarea" class="prompt-preview-textarea" readonly></textarea>
-        </div>
-
-        <div class="preview-section">
-            <h3>模块组织方式</h3>
-            <div id="prompt-preview-structure" class="prompt-structure">
-                <!-- 模块结构预览将动态生成 -->
-            </div>
-        </div>
-    </div>
-
-    <div class="window-actions">
-        <button id="copy-prompt-btn" class="btn-primary">复制提示词</button>
-        <button id="close-preview-btn" class="btn-secondary">关闭</button>
     </div>
 </div>
