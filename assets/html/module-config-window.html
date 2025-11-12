@@ -4,7 +4,7 @@
         <h2>Continuity 配置面板</h2>
         <button id="continuity-window-close" class="close-btn">✕</button>
     </div>
-    
+
     <div class="info-section">
         <p><strong>配置说明：</strong>在此页面可自定义模块，每个模块可设置名称、变量和变量解释。</p>
         <div class="example">
@@ -12,19 +12,19 @@
             <p>示例：[seed|id:1|desc:伏笔描述|status:已植入]</p>
         </div>
     </div>
-    
+
     <div class="custom-modules-container">
         <div class="section-title">
-                <h3>自定义模块</h3>
-                <div class="header-actions">
-                    <button id="import-config-btn" class="btn-small">导入JSON</button>
-                    <button id="export-config-btn" class="btn-small">导出JSON</button>
-                    <button id="add-module-btn" class="btn-small">
-                        <span>+</span> 添加模块
-                    </button>
-                </div>
+            <h3>自定义模块</h3>
+            <div class="header-actions">
+                <button id="import-config-btn" class="btn-small">导入JSON</button>
+                <button id="export-config-btn" class="btn-small">导出JSON</button>
+                <button id="add-module-btn" class="btn-small">
+                    <span>+</span> 添加模块
+                </button>
             </div>
-        
+        </div>
+
         <!-- 模块模板（默认隐藏） -->
         <div class="module-template" style="display: none;">
             <div class="module-item">
@@ -34,14 +34,33 @@
                         <input type="text" class="module-name" placeholder="输入模块名称">
                     </div>
                     <div class="module-actions">
+                        <button class="btn-small toggle-variables"><span class="arrow">▼</span><span
+                                class="text">折叠变量</span></button>
                         <button class="btn-small add-variable">+ 添加变量</button>
                         <button class="btn-small remove-module">- 删除模块</button>
                     </div>
                 </div>
-                
-                <div class="variables-container">
-                    <!-- 变量模板 -->
-                    <div class="variable-template" style="display: none;">
+
+                <div class="variables-container-wrapper">
+                    <div class="variables-container">
+                        <!-- 变量模板 -->
+                        <div class="variable-template" style="display: none;">
+                            <div class="variable-item">
+                                <div class="variable-name-group">
+                                    <label>变量名</label>
+                                    <input type="text" class="variable-name" placeholder="变量名">
+                                </div>
+                                <div class="variable-desc-group">
+                                    <label>变量解释</label>
+                                    <input type="text" class="variable-desc" placeholder="变量含义说明">
+                                </div>
+                                <div class="variable-actions">
+                                    <button class="btn-small remove-variable">-</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 默认变量 -->
                         <div class="variable-item">
                             <div class="variable-name-group">
                                 <label>变量名</label>
@@ -57,22 +76,22 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="module-prompt">
                     <label>模块提示词</label>
                     <textarea class="module-prompt-input" placeholder="输入模块提示词，用于指导模型如何使用此模块"></textarea>
                 </div>
-                
+
                 <div class="module-preview">
                     <label>模块格式预览</label>
                     <input type="text" class="module-preview-text" readonly placeholder="[模块名|变量1:值1|变量2:值2...]" />
                 </div>
             </div>
         </div>
-        
+
 
     </div>
-    
+
     <div class="window-actions">
         <button id="module-cancel-btn">取消</button>
         <button id="module-save-btn">保存配置</button>
