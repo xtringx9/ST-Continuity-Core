@@ -61,6 +61,7 @@ export {
 // 导出提示词预览管理模块
 export {
     togglePromptPreview,
+    updatePromptPreview,
     copyPromptToClipboard,
     bindPromptPreviewEvents,
     initPromptPreview,

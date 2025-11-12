@@ -1,6 +1,6 @@
 // 提示词预览区域管理模块
 import { debugLog, errorLog, infoLog } from '../index.js';
-import { generateFormalPrompt, generateStructurePreview, copyToClipboard } from './promptGenerator.js';
+import { generateFormalPrompt, copyToClipboard } from './promptGenerator.js';
 
 /**
  * 切换提示词预览区域的展开/折叠状态
@@ -18,13 +18,8 @@ export function togglePromptPreview() {
             debugLog('提示词预览区域已折叠');
         } else {
             // 如果当前是折叠状态，则展开并生成预览内容
-            const prompt = generateFormalPrompt();
-            const structure = generateStructurePreview();
-
-            // 更新预览内容
-            $('#prompt-preview-textarea').val(prompt);
-            $('#prompt-preview-structure').html(structure);
-
+            updatePromptPreview();
+            
             previewContent.slideDown(300);
             toggleBtn.addClass('expanded');
             toggleBtn.html('<span class="toggle-arrow">▶</span> 折叠预览');
@@ -34,6 +29,21 @@ export function togglePromptPreview() {
     } catch (error) {
         errorLog('切换提示词预览区域状态失败:', error);
         toastr.error('切换预览状态失败');
+    }
+}
+
+/**
+ * 更新提示词预览内容
+ */
+export function updatePromptPreview() {
+    try {
+        const prompt = generateFormalPrompt();
+        $('#prompt-preview-textarea').val(prompt);
+        debugLog('提示词预览内容已更新');
+        toastr.success('提示词已更新');
+    } catch (error) {
+        errorLog('更新提示词预览失败:', error);
+        toastr.error('更新提示词失败');
     }
 }
 
@@ -66,6 +76,9 @@ export function bindPromptPreviewEvents() {
 
         // 绑定复制按钮事件
         $('#copy-prompt-btn').off('click').on('click', copyPromptToClipboard);
+
+        // 绑定更新按钮事件
+        $('#update-prompt-btn').off('click').on('click', updatePromptPreview);
 
         infoLog('提示词预览区域事件绑定成功');
 
