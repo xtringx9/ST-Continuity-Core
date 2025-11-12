@@ -1,7 +1,7 @@
 // 配置导入导出相关功能
 import { debugLog } from "./logger.js";
-import { importModuleConfig, exportModuleConfig, renderModulesFromConfig } from "./moduleConfigManager.js";
-import { bindModuleEvents, updateModulePreview } from "./moduleManager.js";
+import { importModuleConfig, exportModuleConfig, renderModulesFromConfig } from "../modules/moduleConfigManager.js";
+import { bindModuleEvents, updateModulePreview } from "../modules/moduleManager.js";
 
 /**
  * 初始化JSON导入导出功能

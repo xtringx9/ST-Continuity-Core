@@ -66,7 +66,7 @@ export function onDebugLogsToggle(event) {
     const debugLogs = Boolean($(event.target).prop("checked"));
     extension_settings[extensionName].debugLogs = debugLogs;
     saveSettingsDebounced();
-    
+
     toastr.info(debugLogs ? "调试日志已启用" : "调试日志已禁用");
 }
 
