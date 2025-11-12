@@ -193,7 +193,7 @@ input:checked+.toggle-slider:before {
         border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 4px;
         color: white;
-        font-size: 12px;
+        font-size: 11px;
         cursor: pointer;
         transition: all 0.2s;
         display: inline-flex;
@@ -262,7 +262,7 @@ input:checked+.toggle-slider:before {
 .module-name-group label {
     white-space: nowrap;
     font-weight: 500;
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(255, 255, 255, 0.9);
     margin: 0;
 }
@@ -273,7 +273,7 @@ input:checked+.toggle-slider:before {
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
     padding: 4px 6px;
-    font-size: 12px;
+    font-size: 13px;
     color: #333;
     transition: border-color 0.2s;
 }
@@ -288,7 +288,7 @@ input:checked+.toggle-slider:before {
 .module-limit-group label {
     white-space: nowrap;
     font-weight: 500;
-    font-size: 11px;
+    font-size: 12px;
     color: rgba(255, 255, 255, 0.9);
     margin: 0;
 }
@@ -298,7 +298,7 @@ input:checked+.toggle-slider:before {
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
     padding: 3px 6px;
-    font-size: 11px;
+    font-size: 12px;
     color: #333;
     width: 50px;
     transition: border-color 0.2s;
@@ -319,7 +319,7 @@ input:checked+.toggle-slider:before {
     padding: 3px 6px;
     min-width: 24px;
     justify-content: center;
-    font-size: 10px;
+    font-size: 11px;
 }
 
 .move-module-up,
@@ -424,7 +424,7 @@ input:checked+.toggle-slider:before {
 .variable-name-group label,
 .variable-desc-group label {
     white-space: nowrap;
-    font-size: 10px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.9);
     margin: 0;
 }
@@ -434,7 +434,7 @@ input:checked+.toggle-slider:before {
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
     padding: 3px 5px;
-    font-size: 10px;
+    font-size: 11px;
     color: #333;
     transition: border-color 0.2s;
     width: 80px;
@@ -445,7 +445,7 @@ input:checked+.toggle-slider:before {
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
     padding: 3px 5px;
-    font-size: 10px;
+    font-size: 11px;
     color: #333;
     transition: border-color 0.2s;
     flex: 1;
@@ -468,7 +468,7 @@ input:checked+.toggle-slider:before {
     padding: 3px 6px;
     min-width: 24px;
     justify-content: center;
-    font-size: 10px;
+    font-size: 11px;
 }
 
 /* 预览样式 */
@@ -594,7 +594,7 @@ input:checked+.toggle-slider:before {
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
     padding: 4px 6px;
-    font-size: 11px;
+    font-size: 12px;
     color: #333;
     font-family: monospace;
     min-height: 24px;
