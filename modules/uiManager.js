@@ -2,7 +2,7 @@
 import { extensionFolderPath } from "./config.js";
 import { loadSettingsToUI, onEnabledToggle, onBackendUrlChange } from "./settingsManager.js";
 import { sendToBackend } from "./backendService.js";
-import { saveModuleConfig, loadModuleConfig, exportModuleConfig, importModuleConfig, renderModulesFromConfig, setBindModuleEvents } from "./moduleConfigManager.js";
+import { saveModuleConfig, loadModuleConfig, exportModuleConfig, importModuleConfig, renderModulesFromConfig, setBindModuleEvents, setOnRenderComplete } from "./moduleConfigManager.js";
 import { debugLog, errorLog, infoLog } from "./logger.js";
 import { onDebugLogsToggle } from "./settingsManager.js";
 
@@ -79,6 +79,8 @@ export async function openModuleConfigWindow() {
                 const template = $('.module-template').clone();
                 template.removeClass('module-template').css('display', 'block');
                 $('.custom-modules-container').append(template);
+
+                // 在bindModuleEvents中会自动调用updateModuleOrderNumbers更新排序数字，这里不再需要手动添加
 
                 // 绑定事件
                 bindModuleEvents(template);
@@ -174,6 +176,19 @@ export async function openModuleConfigWindow() {
                 moduleItem.find('.module-preview-text').val(previewText);
             }
 
+            // 更新所有模块的排序数字
+            function updateModuleOrderNumbers() {
+                // 使用更精确的选择器，确保只选择真正的模块项
+                $('.custom-modules-container > div').not('.module-template, .section-title').each(function (index) {
+                    const moduleItem = $(this).find('.module-item');
+                    const moduleNameGroup = moduleItem.find('.module-name-group');
+                    // 先移除已有的排序数字元素，避免重复
+                    moduleNameGroup.find('.module-order-number').remove();
+                    // 添加新的排序数字元素
+                    moduleNameGroup.prepend(`<div class="module-order-number">${index + 1}</div>`);
+                });
+            }
+
             // 绑定模块相关事件
             function bindModuleEvents(moduleElement) {
                 // 如果传入的是.module-item元素，直接使用
@@ -240,6 +255,8 @@ export async function openModuleConfigWindow() {
                 moduleItem.find('.remove-module').on('click', function () {
                     if (confirm('确定要删除这个模块吗？')) {
                         moduleItem.closest('.custom-modules-container > div').remove();
+                        // 更新所有模块的排序数字
+                        updateModuleOrderNumbers();
                     }
                 });
 
@@ -251,6 +268,8 @@ export async function openModuleConfigWindow() {
                     if (prevModule.length) {
                         currentModule.insertBefore(prevModule);
                         debugLog('模块上移成功');
+                        // 更新所有模块的排序数字
+                        updateModuleOrderNumbers();
                     } else {
                         debugLog('已是第一个模块，无法上移');
                     }
@@ -264,6 +283,8 @@ export async function openModuleConfigWindow() {
                     if (nextModule.length) {
                         currentModule.insertAfter(nextModule);
                         debugLog('模块下移成功');
+                        // 更新所有模块的排序数字
+                        updateModuleOrderNumbers();
                     } else {
                         debugLog('已是最后一个模块，无法下移');
                     }
@@ -290,8 +311,18 @@ export async function openModuleConfigWindow() {
                 });
             }
 
+            // 修改bindModuleEvents函数，在末尾添加排序数字更新调用
+            const originalBindModuleEvents = bindModuleEvents;
+            bindModuleEvents = function (moduleElement) {
+                originalBindModuleEvents(moduleElement);
+                updateModuleOrderNumbers();
+            };
+
             // 设置bindModuleEvents函数引用给moduleConfigManager
             setBindModuleEvents(bindModuleEvents);
+
+            // 设置渲染完成回调，确保模块渲染后更新排序数字
+            setOnRenderComplete(updateModuleOrderNumbers);
 
             // 初始化JSON导入功能
             function initJsonImportExport() {
@@ -373,7 +404,7 @@ export async function openModuleConfigWindow() {
                 const modules = [];
 
                 // 收集所有模块数据
-                $('.module-item').each(function () {
+                $('.module-item').each(function (index) {
                     const moduleName = $(this).find('.module-name').val();
                     if (!moduleName) return; // 跳过没有名称的模块
 
@@ -396,7 +427,8 @@ export async function openModuleConfigWindow() {
                     modules.push({
                         name: moduleName,
                         variables: variables,
-                        prompt: modulePrompt || ''
+                        prompt: modulePrompt || '',
+                        order: index // 添加排序索引
                     });
                 });
 

@@ -117,6 +117,17 @@ export function importModuleConfig(file) {
  * 从配置对象渲染模块到UI
  * @param {Object} config 配置对象
  */
+// 用于渲染完成后的回调函数
+let onRenderCompleteCallback = null;
+
+/**
+ * 设置渲染完成回调
+ * @param {Function} callback 回调函数
+ */
+export function setOnRenderComplete(callback) {
+    onRenderCompleteCallback = callback;
+}
+
 export function renderModulesFromConfig(config) {
     if (!config || !config.modules) return;
 
@@ -130,7 +141,14 @@ export function renderModulesFromConfig(config) {
     // 克隆整个模块模板，与addModule函数保持一致
     const template = $('.module-template').clone();
 
-    config.modules.forEach(module => {
+    // 对模块进行排序，如果没有order属性则使用默认索引
+    const sortedModules = [...config.modules].sort((a, b) => {
+        const orderA = a.order !== undefined ? a.order : 999;
+        const orderB = b.order !== undefined ? b.order : 999;
+        return orderA - orderB;
+    });
+
+    sortedModules.forEach((module, index) => {
         if (!module.name) return;
 
         const moduleElement = template.clone();
@@ -141,6 +159,8 @@ export function renderModulesFromConfig(config) {
 
         // 设置模块名称
         moduleItem.find('.module-name').val(module.name);
+        
+        // 在渲染完成后会通过uiManager.js中的updateModuleOrderNumbers函数统一设置排序数字，这里不再需要手动设置
 
         // 设置模块提示词
         if (module.prompt) {
@@ -189,9 +209,14 @@ export function renderModulesFromConfig(config) {
         }
 
         // 更新模块预览
-        updateModulePreview(moduleItem);
-    });
-}
+                updateModulePreview(moduleItem);
+            });
+            
+            // 渲染完成后调用回调
+            if (typeof onRenderCompleteCallback === 'function') {
+                onRenderCompleteCallback();
+            }
+    }
 
 /**
  * 更新模块预览
