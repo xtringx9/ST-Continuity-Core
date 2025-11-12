@@ -1,6 +1,5 @@
 // 模块配置管理模块
-import { extensionFolderPath } from "../core/config.js";
-import { debugLog, errorLog, infoLog } from "../utils/logger.js";
+import { extensionFolderPath, debugLog, errorLog, infoLog } from "../index.js";
 
 // 声明外部函数（在uiManager.js中定义）
 let bindModuleEvents = null;

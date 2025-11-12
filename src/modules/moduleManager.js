@@ -1,6 +1,5 @@
 // 模块管理相关功能
-import { debugLog, errorLog } from "../utils/logger.js";
-import { addVariable } from "./variableManager.js";
+import { debugLog, errorLog, addVariable } from "../index.js";
 
 /**
  * 添加新模块
@@ -136,7 +135,7 @@ export function bindModuleEvents(moduleElement) {
         // 更精确的选择器：只选择包含.module-item的div，排除标题和模板
         const allModules = $('.custom-modules-container > div').has('.module-item').not('.section-title, .module-template');
         const currentIndex = allModules.index(currentModule);
-        
+
         if (currentIndex > 0) {
             // 将当前模块与前一个模块交换位置
             const prevModule = allModules.eq(currentIndex - 1);
@@ -155,7 +154,7 @@ export function bindModuleEvents(moduleElement) {
         // 更精确的选择器：只选择包含.module-item的div，排除标题和模板
         const allModules = $('.custom-modules-container > div').has('.module-item').not('.section-title, .module-template');
         const currentIndex = allModules.index(currentModule);
-        
+
         if (currentIndex < allModules.length - 1) {
             // 将当前模块与后一个模块交换位置
             const nextModule = allModules.eq(currentIndex + 1);

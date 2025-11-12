@@ -1,8 +1,5 @@
 // 后端服务模块
-import { chat } from "../../../../../script.js";
-import { extension_settings } from "../../../../extensions.js";
-import { extensionName } from "../core/config.js";
-import { debugLog, errorLog, infoLog } from "./logger.js";
+import { chat, extension_settings, extensionName, isDebugLogsEnabled, debugLog, errorLog, infoLog } from "../index.js";
 
 /**
  * 发送消息到后端服务器
