@@ -133,9 +133,13 @@ export function bindModuleEvents(moduleElement) {
     // 上移模块按钮事件
     moduleItem.find('.move-module-up').on('click', function () {
         const currentModule = moduleItem.closest('.custom-modules-container > div');
-        const prevModule = currentModule.prev('.custom-modules-container > div');
-
-        if (prevModule.length) {
+        // 更精确的选择器：只选择包含.module-item的div，排除标题和模板
+        const allModules = $('.custom-modules-container > div').has('.module-item').not('.section-title, .module-template');
+        const currentIndex = allModules.index(currentModule);
+        
+        if (currentIndex > 0) {
+            // 将当前模块与前一个模块交换位置
+            const prevModule = allModules.eq(currentIndex - 1);
             currentModule.insertBefore(prevModule);
             debugLog('模块上移成功');
             // 更新所有模块的排序数字
@@ -148,9 +152,13 @@ export function bindModuleEvents(moduleElement) {
     // 下移模块按钮事件
     moduleItem.find('.move-module-down').on('click', function () {
         const currentModule = moduleItem.closest('.custom-modules-container > div');
-        const nextModule = currentModule.next('.custom-modules-container > div');
-
-        if (nextModule.length) {
+        // 更精确的选择器：只选择包含.module-item的div，排除标题和模板
+        const allModules = $('.custom-modules-container > div').has('.module-item').not('.section-title, .module-template');
+        const currentIndex = allModules.index(currentModule);
+        
+        if (currentIndex < allModules.length - 1) {
+            // 将当前模块与后一个模块交换位置
+            const nextModule = allModules.eq(currentIndex + 1);
             currentModule.insertAfter(nextModule);
             debugLog('模块下移成功');
             // 更新所有模块的排序数字
