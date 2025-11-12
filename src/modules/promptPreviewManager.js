@@ -1,6 +1,12 @@
 // 提示词预览区域管理模块
 import { debugLog, errorLog, infoLog } from '../index.js';
-import { generateFormalPrompt, copyToClipboard } from './promptGenerator.js';
+import { generatePromptWithInsertion, copyToClipboard } from './promptGenerator.js';
+
+// 默认插入设置
+const DEFAULT_INSERTION_SETTINGS = {
+    depth: 1,
+    role: 'system'
+};
 
 /**
  * 切换提示词预览区域的展开/折叠状态
@@ -37,9 +43,10 @@ export function togglePromptPreview() {
  */
 export function updatePromptPreview() {
     try {
-        const prompt = generateFormalPrompt();
+        const insertionSettings = getInsertionSettings();
+        const prompt = generatePromptWithInsertion(insertionSettings);
         $('#prompt-preview-textarea').val(prompt);
-        debugLog('提示词预览内容已更新');
+        debugLog(`提示词预览内容已更新: 深度=${insertionSettings.depth}, 角色=${insertionSettings.role}`);
         toastr.success('提示词已更新');
     } catch (error) {
         errorLog('更新提示词预览失败:', error);
@@ -65,6 +72,57 @@ export function copyPromptToClipboard() {
 }
 
 /**
+ * 获取当前插入深度和角色设置
+ */
+export function getInsertionSettings() {
+    try {
+        const depth = parseInt($('#insertion-depth').val()) || DEFAULT_INSERTION_SETTINGS.depth;
+        const role = $('#insertion-role').val() || DEFAULT_INSERTION_SETTINGS.role;
+        
+        // 验证深度值
+        const validatedDepth = Math.max(0, Math.min(10, depth));
+        
+        debugLog(`获取插入设置: 深度=${validatedDepth}, 角色=${role}`);
+        
+        return {
+            depth: validatedDepth,
+            role: role
+        };
+    } catch (error) {
+        errorLog('获取插入设置失败:', error);
+        return DEFAULT_INSERTION_SETTINGS;
+    }
+}
+
+/**
+ * 绑定深度设置变化事件
+ */
+function bindInsertionSettingsEvents() {
+    try {
+        // 绑定深度输入框变化事件
+        $('#insertion-depth').off('input').on('input', function() {
+            const value = parseInt($(this).val());
+            if (isNaN(value) || value < 0 || value > 10) {
+                $(this).val(DEFAULT_INSERTION_SETTINGS.depth);
+                toastr.warning('深度值必须在0-10之间');
+            }
+            debugLog('插入深度已更新:', value);
+        });
+
+        // 绑定角色选择框变化事件
+        $('#insertion-role').off('change').on('change', function() {
+            const role = $(this).val();
+            debugLog('插入角色已更新:', role);
+        });
+
+        infoLog('插入设置事件绑定成功');
+
+    } catch (error) {
+        errorLog('绑定插入设置事件失败:', error);
+    }
+}
+
+/**
  * 绑定提示词预览区域事件
  */
 export function bindPromptPreviewEvents() {
@@ -79,6 +137,9 @@ export function bindPromptPreviewEvents() {
 
         // 绑定更新按钮事件
         $('#update-prompt-btn').off('click').on('click', updatePromptPreview);
+
+        // 绑定插入设置事件
+        bindInsertionSettingsEvents();
 
         infoLog('提示词预览区域事件绑定成功');
 

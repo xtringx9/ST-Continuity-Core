@@ -139,3 +139,96 @@
     transform: rotate(45deg);
     /* 主按钮的加号旋转成叉 */
 }
+
+/* --- 设置区域样式 --- */
+.settings-section {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 15px;
+}
+
+.settings-section .section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.settings-section .section-title h3 {
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.settings-content {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.setting-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+}
+
+.setting-group label {
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.depth-input {
+    padding: 4px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    font-size: 13px;
+    width: 60px;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #333;
+    transition: border-color 0.2s;
+}
+
+.depth-input:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.role-select {
+    padding: 4px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    font-size: 13px;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #333;
+    cursor: pointer;
+    min-width: 100px;
+    transition: border-color 0.2s;
+}
+
+.role-select:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .settings-content {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+    }
+    
+    .setting-group {
+        justify-content: space-between;
+    }
+}

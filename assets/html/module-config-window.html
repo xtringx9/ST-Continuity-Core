@@ -13,6 +13,30 @@
         </div>
     </div>
 
+    <!-- 设置区域 -->
+    <div class="settings-section">
+        <div class="section-title">
+            <h3>设置</h3>
+        </div>
+
+        <div class="settings-content">
+            <div class="setting-group">
+                <label for="insertion-role">插入角色</label>
+                <select id="insertion-role" class="role-select">
+                    <option value="system">系统 (⚙️)</option>
+                    <option value="user">用户 (👤)</option>
+                    <option value="assistant">助手 (🤖)</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label for="insertion-depth">插入深度</label>
+                <input type="number" id="insertion-depth" class="depth-input" min="0" max="10" value="1"
+                    title="0 = 最后一条消息之后，1 = 最后一条消息之前，以此类推">
+            </div>
+        </div>
+    </div>
+
     <!-- 提示词预览区域 -->
     <div class="prompt-preview-section">
         <div class="section-title">
@@ -25,7 +49,7 @@
                 <button id="copy-prompt-btn" class="btn-small">复制提示词</button>
             </div>
         </div>
-        
+
         <div id="prompt-preview-content" class="preview-content" style="display: none;">
             <div class="preview-section">
                 <textarea id="prompt-preview-textarea" class="prompt-preview-textarea" readonly></textarea>
