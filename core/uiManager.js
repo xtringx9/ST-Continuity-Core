@@ -1,14 +1,14 @@
 // UI管理模块 - 基础UI功能
 import { extensionFolderPath } from "./config.js";
 import { loadSettingsToUI, onEnabledToggle, onBackendUrlChange } from "./settingsManager.js";
-import { sendToBackend } from "./backendService.js";
-import { saveModuleConfig, loadModuleConfig, renderModulesFromConfig, setBindModuleEvents, setOnRenderComplete } from "./moduleConfigManager.js";
-import { debugLog, errorLog } from "./logger.js";
+import { sendToBackend } from "../utils/backendService.js";
+import { saveModuleConfig, loadModuleConfig, renderModulesFromConfig, setBindModuleEvents, setOnRenderComplete } from "../modules/moduleConfigManager.js";
+import { debugLog, errorLog } from "../utils/logger.js";
 import { onDebugLogsToggle } from "./settingsManager.js";
 
 // 导入拆分的模块
-import { addModule, bindModuleEvents, updateModuleOrderNumbers } from "./moduleManager.js";
-import { initJsonImportExport, bindSaveButtonEvent, bindAddModuleButtonEvent, rebindAllModulesEvents, updateAllModulesPreview } from "./configImporterExporter.js";
+import { addModule, bindModuleEvents, updateModuleOrderNumbers } from "../modules/moduleManager.js";
+import { initJsonImportExport, bindSaveButtonEvent, bindAddModuleButtonEvent, rebindAllModulesEvents, updateAllModulesPreview } from "../utils/configImporterExporter.js";
 
 // 加载CSS文件
 function loadCSS() {
@@ -85,7 +85,7 @@ export async function openModuleConfigWindow() {
             setOnRenderComplete(updateModuleOrderNumbers);
 
             // 绑定确认保存按钮事件
-            bindSaveButtonEvent(function(modules) {
+            bindSaveButtonEvent(function (modules) {
                 // 保存配置到本地存储
                 if (saveModuleConfig(modules)) {
                     toastr.success("模块配置已保存！");

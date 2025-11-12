@@ -1,6 +1,6 @@
 // 日志管理模块
 import { extension_settings } from "../../../../extensions.js";
-import { extensionName } from "./config.js";
+import { extensionName } from "../core/config.js";
 
 /**
  * 检查调试日志是否启用

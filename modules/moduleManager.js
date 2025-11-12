@@ -1,5 +1,5 @@
 // 模块管理相关功能
-import { debugLog, errorLog } from "./logger.js";
+import { debugLog, errorLog } from "../utils/logger.js";
 import { addVariable } from "./variableManager.js";
 
 /**

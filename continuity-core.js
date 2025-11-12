@@ -1,7 +1,7 @@
 // 主模块 - ST-Continuity-Core
-import { initializeSettings } from "./src/settingsManager.js";
-import { loadSettingsPanel, createFabMenu } from "./src/uiManager.js";
-import { infoLog } from "./src/logger.js";
+import { initializeSettings } from "./core/settingsManager.js";
+import { loadSettingsPanel, createFabMenu } from "./core/uiManager.js";
+import { infoLog } from "./utils/logger.js";
 
 infoLog("♥️ Continuity Core LOADED!");
 
