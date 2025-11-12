@@ -51,6 +51,21 @@ export {
     getModulesData
 } from "./modules/moduleManager.js";
 
+// 导出提示词生成模块
+export {
+    generateFormalPrompt,
+    generateStructurePreview,
+    copyToClipboard
+} from "./modules/promptGenerator.js";
+
+// 导出提示词预览管理模块
+export {
+    openPromptPreviewWindow,
+    closePromptPreviewWindow,
+    bindPromptPreviewEvents,
+    initPromptPreview
+} from "./modules/promptPreviewManager.js";
+
 // 导出变量管理模块
 export {
     addVariable,

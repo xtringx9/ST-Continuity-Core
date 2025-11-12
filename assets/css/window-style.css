@@ -725,3 +725,135 @@ input:checked+.toggle-slider:before {
     transform: scale(1);
     opacity: 1;
 }
+
+/* 提示词预览窗口样式 */
+#continuity-prompt-preview-window {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    background-color: #2a2a3a;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 10002;
+    display: none;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#continuity-prompt-preview-window.show {
+    display: flex;
+}
+
+.preview-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.preview-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.prompt-preview-textarea {
+    width: 100%;
+    min-height: 200px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 12px;
+    color: #ffffff;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    resize: vertical;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.prompt-preview-textarea:focus {
+    outline: none;
+    border-color: #b4c0e8;
+    box-shadow: 0 0 0 2px rgba(180, 192, 232, 0.2);
+}
+
+.prompt-structure {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.structure-item {
+    margin-bottom: 10px;
+    padding: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    border-left: 3px solid #b4c0e8;
+}
+
+.structure-item:last-child {
+    margin-bottom: 0;
+}
+
+.structure-module-name {
+    font-weight: 600;
+    color: #b4c0e8;
+    margin-bottom: 5px;
+}
+
+.structure-variables {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-left: 10px;
+}
+
+.structure-variable {
+    margin-bottom: 3px;
+}
+
+.structure-variable:last-child {
+    margin-bottom: 0;
+}
+
+.btn-primary {
+    background-color: #b4c0e8;
+    border: 1px solid #b4c0e8;
+    color: #2a2a3a;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: #ffffff;
+    border-color: #ffffff;
+}
+
+.btn-secondary {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
