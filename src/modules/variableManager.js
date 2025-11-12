@@ -1,6 +1,5 @@
 // 变量管理相关功能
-import { debugLog } from "../utils/logger.js";
-import { updateModulePreview } from "./moduleManager.js";
+import { debugLog, updateModulePreview } from "../index.js";
 
 /**
  * 添加新变量到模块

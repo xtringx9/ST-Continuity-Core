@@ -1,14 +1,27 @@
 // UI管理模块 - 基础UI功能
-import { extensionFolderPath } from "./config.js";
-import { loadSettingsToUI, onEnabledToggle, onBackendUrlChange } from "./settingsManager.js";
-import { sendToBackend } from "../utils/backendService.js";
-import { saveModuleConfig, loadModuleConfig, renderModulesFromConfig, setBindModuleEvents, setOnRenderComplete } from "../modules/moduleConfigManager.js";
-import { debugLog, errorLog } from "../utils/logger.js";
-import { onDebugLogsToggle } from "./settingsManager.js";
-
-// 导入拆分的模块
-import { addModule, bindModuleEvents, updateModuleOrderNumbers } from "../modules/moduleManager.js";
-import { initJsonImportExport, bindSaveButtonEvent, bindAddModuleButtonEvent, rebindAllModulesEvents, updateAllModulesPreview } from "../utils/configImporterExporter.js";
+import { 
+    extensionFolderPath, 
+    loadSettingsToUI, 
+    onEnabledToggle, 
+    onBackendUrlChange, 
+    onDebugLogsToggle,
+    sendToBackend,
+    saveModuleConfig, 
+    loadModuleConfig, 
+    renderModulesFromConfig, 
+    setBindModuleEvents, 
+    setOnRenderComplete,
+    addModule, 
+    bindModuleEvents, 
+    updateModuleOrderNumbers,
+    debugLog, 
+    errorLog,
+    initJsonImportExport, 
+    bindSaveButtonEvent, 
+    bindAddModuleButtonEvent, 
+    rebindAllModulesEvents, 
+    updateAllModulesPreview 
+} from "../index.js";
 
 // 加载CSS文件
 function loadCSS() {

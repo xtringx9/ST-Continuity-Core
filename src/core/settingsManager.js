@@ -1,7 +1,5 @@
 // 设置管理模块
-import { extension_settings, loadExtensionSettings } from "../../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../../script.js";
-import { extensionName, defaultSettings } from "./config.js";
+import { extension_settings, loadExtensionSettings, saveSettingsDebounced, extensionName, defaultSettings } from "../index.js";
 
 /**
  * 初始化扩展设置

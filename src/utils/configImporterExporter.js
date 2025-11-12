@@ -1,7 +1,5 @@
 // 配置导入导出相关功能
-import { debugLog } from "./logger.js";
-import { importModuleConfig, exportModuleConfig, renderModulesFromConfig } from "../modules/moduleConfigManager.js";
-import { bindModuleEvents, updateModulePreview } from "../modules/moduleManager.js";
+import { debugLog, importModuleConfig, exportModuleConfig, renderModulesFromConfig, bindModuleEvents, updateModulePreview } from "../index.js";
 
 /**
  * 初始化JSON导入导出功能
@@ -40,7 +38,7 @@ export function initJsonImportExport() {
     // 导出按钮事件
     $('#export-config-btn').on('click', function () {
         const modules = collectModulesForExport();
-        
+
         if (modules.length === 0) {
             toastr.warning('没有可导出的模块配置');
             return;
@@ -85,7 +83,7 @@ export function collectModulesForExport() {
             prompt: modulePrompt || ''
         });
     });
-    
+
     return modules;
 }
 
@@ -97,7 +95,7 @@ export function collectModulesForExport() {
 export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
     // 移除现有的事件监听，避免重复绑定
     $("#module-save-btn").off('click');
-    
+
     $("#module-save-btn").on('click', function () {
         const modules = [];
 
