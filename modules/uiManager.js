@@ -182,6 +182,7 @@ export async function openModuleConfigWindow() {
 
                 // 先解绑所有事件，避免重复绑定
                 moduleItem.find('.module-name').off('input');
+                moduleItem.find('.toggle-variables').off('click');
                 moduleItem.find('.add-variable').off('click');
                 moduleItem.find('.remove-module').off('click');
                 moduleItem.find('.variable-item input').off('input');
@@ -190,6 +191,28 @@ export async function openModuleConfigWindow() {
                 // 模块名称输入事件
                 moduleItem.find('.module-name').on('input', function () {
                     updateModulePreview(moduleItem);
+                });
+
+                // 折叠/展开变量按钮事件
+                moduleItem.find('.toggle-variables').on('click', function () {
+                    const wrapper = moduleItem.find('.variables-container-wrapper');
+                    const button = $(this);
+                    const arrow = button.find('.arrow');
+                    const text = button.find('.text');
+
+                    if (wrapper.hasClass('collapsed')) {
+                        // 展开变量
+                        wrapper.removeClass('collapsed');
+                        button.removeClass('collapsed');
+                        arrow.text('▼');
+                        text.text('折叠变量');
+                    } else {
+                        // 折叠变量
+                        wrapper.addClass('collapsed');
+                        button.addClass('collapsed');
+                        arrow.text('▶');
+                        text.text('展开变量');
+                    }
                 });
 
                 // 添加变量按钮事件

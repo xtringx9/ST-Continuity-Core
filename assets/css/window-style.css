@@ -314,6 +314,49 @@ input:checked+.toggle-slider:before {
     margin-bottom: 8px;
 }
 
+/* 变量折叠功能 */
+.variables-container-wrapper {
+    transition: all 0.3s ease;
+}
+
+.variables-container-wrapper.collapsed .variables-container {
+    display: none;
+}
+
+.toggle-variables {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: white;
+    font-size: 11px;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 80px;
+}
+
+.toggle-variables:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.toggle-variables.collapsed {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.toggle-variables .arrow {
+    font-size: 10px;
+    width: 12px;
+    text-align: center;
+    display: inline-block;
+}
+
+.toggle-variables .text {
+    display: inline-block;
+}
+
 .variable-item {
     display: flex;
     align-items: center;
