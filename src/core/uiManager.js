@@ -1,26 +1,26 @@
 // UI管理模块 - 基础UI功能
-import { 
-    extensionFolderPath, 
-    loadSettingsToUI, 
-    onEnabledToggle, 
-    onBackendUrlChange, 
+import {
+    extensionFolderPath,
+    loadSettingsToUI,
+    onEnabledToggle,
+    onBackendUrlChange,
     onDebugLogsToggle,
     sendToBackend,
-    saveModuleConfig, 
-    loadModuleConfig, 
-    renderModulesFromConfig, 
-    setBindModuleEvents, 
+    saveModuleConfig,
+    loadModuleConfig,
+    renderModulesFromConfig,
+    setBindModuleEvents,
     setOnRenderComplete,
-    addModule, 
-    bindModuleEvents, 
+    addModule,
+    bindModuleEvents,
     updateModuleOrderNumbers,
-    debugLog, 
+    debugLog,
     errorLog,
-    initJsonImportExport, 
-    bindSaveButtonEvent, 
-    bindAddModuleButtonEvent, 
-    rebindAllModulesEvents, 
-    updateAllModulesPreview 
+    initJsonImportExport,
+    bindSaveButtonEvent,
+    bindAddModuleButtonEvent,
+    rebindAllModulesEvents,
+    updateAllModulesPreview
 } from "../index.js";
 
 // 加载CSS文件
@@ -79,6 +79,9 @@ export async function openModuleConfigWindow() {
         // 检查是否已创建模态背景
         if (!$("#continuity-modal-backdrop").length) {
             createModalBackdrop();
+        } else {
+            // 如果背景已存在，重新绑定点击事件
+            $("#continuity-modal-backdrop").off('click').on('click', closeModuleConfigWindow);
         }
 
         // 检查窗口是否已加载
