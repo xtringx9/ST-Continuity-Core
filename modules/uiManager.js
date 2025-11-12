@@ -183,6 +183,8 @@ export async function openModuleConfigWindow() {
                 // 先解绑所有事件，避免重复绑定
                 moduleItem.find('.module-name').off('input');
                 moduleItem.find('.toggle-variables').off('click');
+                moduleItem.find('.move-module-up').off('click');
+                moduleItem.find('.move-module-down').off('click');
                 moduleItem.find('.add-variable').off('click');
                 moduleItem.find('.remove-module').off('click');
                 moduleItem.find('.variable-item input').off('input');
@@ -238,6 +240,32 @@ export async function openModuleConfigWindow() {
                 moduleItem.find('.remove-module').on('click', function () {
                     if (confirm('确定要删除这个模块吗？')) {
                         moduleItem.closest('.custom-modules-container > div').remove();
+                    }
+                });
+
+                // 上移模块按钮事件
+                moduleItem.find('.move-module-up').on('click', function () {
+                    const currentModule = moduleItem.closest('.custom-modules-container > div');
+                    const prevModule = currentModule.prev('.custom-modules-container > div');
+
+                    if (prevModule.length) {
+                        currentModule.insertBefore(prevModule);
+                        debugLog('模块上移成功');
+                    } else {
+                        debugLog('已是第一个模块，无法上移');
+                    }
+                });
+
+                // 下移模块按钮事件
+                moduleItem.find('.move-module-down').on('click', function () {
+                    const currentModule = moduleItem.closest('.custom-modules-container > div');
+                    const nextModule = currentModule.next('.custom-modules-container > div');
+
+                    if (nextModule.length) {
+                        currentModule.insertAfter(nextModule);
+                        debugLog('模块下移成功');
+                    } else {
+                        debugLog('已是最后一个模块，无法下移');
                     }
                 });
 

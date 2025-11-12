@@ -309,6 +309,19 @@ input:checked+.toggle-slider:before {
     font-size: 11px;
 }
 
+.move-module-up,
+.move-module-down {
+    font-size: 12px;
+    padding: 4px 6px;
+    min-width: 26px;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.move-module-up:hover,
+.move-module-down:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
 /* 变量样式 */
 .variables-container {
     margin-bottom: 8px;
