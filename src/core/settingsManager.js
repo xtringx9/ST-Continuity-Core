@@ -45,14 +45,20 @@ export function onEnabledToggle(event) {
 
     // 通知提示词注入管理器开关状态变化
     if (window.continuityPromptInjector) {
-        window.continuityPromptInjector.updateSettings(enabled, 
-            window.continuityPromptInjector.injectionDepth, 
+        window.continuityPromptInjector.updateSettings(enabled,
+            window.continuityPromptInjector.injectionDepth,
             window.continuityPromptInjector.injectionRole);
     }
 
-    // 重新初始化事件处理器（确保事件注册状态与开关状态一致）
+    // 根据开关状态处理事件处理器
     if (window.continuityEventHandler) {
-        window.continuityEventHandler.reinitializeEventHandlers();
+        if (enabled) {
+            // 启用时：重新初始化事件处理器
+            window.continuityEventHandler.reinitializeEventHandlers();
+        } else {
+            // 禁用时：销毁事件处理器，停止所有事件监听
+            window.continuityEventHandler.destroy();
+        }
     }
 
     toastr.info(enabled ? "Continuity Core 已启用" : "Continuity Core 已禁用");
@@ -85,10 +91,33 @@ export function onDebugLogsToggle(event) {
  * @param {boolean} enabled 是否启用
  */
 export function updateExtensionUIState(enabled) {
+    // 处理FAB菜单
     const fabContainer = $("#continuity-fab-container");
     if (enabled) {
         fabContainer.show();
     } else {
         fabContainer.hide();
+    }
+
+    // 处理设置面板中的其他控件（除了全局开关）
+    const backendUrlInput = $("#continuity_backend_url");
+    const debugLogsCheckbox = $("#continuity_debug_logs");
+
+    if (enabled) {
+        // 启用时：显示并启用所有控件
+        backendUrlInput.prop("disabled", false);
+        debugLogsCheckbox.prop("disabled", false);
+
+        // 移除禁用样式
+        backendUrlInput.removeClass("disabled-input");
+        debugLogsCheckbox.parent().removeClass("disabled-control");
+    } else {
+        // 禁用时：禁用除全局开关外的所有控件
+        backendUrlInput.prop("disabled", true);
+        debugLogsCheckbox.prop("disabled", true);
+
+        // 添加禁用样式
+        backendUrlInput.addClass("disabled-input");
+        debugLogsCheckbox.parent().addClass("disabled-control");
     }
 }
