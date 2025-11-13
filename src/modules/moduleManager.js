@@ -17,6 +17,21 @@ export function addModule() {
     // 初始化预览
     updateModulePreview(template.find('.module-item'));
 
+    // 初始化范围模式显示状态（默认最大数量模式）
+    const moduleItem = template.find('.module-item');
+    const rangeModeSelect = moduleItem.find('.module-range-mode');
+    const rangeInputGroup = moduleItem.find('.range-input-group');
+    const minInput = moduleItem.find('.module-item-min');
+    const maxInput = moduleItem.find('.module-item-max');
+    const separator = moduleItem.find('.range-separator');
+
+    // 设置默认最大数量模式并显示输入框
+    rangeModeSelect.val('max');
+    rangeInputGroup.show();
+    minInput.hide();
+    separator.hide();
+    maxInput.show().val(1);
+
     return template;
 }
 
@@ -31,7 +46,7 @@ export function updateModulePreview(moduleItem) {
         return $(this).closest('.variable-template').length === 0;
     }).map(function () {
         const varName = $(this).find('.variable-name').val() || '变量名';
-        return varName;
+        return varName + ':';
     }).get();
 
     const previewText = variables.length > 0
@@ -75,9 +90,62 @@ export function bindModuleEvents(moduleElement) {
     moduleItem.find('.module-enabled-toggle').off('change');
     moduleItem.find('.drag-handle').off('mousedown touchstart');
 
-    // 模块名称输入事件
+    // 绑定模块名称输入事件
     moduleItem.find('.module-name').on('input', function () {
         updateModulePreview(moduleItem);
+        // 自动保存配置
+        autoSaveModuleConfig();
+    });
+
+    // 绑定模块提示词输入事件
+    moduleItem.find('.module-prompt-input, .module-content-prompt-input').on('input', function () {
+        // 自动保存配置
+        autoSaveModuleConfig();
+    });
+
+    // 绑定范围模式选择事件
+    moduleItem.find('.module-range-mode').on('change', function () {
+        const mode = $(this).val();
+        const rangeInputGroup = moduleItem.find('.range-input-group');
+        const minInput = moduleItem.find('.module-item-min');
+        const maxInput = moduleItem.find('.module-item-max');
+        const separator = moduleItem.find('.range-separator');
+
+        // 根据模式显示/隐藏输入框并设置默认值
+        switch (mode) {
+            case 'unlimited':
+                rangeInputGroup.hide();
+                minInput.val(0);
+                maxInput.val(0);
+                break;
+            case 'max':
+                rangeInputGroup.show();
+                minInput.hide();
+                separator.hide();
+                maxInput.show().val(1);
+                break;
+            case 'range':
+                rangeInputGroup.show();
+                minInput.show().val(0);
+                separator.show();
+                maxInput.show().val(1);
+                break;
+        }
+
+        // 自动保存配置
+        autoSaveModuleConfig();
+    });
+
+    // 绑定数量范围输入事件
+    moduleItem.find('.module-item-min, .module-item-max').on('input', function () {
+        // 自动保存配置
+        autoSaveModuleConfig();
+    });
+
+    // 绑定生成位置选择事件
+    moduleItem.find('.module-output-position').on('change', function () {
+        // 自动保存配置
+        autoSaveModuleConfig();
     });
 
     // 模块启用/禁用滑块开关事件
@@ -94,6 +162,8 @@ export function bindModuleEvents(moduleElement) {
 
         updateModulePreview(moduleItem);
         debugLog('模块启用状态改变:', moduleItem.find('.module-name').val(), isEnabled);
+        // 自动保存配置
+        autoSaveModuleConfig();
     });
 
     // 更新变量数量显示
@@ -201,6 +271,8 @@ export function bindModuleEvents(moduleElement) {
         // 变量输入事件
         variableItem.find('input').on('input', function () {
             updateModulePreview(moduleItem);
+            // 自动保存配置
+            autoSaveModuleConfig();
         });
 
         // 删除变量事件
@@ -215,6 +287,22 @@ export function bindModuleEvents(moduleElement) {
     // 更新排序数字
     updateModuleOrderNumbers();
 
+}
+
+/**
+ * 自动保存模块配置
+ */
+function autoSaveModuleConfig() {
+    // 使用防抖机制，避免频繁保存
+    if (window.autoSaveTimeout) {
+        clearTimeout(window.autoSaveTimeout);
+    }
+
+    window.autoSaveTimeout = setTimeout(() => {
+        const modules = getModulesData();
+        saveModuleConfig(modules);
+        debugLog('配置已自动保存');
+    }, 1000); // 1秒后保存
 }
 
 /**
@@ -253,7 +341,8 @@ export function getModulesData() {
             // 获取新的配置项
             const contentPrompt = $(this).find('.module-content-prompt-input').val();
             const outputPosition = $(this).find('.module-output-position').val();
-            const itemLimit = parseInt($(this).find('.module-item-limit').val()) || -1;
+            const itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
+            const itemMax = parseInt($(this).find('.module-item-max').val()) || -1;
 
             modules.push({
                 name: moduleName,
@@ -262,7 +351,8 @@ export function getModulesData() {
                 prompt: modulePrompt || '',
                 contentPrompt: contentPrompt || '',
                 outputPosition: outputPosition || 'body',
-                itemLimit: itemLimit,
+                itemMin: itemMin,
+                itemMax: itemMax,
                 order: index // 添加排序索引
             });
         });

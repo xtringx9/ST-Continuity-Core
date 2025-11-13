@@ -189,6 +189,14 @@
     margin-top: 15px;
     padding-top: 10px;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
+    position: sticky;
+    bottom: 0;
+    background-color: rgba(124, 137, 164, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+    padding-bottom: 10px;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
 }
 
 #module-cancel-btn,

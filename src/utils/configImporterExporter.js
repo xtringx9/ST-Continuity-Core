@@ -59,44 +59,67 @@ export function collectModulesForExport() {
     // 收集所有模块数据
     $('.module-item').each(function () {
         const moduleName = $(this).find('.module-name').val();
+        const moduleDisplayName = $(this).find('.module-display-name').val();
         if (!moduleName) return; // 跳过没有名称的模块
 
         // 获取模块启用状态（默认为true）
         const isEnabled = $(this).find('.module-enabled-toggle').prop('checked') !== false;
-        
+
         // 获取模块提示词（生成提示词）
         const modulePrompt = $(this).find('.module-prompt-input').val();
-        
+
         // 获取模块使用提示词（内容提示词）
         const contentPrompt = $(this).find('.module-content-prompt-input').val();
-        
+
         // 获取模块生成位置
         const outputPosition = $(this).find('.module-output-position').val();
-        
-        // 获取模块数量限制
-        const itemLimit = parseInt($(this).find('.module-item-limit').val()) || -1;
+
+        // 获取模块数量范围（根据模式处理）
+        const rangeMode = $(this).find('.module-range-mode').val();
+        let itemMin = 0;
+        let itemMax = 0;
+
+        switch (rangeMode) {
+            case 'unlimited':
+                itemMin = 0;
+                itemMax = 0; // 0表示无限制
+                break;
+            case 'max':
+                itemMin = 0;
+                itemMax = parseInt($(this).find('.module-item-max').val()) || 1;
+                break;
+            case 'range':
+                itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
+                itemMax = parseInt($(this).find('.module-item-max').val()) || 1;
+                break;
+        }
 
         const variables = [];
         $(this).find('.variable-item').each(function () {
             const varName = $(this).find('.variable-name').val();
+            const varDisplayName = $(this).find('.variable-display-name').val();
             const varDesc = $(this).find('.variable-desc').val();
 
             if (varName) {
                 variables.push({
                     name: varName,
-                    description: varDesc
+                    displayName: varDisplayName || '',
+                    description: varDesc || ''
                 });
             }
         });
 
         modules.push({
             name: moduleName,
+            displayName: moduleDisplayName || '',
             enabled: isEnabled,
             variables: variables,
             prompt: modulePrompt || '',
             contentPrompt: contentPrompt || '',
             outputPosition: outputPosition || 'after_body',
-            itemLimit: itemLimit
+            itemMin: itemMin,
+            itemMax: itemMax,
+            rangeMode: rangeMode || 'max' // 添加rangeMode字段，默认值为max
         });
     });
 
@@ -118,44 +141,67 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
         // 收集所有模块数据
         $('.module-item').each(function (index) {
             const moduleName = $(this).find('.module-name').val();
+            const moduleDisplayName = $(this).find('.module-display-name').val();
             if (!moduleName) return; // 跳过没有名称的模块
 
             // 获取模块启用状态（默认为true）
             const isEnabled = $(this).find('.module-enabled-toggle').prop('checked') !== false;
-            
+
             // 获取模块提示词（生成提示词）
             const modulePrompt = $(this).find('.module-prompt-input').val();
-            
+
             // 获取模块使用提示词（内容提示词）
             const contentPrompt = $(this).find('.module-content-prompt-input').val();
-            
+
             // 获取模块生成位置
             const outputPosition = $(this).find('.module-output-position').val();
-            
-            // 获取模块数量限制
-            const itemLimit = parseInt($(this).find('.module-item-limit').val()) || -1;
+
+            // 获取模块数量范围（根据模式处理）
+            const rangeMode = $(this).find('.module-range-mode').val();
+            let itemMin = 0;
+            let itemMax = 0;
+
+            switch (rangeMode) {
+                case 'unlimited':
+                    itemMin = 0;
+                    itemMax = 0; // 0表示无限制
+                    break;
+                case 'max':
+                    itemMin = 0;
+                    itemMax = parseInt($(this).find('.module-item-max').val()) || 1;
+                    break;
+                case 'range':
+                    itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
+                    itemMax = parseInt($(this).find('.module-item-max').val()) || 1;
+                    break;
+            }
 
             const variables = [];
             $(this).find('.variable-item').each(function () {
                 const varName = $(this).find('.variable-name').val();
+                const varDisplayName = $(this).find('.variable-display-name').val();
                 const varDesc = $(this).find('.variable-desc').val();
 
                 if (varName) {
                     variables.push({
                         name: varName,
-                        description: varDesc
+                        displayName: varDisplayName || '',
+                        description: varDesc || ''
                     });
                 }
             });
 
             modules.push({
                 name: moduleName,
+                displayName: moduleDisplayName || '',
                 enabled: isEnabled,
                 variables: variables,
                 prompt: modulePrompt || '',
                 contentPrompt: contentPrompt || '',
-                outputPosition: outputPosition || 'after_body',
-                itemLimit: itemLimit,
+                outputPosition: outputPosition || 'body',
+                itemMin: itemMin,
+                itemMax: itemMax,
+                rangeMode: rangeMode || 'max', // 添加rangeMode字段，默认值为max
                 order: index // 添加排序索引
             });
         });

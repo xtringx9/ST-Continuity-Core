@@ -109,7 +109,24 @@
     font-size: 11px;
     color: #333;
     transition: border-color 0.2s;
-    width: 80px;
+    width: 60px;
+}
+
+.variable-display-name {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 3px 5px;
+    font-size: 11px;
+    color: #333;
+    transition: border-color 0.2s;
+    width: 60px;
+}
+
+.variable-display-name:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .variable-desc {
