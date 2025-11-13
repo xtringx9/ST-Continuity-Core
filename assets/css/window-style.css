@@ -238,6 +238,100 @@ input:checked+.toggle-slider:before {
     flex: 1;
 }
 
+/* 模块解析区域样式 */
+.module-parse-section {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.module-parse-section .section-title {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.module-parse-section .section-title h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+}
+
+.parse-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.parse-input-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.module-parse-input {
+    flex: 1;
+    height: 32px;
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.module-parse-input:focus {
+    outline: none;
+    border-color: #b4c0e8;
+    box-shadow: 0 0 0 1px rgba(180, 192, 232, 0.2);
+}
+
+.parse-modules-btn {
+    background-color: rgba(180, 192, 232, 0.9);
+    border: 1px solid rgba(180, 192, 232, 0.7);
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 14px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    height: 32px;
+    min-width: 40px;
+}
+
+.parse-modules-btn:hover {
+    background-color: rgba(76, 175, 80, 1);
+    transform: translateY(-1px);
+}
+
+.parse-modules-btn:active {
+    background-color: rgba(56, 142, 60, 1);
+    transform: translateY(0);
+}
+
+.parse-modules-btn:disabled {
+    background-color: rgba(200, 200, 200, 0.8);
+    border-color: rgba(200, 200, 200, 0.6);
+    color: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.parse-info {
+    font-size: 10px;
+    color: #888;
+    line-height: 1.2;
+}
+
+.parse-info p {
+    margin: 0;
+}
+
 .module-settings-inline {
     display: flex;
     gap: 12px;

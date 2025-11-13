@@ -1,5 +1,5 @@
 // 模块配置管理模块
-import { extensionFolderPath, debugLog, errorLog, infoLog } from "../index.js";
+import { extensionFolderPath, debugLog, errorLog, infoLog, initParseModule } from "../index.js";
 import { getVariableItemTemplate } from "./templateManager.js";
 
 // 声明外部函数（在uiManager.js中定义）
@@ -225,6 +225,9 @@ export function renderModulesFromConfig(config) {
     if (typeof onRenderCompleteCallback === 'function') {
         onRenderCompleteCallback();
     }
+
+    // 初始化解析模块功能
+    initParseModule();
 }
 
 /**
