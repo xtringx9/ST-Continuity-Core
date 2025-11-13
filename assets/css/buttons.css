@@ -40,18 +40,33 @@
     font-size: 11px;
 }
 
-/* 移动模块按钮 */
-.move-module-up,
-.move-module-down {
-    font-size: 11px;
-    padding: 3px 5px;
-    min-width: 22px;
-    background-color: rgba(255, 255, 255, 0.15);
+/* 拖拽手柄样式 */
+.drag-handle {
+    font-size: 14px;
+    padding: 3px 6px;
+    min-width: 20px;
+    height: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 8px;
 }
 
-.move-module-up:hover,
-.move-module-down:hover {
-    background-color: rgba(255, 255, 255, 0.3);
+.drag-handle:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    transform: scale(1.1);
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+    transform: scale(0.95);
 }
 
 /* 添加变量和删除模块按钮 */
