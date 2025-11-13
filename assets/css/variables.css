@@ -1,0 +1,145 @@
+/* 变量样式文件 - 包含变量相关样式 */
+
+/* 变量容器样式 */
+.variables-container {
+    margin-bottom: 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px;
+}
+
+/* 变量折叠功能 */
+.variables-container-wrapper {
+    transition: all 0.3s ease;
+}
+
+/* 默认折叠状态 */
+.variables-container-wrapper {
+    display: block;
+}
+
+.variables-container-wrapper.collapsed .variables-container {
+    display: none;
+}
+
+/* 切换变量按钮 */
+.toggle-variables {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: white;
+    font-size: 11px;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 80px;
+}
+
+.toggle-variables:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.toggle-variables.collapsed {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.toggle-variables .arrow {
+    font-size: 10px;
+    width: 12px;
+    text-align: center;
+    display: inline-block;
+}
+
+.toggle-variables .text {
+    display: inline-block;
+}
+
+.toggle-variables .variable-count {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-left: 4px;
+}
+
+/* 变量项样式 */
+.variable-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
+    padding: 0;
+    flex-wrap: wrap;
+}
+
+.variable-item:last-child {
+    margin-bottom: 0;
+}
+
+.variable-name-group,
+.variable-desc-group {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.variable-name-group {
+    min-width: 100px;
+}
+
+.variable-desc-group {
+    flex: 1;
+}
+
+.variable-name-group label,
+.variable-desc-group label {
+    white-space: nowrap;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+}
+
+.variable-name {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 3px 5px;
+    font-size: 11px;
+    color: #333;
+    transition: border-color 0.2s;
+    width: 80px;
+}
+
+.variable-desc {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 3px 5px;
+    font-size: 11px;
+    color: #333;
+    transition: border-color 0.2s;
+    flex: 1;
+}
+
+.variable-name:focus,
+.variable-desc:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* 变量操作按钮 */
+.variable-actions {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.variable-actions .btn-small {
+    padding: 3px 6px;
+    min-width: 24px;
+    justify-content: center;
+    font-size: 11px;
+}
