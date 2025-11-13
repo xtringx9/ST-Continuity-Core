@@ -99,10 +99,16 @@
         <div class="module-template" style="display: none;">
             <div class="module-item">
                 <div class="module-header">
-                    <div class="module-name-group">
-                        <span class="module-order-number"></span>
-                        <label>模块名称</label>
-                        <input type="text" class="module-name" placeholder="输入模块名称">
+                    <div class="module-header-left">
+                        <label class="module-toggle">
+                            <input type="checkbox" class="module-enabled-toggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div class="module-name-group">
+                            <span class="module-order-number"></span>
+                            <label>模块名称</label>
+                            <input type="text" class="module-name" placeholder="输入模块名称">
+                        </div>
                     </div>
                     <div class="module-settings-inline">
                         <div class="module-setting-item">
@@ -120,13 +126,6 @@
                         </div>
                     </div>
                     <div class="module-actions">
-                        <div class="module-toggle-group">
-                            <label class="toggle-label">启用</label>
-                            <label class="module-toggle">
-                                <input type="checkbox" class="module-enabled-toggle" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
                         <button class="btn-small toggle-variables"><span class="arrow">▶</span><span
                                 class="text">展开变量</span><span class="variable-count">(0)</span></button>
                         <button class="btn-small move-module-up" title="上移模块">▲</button>
