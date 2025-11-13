@@ -104,8 +104,30 @@
 
 .module-settings-row {
     display: flex;
-    gap: 8px;
+    justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-wrap: wrap;
+}
+
+.module-settings-row .module-settings-inline {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.module-actions-right {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    margin-left: auto;
 }
 
 .module-setting-item {
@@ -282,7 +304,8 @@
 /* 禁用状态下自动折叠模块内容 */
 .module-item.disabled .variables-container-wrapper,
 .module-item.disabled .module-prompt,
-.module-item.disabled .module-preview {
+.module-item.disabled .module-preview,
+.module-item.disabled .module-settings-row {
     display: none !important;
 }
 
