@@ -41,15 +41,15 @@ export function togglePromptPreview() {
 
 /**
  * 获取当前预览模式
- * @returns {string} 预览模式：'module' | 'macro' | 'macro-config' | 'macro-modules'
+ * @returns {string} 预览模式：'macro' | 'macro-config' | 'macro-modules'
  */
 function getCurrentPreviewMode() {
     try {
         const mode = $('#preview-mode-select').val();
-        return mode || 'module';
+        return mode || 'macro';
     } catch (error) {
         errorLog('获取预览模式失败:', error);
-        return 'module';
+        return 'macro';
     }
 }
 
@@ -61,15 +61,13 @@ function generatePreviewContent() {
     const mode = getCurrentPreviewMode();
 
     switch (mode) {
-        case 'macro':
-            return getContinuityPrompt();
         case 'macro-config':
             return getContinuityConfig();
         case 'macro-modules':
             return getContinuityModules();
-        case 'module':
+        case 'macro':
         default:
-            return generateModulePrompt();
+            return getContinuityPrompt();
     }
 }
 
@@ -81,15 +79,13 @@ function getPreviewModeDescription() {
     const mode = getCurrentPreviewMode();
 
     switch (mode) {
-        case 'macro':
-            return '{{CONTINUITY_PROMPT}} 宏会生成的提示词';
         case 'macro-config':
             return '{{CONTINUITY_CONFIG}} 宏会生成的配置数据';
         case 'macro-modules':
             return '{{CONTINUITY_MODULES}} 宏会生成的模块列表';
-        case 'module':
+        case 'macro':
         default:
-            return '模块组织后的提示词';
+            return '{{CONTINUITY_PROMPT}} 宏会生成的提示词';
     }
 }
 
