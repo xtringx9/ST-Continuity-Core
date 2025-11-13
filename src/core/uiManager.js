@@ -28,11 +28,22 @@ import {
 
 // 加载CSS文件
 function loadCSS() {
-    // 加载窗口样式
-    const windowStyleLink = document.createElement('link');
-    windowStyleLink.rel = 'stylesheet';
-    windowStyleLink.href = `${extensionFolderPath}/assets/css/window-style.css`;
-    document.head.appendChild(windowStyleLink);
+    // 加载所有拆分后的CSS文件
+    const cssFiles = [
+        'base.css',        // 基础样式
+        'modules.css',     // 模块样式
+        'variables.css',   // 变量样式
+        'buttons.css',     // 按钮样式
+        'preview.css',     // 预览样式
+        'responsive.css'   // 响应式样式
+    ];
+
+    cssFiles.forEach(fileName => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = `${extensionFolderPath}/assets/css/${fileName}`;
+        document.head.appendChild(link);
+    });
 }
 
 /**

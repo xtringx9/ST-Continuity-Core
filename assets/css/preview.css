@@ -1,0 +1,110 @@
+/* 预览样式文件 - 包含预览相关样式 */
+
+/* 提示词预览区域样式 */
+.prompt-preview-section {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 15px;
+}
+
+.prompt-preview-section .section-title {
+    margin-bottom: 8px;
+}
+
+.prompt-preview-section .section-title h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+#prompt-preview-content {
+    margin-top: 10px;
+}
+
+.preview-section {
+    border: none !important;
+}
+
+.prompt-preview-textarea {
+    width: 100%;
+    min-height: 120px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 4px;
+    padding: 8px;
+    color: #000000;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    resize: vertical;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.prompt-preview-textarea:focus {
+    outline: none;
+    background-color: rgba(255, 255, 255, 1);
+}
+
+/* 预览模式选择器样式 */
+.preview-mode-selector {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.preview-mode-selector label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-right: 8px;
+    font-weight: 500;
+    min-width: 60px;
+}
+
+.preview-mode-select {
+    background-color: rgba(255, 255, 255, 0.95);
+    border: none;
+    border-radius: 3px;
+    color: #000000;
+    padding: 3px 6px;
+    font-size: 11px;
+    min-width: 180px;
+    flex: 1;
+}
+
+.preview-mode-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(180, 192, 232, 0.5);
+}
+
+.preview-mode-select option {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+/* 模块数据表格样式 */
+.module-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+}
+
+.module-data-table th,
+.module-data-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.module-data-table th {
+    background-color: rgba(255, 255, 255, 0.1);
+    font-weight: 600;
+}
+
+.module-data-table tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}

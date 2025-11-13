@@ -1,0 +1,15 @@
+/* 响应式样式文件 - 包含媒体查询 */
+
+/* 平板设备响应式布局 */
+@media (min-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* 桌面设备响应式布局 */
+@media (min-width: 992px) {
+    #continuity-module-config-window {
+        max-width: 900px;
+    }
+}
