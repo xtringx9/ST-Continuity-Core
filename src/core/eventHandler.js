@@ -1,5 +1,5 @@
 // 事件处理器 - 处理SillyTavern扩展事件
-import { extension_settings, extensionName, promptInjector } from "../index.js";
+import { extension_settings, extensionName } from "../index.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 
 // 获取SillyTavern上下文
@@ -12,6 +12,7 @@ export class EventHandler {
     constructor() {
         this.isInitialized = false;
         this.eventHandlers = new Map();
+        // 不在构造函数中自动初始化
     }
 
     /**
@@ -57,7 +58,7 @@ export class EventHandler {
     registerChatCompletionPromptReady() {
         try {
             debugLog('开始注册chatCompletionPromptReady事件处理器');
-            
+
             // 检查是否已经注册过
             if (this.eventHandlers.has('chatCompletionPromptReady')) {
                 debugLog('chatCompletionPromptReady事件处理器已存在');
@@ -78,7 +79,7 @@ export class EventHandler {
                     }
 
                     // 调用提示词注入器处理事件（注入器内部会直接修改eventData）
-                    await promptInjector.onChatCompletionPromptReady(eventData);
+                    await window.continuityPromptInjector.onChatCompletionPromptReady(eventData);
 
                     debugLog('提示词注入器处理完成，eventData已被直接修改');
                     // 关键修复：不返回值，让SillyTavern事件系统自动处理修改后的eventData
@@ -237,7 +238,7 @@ export class EventHandler {
             const settings = extension_settings[extensionName];
 
             if (settings && settings.enabled) {
-                promptInjector.updateSettings(true, depth, promptInjector.injectionRole);
+                window.continuityPromptInjector.updateSettings(true, depth, window.continuityPromptInjector.injectionRole);
                 debugLog(`深度设置已更新: ${depth}`);
             }
         } catch (error) {
@@ -255,7 +256,7 @@ export class EventHandler {
             const settings = extension_settings[extensionName];
 
             if (settings && settings.enabled) {
-                promptInjector.updateSettings(true, promptInjector.injectionDepth, role);
+                window.continuityPromptInjector.updateSettings(true, window.continuityPromptInjector.injectionDepth, role);
                 debugLog(`角色设置已更新: ${role}`);
             }
         } catch (error) {
@@ -284,9 +285,3 @@ export class EventHandler {
         }
     }
 }
-
-// 创建全局事件处理器实例
-export const eventHandler = new EventHandler();
-
-// 暴露到全局作用域，以便其他模块可以访问
-window.continuityEventHandler = eventHandler;

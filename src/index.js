@@ -7,6 +7,12 @@
 import { extension_settings, loadExtensionSettings } from '../../../../extensions.js';
 import { chat, saveSettingsDebounced } from '../../../../../script.js';
 
+// 导入核心模块
+import { extensionName, defaultSettings } from './core/config.js';
+import { initializeSettings, onEnabledToggle, updateExtensionUIState } from './core/settingsManager.js';
+import { EventHandler } from './core/eventHandler.js';
+import { PromptInjector } from './core/promptInjector.js';
+
 // 导出外部依赖
 export { extension_settings, loadExtensionSettings, chat, saveSettingsDebounced };
 
@@ -98,13 +104,7 @@ export {
 } from './utils/configImporterExporter.js';
 
 // 导出提示词注入管理器
-export {
-    PromptInjector,
-    promptInjector,
-} from './core/promptInjector.js';
+export { PromptInjector } from './core/promptInjector.js';
 
 // 导出事件处理器
-export {
-    EventHandler,
-    eventHandler,
-} from './core/eventHandler.js';
+export { EventHandler } from './core/eventHandler.js';

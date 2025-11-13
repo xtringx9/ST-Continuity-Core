@@ -11,7 +11,8 @@ export class PromptInjector {
         this.injectionEnabled = false;
         this.injectionDepth = 1;
         this.injectionRole = 'system';
-        this.initialize();
+        this.isInitialized = false;
+        // 不在构造函数中自动初始化
     }
 
     /**
@@ -19,6 +20,11 @@ export class PromptInjector {
      */
     initialize() {
         try {
+            if (this.isInitialized) {
+                debugLog('提示词注入管理器已经初始化');
+                return;
+            }
+            
             // 从扩展设置获取注入配置
             const settings = extension_settings[extensionName];
             if (settings) {
@@ -27,6 +33,7 @@ export class PromptInjector {
                 this.loadUIControls();
             }
 
+            this.isInitialized = true;
             debugLog('提示词注入管理器初始化完成');
         } catch (error) {
             errorLog('提示词注入管理器初始化失败:', error);
@@ -202,8 +209,4 @@ export class PromptInjector {
     }
 }
 
-// 创建全局注入管理器实例
-export const promptInjector = new PromptInjector();
 
-// 暴露到全局作用域，以便其他模块可以访问
-window.continuityPromptInjector = promptInjector;
