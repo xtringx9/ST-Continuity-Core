@@ -10,6 +10,7 @@ import {
     PromptInjector,
     infoLog
 } from "../index.js";
+import { loadModuleConfig, renderModulesFromConfig } from "../modules/moduleConfigManager.js";
 
 /**
  * 初始化扩展设置
@@ -84,6 +85,15 @@ function enableContinuityCore() {
             window.continuityPromptInjector = new PromptInjector();
         }
         window.continuityPromptInjector.initialize();
+
+        // 自动加载模块配置到DOM（如果配置面板尚未打开）
+        if ($('.module-item').length === 0) {
+            const config = loadModuleConfig();
+            if (config && config.modules && config.modules.length > 0) {
+                renderModulesFromConfig(config);
+                infoLog("已自动加载模块配置到DOM，共" + config.modules.length + "个模块");
+            }
+        }
 
         infoLog("Continuity Core 已启用，功能已激活");
     } catch (error) {
