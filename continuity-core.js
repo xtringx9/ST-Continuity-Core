@@ -6,6 +6,7 @@ import {
     createFabMenu,
     EventHandler,
     PromptInjector,
+    registerMacros,
     infoLog,
     extension_settings,
     extensionName
@@ -39,6 +40,14 @@ jQuery(async function () {
     // 创建并初始化提示词注入管理器
     const promptInjector = new PromptInjector();
     promptInjector.initialize();
+
+    // 注册宏到SillyTavern系统
+    const macrosRegistered = registerMacros();
+    if (macrosRegistered) {
+        infoLog("Continuity Core 宏已成功注册");
+    } else {
+        infoLog("Continuity Core 宏注册失败，但插件将继续运行");
+    }
 
     // 将实例暴露到全局，供其他模块使用
     window.continuityEventHandler = eventHandler;
