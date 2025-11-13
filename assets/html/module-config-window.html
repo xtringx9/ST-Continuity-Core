@@ -118,6 +118,16 @@
                             <input type="text" class="module-name" placeholder="输入模块名称">
                         </div>
                     </div>
+                    <div class="module-actions">
+                        <button class="btn-small move-module-up" title="上移模块">▲</button>
+                        <button class="btn-small move-module-down" title="下移模块">▼</button>
+                        <button class="btn-small add-variable">+ 添加变量</button>
+                        <button class="btn-small remove-module">- 删除模块</button>
+                    </div>
+                </div>
+
+                <!-- 模块设置行 - 生成位置、数量限制和展开变量按钮 -->
+                <div class="module-settings-row">
                     <div class="module-settings-inline">
                         <div class="module-setting-item">
                             <label>生成位置</label>
@@ -133,13 +143,9 @@
                                 title="-1表示无限制，0表示禁用，>0表示最大条目数">
                         </div>
                     </div>
-                    <div class="module-actions">
+                    <div class="module-actions-right">
                         <button class="btn-small toggle-variables"><span class="arrow">▶</span><span
                                 class="text">展开变量</span><span class="variable-count">(0)</span></button>
-                        <button class="btn-small move-module-up" title="上移模块">▲</button>
-                        <button class="btn-small move-module-down" title="下移模块">▼</button>
-                        <button class="btn-small add-variable">+ 添加变量</button>
-                        <button class="btn-small remove-module">- 删除模块</button>
                     </div>
                 </div>
 
