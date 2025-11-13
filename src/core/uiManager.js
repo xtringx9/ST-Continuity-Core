@@ -119,7 +119,6 @@ export async function openModuleConfigWindow() {
                 // 保存配置到本地存储
                 if (saveModuleConfig(modules)) {
                     toastr.success('模块配置已保存！');
-                    closeModuleConfigWindow();
                 } else {
                     toastr.error('保存模块配置失败');
                 }
@@ -163,6 +162,56 @@ export async function openModuleConfigWindow() {
         errorLog('打开模块配置窗口失败:', error);
         toastr.error('打开窗口失败，请刷新页面重试。');
     }
+}
+
+/**
+ * 显示自定义确认弹窗
+ * @param {string} title 弹窗标题
+ * @param {string} message 确认消息
+ * @param {function} onConfirm 确认回调函数
+ * @param {function} onCancel 取消回调函数
+ */
+export function showCustomConfirmDialog(title, message, onConfirm, onCancel) {
+    // 创建确认弹窗HTML
+    const confirmDialog = $(`
+        <div id="continuity-confirm-dialog" class="continuity-confirm-dialog">
+            <div class="confirm-dialog-content">
+                <h3 class="confirm-dialog-title">${title}</h3>
+                <p class="confirm-dialog-message">${message}</p>
+                <div class="confirm-dialog-buttons">
+                    <button class="confirm-dialog-btn confirm-dialog-cancel">取消</button>
+                    <button class="confirm-dialog-btn confirm-dialog-confirm">确定</button>
+                </div>
+            </div>
+        </div>
+    `);
+
+    // 添加到页面
+    $('body').append(confirmDialog);
+
+    // 绑定按钮事件
+    confirmDialog.find('.confirm-dialog-confirm').on('click', function() {
+        if (onConfirm) onConfirm();
+        confirmDialog.remove();
+    });
+
+    confirmDialog.find('.confirm-dialog-cancel').on('click', function() {
+        if (onCancel) onCancel();
+        confirmDialog.remove();
+    });
+
+    // 点击背景关闭
+    confirmDialog.on('click', function(e) {
+        if (e.target === this) {
+            if (onCancel) onCancel();
+            confirmDialog.remove();
+        }
+    });
+
+    // 显示弹窗
+    setTimeout(() => {
+        confirmDialog.addClass('show');
+    }, 10);
 }
 
 /**

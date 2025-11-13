@@ -1,5 +1,5 @@
 // 模块管理相关功能
-import { debugLog, errorLog, addVariable, initParseModule } from "../index.js";
+import { debugLog, errorLog, addVariable, initParseModule, showCustomConfirmDialog } from "../index.js";
 import { saveModuleConfig } from "./moduleConfigManager.js";
 
 /**
@@ -31,7 +31,7 @@ export function updateModulePreview(moduleItem) {
         return $(this).closest('.variable-template').length === 0;
     }).map(function () {
         const varName = $(this).find('.variable-name').val() || '变量名';
-        return varName + ':值';
+        return varName;
     }).get();
 
     const previewText = variables.length > 0
@@ -165,11 +165,21 @@ export function bindModuleEvents(moduleElement) {
 
     // 删除模块按钮事件
     moduleItem.find('.remove-module').on('click', function () {
-        if (confirm('确定要删除这个模块吗？')) {
-            moduleItem.closest('.custom-modules-container > div').remove();
-            // 更新所有模块的排序数字
-            updateModuleOrderNumbers();
-        }
+        // 显示自定义确认弹窗
+        showCustomConfirmDialog(
+            '删除模块',
+            '确定要删除这个模块吗？',
+            function () {
+                // 用户确认删除
+                moduleItem.closest('.custom-modules-container > div').remove();
+                // 更新所有模块的排序数字
+                updateModuleOrderNumbers();
+            },
+            function () {
+                // 用户取消删除
+                console.log('用户取消了模块删除操作');
+            }
+        );
     });
 
     // 拖拽手柄事件
