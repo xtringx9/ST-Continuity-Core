@@ -65,29 +65,26 @@ export class EventHandler {
             }
 
             // 创建事件处理器
-            const handler = (eventData) => {
+            const handler = async (eventData) => {
                 try {
-                    debugLog('chatCompletionPromptReady事件被触发');
-                    
+                    debugLog('chatCompletionPromptReady事件处理器被调用');
+                    debugLog('原始事件数据:', eventData);
+
                     // 检查扩展是否启用
                     const settings = extension_settings[extensionName];
                     if (!settings || !settings.enabled) {
-                        debugLog('扩展未启用，跳过提示词注入');
-                        return eventData;
+                        debugLog('扩展未启用，跳过处理');
+                        return; // 不返回值，让事件系统自动处理
                     }
 
-                    debugLog('扩展已启用，开始处理提示词注入');
+                    // 调用提示词注入器处理事件（注入器内部会直接修改eventData）
+                    await promptInjector.onChatCompletionPromptReady(eventData);
 
-                    // 调用提示词注入管理器
-                    const result = promptInjector.onChatCompletionPromptReady(eventData);
-                    debugLog('提示词注入处理完成，返回结果:', result);
-                    
-                    // 关键修复：确保返回修改后的eventData，而不是原始数据
-                    // 有些事件系统可能需要显式返回修改后的对象
-                    return result || eventData;
+                    debugLog('提示词注入器处理完成，eventData已被直接修改');
+                    // 关键修复：不返回值，让SillyTavern事件系统自动处理修改后的eventData
                 } catch (error) {
                     errorLog('处理chatCompletionPromptReady事件失败:', error);
-                    return eventData;
+                    // 出错时也不返回值
                 }
             };
 

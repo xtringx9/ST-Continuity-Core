@@ -135,7 +135,7 @@ export class PromptInjector {
             // 检查是否应该注入
             if (!this.shouldInject()) {
                 debugLog('提示词注入已禁用，跳过注入');
-                return eventData;
+                return; // 不返回值，让事件系统自动处理
             }
 
             // 重新加载UI控件设置（确保使用最新设置）
@@ -145,7 +145,7 @@ export class PromptInjector {
             const promptObject = this.generateInjectionPrompt();
             if (!promptObject) {
                 errorLog('无法生成提示词对象，跳过注入');
-                return eventData;
+                return; // 不返回值，让事件系统自动处理
             }
 
             debugLog('生成的提示词对象:', promptObject);
@@ -153,27 +153,37 @@ export class PromptInjector {
             // 检查聊天数组是否存在
             if (!eventData.chat || !Array.isArray(eventData.chat)) {
                 errorLog('聊天数组不存在或格式错误，跳过注入');
-                return eventData;
+                return; // 不返回值，让事件系统自动处理
             }
 
             debugLog('原始聊天数组长度:', eventData.chat.length);
             debugLog('原始聊天数组内容:', eventData.chat);
 
-            // 注入提示词到聊天数组 - 直接修改eventData.chat以确保影响实际数据
-            const updatedChat = this.injectPromptToChat([...eventData.chat], promptObject);
+            // 按照st-memory-enhancement的方式直接修改eventData.chat数组
+            const { depth, role, content } = promptObject;
+            const injectionMessage = {
+                role: role,
+                content: content
+            };
 
-            // 关键修复：确保修改的是eventData.chat的引用，而不仅仅是值
-            eventData.chat.length = 0; // 清空原数组
-            eventData.chat.push(...updatedChat); // 重新填充修改后的数据
+            // 直接修改eventData.chat数组（不创建副本）
+            if (depth === 0) {
+                // 深度0：插入到最后一条消息之后
+                eventData.chat.push(injectionMessage);
+            } else {
+                // 深度>0：插入到指定位置
+                const insertIndex = Math.max(0, eventData.chat.length - depth);
+                eventData.chat.splice(insertIndex, 0, injectionMessage);
+            }
 
             debugLog('注入后的聊天数组长度:', eventData.chat.length);
             debugLog('注入后的聊天数组内容:', eventData.chat);
 
             infoLog(`提示词注入完成: 深度=${promptObject.depth}, 角色=${promptObject.role}, 聊天数组长度=${eventData.chat.length}`);
-            return eventData;
+            // 关键修复：不返回值，让SillyTavern事件系统自动处理修改后的eventData
         } catch (error) {
             errorLog('处理聊天完成前提示词注入失败:', error);
-            return eventData;
+            // 出错时也不返回值
         }
     }
 
