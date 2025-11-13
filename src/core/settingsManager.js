@@ -8,7 +8,8 @@ import {
     createFabMenu,
     EventHandler,
     PromptInjector,
-    infoLog
+    infoLog,
+    errorLog
 } from "../index.js";
 import { loadModuleConfig, renderModulesFromConfig } from "../modules/moduleConfigManager.js";
 
@@ -95,9 +96,9 @@ function enableContinuityCore() {
             }
         }
 
-        infoLog("Continuity Core 已启用，功能已激活");
+        infoLog("♥️ Continuity Core 已启用，功能已激活");
     } catch (error) {
-        console.error("启用Continuity Core失败:", error);
+        errorLog("启用Continuity Core失败:", error);
         toastr.error("启用Continuity Core失败，请检查控制台");
     }
 }
@@ -120,9 +121,9 @@ function disableContinuityCore() {
             infoLog("Continuity Core 提示词注入管理器已停止");
         }
 
-        infoLog("Continuity Core 已禁用，功能已停止（事件监听器仍存在）");
+        infoLog("♥️ Continuity Core 已禁用，功能已停止（事件监听器仍存在）");
     } catch (error) {
-        console.error("禁用Continuity Core失败:", error);
+        errorLog("禁用Continuity Core失败:", error);
     }
 }
 

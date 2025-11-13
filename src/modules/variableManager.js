@@ -1,5 +1,5 @@
 // 变量管理相关功能
-import { debugLog, updateModulePreview } from "../index.js";
+import { debugLog, errorLog, updateModulePreview } from "../index.js";
 
 /**
  * 添加新变量到模块
@@ -16,7 +16,7 @@ export function addVariable(moduleItem) {
     console.log('[Continuity] 找到的变量容器数量:', variablesContainer.length);
 
     if (variablesContainer.length === 0) {
-        console.error('[Continuity] 未找到变量容器');
+        errorLog('[Continuity] 未找到变量容器');
         return;
     }
 

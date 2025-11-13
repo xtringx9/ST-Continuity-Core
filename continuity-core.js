@@ -23,12 +23,12 @@ function onChatCompletionPromptReady(eventData) {
     if (!settings.enabled) {
         return eventData; // 插件未启用，直接返回原始数据
     }
-    
+
     // 检查提示词注入管理器是否存在
     if (!window.continuityPromptInjector) {
         return eventData; // 注入器不存在，返回原始数据
     }
-    
+
     // 调用提示词注入管理器处理事件
     return window.continuityPromptInjector.onChatCompletionPromptReady(eventData);
 }
@@ -46,13 +46,22 @@ jQuery(async function () {
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     infoLog("Continuity Core 事件监听器已注册（一次性注册模式）");
 
+    // 总是注册宏到SillyTavern系统（无论插件是否启用）
+    // 这样插件重新启用时不会出现重复注册问题
+    const macrosRegistered = registerMacros();
+    if (macrosRegistered) {
+        infoLog("Continuity Core 宏已成功注册（一次性注册模式）");
+    } else {
+        infoLog("Continuity Core 宏注册失败，但插件将继续运行");
+    }
+
     // 检查全局开关状态
     if (!settings.enabled) {
-        infoLog("Continuity Core 已禁用，事件监听器已注册但不会处理事件");
+        infoLog("♥️ Continuity Core 已禁用，事件监听器和宏已注册但不会处理事件");
         return;
     }
 
-    infoLog("Continuity Core 已启用，开始完整初始化");
+    infoLog("♥️ Continuity Core 已启用，开始完整初始化");
 
     // 创建FAB菜单
     createFabMenu();
@@ -63,12 +72,4 @@ jQuery(async function () {
     }
     window.continuityPromptInjector.initialize();
     infoLog("Continuity Core 提示词注入管理器已初始化");
-
-    // 注册宏到SillyTavern系统
-    const macrosRegistered = registerMacros();
-    if (macrosRegistered) {
-        infoLog("Continuity Core 宏已成功注册");
-    } else {
-        infoLog("Continuity Core 宏注册失败，但插件将继续运行");
-    }
 });

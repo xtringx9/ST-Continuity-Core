@@ -6,6 +6,7 @@
 import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 import { getModulesData } from '../modules/moduleManager.js';
 import { generateFormalPrompt } from '../modules/promptGenerator.js';
+import { extension_settings, extensionName } from '../index.js';
 
 /**
  * 获取完整的连续性提示词
@@ -15,18 +16,25 @@ import { generateFormalPrompt } from '../modules/promptGenerator.js';
 export function getContinuityPrompt() {
     try {
         debugLog("宏管理器: 获取连续性提示词");
-        
+
+        // 检查全局开关状态
+        const settings = extension_settings[extensionName];
+        if (!settings || !settings.enabled) {
+            debugLog("宏管理器: 全局开关已关闭，返回空提示词");
+            return "";
+        }
+
         // 获取模块数据
         const modulesData = getModulesData();
-        
+
         if (!modulesData || modulesData.length === 0) {
             debugLog("宏管理器: 未找到模块数据，返回空提示词");
             return "";
         }
-        
+
         // 生成正式提示词
         const prompt = generateFormalPrompt(modulesData);
-        
+
         debugLog("宏管理器: 成功生成连续性提示词");
         return prompt;
     } catch (error) {
@@ -43,18 +51,25 @@ export function getContinuityPrompt() {
 export function getContinuityConfig() {
     try {
         debugLog("宏管理器: 获取模块配置数据");
-        
+
+        // 检查全局开关状态
+        const settings = extension_settings[extensionName];
+        if (!settings || !settings.enabled) {
+            debugLog("宏管理器: 全局开关已关闭，返回空配置");
+            return "{}";
+        }
+
         // 获取模块数据
         const modulesData = getModulesData();
-        
+
         if (!modulesData || modulesData.length === 0) {
             debugLog("宏管理器: 未找到模块数据，返回空配置");
             return "{}";
         }
-        
+
         // 转换为JSON格式
         const configJson = JSON.stringify(modulesData, null, 2);
-        
+
         debugLog("宏管理器: 成功生成模块配置数据");
         return configJson;
     } catch (error) {
@@ -71,18 +86,25 @@ export function getContinuityConfig() {
 export function getContinuityModules() {
     try {
         debugLog("宏管理器: 获取模块名称列表");
-        
+
+        // 检查全局开关状态
+        const settings = extension_settings[extensionName];
+        if (!settings || !settings.enabled) {
+            debugLog("宏管理器: 全局开关已关闭，返回空列表");
+            return "";
+        }
+
         // 获取模块数据
         const modulesData = getModulesData();
-        
+
         if (!modulesData || modulesData.length === 0) {
             debugLog("宏管理器: 未找到模块数据，返回空列表");
             return "";
         }
-        
+
         // 提取模块名称
         const moduleNames = modulesData.map(module => module.name).filter(name => name);
-        
+
         debugLog("宏管理器: 成功生成模块名称列表");
         return moduleNames.join(", ");
     } catch (error) {
@@ -100,21 +122,21 @@ import { getContext } from '/scripts/extensions.js';
 export function registerMacros() {
     try {
         debugLog("宏管理器: 开始注册宏");
-        
+
         // 使用SillyTavern扩展系统的标准方式获取上下文
         const context = getContext();
-        
+
         if (context && typeof context.registerMacro === 'function') {
             // 注册宏
             context.registerMacro('CONTINUITY_PROMPT', getContinuityPrompt);
             debugLog("宏管理器: 注册 {{CONTINUITY_PROMPT}} 宏");
-            
+
             context.registerMacro('CONTINUITY_CONFIG', getContinuityConfig);
             debugLog("宏管理器: 注册 {{CONTINUITY_CONFIG}} 宏");
-            
+
             context.registerMacro('CONTINUITY_MODULES', getContinuityModules);
             debugLog("宏管理器: 注册 {{CONTINUITY_MODULES}} 宏");
-            
+
             infoLog("宏管理器: 成功注册所有宏");
             return true;
         } else {
