@@ -226,34 +226,53 @@ export function bindModuleEvents(moduleElement) {
 export function getModulesData() {
     const modules = [];
 
-    // 收集所有模块数据
-    $('.module-item').each(function (index) {
-        const moduleName = $(this).find('.module-name').val();
-        if (!moduleName) return; // 跳过没有名称的模块
+    // 首先尝试从DOM中获取模块数据（如果配置面板已打开）
+    if ($('.module-item').length > 0) {
+        // 收集所有模块数据
+        $('.module-item').each(function (index) {
+            const moduleName = $(this).find('.module-name').val();
+            if (!moduleName) return; // 跳过没有名称的模块
 
-        const variables = [];
-        $(this).find('.variable-item').each(function () {
-            const varName = $(this).find('.variable-name').val();
-            const varDesc = $(this).find('.variable-desc').val();
+            const variables = [];
+            $(this).find('.variable-item').each(function () {
+                const varName = $(this).find('.variable-name').val();
+                const varDesc = $(this).find('.variable-desc').val();
 
-            if (varName) {
-                variables.push({
-                    name: varName,
-                    description: varDesc
-                });
+                if (varName) {
+                    variables.push({
+                        name: varName,
+                        description: varDesc
+                    });
+                }
+            });
+
+            // 获取模块提示词
+            const modulePrompt = $(this).find('.module-prompt-input').val();
+
+            modules.push({
+                name: moduleName,
+                variables: variables,
+                prompt: modulePrompt || '',
+                order: index // 添加排序索引
+            });
+        });
+    }
+
+    // 如果DOM中没有模块数据，则从本地存储加载
+    if (modules.length === 0) {
+        try {
+            const configStr = localStorage.getItem('continuity_module_config');
+            if (configStr) {
+                const config = JSON.parse(configStr);
+                if (config.modules && Array.isArray(config.modules)) {
+                    modules.push(...config.modules);
+                    debugLog('从本地存储加载模块配置:', modules.length, '个模块');
+                }
             }
-        });
-
-        // 获取模块提示词
-        const modulePrompt = $(this).find('.module-prompt-input').val();
-
-        modules.push({
-            name: moduleName,
-            variables: variables,
-            prompt: modulePrompt || '',
-            order: index // 添加排序索引
-        });
-    });
+        } catch (error) {
+            errorLog('从本地存储加载模块配置失败:', error);
+        }
+    }
 
     return modules;
 }
