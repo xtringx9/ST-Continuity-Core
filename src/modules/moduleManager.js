@@ -1,5 +1,6 @@
 // 模块管理相关功能
 import { debugLog, errorLog, addVariable, initParseModule } from "../index.js";
+import { saveModuleConfig } from "./moduleConfigManager.js";
 
 /**
  * 添加新模块
@@ -67,13 +68,12 @@ export function bindModuleEvents(moduleElement) {
     // 先解绑所有事件，避免重复绑定
     moduleItem.find('.module-name').off('input');
     moduleItem.find('.toggle-variables').off('click');
-    moduleItem.find('.move-module-up').off('click');
-    moduleItem.find('.move-module-down').off('click');
     moduleItem.find('.add-variable').off('click');
     moduleItem.find('.remove-module').off('click');
     moduleItem.find('.variable-item input').off('input');
     moduleItem.find('.variable-item .remove-variable').off('click');
     moduleItem.find('.module-enabled-toggle').off('change');
+    moduleItem.find('.drag-handle').off('mousedown touchstart');
 
     // 模块名称输入事件
     moduleItem.find('.module-name').on('input', function () {
@@ -172,42 +172,12 @@ export function bindModuleEvents(moduleElement) {
         }
     });
 
-    // 上移模块按钮事件
-    moduleItem.find('.move-module-up').on('click', function () {
-        const currentModule = moduleItem.closest('.custom-modules-container > div');
-        // 更精确的选择器：只选择包含.module-item的div，排除标题和模板
-        const allModules = $('.custom-modules-container > div').has('.module-item').not('.section-title, .module-template');
-        const currentIndex = allModules.index(currentModule);
-
-        if (currentIndex > 0) {
-            // 将当前模块与前一个模块交换位置
-            const prevModule = allModules.eq(currentIndex - 1);
-            currentModule.insertBefore(prevModule);
-            debugLog('模块上移成功');
-            // 更新所有模块的排序数字
-            updateModuleOrderNumbers();
-        } else {
-            debugLog('已是第一个模块，无法上移');
-        }
-    });
-
-    // 下移模块按钮事件
-    moduleItem.find('.move-module-down').on('click', function () {
-        const currentModule = moduleItem.closest('.custom-modules-container > div');
-        // 更精确的选择器：只选择包含.module-item的div，排除标题和模板
-        const allModules = $('.custom-modules-container > div').has('.module-item').not('.section-title, .module-template');
-        const currentIndex = allModules.index(currentModule);
-
-        if (currentIndex < allModules.length - 1) {
-            // 将当前模块与后一个模块交换位置
-            const nextModule = allModules.eq(currentIndex + 1);
-            currentModule.insertAfter(nextModule);
-            debugLog('模块下移成功');
-            // 更新所有模块的排序数字
-            updateModuleOrderNumbers();
-        } else {
-            debugLog('已是最后一个模块，无法下移');
-        }
+    // 拖拽手柄事件
+    moduleItem.find('.drag-handle').on('mousedown touchstart', function (e) {
+        const moduleContainer = moduleItem.closest('.custom-modules-container > div');
+        startDragging(moduleContainer, e);
+        e.preventDefault();
+        e.stopPropagation();
     });
 
     // 已有的变量事件绑定
@@ -234,6 +204,7 @@ export function bindModuleEvents(moduleElement) {
 
     // 更新排序数字
     updateModuleOrderNumbers();
+
 }
 
 /**
@@ -309,4 +280,118 @@ export function getModulesData() {
     }
 
     return modules;
+}
+
+/**
+ * 开始拖拽模块
+ * @param {jQuery} moduleContainer 模块容器jQuery对象
+ * @param {Event} e 事件对象
+ */
+function startDragging(moduleContainer, e) {
+    let isDragging = false;
+    let dragStartY = e.type === 'touchstart' ? e.originalEvent.touches[0].clientY : e.clientY;
+
+    // 添加拖拽样式
+    moduleContainer.addClass('dragging');
+    moduleContainer.css({
+        'cursor': 'grabbing',
+        'opacity': '0.7',
+        'transform': 'scale(1.02)',
+        'z-index': '1000',
+        'box-shadow': '0 4px 12px rgba(0, 0, 0, 0.3)'
+    });
+
+    // 添加拖拽占位符
+    const placeholder = $('<div class="drag-placeholder"></div>');
+    placeholder.css({
+        'height': moduleContainer.outerHeight() + 'px',
+        'background-color': 'rgba(255, 255, 255, 0.1)',
+        'border': '2px dashed rgba(255, 255, 255, 0.3)',
+        'border-radius': '6px',
+        'margin': '5px 0'
+    });
+    moduleContainer.before(placeholder);
+
+    isDragging = true;
+
+    // 绑定拖拽移动事件
+    $(document).on('mousemove touchmove', handleDragMove);
+    $(document).on('mouseup touchend', handleDragEnd);
+
+    debugLog('开始拖拽模块');
+
+    /**
+     * 处理拖拽移动
+     */
+    function handleDragMove(e) {
+        if (!isDragging) return;
+
+        const currentY = e.type === 'touchmove' ? e.originalEvent.touches[0].clientY : e.clientY;
+        const allModules = $('.custom-modules-container > div').has('.module-item').not('.section-title, .module-template, .dragging');
+        const placeholder = $('.drag-placeholder');
+
+        // 找到最接近的模块位置
+        let targetIndex = -1;
+        allModules.each(function (index) {
+            const moduleRect = this.getBoundingClientRect();
+            const moduleCenterY = moduleRect.top + moduleRect.height / 2;
+
+            if (currentY < moduleCenterY) {
+                targetIndex = index;
+                return false; // 退出循环
+            }
+        });
+
+        // 如果没找到合适位置，放在最后
+        if (targetIndex === -1) {
+            targetIndex = allModules.length;
+        }
+
+        // 移动占位符到目标位置
+        if (targetIndex < allModules.length) {
+            placeholder.insertBefore(allModules.eq(targetIndex));
+        } else {
+            placeholder.insertAfter(allModules.last());
+        }
+    }
+
+    /**
+     * 处理拖拽结束
+     */
+    function handleDragEnd(e) {
+        if (!isDragging) return;
+
+        const placeholder = $('.drag-placeholder');
+        const draggingModule = $('.dragging');
+
+        // 将模块移动到占位符位置
+        if (placeholder.length > 0) {
+            draggingModule.insertAfter(placeholder);
+            placeholder.remove();
+        }
+
+        // 移除拖拽样式
+        draggingModule.removeClass('dragging');
+        draggingModule.css({
+            'cursor': '',
+            'opacity': '',
+            'transform': '',
+            'z-index': '',
+            'box-shadow': ''
+        });
+
+        // 更新模块顺序
+        updateModuleOrderNumbers();
+
+        // 保存模块配置到本地存储
+        const modules = getModulesData();
+        saveModuleConfig(modules);
+
+        // 移除事件监听
+        $(document).off('mousemove touchmove', handleDragMove);
+        $(document).off('mouseup touchend', handleDragEnd);
+
+        isDragging = false;
+        debugLog('拖拽结束，模块位置已更新');
+    }
 }
