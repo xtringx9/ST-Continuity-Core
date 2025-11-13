@@ -48,7 +48,22 @@ export {
     renderModulesFromConfig,
     setBindModuleEvents,
     setOnRenderComplete,
+    restoreModuleConfigFromFile,
+    getModuleConfigStatsInfo,
+    hasModuleConfigData,
+    clearModuleConfigData,
 } from './modules/moduleConfigManager.js';
+
+// 导出模块存储管理模块
+export {
+    saveModuleConfigToExtension,
+    loadModuleConfigFromExtension,
+    hasModuleConfig,
+    clearModuleConfig,
+    getModuleConfigStats,
+    backupModuleConfig,
+    restoreModuleConfig,
+} from './modules/moduleStorageManager.js';
 
 // 导出模块管理模块
 export {
