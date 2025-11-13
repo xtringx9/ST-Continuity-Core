@@ -1,5 +1,6 @@
 // 模块配置管理模块
 import { extensionFolderPath, debugLog, errorLog, infoLog } from "../index.js";
+import { getVariableItemTemplate } from "./templateManager.js";
 
 // 声明外部函数（在uiManager.js中定义）
 let bindModuleEvents = null;
@@ -158,18 +159,18 @@ export function renderModulesFromConfig(config) {
 
         // 设置模块名称
         moduleItem.find('.module-name').val(module.name);
-        
+
         // 设置模块启用状态（默认为true）
         const isEnabled = module.enabled !== false; // 如果未定义enabled，默认为true
         moduleItem.find('.module-enabled-toggle').prop('checked', isEnabled);
-        
+
         // 根据启用状态设置disabled类
         if (isEnabled) {
             moduleItem.removeClass('disabled');
         } else {
             moduleItem.addClass('disabled');
         }
-        
+
         // 在渲染完成后会通过uiManager.js中的updateModuleOrderNumbers函数统一设置排序数字，这里不再需要手动设置
 
         // 设置模块提示词
@@ -199,22 +200,9 @@ export function renderModulesFromConfig(config) {
             module.variables.forEach(variable => {
                 if (!variable.name) return;
 
-                // 创建与HTML模板一致的变量项结构
-                const templateItem = $(`
-                    <div class="variable-item">
-                        <div class="variable-name-group">
-                            <label>变量名</label>
-                            <input type="text" class="variable-name" placeholder="变量名" value="${variable.name || ''}">
-                        </div>
-                        <div class="variable-desc-group">
-                            <label>变量解释</label>
-                            <input type="text" class="variable-desc" placeholder="变量含义说明" value="${variable.description || ''}">
-                        </div>
-                        <div class="variable-actions">
-                            <button class="btn-small remove-variable">-</button>
-                        </div>
-                    </div>
-                `);
+                // 使用模板管理模块创建变量项
+                const variableItemHTML = getVariableItemTemplate(variable);
+                const templateItem = $(variableItemHTML);
 
                 // 添加variable-item到容器
                 variablesContainer.append(templateItem);
@@ -230,14 +218,14 @@ export function renderModulesFromConfig(config) {
         }
 
         // 更新模块预览
-                updateModulePreview(moduleItem);
-            });
-            
-            // 渲染完成后调用回调
-            if (typeof onRenderCompleteCallback === 'function') {
-                onRenderCompleteCallback();
-            }
+        updateModulePreview(moduleItem);
+    });
+
+    // 渲染完成后调用回调
+    if (typeof onRenderCompleteCallback === 'function') {
+        onRenderCompleteCallback();
     }
+}
 
 /**
  * 更新模块预览

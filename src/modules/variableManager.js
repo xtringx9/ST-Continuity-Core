@@ -1,5 +1,6 @@
 // 变量管理相关功能
 import { debugLog, errorLog, updateModulePreview } from "../index.js";
+import { getEmptyVariableItemTemplate } from "./templateManager.js";
 
 /**
  * 添加新变量到模块
@@ -20,22 +21,8 @@ export function addVariable(moduleItem) {
         return;
     }
 
-    // 创建新的变量项HTML（因为模板是空的）
-    const variableItemHTML = `
-        <div class="variable-item">
-            <div class="variable-name-group">
-                <label>变量名</label>
-                <input type="text" class="variable-name" placeholder="变量名">
-            </div>
-            <div class="variable-desc-group">
-                <label>变量解释</label>
-                <input type="text" class="variable-desc" placeholder="变量含义说明">
-            </div>
-            <div class="variable-actions">
-                <button class="btn-small remove-variable">-</button>
-            </div>
-        </div>
-    `;
+    // 使用模板管理模块创建新的变量项HTML
+    const variableItemHTML = getEmptyVariableItemTemplate();
 
     debugLog('创建变量项HTML成功');
 
