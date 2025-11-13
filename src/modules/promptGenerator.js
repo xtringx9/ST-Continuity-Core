@@ -78,6 +78,19 @@ export function generateFormalPrompt() {
 }
 
 /**
+ * 生成模块组织后的提示词（不包含结构化信息）
+ * @returns {string} 模块组织后的提示词
+ */
+export function generateModulePrompt() {
+    try {
+        return generateFormalPrompt();
+    } catch (error) {
+        errorLog('生成模块提示词失败:', error);
+        return '生成提示词时发生错误：' + error.message;
+    }
+}
+
+/**
  * 生成带有插入设置的提示词
  * @param {Object} insertionSettings 插入设置
  * @param {number} insertionSettings.depth 插入深度
