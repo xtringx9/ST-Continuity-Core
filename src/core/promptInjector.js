@@ -28,7 +28,7 @@ export class PromptInjector {
             // 从扩展设置获取注入配置
             const settings = extension_settings[extensionName];
             if (settings) {
-                this.injectionEnabled = settings.enabled || false;
+                // 不再缓存enabled状态，每次都从设置中获取
                 // 从UI控件获取深度和角色设置
                 this.loadUIControls();
             }
@@ -68,11 +68,12 @@ export class PromptInjector {
      * @returns {boolean} 是否应该注入
      */
     shouldInject() {
-        // 获取当前设置
+        // 获取当前设置（每次都重新获取，确保使用最新设置）
         const settings = extension_settings[extensionName];
         const autoInject = settings?.autoInject !== false; // 默认为true
+        const enabled = settings?.enabled || false;
         
-        return this.injectionEnabled && this.injectionDepth >= 0 && autoInject;
+        return enabled && this.injectionDepth >= 0 && autoInject;
     }
 
     /**
@@ -146,7 +147,7 @@ export class PromptInjector {
             // 检查是否应该注入
             if (!this.shouldInject()) {
                 debugLog('提示词注入已禁用，跳过注入');
-                return; // 不返回值，让事件系统自动处理
+                return eventData; // 返回原始数据
             }
 
             // 重新加载UI控件设置（确保使用最新设置）
@@ -156,7 +157,7 @@ export class PromptInjector {
             const promptObject = this.generateInjectionPrompt();
             if (!promptObject) {
                 errorLog('无法生成提示词对象，跳过注入');
-                return; // 不返回值，让事件系统自动处理
+                return eventData; // 返回原始数据
             }
 
             debugLog('生成的提示词对象:', promptObject);
@@ -164,7 +165,7 @@ export class PromptInjector {
             // 检查聊天数组是否存在
             if (!eventData.chat || !Array.isArray(eventData.chat)) {
                 errorLog('聊天数组不存在或格式错误，跳过注入');
-                return; // 不返回值，让事件系统自动处理
+                return eventData; // 返回原始数据
             }
 
             debugLog('原始聊天数组长度:', eventData.chat.length);
@@ -191,10 +192,13 @@ export class PromptInjector {
             debugLog('注入后的聊天数组内容:', eventData.chat);
 
             infoLog(`提示词注入完成: 深度=${promptObject.depth}, 角色=${promptObject.role}, 聊天数组长度=${eventData.chat.length}`);
-            // 关键修复：不返回值，让SillyTavern事件系统自动处理修改后的eventData
+            
+            // 关键修复：返回修改后的事件数据
+            return eventData;
         } catch (error) {
             errorLog('处理聊天完成前提示词注入失败:', error);
-            // 出错时也不返回值
+            // 出错时返回原始数据
+            return eventData;
         }
     }
 
@@ -213,15 +217,24 @@ export class PromptInjector {
     }
 
     /**
-     * 销毁注入管理器
+     * 重置注入状态（用于新的请求）
+     */
+    resetInjectionState() {
+        this.hasInjectedForCurrentRequest = false;
+        debugLog('提示词注入状态已重置，可以接受新的注入请求');
+    }
+
+    /**
+     * 停止注入管理器功能（采用st-memory-enhancement模式）
+     * 不销毁实例，只停止功能，事件监听器仍然存在
      */
     destroy() {
         try {
             this.injectionEnabled = false;
-            this.isInitialized = false;
-            debugLog('提示词注入管理器已销毁');
+            this.hasInjectedForCurrentRequest = false;
+            debugLog('提示词注入管理器功能已停止（实例仍存在）');
         } catch (error) {
-            errorLog('销毁提示词注入管理器失败:', error);
+            errorLog('停止提示词注入管理器功能失败:', error);
         }
     }
 }

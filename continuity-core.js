@@ -4,15 +4,34 @@ import {
     initializeSettings,
     loadSettingsPanel,
     createFabMenu,
-    EventHandler,
     PromptInjector,
     registerMacros,
     infoLog,
     extension_settings,
-    extensionName
+    extensionName,
+    eventSource,
+    event_types
 } from "./src/index.js";
 
 infoLog("♥️ Continuity Core LOADED!");
+
+// 采用st-memory-enhancement模式：一次性注册事件监听器
+// 事件监听器始终存在，只在处理函数内部检查开关状态
+function onChatCompletionPromptReady(eventData) {
+    // 检查插件是否启用
+    const settings = initializeSettings();
+    if (!settings.enabled) {
+        return eventData; // 插件未启用，直接返回原始数据
+    }
+    
+    // 检查提示词注入管理器是否存在
+    if (!window.continuityPromptInjector) {
+        return eventData; // 注入器不存在，返回原始数据
+    }
+    
+    // 调用提示词注入管理器处理事件
+    return window.continuityPromptInjector.onChatCompletionPromptReady(eventData);
+}
 
 // 当文档加载完毕后执行
 jQuery(async function () {
@@ -22,9 +41,14 @@ jQuery(async function () {
     // 总是加载设置面板（即使插件禁用，也需要让用户能重新启用）
     await loadSettingsPanel();
 
+    // 一次性注册事件监听器（采用st-memory-enhancement模式）
+    // 使用全局的eventSource和event_types对象
+    eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
+    infoLog("Continuity Core 事件监听器已注册（一次性注册模式）");
+
     // 检查全局开关状态
     if (!settings.enabled) {
-        infoLog("Continuity Core 已禁用，仅保留设置面板功能");
+        infoLog("Continuity Core 已禁用，事件监听器已注册但不会处理事件");
         return;
     }
 
@@ -33,13 +57,12 @@ jQuery(async function () {
     // 创建FAB菜单
     createFabMenu();
 
-    // 创建并初始化事件处理器（用于提示词注入）
-    const eventHandler = new EventHandler();
-    eventHandler.initialize();
-
-    // 创建并初始化提示词注入管理器
-    const promptInjector = new PromptInjector();
-    promptInjector.initialize();
+    // 采用st-memory-enhancement模式：直接创建或重新初始化实例
+    if (!window.continuityPromptInjector) {
+        window.continuityPromptInjector = new PromptInjector();
+    }
+    window.continuityPromptInjector.initialize();
+    infoLog("Continuity Core 提示词注入管理器已初始化");
 
     // 注册宏到SillyTavern系统
     const macrosRegistered = registerMacros();
@@ -48,8 +71,4 @@ jQuery(async function () {
     } else {
         infoLog("Continuity Core 宏注册失败，但插件将继续运行");
     }
-
-    // 将实例暴露到全局，供其他模块使用
-    window.continuityEventHandler = eventHandler;
-    window.continuityPromptInjector = promptInjector;
 });

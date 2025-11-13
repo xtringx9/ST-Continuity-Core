@@ -31,14 +31,14 @@ export function initializeSettings() {
  */
 export function loadSettingsToUI() {
     const settings = initializeSettings();
-    // 更新开关状态
-    $("#continuity_enabled").prop("checked", settings.enabled).trigger("input");
+    // 更新开关状态（不触发input事件，避免重复初始化）
+    $("#continuity_enabled").prop("checked", settings.enabled);
     // 更新后端URL输入框
-    $("#continuity_backend_url").val(settings.backendUrl).trigger("input");
+    $("#continuity_backend_url").val(settings.backendUrl);
     // 更新调试日志开关
-    $("#continuity_debug_logs").prop("checked", settings.debugLogs).trigger("input");
+    $("#continuity_debug_logs").prop("checked", settings.debugLogs);
     // 更新自动注入开关
-    $("#auto-inject-toggle").prop("checked", settings.autoInject).trigger("input");
+    $("#auto-inject-toggle").prop("checked", settings.autoInject);
 
     // 根据设置启用或禁用扩展UI
     updateExtensionUIState(settings.enabled);
@@ -79,17 +79,12 @@ function enableContinuityCore() {
         // 创建FAB菜单
         createFabMenu();
 
-        // 创建或重新初始化事件处理器
-        if (!window.continuityEventHandler) {
-            window.continuityEventHandler = new EventHandler();
-        }
-        window.continuityEventHandler.initialize();
-
-        // 创建或重新初始化提示词注入管理器
+        // 采用st-memory-enhancement模式：直接创建或重新初始化实例
         if (!window.continuityPromptInjector) {
             window.continuityPromptInjector = new PromptInjector();
         }
         window.continuityPromptInjector.initialize();
+        infoLog("Continuity Core 提示词注入管理器已初始化");
 
         // 自动加载模块配置到DOM（如果配置面板尚未打开）
         if ($('.module-item').length === 0) {
@@ -118,17 +113,14 @@ function disableContinuityCore() {
             fabContainer.hide();
         }
 
-        // 销毁事件处理器
-        if (window.continuityEventHandler) {
-            window.continuityEventHandler.destroy();
-        }
-
-        // 销毁提示词注入管理器
+        // 采用st-memory-enhancement模式：不销毁提示词注入管理器，只停止其功能
+        // 事件监听器仍然存在，但处理函数内部会检查开关状态
         if (window.continuityPromptInjector) {
             window.continuityPromptInjector.destroy();
+            infoLog("Continuity Core 提示词注入管理器已停止");
         }
 
-        infoLog("Continuity Core 已禁用，功能已停止");
+        infoLog("Continuity Core 已禁用，功能已停止（事件监听器仍存在）");
     } catch (error) {
         console.error("禁用Continuity Core失败:", error);
     }
