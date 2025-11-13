@@ -90,6 +90,21 @@
                         <label>模块名称</label>
                         <input type="text" class="module-name" placeholder="输入模块名称">
                     </div>
+                    <div class="module-settings-inline">
+                        <div class="module-setting-item">
+                            <label>生成位置</label>
+                            <select class="module-output-position">
+                                <option value="body">正文内输出</option>
+                                <option value="embedded">可嵌入</option>
+                                <option value="after_body">正文后输出</option>
+                            </select>
+                        </div>
+                        <div class="module-setting-item">
+                            <label>数量限制</label>
+                            <input type="number" class="module-item-limit" min="-1" value="-1"
+                                title="-1表示无限制，0表示禁用，>0表示最大条目数">
+                        </div>
+                    </div>
                     <div class="module-actions">
                         <div class="module-toggle-group">
                             <label class="toggle-label">启用</label>
@@ -144,12 +159,17 @@
                 </div>
 
                 <div class="module-prompt">
-                    <label>模块提示词</label>
-                    <textarea class="module-prompt-input" placeholder="输入模块提示词，用于指导模型如何使用此模块"></textarea>
+                    <label>生成提示词</label>
+                    <textarea class="module-prompt-input" placeholder="输入生成提示词，用于指导模型如何生成模块内容"></textarea>
+                </div>
+
+                <div class="module-prompt">
+                    <label>使用提示词</label>
+                    <textarea class="module-content-prompt-input" placeholder="输入使用提示词，用于指导模型如何使用此模块"></textarea>
                 </div>
 
                 <div class="module-preview">
-                    <label>模块格式预览</label>
+                    <label>格式预览</label>
                     <input type="text" class="module-preview-text" readonly placeholder="[模块名|变量1:值1|变量2:值2...]" />
                 </div>
             </div>
