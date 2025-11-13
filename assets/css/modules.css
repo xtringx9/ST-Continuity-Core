@@ -79,7 +79,7 @@
 }
 
 .module-name {
-    width: 120px;
+    width: 80px;
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -90,6 +90,23 @@
 }
 
 .module-name:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.module-display-name {
+    width: 80px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 13px;
+    color: #333;
+    transition: border-color 0.2s;
+}
+
+.module-display-name:focus {
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
@@ -134,6 +151,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    height: 24px; /* 固定高度确保垂直居中 */
 }
 
 .module-setting-item label {
@@ -141,6 +159,7 @@
     font-weight: 500;
     color: rgba(255, 255, 255, 0.9);
     white-space: nowrap;
+    line-height: 24px; /* 确保标签垂直居中 */
 }
 
 .module-output-position {
@@ -160,7 +179,14 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-.module-item-limit {
+/* 数量范围模式选择组 */
+.range-mode-group {
+    margin-bottom: 0;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.module-range-mode {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -168,13 +194,46 @@
     font-size: 10px;
     color: #333;
     transition: border-color 0.2s;
-    width: 50px;
+    width: 90px;
 }
 
-.module-item-limit:focus {
+.module-range-mode:focus {
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* 数量范围输入组 */
+.range-input-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.module-item-min,
+.module-item-max {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 10px;
+    color: #333;
+    transition: border-color 0.2s;
+    width: 40px;
+}
+
+.module-item-min:focus,
+.module-item-max:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.range-separator {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 10px;
+    font-weight: bold;
 }
 
 /* 模块限制组 */

@@ -56,23 +56,23 @@ export function loadModuleConfig() {
             debugLog('从SillyTavern扩展设置加载模块配置:', config);
             return config;
         }
-        
+
         // 向后兼容：检查是否存在旧的localStorage配置
         const oldConfigStr = localStorage.getItem('continuity_module_config');
         if (oldConfigStr) {
             try {
                 const oldConfig = JSON.parse(oldConfigStr);
                 debugLog('从旧版localStorage加载模块配置:', oldConfig);
-                
+
                 // 迁移到新存储
                 if (oldConfig.modules) {
                     saveModuleConfigToExtension(oldConfig.modules);
                     infoLog('已从localStorage迁移模块配置到SillyTavern扩展设置');
-                    
+
                     // 可选：清除旧的localStorage配置
                     // localStorage.removeItem('continuity_module_config');
                 }
-                
+
                 return oldConfig;
             } catch (error) {
                 errorLog('迁移旧版配置失败:', error);
@@ -99,7 +99,7 @@ export function exportModuleConfig(modules) {
         }
     } catch (error) {
         errorLog('导出模块配置失败:', error);
-        
+
         // 降级处理：使用旧的导出方式
         const config = { modules };
         const dataStr = JSON.stringify(config, null, 2);
@@ -146,9 +146,9 @@ export function importModuleConfig(file) {
                 if (!config.modules || !Array.isArray(config.modules)) {
                     throw new Error('无效的配置格式，缺少modules数组');
                 }
-                
+
                 debugLog('成功导入模块配置:', config);
-                
+
                 // 保存到扩展设置
                 if (saveModuleConfigToExtension(config.modules)) {
                     infoLog('导入的模块配置已保存到SillyTavern扩展设置');
@@ -201,9 +201,9 @@ export function restoreModuleConfigFromFile(file) {
                 if (!config.modules || !Array.isArray(config.modules)) {
                     throw new Error('无效的配置格式，缺少modules数组');
                 }
-                
+
                 debugLog('成功从备份文件恢复模块配置:', config);
-                
+
                 // 保存到扩展设置
                 if (saveModuleConfigToExtension(config.modules)) {
                     infoLog('备份的模块配置已恢复到SillyTavern扩展设置');
@@ -236,13 +236,13 @@ export function getModuleConfigStatsInfo() {
         if (!config || !Array.isArray(config)) {
             return { moduleCount: 0, enabledCount: 0, variableCount: 0 };
         }
-        
+
         const moduleCount = config.length;
         const enabledCount = config.filter(module => module.enabled !== false).length;
         const variableCount = config.reduce((total, module) => {
             return total + (Array.isArray(module.variables) ? module.variables.length : 0);
         }, 0);
-        
+
         return {
             moduleCount,
             enabledCount,
@@ -284,7 +284,7 @@ export function clearModuleConfigData() {
                 return true;
             }
         }
-        
+
         // 降级处理：尝试清除localStorage
         localStorage.removeItem('continuity_module_config');
         infoLog('模块配置已从localStorage中清除');
@@ -341,6 +341,8 @@ export function renderModulesFromConfig(config) {
 
         // 设置模块名称
         moduleItem.find('.module-name').val(module.name);
+        // 设置模块显示名
+        moduleItem.find('.module-display-name').val(module.displayName || '');
 
         // 设置模块启用状态（默认为true）
         const isEnabled = module.enabled !== false; // 如果未定义enabled，默认为true
@@ -367,8 +369,36 @@ export function renderModulesFromConfig(config) {
         if (module.outputPosition) {
             moduleItem.find('.module-output-position').val(module.outputPosition);
         }
-        if (module.itemLimit !== undefined) {
-            moduleItem.find('.module-item-limit').val(module.itemLimit);
+        // 处理数量范围（使用rangeMode字段优先）
+        const rangeModeSelect = moduleItem.find('.module-range-mode');
+        const rangeInputGroup = moduleItem.find('.range-input-group');
+        const minInput = moduleItem.find('.module-item-min');
+        const maxInput = moduleItem.find('.module-item-max');
+        const separator = moduleItem.find('.range-separator');
+
+        // 优先使用rangeMode字段，如果没有则根据数值推断
+        const rangeMode = module.rangeMode ||
+            (module.itemMin === 0 && module.itemMax === 0 ? 'unlimited' :
+                module.itemMin === 0 && module.itemMax > 0 ? 'max' : 'range');
+
+        rangeModeSelect.val(rangeMode);
+
+        switch (rangeMode) {
+            case 'unlimited':
+                rangeInputGroup.hide();
+                break;
+            case 'max':
+                rangeInputGroup.show();
+                minInput.hide();
+                separator.hide();
+                maxInput.show().val(module.itemMax || 1);
+                break;
+            case 'range':
+                rangeInputGroup.show();
+                minInput.show().val(module.itemMin || 0);
+                separator.show();
+                maxInput.show().val(module.itemMax || 1);
+                break;
         }
 
         // 清空默认变量
@@ -385,6 +415,9 @@ export function renderModulesFromConfig(config) {
                 // 使用模板管理模块创建变量项
                 const variableItemHTML = getVariableItemTemplate(variable);
                 const templateItem = $(variableItemHTML);
+
+                // 设置变量显示名
+                templateItem.find('.variable-display-name').val(variable.displayName || '');
 
                 // 添加variable-item到容器
                 variablesContainer.append(templateItem);

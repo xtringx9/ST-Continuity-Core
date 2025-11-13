@@ -114,8 +114,9 @@
                         </label>
                         <div class="module-name-group">
                             <span class="module-order-number"></span>
-                            <label>模块名称</label>
-                            <input type="text" class="module-name" placeholder="输入模块名称">
+                            <label>模块名</label>
+                            <input type="text" class="module-name" placeholder="模块名">
+                            <input type="text" class="module-display-name" placeholder="显示名">
                         </div>
                     </div>
                     <div class="module-actions">
@@ -137,9 +138,21 @@
                             </select>
                         </div>
                         <div class="module-setting-item">
-                            <label>数量限制</label>
-                            <input type="number" class="module-item-limit" min="-1" value="-1"
-                                title="-1表示无限制，0表示禁用，>0表示最大条目数">
+                            <label>生成数量</label>
+                            <div class="range-mode-group">
+                                <select class="module-range-mode">
+                                    <option value="max">最大数量</option>
+                                    <option value="unlimited">无限制</option>
+                                    <option value="range">指定范围</option>
+                                </select>
+                            </div>
+                            <div class="range-input-group" style="display: none;">
+                                <input type="number" class="module-item-min" min="0" value="0" placeholder="最小"
+                                    title="最小数量">
+                                <span class="range-separator">-</span>
+                                <input type="number" class="module-item-max" min="0" value="1" placeholder="最大"
+                                    title="最大数量">
+                            </div>
                         </div>
                     </div>
                     <div class="module-actions-right">
@@ -172,6 +185,7 @@
                             <div class="variable-name-group">
                                 <label>变量名</label>
                                 <input type="text" class="variable-name" placeholder="变量名">
+                                <input type="text" class="variable-display-name" placeholder="显示名">
                             </div>
                             <div class="variable-desc-group">
                                 <label>描述</label>
