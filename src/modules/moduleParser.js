@@ -20,6 +20,21 @@ export function parseModuleString(moduleString) {
     const match = trimmedString.match(moduleRegex);
     
     if (!match) {
+        // 尝试更宽松的匹配，允许只有模块名的情况
+        const simpleModuleRegex = /^\[(.+?)\]$/;
+        const simpleMatch = trimmedString.match(simpleModuleRegex);
+        
+        if (simpleMatch) {
+            const moduleName = simpleMatch[1].trim();
+            if (moduleName) {
+                debugLog(`解析简单模块: ${moduleName}, 无变量`);
+                return {
+                    name: moduleName,
+                    variables: []
+                };
+            }
+        }
+        
         errorLog('模块字符串格式不正确，不符合 [模块名|变量:描述|...] 格式');
         return null;
     }
@@ -37,7 +52,7 @@ export function parseModuleString(moduleString) {
     const variableParts = variablesString.split('|');
     
     for (const part of variableParts) {
-        const variableMatch = part.match(/^(.+?):(.+)$/);
+        const variableMatch = part.match(/^\s*(.+?)\s*:\s*(.+)\s*$/);
         
         if (variableMatch) {
             const variableName = variableMatch[1].trim();
@@ -48,6 +63,17 @@ export function parseModuleString(moduleString) {
                     name: variableName,
                     description: variableDesc || ''
                 });
+                debugLog(`解析变量: ${variableName} - ${variableDesc}`);
+            }
+        } else {
+            // 如果不符合变量格式，尝试作为简单变量名处理
+            const simpleVariableName = part.trim();
+            if (simpleVariableName) {
+                variables.push({
+                    name: simpleVariableName,
+                    description: ''
+                });
+                debugLog(`解析简单变量: ${simpleVariableName}`);
             }
         }
     }

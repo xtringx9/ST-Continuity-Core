@@ -134,6 +134,8 @@ export async function openModuleConfigWindow() {
             } else {
                 // 如果没有保存的配置，绑定现有模块的事件
                 rebindAllModulesEvents();
+                // 初始化解析模块功能
+                initParseModule();
             }
 
             // 绑定自动注入开关事件
