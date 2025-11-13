@@ -79,8 +79,12 @@ function parseMultipleModules() {
         return;
     }
 
+    debugLog(`输入文本: ${inputText}`);
+
     // 使用正则表达式查找所有符合 [模块名|变量:描述|...] 格式的字符串
     const moduleMatches = inputText.match(/\[[^\]]+\]/g);
+    debugLog(`找到的模块匹配: ${moduleMatches}`);
+    
     if (!moduleMatches || moduleMatches.length === 0) {
         toastr.error('未找到有效的模块格式字符串');
         return;
@@ -89,8 +93,11 @@ function parseMultipleModules() {
     const moduleMap = new Map(); // 用于去重，同模块名视为同一个模块
 
     moduleMatches.forEach(match => {
+        debugLog(`处理模块字符串: ${match}`);
         if (validateModuleString(match)) {
+            debugLog(`模块字符串格式验证通过`);
             const parsedModule = parseModuleString(match);
+            debugLog(`解析结果:`, parsedModule);
             if (parsedModule) {
                 // 如果模块名已存在，合并变量
                 if (moduleMap.has(parsedModule.name)) {
@@ -106,6 +113,8 @@ function parseMultipleModules() {
                     moduleMap.set(parsedModule.name, parsedModule);
                 }
             }
+        } else {
+            debugLog(`模块字符串格式验证失败: ${match}`);
         }
     });
 
@@ -176,7 +185,7 @@ function createModuleFromParse(parsedModule) {
 
     // 添加新模块
     const newModuleElement = addModule();
-    const moduleItem = newModuleElement.find('.module-item')[0];
+    const moduleItem = newModuleElement.find('.module-item');
 
     // 填充模块数据
     fillModuleFromParse(moduleItem, parsedModule);
@@ -196,20 +205,20 @@ function updateModuleFromParse(moduleItem, parsedModule) {
 
 /**
  * 从解析结果填充模块数据
- * @param {HTMLElement} moduleItem 模块项元素
+ * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
  * @param {Object} parsedModule 解析后的模块对象
  */
 function fillModuleFromParse(moduleItem, parsedModule) {
     // 设置模块名称
-    const moduleNameInput = moduleItem.querySelector('.module-name');
-    if (moduleNameInput) {
-        moduleNameInput.value = parsedModule.name;
+    const moduleNameInput = moduleItem.find('.module-name');
+    if (moduleNameInput.length > 0) {
+        moduleNameInput.val(parsedModule.name);
     }
 
     // 清空现有变量
-    const variablesContainer = moduleItem.querySelector('.variables-container');
-    if (variablesContainer) {
-        variablesContainer.innerHTML = '';
+    const variablesContainer = moduleItem.find('.variables-container');
+    if (variablesContainer.length > 0) {
+        variablesContainer.empty();
     }
 
     // 添加解析出的变量
@@ -219,11 +228,13 @@ function fillModuleFromParse(moduleItem, parsedModule) {
         });
     }
 
-    // 触发输入事件以更新预览
-    if (moduleNameInput) {
-        const inputEvent = new Event('input', { bubbles: true });
-        moduleNameInput.dispatchEvent(inputEvent);
+    // 强制更新模块预览
+    if (updateModulePreview) {
+        updateModulePreview(moduleItem);
     }
+
+    // 更新变量数量显示
+    updateVariableCountDisplay(moduleItem);
 
     debugLog(`成功填充模块: ${parsedModule.name}`);
 }
@@ -287,24 +298,43 @@ function parseModuleFromInput(moduleItem) {
 
 /**
  * 从解析结果添加变量
- * @param {HTMLElement} moduleItem 模块项元素
+ * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
  * @param {Object} variable 变量对象
  */
 function addVariableFromParse(moduleItem, variable) {
-    const variablesContainer = moduleItem.querySelector('.variables-container');
-    if (!variablesContainer) {
+    const variablesContainer = moduleItem.find('.variables-container');
+    if (variablesContainer.length === 0) {
         errorLog('未找到变量容器');
         return;
     }
 
+    debugLog(`添加变量: ${variable.name} - ${variable.description}`);
+
     // 使用模板管理模块创建变量项HTML
     const variableItemHTML = getVariableItemTemplate(variable);
+    debugLog(`变量项HTML: ${variableItemHTML}`);
 
+    // 将HTML转换为jQuery对象并添加到容器
     const variableItem = $(variableItemHTML);
     variablesContainer.append(variableItem);
 
     // 绑定变量事件
-    bindVariableEvents(variableItem, $(moduleItem));
+    bindVariableEvents(variableItem, moduleItem);
+    
+    debugLog(`变量添加完成: ${variable.name}`);
+}
+
+/**
+ * 更新变量数量显示
+ * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
+ */
+function updateVariableCountDisplay(moduleItem) {
+    const variableCount = moduleItem.find('.variable-item').filter(function () {
+        return $(this).closest('.variable-template').length === 0;
+    }).length;
+    const countElement = moduleItem.find('.toggle-variables .variable-count');
+    countElement.text(`(${variableCount})`);
+    debugLog(`更新变量数量显示: ${variableCount}`);
 }
 
 /**
@@ -321,6 +351,7 @@ function bindVariableEvents(variableItem, moduleItem) {
     variableItem.find('input').on('input', function () {
         debugLog('变量输入框内容变化');
         updateModulePreview(moduleItem);
+        updateVariableCountDisplay(moduleItem);
     });
 
     // 删除变量事件
@@ -328,5 +359,6 @@ function bindVariableEvents(variableItem, moduleItem) {
         debugLog('删除变量按钮被点击');
         variableItem.remove();
         updateModulePreview(moduleItem);
+        updateVariableCountDisplay(moduleItem);
     });
 }

@@ -1,6 +1,7 @@
 // 模块配置管理模块
 import { extensionFolderPath, debugLog, errorLog, infoLog, initParseModule } from "../index.js";
 import { getVariableItemTemplate } from "./templateManager.js";
+import { updateModulePreview } from "./moduleManager.js";
 
 // 声明外部函数（在uiManager.js中定义）
 let bindModuleEvents = null;
@@ -218,7 +219,9 @@ export function renderModulesFromConfig(config) {
         }
 
         // 更新模块预览
-        updateModulePreview(moduleItem);
+        if (updateModulePreview) {
+            updateModulePreview(moduleItem);
+        }
     });
 
     // 渲染完成后调用回调
@@ -228,22 +231,4 @@ export function renderModulesFromConfig(config) {
 
     // 初始化解析模块功能
     initParseModule();
-}
-
-/**
- * 更新模块预览
- * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
- */
-function updateModulePreview(moduleItem) {
-    const moduleName = moduleItem.find('.module-name').val() || '模块名';
-    const variables = moduleItem.find('.variable-item').map(function () {
-        const varName = $(this).find('.variable-name').val() || '变量名';
-        return varName + ':值';
-    }).get();
-
-    const previewText = variables.length > 0
-        ? `[${moduleName}|${variables.join('|')}]`
-        : `[${moduleName}]`;
-
-    moduleItem.find('.module-preview-text').val(previewText);
 }
