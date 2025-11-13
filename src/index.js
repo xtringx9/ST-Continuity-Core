@@ -5,7 +5,7 @@
 
 // 导入外部依赖
 import { extension_settings, loadExtensionSettings } from '../../../../extensions.js';
-import { chat, saveSettingsDebounced } from '../../../../../script.js';
+import { chat, saveSettingsDebounced, eventSource, event_types } from '../../../../../script.js';
 
 // 导入核心模块
 import { extensionName, defaultSettings } from './core/config.js';
@@ -14,7 +14,7 @@ import { EventHandler } from './core/eventHandler.js';
 import { PromptInjector } from './core/promptInjector.js';
 
 // 导出外部依赖
-export { extension_settings, loadExtensionSettings, chat, saveSettingsDebounced };
+export { extension_settings, loadExtensionSettings, chat, saveSettingsDebounced, eventSource, event_types };
 
 // 导出核心配置模块
 export { extensionName, extensionFolderPath, defaultSettings } from './core/config.js';
