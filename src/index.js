@@ -26,6 +26,8 @@ export {
     onEnabledToggle,
     onBackendUrlChange,
     onDebugLogsToggle,
+    onAutoInjectToggle,
+    updateInjectionSettingsVisibility,
     updateExtensionUIState,
 } from './core/settingsManager.js';
 

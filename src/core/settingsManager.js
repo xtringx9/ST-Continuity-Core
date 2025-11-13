@@ -37,9 +37,14 @@ export function loadSettingsToUI() {
     $("#continuity_backend_url").val(settings.backendUrl).trigger("input");
     // 更新调试日志开关
     $("#continuity_debug_logs").prop("checked", settings.debugLogs).trigger("input");
+    // 更新自动注入开关
+    $("#auto-inject-toggle").prop("checked", settings.autoInject).trigger("input");
 
     // 根据设置启用或禁用扩展UI
     updateExtensionUIState(settings.enabled);
+    
+    // 根据自动注入开关状态更新插入设置区域的显示
+    updateInjectionSettingsVisibility(settings.autoInject);
 }
 
 /**
@@ -149,6 +154,34 @@ export function onDebugLogsToggle(event) {
     saveSettingsDebounced();
 
     toastr.info(debugLogs ? "调试日志已启用" : "调试日志已禁用");
+}
+
+/**
+ * 处理自动注入开关变更
+ * @param {Event} event 事件对象
+ */
+export function onAutoInjectToggle(event) {
+    const autoInject = Boolean($(event.target).prop("checked"));
+    extension_settings[extensionName].autoInject = autoInject;
+    saveSettingsDebounced();
+
+    // 更新插入设置区域的显示
+    updateInjectionSettingsVisibility(autoInject);
+
+    toastr.info(autoInject ? "自动注入已启用" : "自动注入已禁用");
+}
+
+/**
+ * 更新插入设置区域的可见性
+ * @param {boolean} autoInject 是否启用自动注入
+ */
+export function updateInjectionSettingsVisibility(autoInject) {
+    const injectionSettings = $("#injection-settings");
+    if (autoInject) {
+        injectionSettings.slideDown(300);
+    } else {
+        injectionSettings.slideUp(300);
+    }
 }
 
 /**
