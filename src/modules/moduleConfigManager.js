@@ -177,6 +177,17 @@ export function renderModulesFromConfig(config) {
             moduleItem.find('.module-prompt-input').val(module.prompt);
         }
 
+        // 设置新的配置项
+        if (module.contentPrompt) {
+            moduleItem.find('.module-content-prompt-input').val(module.contentPrompt);
+        }
+        if (module.outputPosition) {
+            moduleItem.find('.module-output-position').val(module.outputPosition);
+        }
+        if (module.itemLimit !== undefined) {
+            moduleItem.find('.module-item-limit').val(module.itemLimit);
+        }
+
         // 清空默认变量
         moduleItem.find('.variable-item').not('.variable-template').remove();
 

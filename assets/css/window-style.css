@@ -227,22 +227,21 @@ input:checked+.toggle-slider:before {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
-}
-
-.module-header-controls {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex: 1;
+    gap: 12px;
+    margin-bottom: 10px;
 }
 
 .module-name-group {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     flex: 1;
-    max-width: 180px;
+}
+
+.module-settings-inline {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
 .module-order-number {
@@ -268,7 +267,7 @@ input:checked+.toggle-slider:before {
 }
 
 .module-name {
-    width: 100%;
+    width: 120px;
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -375,11 +374,11 @@ input:checked+.toggle-slider:before {
     border-radius: 50%;
 }
 
-.module-toggle input:checked + .toggle-slider {
+.module-toggle input:checked+.toggle-slider {
     background-color: #b4c0e8;
 }
 
-.module-toggle input:checked + .toggle-slider:before {
+.module-toggle input:checked+.toggle-slider:before {
     transform: translateX(18px);
 }
 
@@ -396,6 +395,87 @@ input:checked+.toggle-slider:before {
 
 .module-item.disabled .variables-container {
     background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* 模块头部布局样式 */
+.module-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.module-settings-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.module-setting-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.module-setting-item label {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+}
+
+.module-output-position {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 10px;
+    color: #333;
+    transition: border-color 0.2s;
+    width: 80px;
+}
+
+.module-output-position:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.module-item-limit {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 10px;
+    color: #333;
+    transition: border-color 0.2s;
+    width: 50px;
+}
+
+.module-item-limit:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* 模块内容使用提示词样式 */
+.module-content-prompt-input {
+    width: 100%;
+    min-height: 40px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 12px;
+    color: #333;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.module-content-prompt-input:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .module-item.disabled .module-preview-text {

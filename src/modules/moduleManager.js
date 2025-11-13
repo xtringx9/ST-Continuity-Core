@@ -268,12 +268,20 @@ export function getModulesData() {
 
             // 获取模块提示词
             const modulePrompt = $(this).find('.module-prompt-input').val();
+            
+            // 获取新的配置项
+            const contentPrompt = $(this).find('.module-content-prompt-input').val();
+            const outputPosition = $(this).find('.module-output-position').val();
+            const itemLimit = parseInt($(this).find('.module-item-limit').val()) || -1;
 
             modules.push({
                 name: moduleName,
                 enabled: isEnabled,
                 variables: variables,
                 prompt: modulePrompt || '',
+                contentPrompt: contentPrompt || '',
+                outputPosition: outputPosition || 'body',
+                itemLimit: itemLimit,
                 order: index // 添加排序索引
             });
         });
@@ -286,7 +294,12 @@ export function getModulesData() {
             if (configStr) {
                 const config = JSON.parse(configStr);
                 if (config.modules && Array.isArray(config.modules)) {
-                    modules.push(...config.modules);
+                    // 确保每个模块都有启用状态（默认为true）
+                    const modulesWithEnabledState = config.modules.map(module => ({
+                        ...module,
+                        enabled: module.enabled !== false // 如果未定义enabled，默认为true
+                    }));
+                    modules.push(...modulesWithEnabledState);
                     debugLog('从本地存储加载模块配置:', modules.length, '个模块');
                 }
             }
