@@ -207,6 +207,19 @@ export class PromptInjector {
 
         debugLog(`注入设置已更新: 启用=${enabled}, 深度=${depth}, 角色=${role}`);
     }
+
+    /**
+     * 销毁注入管理器
+     */
+    destroy() {
+        try {
+            this.injectionEnabled = false;
+            this.isInitialized = false;
+            debugLog('提示词注入管理器已销毁');
+        } catch (error) {
+            errorLog('销毁提示词注入管理器失败:', error);
+        }
+    }
 }
 
 
