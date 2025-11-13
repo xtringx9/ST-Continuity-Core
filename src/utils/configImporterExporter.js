@@ -61,6 +61,21 @@ export function collectModulesForExport() {
         const moduleName = $(this).find('.module-name').val();
         if (!moduleName) return; // 跳过没有名称的模块
 
+        // 获取模块启用状态（默认为true）
+        const isEnabled = $(this).find('.module-enabled-toggle').prop('checked') !== false;
+        
+        // 获取模块提示词（生成提示词）
+        const modulePrompt = $(this).find('.module-prompt-input').val();
+        
+        // 获取模块使用提示词（内容提示词）
+        const contentPrompt = $(this).find('.module-content-prompt-input').val();
+        
+        // 获取模块生成位置
+        const outputPosition = $(this).find('.module-output-position').val();
+        
+        // 获取模块数量限制
+        const itemLimit = parseInt($(this).find('.module-item-limit').val()) || -1;
+
         const variables = [];
         $(this).find('.variable-item').each(function () {
             const varName = $(this).find('.variable-name').val();
@@ -74,13 +89,14 @@ export function collectModulesForExport() {
             }
         });
 
-        // 获取模块提示词
-        const modulePrompt = $(this).find('.module-prompt-input').val();
-
         modules.push({
             name: moduleName,
+            enabled: isEnabled,
             variables: variables,
-            prompt: modulePrompt || ''
+            prompt: modulePrompt || '',
+            contentPrompt: contentPrompt || '',
+            outputPosition: outputPosition || 'after_body',
+            itemLimit: itemLimit
         });
     });
 
@@ -104,6 +120,21 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
             const moduleName = $(this).find('.module-name').val();
             if (!moduleName) return; // 跳过没有名称的模块
 
+            // 获取模块启用状态（默认为true）
+            const isEnabled = $(this).find('.module-enabled-toggle').prop('checked') !== false;
+            
+            // 获取模块提示词（生成提示词）
+            const modulePrompt = $(this).find('.module-prompt-input').val();
+            
+            // 获取模块使用提示词（内容提示词）
+            const contentPrompt = $(this).find('.module-content-prompt-input').val();
+            
+            // 获取模块生成位置
+            const outputPosition = $(this).find('.module-output-position').val();
+            
+            // 获取模块数量限制
+            const itemLimit = parseInt($(this).find('.module-item-limit').val()) || -1;
+
             const variables = [];
             $(this).find('.variable-item').each(function () {
                 const varName = $(this).find('.variable-name').val();
@@ -117,13 +148,14 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                 }
             });
 
-            // 获取模块提示词
-            const modulePrompt = $(this).find('.module-prompt-input').val();
-
             modules.push({
                 name: moduleName,
+                enabled: isEnabled,
                 variables: variables,
                 prompt: modulePrompt || '',
+                contentPrompt: contentPrompt || '',
+                outputPosition: outputPosition || 'after_body',
+                itemLimit: itemLimit,
                 order: index // 添加排序索引
             });
         });
