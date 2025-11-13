@@ -159,6 +159,17 @@ export function renderModulesFromConfig(config) {
         // 设置模块名称
         moduleItem.find('.module-name').val(module.name);
         
+        // 设置模块启用状态（默认为true）
+        const isEnabled = module.enabled !== false; // 如果未定义enabled，默认为true
+        moduleItem.find('.module-enabled-toggle').prop('checked', isEnabled);
+        
+        // 根据启用状态设置disabled类
+        if (isEnabled) {
+            moduleItem.removeClass('disabled');
+        } else {
+            moduleItem.addClass('disabled');
+        }
+        
         // 在渲染完成后会通过uiManager.js中的updateModuleOrderNumbers函数统一设置排序数字，这里不再需要手动设置
 
         // 设置模块提示词

@@ -16,15 +16,18 @@ export function generateFormalPrompt() {
         const modules = getModulesData();
         debugLog('开始生成正式提示词，模块数量:', modules.length);
 
-        if (modules.length === 0) {
-            infoLog('没有配置模块，无法生成提示词');
-            return '暂无模块配置，请先添加模块。';
+        // 过滤掉未启用的模块
+        const enabledModules = modules.filter(module => module.enabled !== false);
+
+        if (enabledModules.length === 0) {
+            infoLog('没有启用的模块，无法生成提示词');
+            return '暂无启用的模块配置，请先启用模块。';
         }
 
         let prompt = '模块组织提示词：\n\n';
 
         // 按模块顺序生成提示词
-        modules.forEach((module, index) => {
+        enabledModules.forEach((module, index) => {
             const moduleNumber = index + 1;
 
             // 模块标题
@@ -133,13 +136,16 @@ export function generateStructurePreview() {
         const modules = getModulesData();
         debugLog('生成模块结构预览，模块数量:', modules.length);
 
-        if (modules.length === 0) {
-            return '<div class="structure-item">暂无模块配置</div>';
+        // 过滤掉未启用的模块
+        const enabledModules = modules.filter(module => module.enabled !== false);
+
+        if (enabledModules.length === 0) {
+            return '<div class="structure-item">暂无启用的模块配置</div>';
         }
 
         let structureHTML = '';
 
-        modules.forEach((module, index) => {
+        enabledModules.forEach((module, index) => {
             const moduleNumber = index + 1;
 
             structureHTML += `<div class="structure-item">

@@ -56,7 +56,7 @@ export function getContinuityConfig() {
         const settings = extension_settings[extensionName];
         if (!settings || !settings.enabled) {
             debugLog("宏管理器: 全局开关已关闭，返回空配置");
-            return "{}";
+            return "";
         }
 
         // 获取模块数据
@@ -64,7 +64,7 @@ export function getContinuityConfig() {
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("宏管理器: 未找到模块数据，返回空配置");
-            return "{}";
+            return "";
         }
 
         // 转换为JSON格式
@@ -74,7 +74,7 @@ export function getContinuityConfig() {
         return configJson;
     } catch (error) {
         errorLog("宏管理器: 获取模块配置数据失败", error);
-        return "{}";
+        return "";
     }
 }
 

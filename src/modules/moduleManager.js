@@ -73,10 +73,27 @@ export function bindModuleEvents(moduleElement) {
     moduleItem.find('.remove-module').off('click');
     moduleItem.find('.variable-item input').off('input');
     moduleItem.find('.variable-item .remove-variable').off('click');
+    moduleItem.find('.module-enabled-toggle').off('change');
 
     // 模块名称输入事件
     moduleItem.find('.module-name').on('input', function () {
         updateModulePreview(moduleItem);
+    });
+
+    // 模块启用/禁用滑块开关事件
+    moduleItem.find('.module-enabled-toggle').on('change', function () {
+        const isEnabled = $(this).prop('checked');
+        const moduleItem = $(this).closest('.module-item');
+        
+        // 根据启用状态添加或移除disabled类
+        if (isEnabled) {
+            moduleItem.removeClass('disabled');
+        } else {
+            moduleItem.addClass('disabled');
+        }
+        
+        updateModulePreview(moduleItem);
+        debugLog('模块启用状态改变:', moduleItem.find('.module-name').val(), isEnabled);
     });
 
     // 更新变量数量显示
@@ -233,6 +250,9 @@ export function getModulesData() {
             const moduleName = $(this).find('.module-name').val();
             if (!moduleName) return; // 跳过没有名称的模块
 
+            // 获取模块启用状态（默认为true）
+            const isEnabled = $(this).find('.module-enabled-toggle').prop('checked') !== false;
+
             const variables = [];
             $(this).find('.variable-item').each(function () {
                 const varName = $(this).find('.variable-name').val();
@@ -251,6 +271,7 @@ export function getModulesData() {
 
             modules.push({
                 name: moduleName,
+                enabled: isEnabled,
                 variables: variables,
                 prompt: modulePrompt || '',
                 order: index // 添加排序索引

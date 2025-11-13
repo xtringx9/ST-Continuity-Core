@@ -313,6 +313,7 @@ input:checked+.toggle-slider:before {
 .module-actions {
     display: flex;
     gap: 2px;
+    align-items: center;
 }
 
 .module-actions .btn-small {
@@ -320,6 +321,86 @@ input:checked+.toggle-slider:before {
     min-width: 24px;
     justify-content: center;
     font-size: 11px;
+}
+
+/* 模块启用/禁用滑块开关样式 */
+.module-toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 4px;
+}
+
+.toggle-label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.module-toggle {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 18px;
+}
+
+.module-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.module-toggle .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.3);
+    transition: .4s;
+    border-radius: 18px;
+}
+
+.module-toggle .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+.module-toggle input:checked + .toggle-slider {
+    background-color: #b4c0e8;
+}
+
+.module-toggle input:checked + .toggle-slider:before {
+    transform: translateX(18px);
+}
+
+/* 禁用状态的模块样式 */
+.module-item.disabled {
+    opacity: 0.6;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.module-item.disabled .module-name {
+    background-color: rgba(255, 255, 255, 0.5);
+    color: rgba(51, 51, 51, 0.6);
+}
+
+.module-item.disabled .variables-container {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.module-item.disabled .module-preview-text {
+    background-color: rgba(255, 255, 255, 0.5);
+    color: rgba(51, 51, 51, 0.6);
 }
 
 .move-module-up,
