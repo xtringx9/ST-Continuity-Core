@@ -5,6 +5,8 @@ import {
     onEnabledToggle,
     onBackendUrlChange,
     onDebugLogsToggle,
+    onAutoInjectToggle,
+    updateInjectionSettingsVisibility,
     sendToBackend,
     saveModuleConfig,
     loadModuleConfig,
@@ -133,6 +135,12 @@ export async function openModuleConfigWindow() {
                 // 如果没有保存的配置，绑定现有模块的事件
                 rebindAllModulesEvents();
             }
+
+            // 绑定自动注入开关事件
+            $('#auto-inject-toggle').on('input', onAutoInjectToggle);
+            
+            // 加载设置到UI（包括自动注入开关状态）
+            loadSettingsToUI();
         }
 
         // 显示窗口和背景

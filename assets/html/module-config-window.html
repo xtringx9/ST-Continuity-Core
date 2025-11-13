@@ -21,18 +21,30 @@
 
         <div class="settings-content">
             <div class="setting-group">
-                <label for="insertion-role">插入角色</label>
-                <select id="insertion-role" class="role-select">
-                    <option value="system">系统 (⚙️)</option>
-                    <option value="user">用户 (👤)</option>
-                    <option value="assistant">助手 (🤖)</option>
-                </select>
+                <div class="flex-container">
+                    <input id="auto-inject-toggle" type="checkbox" />
+                    <label for="auto-inject-toggle">自动注入提示词</label>
+                </div>
             </div>
 
-            <div class="setting-group">
-                <label for="insertion-depth">插入深度</label>
-                <input type="number" id="insertion-depth" class="depth-input" min="0" max="10" value="1"
-                    title="0 = 最后一条消息之后，1 = 最后一条消息之前，以此类推">
+            <div id="injection-settings" class="injection-settings">
+                <div class="setting-group">
+                    <div class="inline-settings-row">
+                        <div class="setting-item">
+                            <label for="insertion-role">插入角色</label>
+                            <select id="insertion-role" class="role-select">
+                                <option value="system">系统 (⚙️)</option>
+                                <option value="user">用户 (👤)</option>
+                                <option value="assistant">助手 (🤖)</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label for="insertion-depth">插入深度</label>
+                            <input type="number" id="insertion-depth" class="depth-input" min="0" max="10" value="1"
+                                title="0 = 最后一条消息之后，1 = 最后一条消息之前，以此类推">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

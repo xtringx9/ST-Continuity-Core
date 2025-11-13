@@ -68,7 +68,11 @@ export class PromptInjector {
      * @returns {boolean} 是否应该注入
      */
     shouldInject() {
-        return this.injectionEnabled && this.injectionDepth >= 0;
+        // 获取当前设置
+        const settings = extension_settings[extensionName];
+        const autoInject = settings?.autoInject !== false; // 默认为true
+        
+        return this.injectionEnabled && this.injectionDepth >= 0 && autoInject;
     }
 
     /**
