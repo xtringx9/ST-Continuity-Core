@@ -37,6 +37,7 @@ export {
     openModuleConfigWindow,
     closeModuleConfigWindow,
     createFabMenu,
+    showCustomConfirmDialog,
 } from './core/uiManager.js';
 
 // 导出模块配置管理模块
