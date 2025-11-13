@@ -1,6 +1,6 @@
 // 提示词预览区域管理模块
 import { debugLog, errorLog, infoLog } from '../index.js';
-import { generatePromptWithInsertion, copyToClipboard } from './promptGenerator.js';
+import { generateModulePrompt, copyToClipboard } from './promptGenerator.js';
 
 // 默认插入设置
 const DEFAULT_INSERTION_SETTINGS = {
@@ -43,10 +43,9 @@ export function togglePromptPreview() {
  */
 export function updatePromptPreview() {
     try {
-        const insertionSettings = getInsertionSettings();
-        const prompt = generatePromptWithInsertion(insertionSettings);
+        const prompt = generateModulePrompt();
         $('#prompt-preview-textarea').val(prompt);
-        debugLog(`提示词预览内容已更新: 深度=${insertionSettings.depth}, 角色=${insertionSettings.role}`);
+        debugLog('提示词预览内容已更新（仅模块组织后的提示词）');
         toastr.success('提示词已更新');
     } catch (error) {
         errorLog('更新提示词预览失败:', error);

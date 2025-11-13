@@ -1,9 +1,9 @@
 // 设置管理模块
-import { 
-    extension_settings, 
-    loadExtensionSettings, 
-    saveSettingsDebounced, 
-    extensionName, 
+import {
+    extension_settings,
+    loadExtensionSettings,
+    saveSettingsDebounced,
+    extensionName,
     defaultSettings,
     createFabMenu,
     EventHandler,
@@ -42,7 +42,7 @@ export function loadSettingsToUI() {
 
     // 根据设置启用或禁用扩展UI
     updateExtensionUIState(settings.enabled);
-    
+
     // 根据自动注入开关状态更新插入设置区域的显示
     updateInjectionSettingsVisibility(settings.autoInject);
 }
@@ -68,7 +68,7 @@ export function onEnabledToggle(event) {
         disableContinuityCore();
     }
 
-    toastr.info(enabled ? "Continuity Core 已启用" : "Continuity Core 已禁用");
+    // toastr.info(enabled ? "Continuity Core 已启用" : "Continuity Core 已禁用");
 }
 
 /**
@@ -145,7 +145,7 @@ export function onDebugLogsToggle(event) {
     extension_settings[extensionName].debugLogs = debugLogs;
     saveSettingsDebounced();
 
-    toastr.info(debugLogs ? "调试日志已启用" : "调试日志已禁用");
+    // toastr.info(debugLogs ? "调试日志已启用" : "调试日志已禁用");
 }
 
 /**
@@ -160,7 +160,7 @@ export function onAutoInjectToggle(event) {
     // 更新插入设置区域的显示
     updateInjectionSettingsVisibility(autoInject);
 
-    toastr.info(autoInject ? "自动注入已启用" : "自动注入已禁用");
+    // toastr.info(autoInject ? "自动注入已启用" : "自动注入已禁用");
 }
 
 /**
