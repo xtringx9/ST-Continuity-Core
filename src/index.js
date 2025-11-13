@@ -119,3 +119,21 @@ export {
     registerMacros,
     areMacrosRegistered,
 } from './core/macroManager.js';
+
+// 导出模板管理模块
+export {
+    getVariableItemTemplate,
+    getEmptyVariableItemTemplate,
+} from './modules/templateManager.js';
+
+// 导出模块解析器模块
+export {
+    parseModuleString,
+    validateModuleString,
+    generateModulePreview,
+} from './modules/moduleParser.js';
+
+// 导出模块解析管理模块
+export {
+    initParseModule,
+} from './modules/parseModuleManager.js';

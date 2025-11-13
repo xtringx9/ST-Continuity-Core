@@ -1,5 +1,5 @@
 // 模块管理相关功能
-import { debugLog, errorLog, addVariable } from "../index.js";
+import { debugLog, errorLog, addVariable, initParseModule } from "../index.js";
 
 /**
  * 添加新模块
@@ -84,14 +84,14 @@ export function bindModuleEvents(moduleElement) {
     moduleItem.find('.module-enabled-toggle').on('change', function () {
         const isEnabled = $(this).prop('checked');
         const moduleItem = $(this).closest('.module-item');
-        
+
         // 根据启用状态添加或移除disabled类
         if (isEnabled) {
             moduleItem.removeClass('disabled');
         } else {
             moduleItem.addClass('disabled');
         }
-        
+
         updateModulePreview(moduleItem);
         debugLog('模块启用状态改变:', moduleItem.find('.module-name').val(), isEnabled);
     });
@@ -113,7 +113,7 @@ export function bindModuleEvents(moduleElement) {
     const button = moduleItem.find('.toggle-variables');
     const arrow = button.find('.arrow');
     const text = button.find('.text');
-    
+
     // 默认折叠状态
     wrapper.addClass('collapsed');
     button.addClass('collapsed');
@@ -268,7 +268,7 @@ export function getModulesData() {
 
             // 获取模块提示词
             const modulePrompt = $(this).find('.module-prompt-input').val();
-            
+
             // 获取新的配置项
             const contentPrompt = $(this).find('.module-content-prompt-input').val();
             const outputPosition = $(this).find('.module-output-position').val();
