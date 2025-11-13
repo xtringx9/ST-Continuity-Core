@@ -43,6 +43,18 @@ export function onEnabledToggle(event) {
     // 更新UI状态
     updateExtensionUIState(enabled);
 
+    // 通知提示词注入管理器开关状态变化
+    if (window.continuityPromptInjector) {
+        window.continuityPromptInjector.updateSettings(enabled, 
+            window.continuityPromptInjector.injectionDepth, 
+            window.continuityPromptInjector.injectionRole);
+    }
+
+    // 重新初始化事件处理器（确保事件注册状态与开关状态一致）
+    if (window.continuityEventHandler) {
+        window.continuityEventHandler.reinitializeEventHandlers();
+    }
+
     toastr.info(enabled ? "Continuity Core 已启用" : "Continuity Core 已禁用");
 }
 

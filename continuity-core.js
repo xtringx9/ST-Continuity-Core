@@ -4,6 +4,7 @@ import {
     initializeSettings,
     loadSettingsPanel,
     createFabMenu,
+    eventHandler,
     infoLog
 } from "./src/index.js";
 
@@ -19,4 +20,7 @@ jQuery(async function () {
 
     // 创建FAB菜单
     createFabMenu();
+
+    // 初始化事件处理器（用于提示词注入）
+    eventHandler.initialize();
 });

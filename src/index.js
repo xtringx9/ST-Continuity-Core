@@ -96,3 +96,15 @@ export {
     rebindAllModulesEvents,
     updateAllModulesPreview,
 } from './utils/configImporterExporter.js';
+
+// 导出提示词注入管理器
+export {
+    PromptInjector,
+    promptInjector,
+} from './core/promptInjector.js';
+
+// 导出事件处理器
+export {
+    EventHandler,
+    eventHandler,
+} from './core/eventHandler.js';
