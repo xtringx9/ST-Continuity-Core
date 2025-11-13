@@ -56,7 +56,7 @@ export async function loadSettingsPanel() {
         // 加载设置到UI
         loadSettingsToUI();
     } catch (error) {
-        console.error('加载设置面板失败:', error);
+        errorLog('加载设置面板失败:', error);
         toastr.error('加载设置面板失败，请刷新页面重试。');
     }
 }
@@ -138,7 +138,7 @@ export async function openModuleConfigWindow() {
 
             // 绑定自动注入开关事件
             $('#auto-inject-toggle').on('input', onAutoInjectToggle);
-            
+
             // 加载设置到UI（包括自动注入开关状态）
             loadSettingsToUI();
         }
@@ -147,7 +147,7 @@ export async function openModuleConfigWindow() {
         $('#continuity-module-config-window').addClass('show');
         $('#continuity-modal-backdrop').addClass('show');
     } catch (error) {
-        console.error('打开模块配置窗口失败:', error);
+        errorLog('打开模块配置窗口失败:', error);
         toastr.error('打开窗口失败，请刷新页面重试。');
     }
 }
@@ -168,7 +168,7 @@ export function closeModuleConfigWindow() {
 export function createFabMenu() {
     // 检查是否已经存在FAB菜单
     let fabContainer = $('#continuity-fab-container');
-    
+
     if (fabContainer.length) {
         // 如果已经存在，直接显示并返回
         fabContainer.show();
