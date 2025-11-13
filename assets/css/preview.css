@@ -1,5 +1,25 @@
 /* 预览样式文件 - 包含预览相关样式 */
 
+/* 设置区域样式 - 与提示词预览区域保持一致 */
+.settings-section {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 15px;
+}
+
+.settings-section .section-title {
+    margin-bottom: 8px;
+}
+
+.settings-section .section-title h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
 /* 提示词预览区域样式 */
 .prompt-preview-section {
     background-color: rgba(255, 255, 255, 0.1);

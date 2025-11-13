@@ -1,4 +1,8 @@
-/* --- 容器：只保留悬浮定位属性，不添加视觉样式 --- */
+/* ==========================================================================
+   Continuity Core 主样式文件 - Manifest入口
+   ========================================================================== */
+
+/* --- FAB按钮容器样式 --- */
 #continuity-fab-container {
     position: absolute;
     bottom: 138px;
@@ -7,22 +11,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* 防止容器大小变化影响按钮 */
     width: fit-content;
     height: fit-content;
 }
 
-/* 为移动设备优化容器位置 */
+/* 移动设备优化 */
 @media (max-width: 768px) {
     #continuity-fab-container {
         bottom: 150px;
         left: 15px;
-        /* 确保容器不会压缩按钮 */
         padding: 5px;
     }
 }
 
-/* --- 主按钮样式 - 使用用户提供的样式 --- */
+/* --- 主按钮样式 --- */
 #continuity-fab-main-btn {
     display: flex;
     align-items: center;
@@ -41,23 +43,9 @@
     line-height: 32px;
     box-shadow: rgba(0, 0, 0, 0.3) 0px 4px 12px;
     transition: 0.3s;
-    /* 确保在任何情况下都保持正方形/圆形 */
     aspect-ratio: 1;
-    /* 防止被其他CSS覆盖 */
     padding: 0 !important;
     flex-shrink: 0;
-}
-
-/* 响应式调整 - 为移动设备优化 */
-@media (max-width: 768px) {
-    #continuity-fab-main-btn {
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
-        min-height: 40px;
-        font-size: 24px;
-        line-height: 40px;
-    }
 }
 
 #continuity-fab-main-btn:hover {
@@ -66,7 +54,6 @@
 
 #continuity-fab-main-btn span {
     transition: transform 0.3s ease;
-    /* 确保内部元素不会影响按钮形状 */
     display: block;
     width: 100%;
     height: 100%;
@@ -74,11 +61,9 @@
     line-height: inherit;
 }
 
-/* 添加更强大的覆盖保护 */
+/* 防止样式覆盖 */
 #continuity-fab-main-btn {
-    /* 确保边框不影响尺寸计算 */
     box-sizing: content-box !important;
-    /* 防止被其他样式覆盖的关键属性 */
     width: 32px !important;
     height: 32px !important;
 }
@@ -87,14 +72,15 @@
     #continuity-fab-main-btn {
         width: 40px !important;
         height: 40px !important;
+        font-size: 24px;
+        line-height: 40px;
     }
 }
 
-/* --- 菜单容器样式 --- */
+/* --- FAB菜单样式 --- */
 .continuity-fab-menu {
     position: absolute;
     left: 40px;
-    /* 主按钮右侧 */
     top: 50%;
     transform: translateY(-50%);
     display: flex;
@@ -106,7 +92,6 @@
     pointer-events: none;
 }
 
-/* --- 菜单项样式 --- */
 .continuity-fab-menu .continuity-fab-item {
     padding: 8px 12px;
     border-radius: 8px;
@@ -123,163 +108,18 @@
 .continuity-fab-menu .continuity-fab-item:hover {
     background-color: #b4c0e8;
     transform: scale(1.1);
-    /* 鼠标悬浮时放大 */
 }
 
-
-/* --- 展开状态下的菜单显示 --- */
+/* 菜单展开状态 */
 #continuity-fab-container.open .continuity-fab-menu {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
 }
 
-/* --- 展开状态下的主按钮样式 --- */
 #continuity-fab-container.open #continuity-fab-main-btn span {
     transform: rotate(45deg);
-    /* 主按钮的加号旋转成叉 */
 }
 
-/* --- 设置区域样式 --- */
-.settings-section {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    margin-bottom: 15px;
-}
-
-.settings-section .section-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-.settings-section .section-title h3 {
-    color: white;
-    font-size: 16px;
-    font-weight: 600;
-    margin: 0;
-}
-
-.settings-content {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-}
-
-.setting-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: none;
-}
-
-.setting-group label {
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 12px;
-    white-space: nowrap;
-    margin: 0;
-}
-
-.depth-input {
-    padding: 4px 6px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    font-size: 13px;
-    width: 60px;
-    background-color: rgba(255, 255, 255, 0.9);
-    color: #333;
-    transition: border-color 0.2s;
-}
-
-.depth-input:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-}
-
-.role-select {
-    padding: 4px 6px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    font-size: 13px;
-    background-color: rgba(255, 255, 255, 0.9);
-    color: #333;
-    cursor: pointer;
-    min-width: 100px;
-    transition: border-color 0.2s;
-}
-
-.role-select:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-}
-
-/* 同一行设置样式 */
-.inline-settings-row {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.setting-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: none;
-}
-
-.setting-item label {
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 12px;
-    white-space: nowrap;
-    margin: 0;
-}
-
-/* 响应式调整 */
-@media (max-width: 768px) {
-    .settings-content {
-        flex-direction: column;
-        gap: 8px;
-        align-items: stretch;
-    }
-    
-    .setting-group {
-        justify-content: space-between;
-    }
-    
-    .inline-settings-row {
-        flex-direction: column;
-        gap: 8px;
-        align-items: stretch;
-    }
-    
-    .setting-item {
-        justify-content: space-between;
-    }
-}
-
-/* 禁用状态样式 */
-.disabled-input {
-    opacity: 0.6 !important;
-    background-color: rgba(255, 255, 255, 0.5) !important;
-    cursor: not-allowed !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
-}
-
-.disabled-control {
-    opacity: 0.6 !important;
-    cursor: not-allowed !important;
-    color: rgba(255, 255, 255, 0.5) !important;
-}
-
-.disabled-control label {
-    color: rgba(255, 255, 255, 0.5) !important;
-}
+/* 注意：设置区域样式已迁移到拆分后的CSS文件中 */
+/* 请参考 base.css、modules.css、preview.css 等文件 */
