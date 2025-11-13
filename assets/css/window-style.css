@@ -417,25 +417,12 @@ input:checked+.toggle-slider:before {
 }
 
 /* 模块启用/禁用滑块开关样式 */
-.module-toggle-group {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-right: 4px;
-}
-
-.toggle-label {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.9);
-    white-space: nowrap;
-    font-weight: 500;
-}
-
 .module-toggle {
     position: relative;
     display: inline-block;
     width: 36px;
     height: 18px;
+    margin-right: 8px;
 }
 
 .module-toggle input {
@@ -480,6 +467,13 @@ input:checked+.toggle-slider:before {
 .module-item.disabled {
     opacity: 0.6;
     background-color: rgba(255, 255, 255, 0.05);
+    border-color: transparent !important;
+}
+
+.module-item.disabled .module-header {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
 }
 
 .module-item.disabled .module-name {
@@ -491,11 +485,23 @@ input:checked+.toggle-slider:before {
     background-color: rgba(255, 255, 255, 0.02);
 }
 
+/* 禁用状态下自动折叠模块内容 */
+.module-item.disabled .variables-container-wrapper,
+.module-item.disabled .module-prompt,
+.module-item.disabled .module-preview {
+    display: none !important;
+}
+
+.module-item.disabled .toggle-variables {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
 /* 模块头部布局样式 */
 .module-header-left {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
     flex: 1;
 }
 
@@ -562,6 +568,7 @@ input:checked+.toggle-slider:before {
     padding: 4px 6px;
     font-size: 12px;
     color: #333;
+    font-family: monospace;
     resize: vertical;
     transition: border-color 0.2s;
 }
@@ -752,7 +759,7 @@ input:checked+.toggle-slider:before {
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
     padding: 4px 6px;
-    font-size: 11px;
+    font-size: 12px;
     color: #333;
     font-family: monospace;
     min-height: 24px;
