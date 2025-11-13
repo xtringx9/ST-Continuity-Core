@@ -1,5 +1,15 @@
 // 设置管理模块
-import { extension_settings, loadExtensionSettings, saveSettingsDebounced, extensionName, defaultSettings } from "../index.js";
+import { 
+    extension_settings, 
+    loadExtensionSettings, 
+    saveSettingsDebounced, 
+    extensionName, 
+    defaultSettings,
+    createFabMenu,
+    EventHandler,
+    PromptInjector,
+    infoLog
+} from "../index.js";
 
 /**
  * 初始化扩展设置
@@ -43,25 +53,70 @@ export function onEnabledToggle(event) {
     // 更新UI状态
     updateExtensionUIState(enabled);
 
-    // 通知提示词注入管理器开关状态变化
-    if (window.continuityPromptInjector) {
-        window.continuityPromptInjector.updateSettings(enabled,
-            window.continuityPromptInjector.injectionDepth,
-            window.continuityPromptInjector.injectionRole);
-    }
-
-    // 根据开关状态处理事件处理器
-    if (window.continuityEventHandler) {
-        if (enabled) {
-            // 启用时：重新初始化事件处理器
-            window.continuityEventHandler.reinitializeEventHandlers();
-        } else {
-            // 禁用时：销毁事件处理器，停止所有事件监听
-            window.continuityEventHandler.destroy();
-        }
+    // 根据开关状态处理插件功能
+    if (enabled) {
+        // 启用时：创建或重新初始化所有组件
+        enableContinuityCore();
+    } else {
+        // 禁用时：销毁所有组件，停止所有功能
+        disableContinuityCore();
     }
 
     toastr.info(enabled ? "Continuity Core 已启用" : "Continuity Core 已禁用");
+}
+
+/**
+ * 启用Continuity Core功能
+ */
+function enableContinuityCore() {
+    try {
+        // 创建FAB菜单
+        createFabMenu();
+
+        // 创建或重新初始化事件处理器
+        if (!window.continuityEventHandler) {
+            window.continuityEventHandler = new EventHandler();
+        }
+        window.continuityEventHandler.initialize();
+
+        // 创建或重新初始化提示词注入管理器
+        if (!window.continuityPromptInjector) {
+            window.continuityPromptInjector = new PromptInjector();
+        }
+        window.continuityPromptInjector.initialize();
+
+        infoLog("Continuity Core 已启用，功能已激活");
+    } catch (error) {
+        console.error("启用Continuity Core失败:", error);
+        toastr.error("启用Continuity Core失败，请检查控制台");
+    }
+}
+
+/**
+ * 禁用Continuity Core功能
+ */
+function disableContinuityCore() {
+    try {
+        // 隐藏FAB菜单
+        const fabContainer = $("#continuity-fab-container");
+        if (fabContainer.length) {
+            fabContainer.hide();
+        }
+
+        // 销毁事件处理器
+        if (window.continuityEventHandler) {
+            window.continuityEventHandler.destroy();
+        }
+
+        // 销毁提示词注入管理器
+        if (window.continuityPromptInjector) {
+            window.continuityPromptInjector.destroy();
+        }
+
+        infoLog("Continuity Core 已禁用，功能已停止");
+    } catch (error) {
+        console.error("禁用Continuity Core失败:", error);
+    }
 }
 
 /**

@@ -158,8 +158,18 @@ export function closeModuleConfigWindow() {
  * 创建FAB按钮和菜单
  */
 export function createFabMenu() {
+    // 检查是否已经存在FAB菜单
+    let fabContainer = $('#continuity-fab-container');
+    
+    if (fabContainer.length) {
+        // 如果已经存在，直接显示并返回
+        fabContainer.show();
+        debugLog('FAB菜单已存在，直接显示');
+        return;
+    }
+
     // 创建更复杂的HTML结构，默认关闭菜单
-    const fabContainer = $(`
+    fabContainer = $(`
         <div id="continuity-fab-container">
             <div class="continuity-fab-menu">
                 <button id="send-to-backend-btn" class="continuity-fab-item">发送最新楼层</button>
@@ -190,4 +200,6 @@ export function createFabMenu() {
         // 然后打开模块配置窗口
         openModuleConfigWindow();
     });
+
+    debugLog('FAB菜单创建完成');
 }
