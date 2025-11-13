@@ -108,3 +108,12 @@ export { PromptInjector } from './core/promptInjector.js';
 
 // 导出事件处理器
 export { EventHandler } from './core/eventHandler.js';
+
+// 导出宏管理器
+export {
+    getContinuityPrompt,
+    getContinuityConfig,
+    getContinuityModules,
+    registerMacros,
+    areMacrosRegistered,
+} from './core/macroManager.js';
