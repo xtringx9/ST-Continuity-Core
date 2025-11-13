@@ -64,6 +64,15 @@
 
         <div id="prompt-preview-content" class="preview-content" style="display: none;">
             <div class="preview-section">
+                <div class="preview-mode-selector">
+                    <label for="preview-mode-select">预览模式：</label>
+                    <select id="preview-mode-select" class="preview-mode-select">
+                        <option value="module">模块组织后的提示词</option>
+                        <option value="macro">{{CONTINUITY_PROMPT}} 宏</option>
+                        <option value="macro-config">{{CONTINUITY_CONFIG}} 宏</option>
+                        <option value="macro-modules">{{CONTINUITY_MODULES}} 宏</option>
+                    </select>
+                </div>
                 <textarea id="prompt-preview-textarea" class="prompt-preview-textarea" readonly></textarea>
             </div>
         </div>

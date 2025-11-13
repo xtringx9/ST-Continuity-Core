@@ -1,6 +1,7 @@
 // 提示词预览区域管理模块
 import { debugLog, errorLog, infoLog } from '../index.js';
-import { generateModulePrompt, copyToClipboard } from './promptGenerator.js';
+import { generateModulePrompt, generatePromptWithInsertion, copyToClipboard } from './promptGenerator.js';
+import { getContinuityPrompt, getContinuityConfig, getContinuityModules } from '../core/macroManager.js';
 
 // 默认插入设置
 const DEFAULT_INSERTION_SETTINGS = {
@@ -25,7 +26,7 @@ export function togglePromptPreview() {
         } else {
             // 如果当前是折叠状态，则展开并生成预览内容
             updatePromptPreview();
-            
+
             previewContent.slideDown(300);
             toggleBtn.addClass('expanded');
             toggleBtn.html('<span class="toggle-arrow">▶</span> 折叠预览');
@@ -39,14 +40,70 @@ export function togglePromptPreview() {
 }
 
 /**
+ * 获取当前预览模式
+ * @returns {string} 预览模式：'module' | 'macro' | 'macro-config' | 'macro-modules'
+ */
+function getCurrentPreviewMode() {
+    try {
+        const mode = $('#preview-mode-select').val();
+        return mode || 'module';
+    } catch (error) {
+        errorLog('获取预览模式失败:', error);
+        return 'module';
+    }
+}
+
+/**
+ * 根据当前模式生成对应的提示词预览
+ * @returns {string} 生成的提示词内容
+ */
+function generatePreviewContent() {
+    const mode = getCurrentPreviewMode();
+
+    switch (mode) {
+        case 'macro':
+            return getContinuityPrompt();
+        case 'macro-config':
+            return getContinuityConfig();
+        case 'macro-modules':
+            return getContinuityModules();
+        case 'module':
+        default:
+            return generateModulePrompt();
+    }
+}
+
+/**
+ * 获取当前预览模式的描述
+ * @returns {string} 预览模式描述
+ */
+function getPreviewModeDescription() {
+    const mode = getCurrentPreviewMode();
+
+    switch (mode) {
+        case 'macro':
+            return '{{CONTINUITY_PROMPT}} 宏会生成的提示词';
+        case 'macro-config':
+            return '{{CONTINUITY_CONFIG}} 宏会生成的配置数据';
+        case 'macro-modules':
+            return '{{CONTINUITY_MODULES}} 宏会生成的模块列表';
+        case 'module':
+        default:
+            return '模块组织后的提示词';
+    }
+}
+
+/**
  * 更新提示词预览内容
  */
 export function updatePromptPreview() {
     try {
-        const prompt = generateModulePrompt();
+        const prompt = generatePreviewContent();
+        const modeDescription = getPreviewModeDescription();
+
         $('#prompt-preview-textarea').val(prompt);
-        debugLog('提示词预览内容已更新（仅模块组织后的提示词）');
-        toastr.success('提示词已更新');
+        debugLog(`提示词预览内容已更新（${modeDescription}）`);
+        toastr.success(`提示词已更新（${modeDescription}）`);
     } catch (error) {
         errorLog('更新提示词预览失败:', error);
         toastr.error('更新提示词失败');
@@ -77,12 +134,12 @@ export function getInsertionSettings() {
     try {
         const depth = parseInt($('#insertion-depth').val()) || DEFAULT_INSERTION_SETTINGS.depth;
         const role = $('#insertion-role').val() || DEFAULT_INSERTION_SETTINGS.role;
-        
+
         // 验证深度值
         const validatedDepth = Math.max(0, Math.min(10, depth));
-        
+
         debugLog(`获取插入设置: 深度=${validatedDepth}, 角色=${role}`);
-        
+
         return {
             depth: validatedDepth,
             role: role
@@ -99,7 +156,7 @@ export function getInsertionSettings() {
 function bindInsertionSettingsEvents() {
     try {
         // 绑定深度输入框变化事件
-        $('#insertion-depth').off('input').on('input', function() {
+        $('#insertion-depth').off('input').on('input', function () {
             const value = parseInt($(this).val());
             if (isNaN(value) || value < 0 || value > 10) {
                 $(this).val(DEFAULT_INSERTION_SETTINGS.depth);
@@ -109,7 +166,7 @@ function bindInsertionSettingsEvents() {
         });
 
         // 绑定角色选择框变化事件
-        $('#insertion-role').off('change').on('change', function() {
+        $('#insertion-role').off('change').on('change', function () {
             const role = $(this).val();
             debugLog('插入角色已更新:', role);
         });
@@ -118,6 +175,29 @@ function bindInsertionSettingsEvents() {
 
     } catch (error) {
         errorLog('绑定插入设置事件失败:', error);
+    }
+}
+
+/**
+ * 绑定预览模式选择器事件
+ */
+function bindPreviewModeEvents() {
+    try {
+        // 绑定预览模式选择器变化事件
+        $('#preview-mode-select').off('change').on('change', function () {
+            const mode = $(this).val();
+            debugLog('预览模式已切换:', mode);
+
+            // 如果预览区域是展开状态，自动更新预览内容
+            if ($('#prompt-preview-content').is(':visible')) {
+                updatePromptPreview();
+            }
+        });
+
+        infoLog('预览模式事件绑定成功');
+
+    } catch (error) {
+        errorLog('绑定预览模式事件失败:', error);
     }
 }
 
@@ -139,6 +219,9 @@ export function bindPromptPreviewEvents() {
 
         // 绑定插入设置事件
         bindInsertionSettingsEvents();
+
+        // 绑定预览模式事件
+        bindPreviewModeEvents();
 
         infoLog('提示词预览区域事件绑定成功');
 
