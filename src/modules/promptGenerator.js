@@ -10,9 +10,9 @@ const DEFAULT_INSERTION_SETTINGS = {
 
 /**
  * 生成正式提示词
- * @returns {Promise<string>} 生成的正式提示词
+ * @returns {string} 生成的正式提示词
  */
-export async function generateFormalPrompt() {
+export function generateFormalPrompt() {
     try {
         const modules = getModulesData();
         debugLog('开始生成正式提示词，模块数量:', modules.length);
@@ -72,7 +72,7 @@ export async function generateFormalPrompt() {
         prompt += '</module_generate_guide>\n';
 
         // 替换提示词中的变量
-        const replacedPrompt = await replaceVariables(prompt);
+        const replacedPrompt = replaceVariables(prompt);
 
         infoLog('正式提示词生成成功');
 
@@ -91,11 +91,11 @@ export async function generateFormalPrompt() {
 
 /**
  * 生成模块组织后的提示词（不包含结构化信息）
- * @returns {Promise<string>} 模块组织后的提示词
+ * @returns {string} 模块组织后的提示词
  */
-export async function generateModulePrompt() {
+export function generateModulePrompt() {
     try {
-        return await generateFormalPrompt();
+        return generateFormalPrompt();
     } catch (error) {
         errorLog('生成模块提示词失败:', error);
         return '生成提示词时发生错误：' + error.message;
@@ -107,12 +107,12 @@ export async function generateModulePrompt() {
  * @param {Object} insertionSettings 插入设置
  * @param {number} insertionSettings.depth 插入深度
  * @param {string} insertionSettings.role 插入角色
- * @returns {Promise<string>} 带有插入设置的提示词
+ * @returns {string} 带有插入设置的提示词
  */
-export async function generatePromptWithInsertion(insertionSettings = DEFAULT_INSERTION_SETTINGS) {
+export function generatePromptWithInsertion(insertionSettings = DEFAULT_INSERTION_SETTINGS) {
     try {
         const { depth, role } = insertionSettings;
-        const prompt = await generateFormalPrompt();
+        const prompt = generateFormalPrompt();
 
         // 根据st-memory-enhancement插件的格式生成扩展提示词
         const extensionPrompt = `{

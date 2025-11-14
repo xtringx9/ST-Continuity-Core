@@ -78,11 +78,11 @@ export class PromptInjector {
 
     /**
      * 生成要注入的提示词对象
-     * @returns {Promise<Object>} 提示词对象
+     * @returns {Object} 提示词对象
      */
-    async generateInjectionPrompt() {
+    generateInjectionPrompt() {
         try {
-            const promptContent = await generateFormalPrompt();
+            const promptContent = generateFormalPrompt();
 
             return {
                 depth: this.injectionDepth,
@@ -137,9 +137,9 @@ export class PromptInjector {
     /**
      * 处理聊天完成前的提示词注入
      * @param {Object} eventData 事件数据
-     * @returns {Promise<Object>} 处理后的事件数据
+     * @returns {Object} 处理后的事件数据
      */
-    async onChatCompletionPromptReady(eventData) {
+    onChatCompletionPromptReady(eventData) {
         try {
             debugLog('收到CHAT_COMPLETION_PROMPT_READY事件，开始处理提示词注入');
             // debugLog('原始事件数据:', eventData);
@@ -154,7 +154,7 @@ export class PromptInjector {
             this.loadUIControls();
 
             // 生成要注入的提示词
-            const promptObject = await this.generateInjectionPrompt();
+            const promptObject = this.generateInjectionPrompt();
             if (!promptObject) {
                 errorLog('无法生成提示词对象，跳过注入');
                 return eventData; // 返回原始数据

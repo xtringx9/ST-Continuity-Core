@@ -55,9 +55,9 @@ function getCurrentPreviewMode() {
 
 /**
  * 根据当前模式生成对应的提示词预览
- * @returns {Promise<string>} 生成的提示词内容
+ * @returns {string} 生成的提示词内容
  */
-async function generatePreviewContent() {
+function generatePreviewContent() {
     const mode = getCurrentPreviewMode();
 
     switch (mode) {
@@ -66,12 +66,12 @@ async function generatePreviewContent() {
         case 'macro-modules':
             return getContinuityModules();
         case 'macro-order':
-            return await getContinuityOrder();
+            return getContinuityOrder();
         case 'macro-usage-guide':
-            return await getContinuityUsageGuide();
+            return getContinuityUsageGuide();
         case 'macro':
         default:
-            return await getContinuityPrompt();
+            return getContinuityPrompt();
     }
 }
 
@@ -100,9 +100,9 @@ function getPreviewModeDescription() {
 /**
  * 更新提示词预览内容
  */
-export async function updatePromptPreview() {
+export function updatePromptPreview() {
     try {
-        const prompt = await generatePreviewContent();
+        const prompt = generatePreviewContent();
         const modeDescription = getPreviewModeDescription();
 
         $('#prompt-preview-textarea').val(prompt);

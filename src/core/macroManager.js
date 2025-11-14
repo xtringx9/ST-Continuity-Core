@@ -12,9 +12,9 @@ import { replaceVariables } from '../utils/variableReplacer.js';
 /**
  * 获取完整的连续性提示词
  * 返回所有模块的格式化提示词内容
- * @returns {Promise<string>} 完整的提示词内容
+ * @returns {string} 完整的提示词内容
  */
-export async function getContinuityPrompt() {
+export function getContinuityPrompt() {
     try {
         debugLog("宏管理器: 获取连续性提示词");
 
@@ -37,7 +37,7 @@ export async function getContinuityPrompt() {
         const prompt = generateFormalPrompt(modulesData);
 
         // 替换提示词中的变量
-        const replacedPrompt = await replaceVariables(prompt);
+        const replacedPrompt = replaceVariables(prompt);
 
         debugLog("宏管理器: 成功生成并替换变量后的连续性提示词");
         return replacedPrompt;
@@ -120,9 +120,9 @@ export function getContinuityModules() {
 /**
  * 获取模块使用指导提示词
  * 只显示使用提示词不为空的模块，用于指导AI如何使用模块数据
- * @returns {Promise<string>} 使用指导提示词内容
+ * @returns {string} 使用指导提示词内容
  */
-export async function getContinuityUsageGuide() {
+export function getContinuityUsageGuide() {
     try {
         debugLog("宏管理器: 获取模块使用指导提示词");
 
@@ -165,7 +165,7 @@ export async function getContinuityUsageGuide() {
         usageGuide += "</module_usage_guide>\n";
 
         // 替换提示词中的变量
-        const replacedUsageGuide = await replaceVariables(usageGuide.trim());
+        const replacedUsageGuide = replaceVariables(usageGuide.trim());
 
         debugLog("宏管理器: 成功生成并替换变量后的模块使用指导提示词");
         return replacedUsageGuide;
@@ -178,9 +178,9 @@ export async function getContinuityUsageGuide() {
 /**
  * 获取连续性顺序提示词
  * 按照模块的生成位置和序号组织输出顺序
- * @returns {Promise<string>} 顺序提示词内容
+ * @returns {string} 顺序提示词内容
  */
-export async function getContinuityOrder() {
+export function getContinuityOrder() {
     try {
         debugLog("宏管理器: 获取连续性顺序提示词");
 
@@ -301,7 +301,7 @@ export async function getContinuityOrder() {
         orderPrompt += "</module_order>\n";
 
         // 替换提示词中的变量
-        const replacedOrderPrompt = await replaceVariables(orderPrompt.trim());
+        const replacedOrderPrompt = replaceVariables(orderPrompt.trim());
 
         debugLog("宏管理器: 成功生成并替换变量后的连续性顺序提示词");
         return replacedOrderPrompt;
