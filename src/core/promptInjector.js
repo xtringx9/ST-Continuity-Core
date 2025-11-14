@@ -24,7 +24,7 @@ export class PromptInjector {
                 debugLog('提示词注入管理器已经初始化');
                 return;
             }
-            
+
             // 从扩展设置获取注入配置
             const settings = extension_settings[extensionName];
             if (settings) {
@@ -72,17 +72,17 @@ export class PromptInjector {
         const settings = extension_settings[extensionName];
         const autoInject = settings?.autoInject !== false; // 默认为true
         const enabled = settings?.enabled || false;
-        
+
         return enabled && this.injectionDepth >= 0 && autoInject;
     }
 
     /**
      * 生成要注入的提示词对象
-     * @returns {Object} 提示词对象
+     * @returns {Promise<Object>} 提示词对象
      */
-    generateInjectionPrompt() {
+    async generateInjectionPrompt() {
         try {
-            const promptContent = generateFormalPrompt();
+            const promptContent = await generateFormalPrompt();
 
             return {
                 depth: this.injectionDepth,
@@ -137,12 +137,12 @@ export class PromptInjector {
     /**
      * 处理聊天完成前的提示词注入
      * @param {Object} eventData 事件数据
-     * @returns {Object} 处理后的事件数据
+     * @returns {Promise<Object>} 处理后的事件数据
      */
-    onChatCompletionPromptReady(eventData) {
+    async onChatCompletionPromptReady(eventData) {
         try {
             debugLog('收到CHAT_COMPLETION_PROMPT_READY事件，开始处理提示词注入');
-            debugLog('原始事件数据:', eventData);
+            // debugLog('原始事件数据:', eventData);
 
             // 检查是否应该注入
             if (!this.shouldInject()) {
@@ -154,7 +154,7 @@ export class PromptInjector {
             this.loadUIControls();
 
             // 生成要注入的提示词
-            const promptObject = this.generateInjectionPrompt();
+            const promptObject = await this.generateInjectionPrompt();
             if (!promptObject) {
                 errorLog('无法生成提示词对象，跳过注入');
                 return eventData; // 返回原始数据
@@ -192,7 +192,7 @@ export class PromptInjector {
             debugLog('注入后的聊天数组内容:', eventData.chat);
 
             infoLog(`提示词注入完成: 深度=${promptObject.depth}, 角色=${promptObject.role}, 聊天数组长度=${eventData.chat.length}`);
-            
+
             // 关键修复：返回修改后的事件数据
             return eventData;
         } catch (error) {
