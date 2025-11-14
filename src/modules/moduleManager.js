@@ -33,6 +33,14 @@ export function addModule() {
     separator.hide();
     maxInput.show().val(1);
 
+    // 初始化变量序号显示
+    const variablesContainer = moduleItem.find('.variables-container');
+    if (variablesContainer.length > 0) {
+        // 先移除隐藏的变量模板，避免影响序号计算
+        variablesContainer.find('.variable-template').remove();
+        updateVariableOrderNumbers(variablesContainer);
+    }
+
     return template;
 }
 
@@ -650,7 +658,10 @@ function startVariableDragging(variableItem, variablesContainer, e) {
  * @param {jQuery} variablesContainer 变量容器jQuery对象
  */
 function updateVariableOrderNumbers(variablesContainer) {
-    variablesContainer.find('.variable-item').each(function (index) {
+    // 只处理可见的变量项，排除隐藏的模板
+    variablesContainer.find('.variable-item').filter(function () {
+        return $(this).closest('.variable-template').length === 0;
+    }).each(function (index) {
         const orderNumber = index + 1;
         $(this).find('.variable-order-number').text(orderNumber);
     });
