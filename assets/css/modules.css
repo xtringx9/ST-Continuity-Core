@@ -181,6 +181,24 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
+/* 表单控件样式 */
+.form-control {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 10px;
+    color: #333;
+    transition: border-color 0.2s;
+    width: 100%;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
 /* 数量范围模式选择组 */
 .range-mode-group {
     margin-bottom: 0;
@@ -218,11 +236,12 @@
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
-    padding: 2px 4px;
+    padding: 1px 4px;
     font-size: 10px;
     color: #333;
     transition: border-color 0.2s;
     width: 40px;
+    margin-bottom: 4px;
 }
 
 .module-item-min:focus,

@@ -29,7 +29,7 @@ export function getVariableItemTemplate(variable = {}) {
                 <input type="text" class="variable-desc" placeholder="变量描述" value="${description}">
             </div>
             <div class="variable-compatible-names-group">
-                <label>兼容变量名</label>
+                <label>兼容</label>
                 <input type="text" class="variable-compatible-names" placeholder="兼容变量名（逗号分隔）" value="${compatibleNames}">
             </div>
             <div class="variable-actions">

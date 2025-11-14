@@ -153,6 +153,16 @@ export function bindModuleEvents(moduleElement) {
 
     // 绑定生成位置选择事件
     moduleItem.find('.module-output-position').on('change', function () {
+        const positionSelect = $(this);
+        const positionPromptInput = positionSelect.siblings('.module-position-prompt');
+
+        // 显示/隐藏顺序提示词输入框
+        if (positionSelect.val() === 'specific_position') {
+            positionPromptInput.show();
+        } else {
+            positionPromptInput.hide();
+        }
+
         // 自动保存配置
         autoSaveModuleConfig();
     });
@@ -369,6 +379,7 @@ export function getModulesData() {
             // 获取新的配置项
             const contentPrompt = $(this).find('.module-content-prompt-input').val();
             const outputPosition = $(this).find('.module-output-position').val();
+            const positionPrompt = $(this).find('.module-position-prompt').val();
             const itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
             const itemMax = parseInt($(this).find('.module-item-specified').val()) || -1;
 
@@ -381,6 +392,7 @@ export function getModulesData() {
                 prompt: modulePrompt || '',
                 contentPrompt: contentPrompt || '',
                 outputPosition: outputPosition || 'body',
+                positionPrompt: positionPrompt || '',
                 itemMin: itemMin,
                 itemMax: itemMax,
                 order: index // 添加排序索引
@@ -666,3 +678,6 @@ function updateVariableOrderNumbers(variablesContainer) {
         $(this).find('.variable-order-number').text(orderNumber);
     });
 }
+
+// 导出函数
+export { updateVariableOrderNumbers };

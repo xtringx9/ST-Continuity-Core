@@ -1,6 +1,7 @@
 // 变量管理相关功能
 import { debugLog, errorLog, updateModulePreview } from "../index.js";
 import { getEmptyVariableItemTemplate } from "./templateManager.js";
+import { updateVariableOrderNumbers } from "./moduleManager.js";
 
 /**
  * 添加新变量到模块
@@ -51,6 +52,9 @@ export function addVariable(moduleItem) {
         updateModulePreview(moduleItem);
     });
 
+    // 更新变量序号
+    updateVariableOrderNumbers(variablesContainer);
+    
     // 更新预览
     updateModulePreview(moduleItem);
     debugLog('addVariable函数执行完成');
