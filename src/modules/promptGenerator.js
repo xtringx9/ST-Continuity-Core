@@ -24,46 +24,35 @@ export function generateFormalPrompt() {
             return '暂无启用的模块配置，请先启用模块。';
         }
 
-        let prompt = '模块组织提示词：\n\n';
+        let prompt = '';
 
-        // 按模块顺序生成提示词
+        // 按模块顺序生成提示词，按照新格式组织
         enabledModules.forEach((module, index) => {
-            const moduleNumber = index + 1;
+            // 模块标题：使用【name (displayName)】格式，方便AI理解
+            const displayName = module.displayName || module.name;
+            prompt += `【${module.name} (${displayName})】\n`;
 
-            // 模块标题
-            prompt += `${moduleNumber}. ${module.name}模块\n`;
-
-            // 模块提示词（如果有）
+            // 要求：使用prompt内容
             if (module.prompt) {
-                prompt += `   说明：${module.prompt}\n`;
+                prompt += `要求：${module.prompt}\n`;
             }
 
-            // 变量列表
+            // 格式：生成变量描述格式
             if (module.variables && module.variables.length > 0) {
-                prompt += `   变量：\n`;
-                module.variables.forEach(variable => {
-                    const description = variable.description ? ` - ${variable.description}` : '';
-                    prompt += `     • ${variable.name}${description}\n`;
-                });
+                const variableDescriptions = module.variables.map(variable => {
+                    const variableName = variable.name;
+                    const variableDesc = variable.description ? `:${variable.description}` : '';
+                    return `${variableName}${variableDesc}`;
+                }).join('|');
+
+                prompt += `格式：[${module.name}|${variableDescriptions}]\n`;
+            } else {
+                prompt += `格式：[${module.name}]\n`;
             }
 
-            // 模块格式预览
-            const variablesPreview = module.variables && module.variables.length > 0
-                ? module.variables.map(v => `${v.name}:值`).join('|')
-                : '';
-
-            const moduleFormat = variablesPreview
-                ? `[${module.name}|${variablesPreview}]`
-                : `[${module.name}]`;
-
-            prompt += `   格式：${moduleFormat}\n\n`;
+            // 模块之间添加空行分隔
+            prompt += '\n';
         });
-
-        // 添加使用说明
-        prompt += '使用说明：\n';
-        prompt += '• 每个模块用方括号表示，格式为[模块名|变量1:值1|变量2:值2...]\n';
-        prompt += '• 变量值需要根据实际情况填写\n';
-        prompt += '• 模块可以按需组合使用\n';
 
         infoLog('正式提示词生成成功');
 
