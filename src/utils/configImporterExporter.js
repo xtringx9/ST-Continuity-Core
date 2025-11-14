@@ -80,6 +80,9 @@ export function collectModulesForExport() {
         // 获取模块顺序提示词
         const positionPrompt = $(this).find('.module-position-prompt').val();
 
+        // 获取模块输出模式
+        const outputMode = $(this).find('.module-output-mode').val();
+
         // 获取模块数量范围（根据模式处理）
         const rangeMode = $(this).find('.module-range-mode').val();
         let itemMin = 0;
@@ -126,6 +129,7 @@ export function collectModulesForExport() {
             contentPrompt: contentPrompt || '',
             outputPosition: outputPosition || 'after_body',
             positionPrompt: positionPrompt || '', // 添加顺序提示词字段
+            outputMode: outputMode || 'full', // 添加输出模式字段，默认值为full（全量输出）
             itemMin: itemMin,
             itemMax: itemMax,
             rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
@@ -171,6 +175,9 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
 
             // 获取模块顺序提示词
             const positionPrompt = $(this).find('.module-position-prompt').val();
+
+            // 获取模块输出模式
+            const outputMode = $(this).find('.module-output-mode').val();
 
             // 获取模块数量范围（根据模式处理）
             const rangeMode = $(this).find('.module-range-mode').val();
@@ -218,6 +225,7 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                 contentPrompt: contentPrompt || '',
                 outputPosition: outputPosition || 'body',
                 positionPrompt: positionPrompt || '', // 添加顺序提示词字段
+                outputMode: outputMode || 'full', // 添加输出模式字段，默认值为full（全量输出）
                 itemMin: itemMin,
                 itemMax: itemMax,
                 rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified

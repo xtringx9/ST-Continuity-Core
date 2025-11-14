@@ -416,6 +416,7 @@ export function getModulesData() {
             const itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
             const itemMax = parseInt($(this).find('.module-item-specified').val()) || -1;
             const rangeMode = $(this).find('.module-range-mode').val();
+            const outputMode = $(this).find('.module-output-mode').val();
 
             modules.push({
                 name: moduleName,
@@ -431,6 +432,7 @@ export function getModulesData() {
                 itemMin: itemMin,
                 itemMax: itemMax,
                 rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
+                outputMode: outputMode || 'full', // 添加outputMode字段，默认值为full（全量输出）
                 order: index // 添加排序索引
             });
         });

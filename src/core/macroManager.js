@@ -236,6 +236,12 @@ export async function getContinuityOrder() {
 
         // 构建顺序提示词
         let orderPrompt = "<module_order>\n";
+        orderPrompt += "模块生成顺序和配置：\n\n";
+
+        // 添加输出模式说明
+        orderPrompt += "输出模式说明：\n";
+        orderPrompt += "• 全量输出（输出：全量）：每次生成时都会完整输出该模块的所有内容\n";
+        orderPrompt += "• 增量更新（输出：增量）：只输出与上次生成相比发生变化的内容\n\n";
 
         // 可嵌入模块（按序号排序）
         if (embeddableModules.length > 0) {
@@ -244,7 +250,8 @@ export async function getContinuityOrder() {
             embeddableModules.forEach(module => {
                 const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
                 const rangePrompt = getRangePrompt(module);
-                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt} `;
+                const outputModePrompt = getOutputModePrompt(module);
+                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt}${outputModePrompt} `;
                 orderPrompt += "\n";
             });
             orderPrompt += "\n\n";
@@ -257,7 +264,8 @@ export async function getContinuityOrder() {
             bodyModules.forEach(module => {
                 const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
                 const rangePrompt = getRangePrompt(module);
-                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt} `;
+                const outputModePrompt = getOutputModePrompt(module);
+                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt}${outputModePrompt} `;
                 orderPrompt += "\n";
             });
             orderPrompt += "\n\n";
@@ -271,7 +279,8 @@ export async function getContinuityOrder() {
                 const positionPrompt = module.positionPrompt ? `（位置：${module.positionPrompt}）` : "";
                 const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
                 const rangePrompt = getRangePrompt(module);
-                orderPrompt += `[${module.name}]${positionPrompt}${timingPrompt}${rangePrompt} `;
+                const outputModePrompt = getOutputModePrompt(module);
+                orderPrompt += `[${module.name}]${positionPrompt}${timingPrompt}${rangePrompt}${outputModePrompt} `;
                 orderPrompt += "\n";
             });
             orderPrompt += "\n\n";
@@ -284,7 +293,8 @@ export async function getContinuityOrder() {
             afterBodyModules.forEach(module => {
                 const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
                 const rangePrompt = getRangePrompt(module);
-                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt} `;
+                const outputModePrompt = getOutputModePrompt(module);
+                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt}${outputModePrompt} `;
                 orderPrompt += "\n";
             });
         }
@@ -325,6 +335,24 @@ function getRangePrompt(module) {
                 return `（数量：${minCount}~${maxCount}条）`;
             }
         }
+        default:
+            return "";
+    }
+}
+
+/**
+ * 获取模块输出模式的提示词
+ * @param {Object} module 模块对象
+ * @returns {string} 输出模式提示词
+ */
+function getOutputModePrompt(module) {
+    const outputMode = module.outputMode || 'full';
+
+    switch (outputMode) {
+        case 'full':
+            return "（输出：全量）";
+        case 'incremental':
+            return "（输出：增量）";
         default:
             return "";
     }
