@@ -223,6 +223,24 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
+/* 输出模式选择器样式 */
+.module-output-mode {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 10px;
+    color: #333;
+    transition: border-color 0.2s;
+    width: 90px;
+}
+
+.module-output-mode:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
 /* 数量范围输入组 */
 .range-input-group {
     display: flex;

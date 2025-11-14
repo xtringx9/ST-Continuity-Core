@@ -153,7 +153,7 @@
                     </div>
                 </div>
 
-                <!-- 模块设置行 - 生成位置、数量限制和展开变量按钮 -->
+                <!-- 模块设置行 - 生成位置、数量限制、输出模式和展开变量按钮 -->
                 <div class="module-settings-row">
                     <div class="module-settings-inline">
                         <div class="module-setting-item">
@@ -183,6 +183,13 @@
                                 <input type="number" class="module-item-specified" min="0" value="1" placeholder="数量"
                                     title="指定数量">
                             </div>
+                        </div>
+                        <div class="module-setting-item">
+                            <label>输出模式</label>
+                            <select class="module-output-mode">
+                                <option value="full">全量输出</option>
+                                <option value="incremental">增量更新</option>
+                            </select>
                         </div>
                     </div>
                     <div class="module-actions-right">

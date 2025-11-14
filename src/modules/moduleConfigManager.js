@@ -398,6 +398,10 @@ export function renderModulesFromConfig(config) {
         if (module.positionPrompt) {
             moduleItem.find('.module-position-prompt').val(module.positionPrompt);
         }
+        // 设置输出模式
+        if (module.outputMode) {
+            moduleItem.find('.module-output-mode').val(module.outputMode);
+        }
         // 处理数量范围（使用rangeMode字段优先）
         const rangeModeSelect = moduleItem.find('.module-range-mode');
         const rangeInputGroup = moduleItem.find('.range-input-group');
