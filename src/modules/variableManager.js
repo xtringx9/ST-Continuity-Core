@@ -38,25 +38,15 @@ export function addVariable(moduleItem) {
     debugLog('添加后容器内.variable-item数量:', variablesContainer.find('.variable-item').length);
     debugLog('添加后容器内HTML:', variablesContainer.html());
 
-    // 绑定删除变量事件
-    variableItem.find('.remove-variable').on('click', function () {
-        debugLog('删除变量按钮被点击');
-        $(this).closest('.variable-item').remove();
-        updateModulePreview(moduleItem);
-    });
+    // 使用bindVariableEvents函数绑定所有事件（包括删除变量事件）
+    bindVariableEvents(variableItem, moduleItem);
 
-    // 绑定输入事件
-    variableItem.find('input').on('input', function () {
-        debugLog('变量输入框内容变化');
-        updateModulePreview(moduleItem);
-    });
+    // 绑定变量拖拽事件
+    bindVariableDragEvents(variableItem, moduleItem);
 
     // 更新变量序号
     updateVariableOrderNumbers(variablesContainer);
-    
-    // 绑定变量拖拽事件
-    bindVariableDragEvents(variableItem, moduleItem);
-    
+
     // 更新预览
     updateModulePreview(moduleItem);
     debugLog('addVariable函数执行完成');
@@ -83,6 +73,12 @@ export function bindVariableEvents(variableItem, moduleItem) {
         debugLog('删除变量按钮被点击');
         variableItem.remove();
         updateModulePreview(moduleItem);
+        // 更新变量数量显示
+        const variableCount = moduleItem.find('.variable-item').filter(function () {
+            return $(this).closest('.variable-template').length === 0;
+        }).length;
+        const countElement = moduleItem.find('.toggle-variables .variable-count');
+        countElement.text(`(${variableCount})`);
     });
 }
 

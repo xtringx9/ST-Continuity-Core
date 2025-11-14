@@ -81,19 +81,23 @@ export function updateModuleOrderNumbers() {
                 <span class="module-order-number">${index + 1}</span>
             </button>
         `);
-        
+
         // 绑定展开/折叠按钮事件
         const toggleBtn = moduleNameGroup.find('.module-toggle-expand-btn');
-        toggleBtn.off('click').on('click', function() {
+        toggleBtn.off('click').on('click', function () {
             if (moduleItem.hasClass('collapsed')) {
                 // 展开模块
                 moduleItem.removeClass('collapsed').addClass('expanded');
+                // 保存展开状态到localStorage
+                saveModuleCollapsedState(moduleItem, false);
             } else {
                 // 折叠模块
                 moduleItem.removeClass('expanded').addClass('collapsed');
+                // 保存折叠状态到localStorage
+                saveModuleCollapsedState(moduleItem, true);
             }
         });
-        
+
         // 默认展开状态
         if (!moduleItem.hasClass('collapsed') && !moduleItem.hasClass('expanded')) {
             moduleItem.addClass('expanded');
@@ -323,7 +327,7 @@ export function bindModuleEvents(moduleElement) {
             variableItem.remove();
             updateModulePreview(moduleItem);
             // 更新变量数量
-            updateVariableCount();
+            updateVariableCount(moduleItem);
         });
 
         // 变量拖拽手柄事件
@@ -404,6 +408,7 @@ export function getModulesData() {
             const positionPrompt = $(this).find('.module-position-prompt').val();
             const itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
             const itemMax = parseInt($(this).find('.module-item-specified').val()) || -1;
+            const rangeMode = $(this).find('.module-range-mode').val();
 
             modules.push({
                 name: moduleName,
@@ -418,6 +423,7 @@ export function getModulesData() {
                 positionPrompt: positionPrompt || '',
                 itemMin: itemMin,
                 itemMax: itemMax,
+                rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
                 order: index // 添加排序索引
             });
         });
@@ -702,5 +708,54 @@ function updateVariableOrderNumbers(variablesContainer) {
     });
 }
 
+/**
+ * 保存模块折叠状态到localStorage
+ * @param {jQuery} moduleItem 模块元素
+ * @param {boolean} isCollapsed 是否折叠
+ */
+function saveModuleCollapsedState(moduleItem, isCollapsed) {
+    const moduleName = moduleItem.find('.module-name').val();
+    if (!moduleName) return;
+
+    // 获取当前保存的折叠状态
+    const collapsedStates = JSON.parse(localStorage.getItem('moduleCollapsedStates') || '{}');
+
+    // 更新当前模块的折叠状态
+    collapsedStates[moduleName] = isCollapsed;
+
+    // 保存到localStorage
+    localStorage.setItem('moduleCollapsedStates', JSON.stringify(collapsedStates));
+
+    debugLog('模块折叠状态已保存:', moduleName, isCollapsed);
+}
+
+/**
+ * 恢复模块折叠状态
+ * @param {jQuery} moduleItem 模块元素
+ */
+function restoreModuleCollapsedState(moduleItem) {
+    const moduleName = moduleItem.find('.module-name').val();
+    if (!moduleName) return;
+
+    // 获取保存的折叠状态
+    const collapsedStates = JSON.parse(localStorage.getItem('moduleCollapsedStates') || '{}');
+
+    // 如果该模块有保存的折叠状态
+    if (collapsedStates.hasOwnProperty(moduleName)) {
+        const isCollapsed = collapsedStates[moduleName];
+        const toggleBtn = moduleItem.find('.module-toggle-expand-btn');
+
+        if (isCollapsed) {
+            // 折叠模块
+            moduleItem.removeClass('expanded').addClass('collapsed');
+        } else {
+            // 展开模块
+            moduleItem.removeClass('collapsed').addClass('expanded');
+        }
+
+        debugLog('模块折叠状态已恢复:', moduleName, isCollapsed);
+    }
+}
+
 // 导出函数
-export { updateVariableOrderNumbers };
+export { updateVariableOrderNumbers, restoreModuleCollapsedState };

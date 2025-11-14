@@ -489,8 +489,7 @@
 /* 模块折叠状态下的内容隐藏 */
 .module-item.collapsed .module-settings-row,
 .module-item.collapsed .variables-container-wrapper,
-.module-item.collapsed .module-prompt,
-.module-item.collapsed .module-preview {
+.module-item.collapsed .module-prompt {
     display: none !important;
 }
 

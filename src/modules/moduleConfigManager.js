@@ -1,7 +1,7 @@
 // 模块配置管理模块
 import { extensionFolderPath, debugLog, errorLog, infoLog, initParseModule } from "../index.js";
 import { getVariableItemTemplate } from "./templateManager.js";
-import { updateModulePreview } from "./moduleManager.js";
+import { updateModulePreview, restoreModuleCollapsedState } from "./moduleManager.js";
 import {
     saveModuleConfigToExtension,
     loadModuleConfigFromExtension,
@@ -460,6 +460,11 @@ export function renderModulesFromConfig(config) {
         // 更新模块预览
         if (updateModulePreview) {
             updateModulePreview(moduleItem);
+        }
+
+        // 恢复模块折叠状态
+        if (restoreModuleCollapsedState) {
+            restoreModuleCollapsedState(moduleItem);
         }
     });
 
