@@ -6,6 +6,8 @@ import {
     onBackendUrlChange,
     onDebugLogsToggle,
     onAutoInjectToggle,
+    onCorePrinciplesChange,
+    onFormatDescriptionChange,
     updateInjectionSettingsVisibility,
     sendToBackend,
     saveModuleConfig,
@@ -115,9 +117,9 @@ export async function openModuleConfigWindow() {
             setOnRenderComplete(updateModuleOrderNumbers);
 
             // 绑定确认保存按钮事件
-            bindSaveButtonEvent(function (modules) {
+            bindSaveButtonEvent(function (modules, globalSettings) {
                 // 保存配置到本地存储
-                if (saveModuleConfig(modules)) {
+                if (saveModuleConfig(modules, globalSettings)) {
                     toastr.success('模块配置已保存！');
                 } else {
                     toastr.error('保存模块配置失败');
@@ -150,6 +152,10 @@ export async function openModuleConfigWindow() {
 
             // 绑定自动注入开关事件
             $('#auto-inject-toggle').on('input', onAutoInjectToggle);
+
+            // 绑定新提示词输入框事件
+            $('#core-principles-input').on('input', onCorePrinciplesChange);
+            $('#format-description-input').on('input', onFormatDescriptionChange);
 
             // 加载设置到UI（包括自动注入开关状态）
             loadSettingsToUI();

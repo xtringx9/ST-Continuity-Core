@@ -40,6 +40,10 @@ export function loadSettingsToUI() {
     $("#continuity_debug_logs").prop("checked", settings.debugLogs);
     // 更新自动注入开关
     $("#auto-inject-toggle").prop("checked", settings.autoInject);
+    // 更新核心原则提示词
+    $("#continuity_core_principles").val(settings.corePrinciples || "");
+    // 更新通用格式描述提示词
+    $("#continuity_format_description").val(settings.formatDescription || "");
 
     // 根据设置启用或禁用扩展UI
     updateExtensionUIState(settings.enabled);
@@ -162,6 +166,26 @@ export function onAutoInjectToggle(event) {
     updateInjectionSettingsVisibility(autoInject);
 
     // toastr.info(autoInject ? "自动注入已启用" : "自动注入已禁用");
+}
+
+/**
+ * 处理核心原则提示词变更
+ * @param {Event} event 事件对象
+ */
+export function onCorePrinciplesChange(event) {
+    const corePrinciples = $(event.target).val();
+    extension_settings[extensionName].corePrinciples = corePrinciples;
+    saveSettingsDebounced();
+}
+
+/**
+ * 处理通用格式描述提示词变更
+ * @param {Event} event 事件对象
+ */
+export function onFormatDescriptionChange(event) {
+    const formatDescription = $(event.target).val();
+    extension_settings[extensionName].formatDescription = formatDescription;
+    saveSettingsDebounced();
 }
 
 /**

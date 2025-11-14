@@ -7,20 +7,26 @@ const MODULE_CONFIG_KEY = 'module_config';
 /**
  * 保存模块配置到SillyTavern扩展设置
  * @param {Array} modules 模块配置数组
+ * @param {Object} globalSettings 全局设置对象（包含核心原则提示词和通用格式描述提示词）
  * @returns {boolean} 是否保存成功
  */
-export function saveModuleConfigToExtension(modules) {
+export function saveModuleConfigToExtension(modules, globalSettings = {}) {
     try {
         // 确保扩展设置对象存在
         if (!extension_settings[extensionName]) {
             extension_settings[extensionName] = {};
         }
 
-        // 保存模块配置
+        // 保存模块配置和全局设置
         extension_settings[extensionName][MODULE_CONFIG_KEY] = {
             modules: modules,
+            globalSettings: {
+                corePrinciples: globalSettings.corePrinciples || '',
+                formatDescription: globalSettings.formatDescription || '',
+                ...globalSettings
+            },
             lastUpdated: new Date().toISOString(),
-            version: '1.0.0'
+            version: '1.1.0'  // 更新版本号以反映新功能
         };
 
         // 保存设置
@@ -121,10 +127,14 @@ export function getModuleConfigStats() {
  */
 export function backupModuleConfig(modules) {
     try {
+        // 获取当前的完整配置（包括globalSettings）
+        const currentConfig = loadModuleConfigFromExtension();
+
         const config = {
             modules: modules,
+            globalSettings: currentConfig?.globalSettings || {},
             backupDate: new Date().toISOString(),
-            version: '1.0.0',
+            version: '1.1.0',
             source: 'ST-Continuity-Core'
         };
 

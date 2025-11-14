@@ -226,9 +226,15 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
             });
         });
 
-        // 调用回调函数
+        // 收集全局设置数据
+        const globalSettings = {
+            corePrinciples: $('#core-principles-input').val() || '',
+            formatDescription: $('#format-description-input').val() || ''
+        };
+
+        // 调用回调函数，传递modules和globalSettings
         if (typeof onSaveSuccess === 'function') {
-            onSaveSuccess(modules);
+            onSaveSuccess(modules, globalSettings);
         }
     });
 }

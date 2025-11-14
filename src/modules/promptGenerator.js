@@ -1,5 +1,5 @@
 // 提示词生成器模块
-import { debugLog, errorLog, infoLog, getModulesData } from "../index.js";
+import { debugLog, errorLog, infoLog, getModulesData, extension_settings, extensionName, loadModuleConfig } from "../index.js";
 import { replaceVariables } from "../utils/variableReplacer.js";
 
 // 默认插入设置
@@ -26,6 +26,20 @@ export async function generateFormalPrompt() {
         }
 
         let prompt = '<module_generate_guide>\n';
+
+        // 从模块配置中获取全局设置
+        const moduleConfig = loadModuleConfig();
+        const globalSettings = moduleConfig?.globalSettings;
+
+        // 添加核心原则提示词（如果设置了）
+        if (globalSettings?.corePrinciples) {
+            prompt += `核心原则：\n${globalSettings.corePrinciples}\n\n`;
+        }
+
+        // 添加通用格式描述提示词（如果设置了）
+        if (globalSettings?.formatDescription) {
+            prompt += `通用格式：\n${globalSettings.formatDescription}\n\n`;
+        }
 
         // 按模块顺序生成提示词，按照新格式组织
         enabledModules.forEach((module, index) => {
