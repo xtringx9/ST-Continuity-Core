@@ -104,7 +104,8 @@ export function collectModulesForExport() {
                 variables.push({
                     name: varName,
                     displayName: varDisplayName || '',
-                    description: varDesc || ''
+                    description: varDesc || '',
+                    compatibleVariableNames: $(this).find('.variable-compatible-names').val() || '' // 添加兼容变量名字段
                 });
             }
         });
@@ -119,7 +120,8 @@ export function collectModulesForExport() {
             outputPosition: outputPosition || 'after_body',
             itemMin: itemMin,
             itemMax: itemMax,
-            rangeMode: rangeMode || 'specified' // 添加rangeMode字段，默认值为specified
+            rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
+            compatibleModuleNames: $(this).find('.module-compatible-names').val() || '' // 添加兼容模块名字段
         });
     });
 
@@ -186,7 +188,8 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                     variables.push({
                         name: varName,
                         displayName: varDisplayName || '',
-                        description: varDesc || ''
+                        description: varDesc || '',
+                        compatibleVariableNames: $(this).find('.variable-compatible-names').val() || '' // 添加兼容变量名字段
                     });
                 }
             });
@@ -202,6 +205,7 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                 itemMin: itemMin,
                 itemMax: itemMax,
                 rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
+                compatibleModuleNames: $(this).find('.module-compatible-names').val() || '', // 添加兼容模块名字段
                 order: index // 添加排序索引
             });
         });

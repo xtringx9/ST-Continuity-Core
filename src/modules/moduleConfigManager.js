@@ -345,6 +345,8 @@ export function renderModulesFromConfig(config) {
         moduleItem.find('.module-name').val(module.name);
         // 设置模块显示名
         moduleItem.find('.module-display-name').val(module.displayName || '');
+        // 设置兼容模块名
+        moduleItem.find('.module-compatible-names').val(module.compatibleModuleNames || '');
 
         // 设置模块启用状态（默认为true）
         const isEnabled = module.enabled !== false; // 如果未定义enabled，默认为true
@@ -420,10 +422,17 @@ export function renderModulesFromConfig(config) {
 
                 // 设置变量显示名
                 templateItem.find('.variable-display-name').val(variable.displayName || '');
+                // 设置兼容变量名
+                templateItem.find('.variable-compatible-names').val(variable.compatibleVariableNames || '');
 
                 // 添加variable-item到容器
                 variablesContainer.append(templateItem);
             });
+
+            // 更新变量顺序数字
+            if (typeof updateVariableOrderNumbers === 'function') {
+                updateVariableOrderNumbers(variablesContainer);
+            }
         }
 
         // 添加到custom-modules-container

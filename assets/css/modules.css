@@ -66,7 +66,7 @@
 .module-name-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     flex: 1;
 }
 
@@ -151,7 +151,8 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    height: 24px; /* 固定高度确保垂直居中 */
+    height: 24px;
+    /* 固定高度确保垂直居中 */
 }
 
 .module-setting-item label {
@@ -159,7 +160,8 @@
     font-weight: 500;
     color: rgba(255, 255, 255, 0.9);
     white-space: nowrap;
-    line-height: 24px; /* 确保标签垂直居中 */
+    line-height: 24px;
+    /* 确保标签垂直居中 */
 }
 
 .module-output-position {
@@ -263,13 +265,48 @@
     transition: border-color 0.2s;
 }
 
+/* 模块兼容组样式 */
+.module-compatible-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+}
+
+.module-compatible-group label {
+    white-space: nowrap;
+    font-weight: 500;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+}
+
+/* 模块兼容输入框样式 */
+.module-compatible-names {
+    width: 120px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 12px;
+    color: #333;
+    font-family: monospace;
+    transition: border-color 0.2s;
+}
+
+.module-compatible-names:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
 /* 模块滑块开关样式 */
 .module-toggle {
     position: relative;
     display: inline-block;
     width: 36px;
     height: 18px;
-    margin-right: 8px;
+    /* margin-right: 8px; */
 }
 
 .module-toggle input {
@@ -469,6 +506,73 @@
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* 变量拖拽样式 */
+.variable-item.dragging {
+    cursor: grabbing !important;
+    opacity: 0.7;
+    transform: scale(1.02);
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.variable-drag-placeholder {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border: 2px dashed rgba(255, 255, 255, 0.3) !important;
+    border-radius: 4px;
+    margin: 3px 0;
+    transition: all 0.2s ease;
+}
+
+/* 变量顺序组样式 */
+.variable-order-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 1px;
+}
+
+.variable-order-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    color: white;
+    font-size: 9px;
+    font-weight: bold;
+    min-width: 16px;
+}
+
+.variable-drag-handle {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: grab;
+    transition: all 0.2s ease;
+    line-height: 1;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.variable-drag-handle:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.variable-drag-handle:active {
+    cursor: grabbing;
+    background-color: rgba(255, 255, 255, 0.3);
+    transform: scale(0.95);
 }
 
 /* 模块预览样式 */

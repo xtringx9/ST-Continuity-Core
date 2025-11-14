@@ -169,8 +169,19 @@ function findModuleByName(moduleName) {
     const moduleItems = document.querySelectorAll('.module-item');
     for (const moduleItem of moduleItems) {
         const nameInput = moduleItem.querySelector('.module-name');
+        const compatibleNamesInput = moduleItem.querySelector('.module-compatible-names');
+        
+        // 检查模块名是否匹配
         if (nameInput && nameInput.value === moduleName) {
             return moduleItem;
+        }
+        
+        // 检查兼容模块名是否匹配
+        if (compatibleNamesInput && compatibleNamesInput.value) {
+            const compatibleNames = compatibleNamesInput.value.split(/[,，\s]+/).filter(name => name.trim());
+            if (compatibleNames.includes(moduleName)) {
+                return moduleItem;
+            }
         }
     }
     return null;
@@ -215,13 +226,7 @@ function fillModuleFromParse(moduleItem, parsedModule) {
         moduleNameInput.val(parsedModule.name);
     }
 
-    // 清空现有变量
-    const variablesContainer = moduleItem.find('.variables-container');
-    if (variablesContainer.length > 0) {
-        variablesContainer.empty();
-    }
-
-    // 添加解析出的变量
+    // 添加解析出的变量（不清空现有变量，避免重复添加）
     if (parsedModule.variables && parsedModule.variables.length > 0) {
         parsedModule.variables.forEach(variable => {
             addVariableFromParse(moduleItem, variable);
@@ -297,6 +302,37 @@ function parseModuleFromInput(moduleItem) {
 }
 
 /**
+ * 在模块中根据变量名查找变量
+ * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
+ * @param {string} variableName 变量名
+ * @returns {JQuery<HTMLElement>|null} 变量项jQuery对象或null
+ */
+function findVariableByName(moduleItem, variableName) {
+    const variableItems = moduleItem.find('.variable-item');
+    
+    for (let i = 0; i < variableItems.length; i++) {
+        const variableItem = $(variableItems[i]);
+        const nameInput = variableItem.find('.variable-name');
+        const compatibleNamesInput = variableItem.find('.variable-compatible-names');
+        
+        // 检查变量名是否匹配
+        if (nameInput.length > 0 && nameInput.val() === variableName) {
+            return variableItem;
+        }
+        
+        // 检查兼容变量名是否匹配
+        if (compatibleNamesInput.length > 0 && compatibleNamesInput.val()) {
+            const compatibleNames = compatibleNamesInput.val().split(/[,，\s]+/).filter(name => name.trim());
+            if (compatibleNames.includes(variableName)) {
+                return variableItem;
+            }
+        }
+    }
+    
+    return null;
+}
+
+/**
  * 从解析结果添加变量
  * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
  * @param {Object} variable 变量对象
@@ -309,6 +345,13 @@ function addVariableFromParse(moduleItem, variable) {
     }
 
     debugLog(`添加变量: ${variable.name} - ${variable.description}`);
+
+    // 检查是否已存在同名变量
+    const existingVariable = findVariableByName(moduleItem, variable.name);
+    if (existingVariable) {
+        debugLog(`变量 ${variable.name} 已存在，跳过添加`);
+        return;
+    }
 
     // 使用模板管理模块创建变量项HTML
     const variableItemHTML = getVariableItemTemplate(variable);
