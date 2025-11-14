@@ -1,6 +1,7 @@
 // 模块管理相关功能
 import { debugLog, errorLog, addVariable, initParseModule, showCustomConfirmDialog } from "../index.js";
 import { saveModuleConfig } from "./moduleConfigManager.js";
+import { loadModuleConfigFromExtension } from "./moduleStorageManager.js";
 
 /**
  * 添加新模块
@@ -358,24 +359,37 @@ export function getModulesData() {
         });
     }
 
-    // 如果DOM中没有模块数据，则从本地存储加载
+    // 如果DOM中没有模块数据，则从扩展设置加载
     if (modules.length === 0) {
         try {
-            const configStr = localStorage.getItem('continuity_module_config');
-            if (configStr) {
-                const config = JSON.parse(configStr);
-                if (config.modules && Array.isArray(config.modules)) {
-                    // 确保每个模块都有启用状态（默认为true）
-                    const modulesWithEnabledState = config.modules.map(module => ({
-                        ...module,
-                        enabled: module.enabled !== false // 如果未定义enabled，默认为true
-                    }));
-                    modules.push(...modulesWithEnabledState);
-                    debugLog('从本地存储加载模块配置:', modules.length, '个模块');
+            // 使用新的扩展设置API加载配置
+            const config = loadModuleConfigFromExtension();
+            if (config && config.modules && Array.isArray(config.modules)) {
+                // 确保每个模块都有启用状态（默认为true）
+                const modulesWithEnabledState = config.modules.map(module => ({
+                    ...module,
+                    enabled: module.enabled !== false // 如果未定义enabled，默认为true
+                }));
+                modules.push(...modulesWithEnabledState);
+                debugLog('从扩展设置加载模块配置:', modules.length, '个模块');
+            } else {
+                // 降级处理：尝试从旧版localStorage加载
+                const configStr = localStorage.getItem('continuity_module_config');
+                if (configStr) {
+                    const oldConfig = JSON.parse(configStr);
+                    if (oldConfig.modules && Array.isArray(oldConfig.modules)) {
+                        // 确保每个模块都有启用状态（默认为true）
+                        const modulesWithEnabledState = oldConfig.modules.map(module => ({
+                            ...module,
+                            enabled: module.enabled !== false // 如果未定义enabled，默认为true
+                        }));
+                        modules.push(...modulesWithEnabledState);
+                        debugLog('从本地存储加载模块配置:', modules.length, '个模块');
+                    }
                 }
             }
         } catch (error) {
-            errorLog('从本地存储加载模块配置失败:', error);
+            errorLog('加载模块配置失败:', error);
         }
     }
 
