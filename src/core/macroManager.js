@@ -240,8 +240,8 @@ export async function getContinuityOrder() {
 
         // 添加输出模式说明
         orderPrompt += "输出模式说明：\n";
-        orderPrompt += "• 全量输出（输出：全量）：每次生成时都会完整输出该模块的所有内容\n";
-        orderPrompt += "• 增量更新（输出：增量）：只输出与上次生成相比发生变化的内容\n\n";
+        orderPrompt += "• 全量输出（输出：全量）：每次生成时都会完整输出该模块的所有键值对\n";
+        orderPrompt += "• 增量更新（输出：增量）：只输出与上次生成相比发生变化的键值对\n\n";
 
         // 可嵌入模块（按序号排序）
         if (embeddableModules.length > 0) {
