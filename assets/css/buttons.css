@@ -118,7 +118,10 @@
 }
 
 /* 提示词预览按钮 */
-#toggle-preview-btn {
+#toggle-preview-btn,
+#update-prompt-btn,
+#copy-prompt-btn,
+#copy-macro-btn {
     background-color: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
@@ -132,7 +135,10 @@
     padding: 4px 8px;
 }
 
-#toggle-preview-btn:hover {
+#toggle-preview-btn:hover,
+#update-prompt-btn:hover,
+#copy-prompt-btn:hover,
+#copy-macro-btn:hover {
     background-color: rgba(255, 255, 255, 0.3);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

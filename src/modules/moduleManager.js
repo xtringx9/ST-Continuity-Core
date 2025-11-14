@@ -74,9 +74,30 @@ export function updateModuleOrderNumbers() {
         const moduleItem = $(this).find('.module-item');
         const moduleNameGroup = moduleItem.find('.module-name-group');
         // 先移除已有的排序数字元素，避免重复
-        moduleNameGroup.find('.module-order-number').remove();
-        // 添加新的排序数字元素
-        moduleNameGroup.prepend(`<div class="module-order-number">${index + 1}</div>`);
+        moduleNameGroup.find('.module-toggle-expand-btn').remove();
+        // 添加新的展开/折叠按钮
+        moduleNameGroup.prepend(`
+            <button class="module-toggle-expand-btn" title="展开/折叠模块">
+                <span class="module-order-number">${index + 1}</span>
+            </button>
+        `);
+        
+        // 绑定展开/折叠按钮事件
+        const toggleBtn = moduleNameGroup.find('.module-toggle-expand-btn');
+        toggleBtn.off('click').on('click', function() {
+            if (moduleItem.hasClass('collapsed')) {
+                // 展开模块
+                moduleItem.removeClass('collapsed').addClass('expanded');
+            } else {
+                // 折叠模块
+                moduleItem.removeClass('expanded').addClass('collapsed');
+            }
+        });
+        
+        // 默认展开状态
+        if (!moduleItem.hasClass('collapsed') && !moduleItem.hasClass('expanded')) {
+            moduleItem.addClass('expanded');
+        }
     });
 }
 
@@ -377,6 +398,7 @@ export function getModulesData() {
             const modulePrompt = $(this).find('.module-prompt-input').val();
 
             // 获取新的配置项
+            const timingPrompt = $(this).find('.module-timing-prompt-input').val();
             const contentPrompt = $(this).find('.module-content-prompt-input').val();
             const outputPosition = $(this).find('.module-output-position').val();
             const positionPrompt = $(this).find('.module-position-prompt').val();
@@ -390,6 +412,7 @@ export function getModulesData() {
                 enabled: isEnabled,
                 variables: variables,
                 prompt: modulePrompt || '',
+                timingPrompt: timingPrompt || '',
                 contentPrompt: contentPrompt || '',
                 outputPosition: outputPosition || 'body',
                 positionPrompt: positionPrompt || '',

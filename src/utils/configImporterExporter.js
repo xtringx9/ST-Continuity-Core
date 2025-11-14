@@ -68,6 +68,9 @@ export function collectModulesForExport() {
         // 获取模块提示词（生成提示词）
         const modulePrompt = $(this).find('.module-prompt-input').val();
 
+        // 获取模块生成时机提示词
+        const timingPrompt = $(this).find('.module-timing-prompt-input').val();
+
         // 获取模块使用提示词（内容提示词）
         const contentPrompt = $(this).find('.module-content-prompt-input').val();
 
@@ -119,6 +122,7 @@ export function collectModulesForExport() {
             enabled: isEnabled,
             variables: variables,
             prompt: modulePrompt || '',
+            timingPrompt: timingPrompt || '', // 添加生成时机提示词字段
             contentPrompt: contentPrompt || '',
             outputPosition: outputPosition || 'after_body',
             positionPrompt: positionPrompt || '', // 添加顺序提示词字段
@@ -155,6 +159,9 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
 
             // 获取模块提示词（生成提示词）
             const modulePrompt = $(this).find('.module-prompt-input').val();
+
+            // 获取模块生成时机提示词
+            const timingPrompt = $(this).find('.module-timing-prompt-input').val();
 
             // 获取模块使用提示词（内容提示词）
             const contentPrompt = $(this).find('.module-content-prompt-input').val();
@@ -207,6 +214,7 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                 enabled: isEnabled,
                 variables: variables,
                 prompt: modulePrompt || '',
+                timingPrompt: timingPrompt || '', // 添加生成时机提示词字段
                 contentPrompt: contentPrompt || '',
                 outputPosition: outputPosition || 'body',
                 positionPrompt: positionPrompt || '', // 添加顺序提示词字段

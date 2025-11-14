@@ -367,6 +367,9 @@ export function renderModulesFromConfig(config) {
         }
 
         // 设置新的配置项
+        if (module.timingPrompt) {
+            moduleItem.find('.module-timing-prompt-input').val(module.timingPrompt);
+        }
         if (module.contentPrompt) {
             moduleItem.find('.module-content-prompt-input').val(module.contentPrompt);
         }

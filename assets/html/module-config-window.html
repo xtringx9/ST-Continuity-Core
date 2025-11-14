@@ -116,7 +116,9 @@
                             <span class="toggle-slider"></span>
                         </label>
                         <div class="module-name-group">
-                            <span class="module-order-number"></span>
+                            <button class="module-toggle-expand-btn" title="展开/折叠模块">
+                                <span class="module-order-number"></span>
+                            </button>
                             <label>模块名</label>
                             <input type="text" class="module-name" placeholder="模块名">
                             <input type="text" class="module-display-name" placeholder="显示名">
@@ -200,6 +202,11 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="module-prompt">
+                    <label>生成的时机</label>
+                    <textarea class="module-timing-prompt-input" placeholder="输入生成时机提示词，用于指导模型何时生成此模块内容"></textarea>
                 </div>
 
                 <div class="module-prompt">

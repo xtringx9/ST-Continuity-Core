@@ -287,11 +287,20 @@ function bindCopyMacroEvents() {
     }
 }
 
+// 标记是否已经初始化过提示词预览功能
+let isPromptPreviewInitialized = false;
+
 /**
  * 初始化提示词预览功能
  */
 export function initPromptPreview() {
     try {
+        // 如果已经初始化过，直接返回
+        if (isPromptPreviewInitialized) {
+            debugLog('提示词预览功能已经初始化过，跳过重复初始化');
+            return;
+        }
+
         debugLog('初始化提示词预览功能');
 
         // 绑定预览区域事件
@@ -299,6 +308,9 @@ export function initPromptPreview() {
 
         // 绑定复制宏事件
         bindCopyMacroEvents();
+
+        // 标记为已初始化
+        isPromptPreviewInitialized = true;
 
         infoLog('提示词预览功能初始化成功');
 
