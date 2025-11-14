@@ -6,7 +6,7 @@
 import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 import { getModulesData } from '../modules/moduleManager.js';
 import { generateFormalPrompt } from '../modules/promptGenerator.js';
-import { extension_settings, extensionName } from '../index.js';
+import { extension_settings, extensionName, loadModuleConfig } from '../index.js';
 import { replaceVariables } from '../utils/variableReplacer.js';
 
 /**

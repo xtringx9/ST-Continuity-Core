@@ -355,7 +355,14 @@ function autoSaveModuleConfig() {
 
     window.autoSaveTimeout = setTimeout(() => {
         const modules = getModulesData();
-        saveModuleConfig(modules);
+
+        // 收集全局设置数据
+        const globalSettings = {
+            corePrinciples: $('#core-principles-input').val() || '',
+            formatDescription: $('#format-description-input').val() || ''
+        };
+
+        saveModuleConfig(modules, globalSettings);
         debugLog('配置已自动保存');
     }, 1000); // 1秒后保存
 }
@@ -569,7 +576,14 @@ function startDragging(moduleContainer, e) {
 
         // 保存模块配置到本地存储
         const modules = getModulesData();
-        saveModuleConfig(modules);
+
+        // 收集全局设置数据
+        const globalSettings = {
+            corePrinciples: $('#core-principles-input').val() || '',
+            formatDescription: $('#format-description-input').val() || ''
+        };
+
+        saveModuleConfig(modules, globalSettings);
 
         // 移除事件监听
         $(document).off('mousemove touchmove', handleDragMove);

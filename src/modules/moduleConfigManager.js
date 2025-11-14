@@ -26,11 +26,12 @@ export function setBindModuleEvents(fn) {
 /**
  * 保存模块配置到SillyTavern扩展设置
  * @param {Array} modules 模块配置数组
+ * @param {Object} globalSettings 全局设置对象（包含核心原则提示词和通用格式描述提示词）
  */
-export function saveModuleConfig(modules) {
+export function saveModuleConfig(modules, globalSettings = {}) {
     try {
         // 使用新的扩展设置存储
-        const success = saveModuleConfigToExtension(modules);
+        const success = saveModuleConfigToExtension(modules, globalSettings);
         if (success) {
             infoLog('模块配置已保存到SillyTavern扩展设置');
             return true;
@@ -151,8 +152,8 @@ export function importModuleConfig(file) {
 
                 debugLog('成功导入模块配置:', config);
 
-                // 保存到扩展设置
-                if (saveModuleConfigToExtension(config.modules)) {
+                // 保存到扩展设置，包括globalSettings
+                if (saveModuleConfigToExtension(config.modules, config.globalSettings)) {
                     infoLog('导入的模块配置已保存到SillyTavern扩展设置');
                     resolve(config);
                 } else {
@@ -206,8 +207,8 @@ export function restoreModuleConfigFromFile(file) {
 
                 debugLog('成功从备份文件恢复模块配置:', config);
 
-                // 保存到扩展设置
-                if (saveModuleConfigToExtension(config.modules)) {
+                // 保存到扩展设置，包括globalSettings
+                if (saveModuleConfigToExtension(config.modules, config.globalSettings)) {
                     infoLog('备份的模块配置已恢复到SillyTavern扩展设置');
                     resolve(config);
                 } else {
@@ -314,6 +315,16 @@ export function setOnRenderComplete(callback) {
 
 export function renderModulesFromConfig(config) {
     if (!config || !config.modules) return;
+
+    // 更新全局设置输入框
+    if (config.globalSettings) {
+        if (config.globalSettings.corePrinciples) {
+            $('#core-principles-input').val(config.globalSettings.corePrinciples);
+        }
+        if (config.globalSettings.formatDescription) {
+            $('#format-description-input').val(config.globalSettings.formatDescription);
+        }
+    }
 
     // 清空现有模块（保留模板和标题区域）
     $('.custom-modules-container > div').each(function () {
