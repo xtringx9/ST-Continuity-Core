@@ -1,7 +1,7 @@
 // 提示词预览区域管理模块
 import { debugLog, errorLog, infoLog } from '../index.js';
 import { generateModulePrompt, generatePromptWithInsertion, copyToClipboard } from './promptGenerator.js';
-import { getContinuityPrompt, getContinuityConfig, getContinuityModules } from '../core/macroManager.js';
+import { getContinuityPrompt, getContinuityConfig, getContinuityModules, getContinuityOrder } from '../core/macroManager.js';
 
 // 默认插入设置
 const DEFAULT_INSERTION_SETTINGS = {
@@ -65,6 +65,8 @@ function generatePreviewContent() {
             return getContinuityConfig();
         case 'macro-modules':
             return getContinuityModules();
+        case 'macro-order':
+            return getContinuityOrder();
         case 'macro':
         default:
             return getContinuityPrompt();
@@ -83,6 +85,8 @@ function getPreviewModeDescription() {
             return '{{CONTINUITY_CONFIG}} 宏会生成的配置数据';
         case 'macro-modules':
             return '{{CONTINUITY_MODULES}} 宏会生成的模块列表';
+        case 'macro-order':
+            return '{{CONTINUITY_ORDER}} 宏会生成的顺序提示词';
         case 'macro':
         default:
             return '{{CONTINUITY_PROMPT}} 宏会生成的提示词';
@@ -227,6 +231,56 @@ export function bindPromptPreviewEvents() {
 }
 
 /**
+ * 复制当前预览模式对应的宏到剪贴板
+ */
+export function copyMacroToClipboard() {
+    try {
+        const mode = getCurrentPreviewMode();
+        let macroText = '';
+
+        switch (mode) {
+            case 'macro-config':
+                macroText = '{{CONTINUITY_CONFIG}}';
+                break;
+            case 'macro-modules':
+                macroText = '{{CONTINUITY_MODULES}}';
+                break;
+            case 'macro-order':
+                macroText = '{{CONTINUITY_ORDER}}';
+                break;
+            case 'macro':
+            default:
+                macroText = '{{CONTINUITY_PROMPT}}';
+                break;
+        }
+
+        if (macroText) {
+            copyToClipboard(macroText);
+            toastr.success(`已复制宏: ${macroText}`);
+            debugLog(`复制宏成功: ${macroText}`);
+        }
+    } catch (error) {
+        errorLog('复制宏失败:', error);
+        toastr.error('复制宏失败');
+    }
+}
+
+/**
+ * 绑定复制宏按钮事件
+ */
+function bindCopyMacroEvents() {
+    try {
+        // 绑定复制宏按钮事件
+        $('#copy-macro-btn').off('click').on('click', copyMacroToClipboard);
+
+        infoLog('复制宏事件绑定成功');
+
+    } catch (error) {
+        errorLog('绑定复制宏事件失败:', error);
+    }
+}
+
+/**
  * 初始化提示词预览功能
  */
 export function initPromptPreview() {
@@ -235,6 +289,9 @@ export function initPromptPreview() {
 
         // 绑定预览区域事件
         bindPromptPreviewEvents();
+
+        // 绑定复制宏事件
+        bindCopyMacroEvents();
 
         infoLog('提示词预览功能初始化成功');
 

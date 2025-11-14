@@ -24,7 +24,7 @@ export function generateFormalPrompt() {
             return '暂无启用的模块配置，请先启用模块。';
         }
 
-        let prompt = '';
+        let prompt = '<module_generate_guide>\n';
 
         // 按模块顺序生成提示词，按照新格式组织
         enabledModules.forEach((module, index) => {
@@ -53,6 +53,8 @@ export function generateFormalPrompt() {
             // 模块之间添加空行分隔
             prompt += '\n';
         });
+
+        prompt += '</module_generate_guide>\n';
 
         infoLog('正式提示词生成成功');
 
