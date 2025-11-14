@@ -4,7 +4,7 @@
  */
 
 // 导入外部依赖
-import { extension_settings, loadExtensionSettings } from '../../../../extensions.js';
+import { extension_settings, loadExtensionSettings, getContext, getApiUrl } from '../../../../extensions.js';
 import { chat, saveSettingsDebounced, eventSource, event_types } from '../../../../../script.js';
 
 // 导入核心模块

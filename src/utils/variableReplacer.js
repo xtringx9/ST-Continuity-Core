@@ -43,9 +43,9 @@ try {
 /**
  * 获取用户和角色名称
  * 使用多种方式尝试获取用户和角色的实际名称
- * @returns {Promise<{userName: string, charName: string}>} 用户和角色名称
+ * @returns {{userName: string, charName: string}} 用户和角色名称
  */
-export async function getUserAndCharNames() {
+export function getUserAndCharNames() {
     try {
         debugLog("变量替换器: 开始获取用户和角色名称");
 
@@ -100,7 +100,7 @@ export async function getUserAndCharNames() {
             if (typeof window !== 'undefined' && window.SillyTavern && typeof window.SillyTavern.substituteParams === 'function') {
                 // 使用SillyTavern的标准变量替换函数
                 const testPrompt = "{{user}} {{char}}";
-                const replaced = await window.SillyTavern.substituteParams(testPrompt);
+                const replaced = window.SillyTavern.substituteParams(testPrompt);
 
                 // 解析替换后的结果
                 const parts = replaced.split(' ');
@@ -125,8 +125,8 @@ export async function getUserAndCharNames() {
 
             // 使用executeSlashCommand方法（如果存在）
             if (typeof executeSlashCommand === 'function') {
-                const userName = await executeSlashCommand('/pass {{user}}');
-                const charName = await executeSlashCommand('/pass {{char}}');
+                const userName = executeSlashCommand('/pass {{user}}');
+                const charName = executeSlashCommand('/pass {{char}}');
 
                 if (userName && charName) {
                     debugLog("变量替换器: 通过Slash命令成功获取用户和角色名称");
@@ -181,9 +181,9 @@ export async function getUserAndCharNames() {
  * 替换提示词中的变量
  * 统一处理 {{user}}、{{char}} 等变量的替换
  * @param {string} prompt 原始提示词
- * @returns {Promise<string>} 替换后的提示词
+ * @returns {string} 替换后的提示词
  */
-export async function replaceVariables(prompt) {
+export function replaceVariables(prompt) {
     try {
         debugLog("变量替换器: 开始替换提示词中的变量");
 
@@ -199,7 +199,7 @@ export async function replaceVariables(prompt) {
         }
 
         // 获取用户和角色名称
-        const { userName, charName } = await getUserAndCharNames();
+        const { userName, charName } = getUserAndCharNames();
 
         debugLog(`变量替换器: 获取到用户名称: ${userName}, 角色名称: ${charName}`);
 
@@ -246,9 +246,9 @@ export async function replaceVariables(prompt) {
 /**
  * 批量替换多个提示词中的变量
  * @param {string[]} prompts 提示词数组
- * @returns {Promise<string[]>} 替换后的提示词数组
+ * @returns {string[]} 替换后的提示词数组
  */
-export async function replaceVariablesBatch(prompts) {
+export function replaceVariablesBatch(prompts) {
     try {
         debugLog("变量替换器: 开始批量替换变量");
 
@@ -258,7 +258,7 @@ export async function replaceVariablesBatch(prompts) {
         }
 
         // 获取用户和角色名称（只获取一次，提高性能）
-        const { userName, charName } = await getUserAndCharNames();
+        const { userName, charName } = getUserAndCharNames();
 
         debugLog(`变量替换器: 批量替换 - 用户: ${userName}, 角色: ${charName}`);
 
