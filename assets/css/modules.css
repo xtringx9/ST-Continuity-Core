@@ -212,7 +212,7 @@
 }
 
 .module-item-min,
-.module-item-max {
+.module-item-specified {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -224,7 +224,7 @@
 }
 
 .module-item-min:focus,
-.module-item-max:focus {
+.module-item-specified:focus {
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);

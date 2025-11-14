@@ -18,16 +18,16 @@ export function addModule() {
     // 初始化预览
     updateModulePreview(template.find('.module-item'));
 
-    // 初始化范围模式显示状态（默认最大数量模式）
+    // 初始化范围模式显示状态（默认指定数量模式）
     const moduleItem = template.find('.module-item');
     const rangeModeSelect = moduleItem.find('.module-range-mode');
     const rangeInputGroup = moduleItem.find('.range-input-group');
     const minInput = moduleItem.find('.module-item-min');
-    const maxInput = moduleItem.find('.module-item-max');
+    const maxInput = moduleItem.find('.module-item-specified');
     const separator = moduleItem.find('.range-separator');
 
-    // 设置默认最大数量模式并显示输入框
-    rangeModeSelect.val('max');
+    // 设置默认指定数量模式并显示输入框
+    rangeModeSelect.val('specified');
     rangeInputGroup.show();
     minInput.hide();
     separator.hide();
@@ -109,7 +109,7 @@ export function bindModuleEvents(moduleElement) {
         const mode = $(this).val();
         const rangeInputGroup = moduleItem.find('.range-input-group');
         const minInput = moduleItem.find('.module-item-min');
-        const maxInput = moduleItem.find('.module-item-max');
+        const maxInput = moduleItem.find('.module-item-specified');
         const separator = moduleItem.find('.range-separator');
 
         // 根据模式显示/隐藏输入框并设置默认值
@@ -119,7 +119,7 @@ export function bindModuleEvents(moduleElement) {
                 minInput.val(0);
                 maxInput.val(0);
                 break;
-            case 'max':
+            case 'specified':
                 rangeInputGroup.show();
                 minInput.hide();
                 separator.hide();
@@ -138,7 +138,7 @@ export function bindModuleEvents(moduleElement) {
     });
 
     // 绑定数量范围输入事件
-    moduleItem.find('.module-item-min, .module-item-max').on('input', function () {
+    moduleItem.find('.module-item-min, .module-item-specified').on('input', function () {
         // 自动保存配置
         autoSaveModuleConfig();
     });
@@ -343,7 +343,7 @@ export function getModulesData() {
             const contentPrompt = $(this).find('.module-content-prompt-input').val();
             const outputPosition = $(this).find('.module-output-position').val();
             const itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
-            const itemMax = parseInt($(this).find('.module-item-max').val()) || -1;
+            const itemMax = parseInt($(this).find('.module-item-specified').val()) || -1;
 
             modules.push({
                 name: moduleName,

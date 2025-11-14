@@ -15,17 +15,17 @@ export function saveModuleConfigToExtension(modules) {
         if (!extension_settings[extensionName]) {
             extension_settings[extensionName] = {};
         }
-        
+
         // 保存模块配置
         extension_settings[extensionName][MODULE_CONFIG_KEY] = {
             modules: modules,
             lastUpdated: new Date().toISOString(),
             version: '1.0.0'
         };
-        
+
         // 保存设置
         saveSettingsDebounced();
-        
+
         infoLog('模块配置已保存到SillyTavern扩展设置');
         debugLog('保存的模块配置:', extension_settings[extensionName][MODULE_CONFIG_KEY]);
         return true;
@@ -46,15 +46,15 @@ export function loadModuleConfigFromExtension() {
             debugLog('扩展设置不存在，返回空配置');
             return null;
         }
-        
+
         // 获取模块配置
         const config = extension_settings[extensionName][MODULE_CONFIG_KEY];
-        
+
         if (config && config.modules) {
             debugLog('从SillyTavern扩展设置加载模块配置:', config);
             return config;
         }
-        
+
         debugLog('扩展设置中未找到模块配置');
         return null;
     } catch (error) {
@@ -104,9 +104,9 @@ export function getModuleConfigStats() {
             hasConfig: false
         };
     }
-    
+
     const enabledModules = config.modules.filter(module => module.enabled !== false).length;
-    
+
     return {
         totalModules: config.modules.length,
         enabledModules: enabledModules,
@@ -127,17 +127,17 @@ export function backupModuleConfig(modules) {
             version: '1.0.0',
             source: 'ST-Continuity-Core'
         };
-        
+
         const dataStr = JSON.stringify(config, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-        
+
         const exportFileDefaultName = `continuity-modules-backup-${new Date().toISOString().split('T')[0]}.json`;
-        
+
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
         linkElement.setAttribute('download', exportFileDefaultName);
         linkElement.click();
-        
+
         infoLog('模块配置已备份为JSON文件');
         return true;
     } catch (error) {
@@ -157,14 +157,14 @@ export function restoreModuleConfig(file) {
             resolve(null);
             return;
         }
-        
+
         if (file.type && file.type !== 'application/json') {
             errorLog('文件类型错误，需要JSON文件');
             toastr.error('文件类型错误，请选择JSON文件');
             resolve(null);
             return;
         }
-        
+
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -173,14 +173,14 @@ export function restoreModuleConfig(file) {
                     throw new Error('文件内容不是文本格式');
                 }
                 const config = JSON.parse(result);
-                
+
                 // 验证配置格式
                 if (!config.modules || !Array.isArray(config.modules)) {
                     throw new Error('无效的备份文件格式，缺少modules数组');
                 }
-                
+
                 debugLog('成功从备份文件恢复模块配置:', config);
-                
+
                 // 保存到扩展设置
                 if (saveModuleConfigToExtension(config.modules)) {
                     toastr.success(`成功恢复 ${config.modules.length} 个模块配置`);
