@@ -117,6 +117,10 @@
                             <label>模块名</label>
                             <input type="text" class="module-name" placeholder="模块名">
                             <input type="text" class="module-display-name" placeholder="显示名">
+                            <div class="module-compatible-group">
+                                <label>兼容</label>
+                                <input type="text" class="module-compatible-names" placeholder="兼容模块名A,兼容模块名B,...">
+                            </div>
                         </div>
                     </div>
                     <div class="module-actions">
@@ -166,13 +170,23 @@
                         <!-- 变量模板 -->
                         <div class="variable-template" style="display: none;">
                             <div class="variable-item">
+                                <div class="variable-order-group">
+                                    <span class="variable-order-number"></span>
+                                    <button class="btn-small variable-drag-handle" title="拖拽移动变量">⋮⋮</button>
+                                </div>
                                 <div class="variable-name-group">
                                     <label>变量名</label>
                                     <input type="text" class="variable-name" placeholder="变量名">
+                                    <input type="text" class="variable-display-name" placeholder="显示名">
                                 </div>
                                 <div class="variable-desc-group">
                                     <label>描述</label>
                                     <input type="text" class="variable-desc" placeholder="变量描述">
+                                    <div class="variable-compatible-group">
+                                        <label>兼容</label>
+                                        <input type="text" class="variable-compatible-names"
+                                            placeholder="兼容变量名A,兼容变量名B,...">
+                                    </div>
                                 </div>
                                 <div class="variable-actions">
                                     <button class="btn-small remove-variable">-</button>
@@ -182,6 +196,9 @@
 
                         <!-- 默认变量 -->
                         <div class="variable-item">
+                            <div class="variable-order-group">
+                                <span class="variable-order-number">1</span>
+                            </div>
                             <div class="variable-name-group">
                                 <label>变量名</label>
                                 <input type="text" class="variable-name" placeholder="变量名">
@@ -190,9 +207,15 @@
                             <div class="variable-desc-group">
                                 <label>描述</label>
                                 <input type="text" class="variable-desc" placeholder="变量描述">
+                                <div class="variable-compatible-group">
+                                    <label>兼容</label>
+                                    <input type="text" class="variable-compatible-names"
+                                        placeholder="兼容变量名A,兼容变量名B,...">
+                                </div>
                             </div>
                             <div class="variable-actions">
                                 <button class="btn-small remove-variable">-</button>
+                                <button class="btn-small variable-drag-handle" title="拖拽移动变量">⋮⋮</button>
                             </div>
                         </div>
                     </div>

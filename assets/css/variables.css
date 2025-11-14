@@ -78,23 +78,42 @@
     margin-bottom: 0;
 }
 
+.variable-order-group {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    /* margin-right: 8px; */
+}
+
 .variable-name-group,
-.variable-desc-group {
+.variable-display-name-group,
+.variable-desc-group,
+.variable-compatible-names-group {
     display: flex;
     align-items: center;
     gap: 3px;
 }
 
 .variable-name-group {
-    min-width: 100px;
+    min-width: 80px;
+}
+
+.variable-display-name-group {
+    min-width: 80px;
 }
 
 .variable-desc-group {
     flex: 1;
 }
 
+.variable-compatible-names-group {
+    min-width: 120px;
+}
+
 .variable-name-group label,
-.variable-desc-group label {
+.variable-display-name-group label,
+.variable-desc-group label,
+.variable-compatible-names-group label {
     white-space: nowrap;
     font-size: 11px;
     color: rgba(255, 255, 255, 0.9);
@@ -147,11 +166,32 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
+/* 变量兼容变量名输入框样式 */
+.variable-compatible-names {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 3px 5px;
+    font-size: 11px;
+    color: #333;
+    font-family: monospace;
+    transition: border-color 0.2s;
+    min-width: 120px;
+    flex: 1;
+}
+
+.variable-compatible-names:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
 /* 变量操作按钮 */
 .variable-actions {
     display: flex;
     align-items: center;
     white-space: nowrap;
+    gap: 2px;
 }
 
 .variable-actions .btn-small {
@@ -159,4 +199,27 @@
     min-width: 24px;
     justify-content: center;
     font-size: 11px;
+}
+
+/* 删除变量按钮样式 */
+.remove-variable {
+    background-color: rgba(255, 100, 100, 0.3);
+    border: 1px solid rgba(255, 100, 100, 0.5);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 20px;
+    padding: 3px 6px;
+}
+
+.remove-variable:hover {
+    background-color: rgba(255, 100, 100, 0.5);
+    border-color: rgba(255, 100, 100, 0.7);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

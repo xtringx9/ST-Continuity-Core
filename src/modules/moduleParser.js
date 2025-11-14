@@ -130,3 +130,76 @@ export function generateModulePreview(moduleName, variables) {
     const variableNames = variables.map(variable => variable.name || '变量名');
     return `[${moduleName}|${variableNames.join('|')}]`;
 }
+
+/**
+ * 解析兼容名称字符串，支持", "和","分隔符
+ * @param {string} compatibleNamesString 兼容名称字符串，如"兼容模块名A,兼容模块名B,..."
+ * @returns {Array} 解析后的兼容名称数组
+ */
+export function parseCompatibleNames(compatibleNamesString) {
+    if (!compatibleNamesString || typeof compatibleNamesString !== 'string') {
+        return [];
+    }
+
+    const trimmedString = compatibleNamesString.trim();
+    if (!trimmedString) {
+        return [];
+    }
+
+    // 先按", "分割，然后按","分割，最后合并结果
+    const namesArray = [];
+    
+    // 按", "分割
+    const commaSpaceParts = trimmedString.split(', ');
+    
+    for (const part of commaSpaceParts) {
+        // 如果分割后的部分还包含","，则继续分割
+        if (part.includes(',')) {
+            const commaParts = part.split(',');
+            for (const name of commaParts) {
+                const trimmedName = name.trim();
+                if (trimmedName) {
+                    namesArray.push(trimmedName);
+                }
+            }
+        } else {
+            const trimmedName = part.trim();
+            if (trimmedName) {
+                namesArray.push(trimmedName);
+            }
+        }
+    }
+
+    // 去重
+    const uniqueNames = [...new Set(namesArray)];
+    
+    debugLog(`解析兼容名称: "${compatibleNamesString}" -> ${JSON.stringify(uniqueNames)}`);
+    
+    return uniqueNames;
+}
+
+/**
+ * 检查名称是否匹配（包括兼容名称）
+ * @param {string} name 要检查的名称
+ * @param {string} targetName 目标名称
+ * @param {string} compatibleNamesString 兼容名称字符串
+ * @returns {boolean} 是否匹配
+ */
+export function isNameMatch(name, targetName, compatibleNamesString) {
+    if (!name || !targetName) {
+        return false;
+    }
+
+    // 直接匹配
+    if (name.trim() === targetName.trim()) {
+        return true;
+    }
+
+    // 检查兼容名称
+    if (compatibleNamesString) {
+        const compatibleNames = parseCompatibleNames(compatibleNamesString);
+        return compatibleNames.some(compatibleName => compatibleName.trim() === name.trim());
+    }
+
+    return false;
+}
