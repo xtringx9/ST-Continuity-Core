@@ -74,12 +74,13 @@
     display: flex;
     align-items: center;
     margin-bottom: 8px;
+    justify-content: space-between;
 }
 
 .preview-mode-selector label {
     font-size: 11px;
     color: rgba(255, 255, 255, 0.7);
-    margin-right: 8px;
+    margin-right: 0px;
     font-weight: 500;
     min-width: 60px;
 }
@@ -92,7 +93,13 @@
     padding: 3px 6px;
     font-size: 11px;
     min-width: 180px;
+    max-width: 300px;
     flex: 1;
+    margin-right: 8px;
+}
+
+.copy-macro-btn {
+    margin-left: auto;
 }
 
 .preview-mode-select:focus {

@@ -450,6 +450,61 @@
     min-width: 18px;
 }
 
+/* 模块展开/折叠按钮 */
+.module-toggle-expand-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.module-toggle-expand-btn:hover {
+    transform: scale(1.1);
+}
+
+.module-toggle-expand-btn:active {
+    transform: scale(0.95);
+}
+
+/* 模块展开状态 */
+.module-item.expanded .module-toggle-expand-btn .module-order-number {
+    background-color: rgba(100, 200, 100, 0.6);
+}
+
+/* 模块折叠状态 */
+.module-item.collapsed .module-toggle-expand-btn .module-order-number {
+    background-color: rgba(200, 100, 100, 0.6);
+}
+
+/* 模块禁用状态（折叠时使用相同样式） */
+.module-item:not(.enabled).collapsed .module-toggle-expand-btn .module-order-number {
+    background-color: rgba(200, 100, 100, 0.6);
+}
+
+/* 模块折叠状态下的内容隐藏 */
+.module-item.collapsed .module-settings-row,
+.module-item.collapsed .variables-container-wrapper,
+.module-item.collapsed .module-prompt,
+.module-item.collapsed .module-preview {
+    display: none !important;
+}
+
+/* 模块折叠状态下的头部样式调整 */
+.module-item.collapsed .module-header {
+    margin-bottom: 0;
+}
+
+/* 模块折叠状态下的整体样式 */
+.module-item.collapsed {
+    min-height: auto;
+    padding-bottom: 5px;
+}
+
 /* 拖拽相关样式 */
 .module-item {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -487,7 +542,8 @@
     margin: 0;
 }
 
-.module-prompt-input {
+.module-prompt-input,
+.module-timing-prompt-input {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -500,7 +556,8 @@
     flex: 1;
 }
 
-.module-prompt-input:focus {
+.module-prompt-input:focus,
+.module-timing-prompt-input:focus {
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
