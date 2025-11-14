@@ -84,13 +84,13 @@ export function collectModulesForExport() {
                 itemMin = 0;
                 itemMax = 0; // 0表示无限制
                 break;
-            case 'max':
+            case 'specified':
                 itemMin = 0;
-                itemMax = parseInt($(this).find('.module-item-max').val()) || 1;
+                itemMax = parseInt($(this).find('.module-item-specified').val()) || 1;
                 break;
             case 'range':
                 itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
-                itemMax = parseInt($(this).find('.module-item-max').val()) || 1;
+                itemMax = parseInt($(this).find('.module-item-specified').val()) || 1;
                 break;
         }
 
@@ -119,7 +119,7 @@ export function collectModulesForExport() {
             outputPosition: outputPosition || 'after_body',
             itemMin: itemMin,
             itemMax: itemMax,
-            rangeMode: rangeMode || 'max' // 添加rangeMode字段，默认值为max
+            rangeMode: rangeMode || 'specified' // 添加rangeMode字段，默认值为specified
         });
     });
 
@@ -166,13 +166,13 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                     itemMin = 0;
                     itemMax = 0; // 0表示无限制
                     break;
-                case 'max':
+                case 'specified':
                     itemMin = 0;
-                    itemMax = parseInt($(this).find('.module-item-max').val()) || 1;
+                    itemMax = parseInt($(this).find('.module-item-specified').val()) || 1;
                     break;
                 case 'range':
                     itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
-                    itemMax = parseInt($(this).find('.module-item-max').val()) || 1;
+                    itemMax = parseInt($(this).find('.module-item-specified').val()) || 1;
                     break;
             }
 
@@ -201,7 +201,7 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                 outputPosition: outputPosition || 'body',
                 itemMin: itemMin,
                 itemMax: itemMax,
-                rangeMode: rangeMode || 'max', // 添加rangeMode字段，默认值为max
+                rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
                 order: index // 添加排序索引
             });
         });

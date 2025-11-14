@@ -44,6 +44,8 @@ export function saveModuleConfig(modules) {
     }
 }
 
+
+
 /**
  * 从SillyTavern扩展设置加载模块配置
  * @returns {Object|null} 模块配置对象或null
@@ -373,13 +375,13 @@ export function renderModulesFromConfig(config) {
         const rangeModeSelect = moduleItem.find('.module-range-mode');
         const rangeInputGroup = moduleItem.find('.range-input-group');
         const minInput = moduleItem.find('.module-item-min');
-        const maxInput = moduleItem.find('.module-item-max');
+        const maxInput = moduleItem.find('.module-item-specified');
         const separator = moduleItem.find('.range-separator');
 
         // 优先使用rangeMode字段，如果没有则根据数值推断
         const rangeMode = module.rangeMode ||
             (module.itemMin === 0 && module.itemMax === 0 ? 'unlimited' :
-                module.itemMin === 0 && module.itemMax > 0 ? 'max' : 'range');
+                module.itemMin === 0 && module.itemMax > 0 ? 'specified' : 'range');
 
         rangeModeSelect.val(rangeMode);
 
@@ -387,7 +389,7 @@ export function renderModulesFromConfig(config) {
             case 'unlimited':
                 rangeInputGroup.hide();
                 break;
-            case 'max':
+            case 'specified':
                 rangeInputGroup.show();
                 minInput.hide();
                 separator.hide();
