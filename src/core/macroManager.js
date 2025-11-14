@@ -113,6 +113,121 @@ export function getContinuityModules() {
     }
 }
 
+/**
+ * 获取连续性顺序提示词
+ * 按照模块的生成位置和序号组织输出顺序
+ * @returns {string} 顺序提示词内容
+ */
+export function getContinuityOrder() {
+    try {
+        debugLog("宏管理器: 获取连续性顺序提示词");
+
+        // 检查全局开关状态
+        const settings = extension_settings[extensionName];
+        if (!settings || !settings.enabled) {
+            debugLog("宏管理器: 全局开关已关闭，返回空提示词");
+            return "";
+        }
+
+        // 获取模块数据
+        const modulesData = getModulesData();
+
+        if (!modulesData || modulesData.length === 0) {
+            debugLog("宏管理器: 未找到模块数据，返回空提示词");
+            return "";
+        }
+
+        // 过滤启用的模块
+        const enabledModules = modulesData.filter(module => module.enabled !== false);
+
+        if (enabledModules.length === 0) {
+            debugLog("宏管理器: 没有启用的模块，返回空提示词");
+            return "";
+        }
+
+        // 按照生成位置和序号分组
+        const embeddableModules = []; // 可嵌入模块
+        const bodyModules = []; // 正文内模块
+        const specificPositionModules = []; // 正文内特定位置模块
+        const afterBodyModules = []; // 正文后模块
+
+        // 分类模块
+        enabledModules.forEach(module => {
+            switch (module.outputPosition) {
+                case 'embedded':
+                    embeddableModules.push(module);
+                    break;
+                case 'body':
+                    bodyModules.push(module);
+                    break;
+                case 'specific_position':
+                    specificPositionModules.push(module);
+                    break;
+                case 'after_body':
+                    afterBodyModules.push(module);
+                    break;
+                default:
+                    // 默认归为正文后模块
+                    afterBodyModules.push(module);
+            }
+        });
+
+        // 构建顺序提示词
+        let orderPrompt = "<module_order>\n";
+
+        // 可嵌入模块（按序号排序）
+        if (embeddableModules.length > 0) {
+            embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            orderPrompt += "可嵌入模块，不限制位置，可在任意位置使用：\n";
+            embeddableModules.forEach(module => {
+                orderPrompt += `[${module.name}] `;
+                orderPrompt += "\n";
+            });
+            orderPrompt += "\n\n";
+        }
+
+        // 正文内模块（按序号排序）
+        if (bodyModules.length > 0) {
+            bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            orderPrompt += "正文内模块：\n";
+            bodyModules.forEach(module => {
+                orderPrompt += `[${module.name}] `;
+                orderPrompt += "\n";
+            });
+            orderPrompt += "\n\n";
+        }
+
+        // 正文内特定位置模块（使用顺序提示词）
+        if (specificPositionModules.length > 0) {
+            specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            orderPrompt += "正文内特定位置模块：\n";
+            specificPositionModules.forEach(module => {
+                const positionPrompt = module.positionPrompt ? `（${module.positionPrompt}）` : "";
+                orderPrompt += `[${module.name}]${positionPrompt} `;
+                orderPrompt += "\n";
+            });
+            orderPrompt += "\n\n";
+        }
+
+        // 正文后模块（按序号排序）
+        if (afterBodyModules.length > 0) {
+            afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            orderPrompt += "正文后的模块：\n";
+            afterBodyModules.forEach(module => {
+                orderPrompt += `[${module.name}] `;
+                orderPrompt += "\n";
+            });
+        }
+        orderPrompt += "</module_order>\n";
+
+        debugLog("宏管理器: 成功生成连续性顺序提示词");
+        return orderPrompt.trim();
+    } catch (error) {
+        errorLog("宏管理器: 获取连续性顺序提示词失败", error);
+        return "";
+    }
+}
+
 import { getContext } from '/scripts/extensions.js';
 
 /**
@@ -136,6 +251,9 @@ export function registerMacros() {
 
             context.registerMacro('CONTINUITY_MODULES', getContinuityModules);
             debugLog("宏管理器: 注册 {{CONTINUITY_MODULES}} 宏");
+
+            context.registerMacro('CONTINUITY_ORDER', getContinuityOrder);
+            debugLog("宏管理器: 注册 {{CONTINUITY_ORDER}} 宏");
 
             infoLog("宏管理器: 成功注册所有宏");
             return true;
