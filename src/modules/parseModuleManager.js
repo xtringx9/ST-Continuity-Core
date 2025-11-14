@@ -81,10 +81,10 @@ function parseMultipleModules() {
 
     debugLog(`输入文本: ${inputText}`);
 
-    // 使用正则表达式查找所有符合 [模块名|变量:描述|...] 格式的字符串
-    const moduleMatches = inputText.match(/\[[^\]]+\]/g);
+    // 使用支持嵌套的解析器查找所有符合 [模块名|变量:描述|...] 格式的字符串
+    const moduleMatches = parseNestedModules(inputText);
     debugLog(`找到的模块匹配: ${moduleMatches}`);
-    
+
     if (!moduleMatches || moduleMatches.length === 0) {
         toastr.error('未找到有效的模块格式字符串');
         return;
@@ -147,7 +147,7 @@ function parseMultipleModules() {
     // 清空输入框
     parseInput.value = '';
 
-    // 显示结果
+    // 显示结果（使用info而不是success，避免覆盖单个模块的success提示）
     let message = `成功解析并处理了 ${moduleMap.size} 个模块`;
     if (createdCount > 0) {
         message += `，创建了 ${createdCount} 个新模块`;
@@ -156,7 +156,7 @@ function parseMultipleModules() {
         message += `，更新了 ${updatedCount} 个现有模块`;
     }
 
-    toastr.success(message);
+    toastr.info(message);
     infoLog(message);
 }
 
@@ -170,12 +170,12 @@ function findModuleByName(moduleName) {
     for (const moduleItem of moduleItems) {
         const nameInput = moduleItem.querySelector('.module-name');
         const compatibleNamesInput = moduleItem.querySelector('.module-compatible-names');
-        
+
         // 检查模块名是否匹配
         if (nameInput && nameInput.value === moduleName) {
             return moduleItem;
         }
-        
+
         // 检查兼容模块名是否匹配
         if (compatibleNamesInput && compatibleNamesInput.value) {
             const compatibleNames = compatibleNamesInput.value.split(/[,，\s]+/).filter(name => name.trim());
@@ -210,8 +210,11 @@ function createModuleFromParse(parsedModule) {
 function updateModuleFromParse(moduleItem, parsedModule) {
     debugLog(`更新现有模块: ${parsedModule.name}`);
 
+    // 将HTMLElement转换为jQuery对象
+    const moduleItemJQ = $(moduleItem);
+
     // 填充模块数据
-    fillModuleFromParse(moduleItem, parsedModule);
+    fillModuleFromParse(moduleItemJQ, parsedModule);
 }
 
 /**
@@ -226,9 +229,19 @@ function fillModuleFromParse(moduleItem, parsedModule) {
         moduleNameInput.val(parsedModule.name);
     }
 
+    let updatedVariables = 0;
+    let addedVariables = 0;
+
     // 添加解析出的变量（不清空现有变量，避免重复添加）
     if (parsedModule.variables && parsedModule.variables.length > 0) {
         parsedModule.variables.forEach(variable => {
+            // 检查是否已存在同名变量
+            const existingVariable = findVariableByName(moduleItem, variable.name);
+            if (existingVariable) {
+                updatedVariables++;
+            } else {
+                addedVariables++;
+            }
             addVariableFromParse(moduleItem, variable);
         });
     }
@@ -240,6 +253,20 @@ function fillModuleFromParse(moduleItem, parsedModule) {
 
     // 更新变量数量显示
     updateVariableCountDisplay(moduleItem);
+
+    // 显示成功提示
+    let message = `成功更新模块 "${parsedModule.name}"`;
+    if (addedVariables > 0) {
+        message += `，新增 ${addedVariables} 个变量`;
+    }
+    if (updatedVariables > 0) {
+        message += `，更新 ${updatedVariables} 个变量描述`;
+    }
+    if (addedVariables === 0 && updatedVariables === 0) {
+        message += `，无变量变更`;
+    }
+
+    toastr.success(message);
 
     debugLog(`成功填充模块: ${parsedModule.name}`);
 }
@@ -309,17 +336,17 @@ function parseModuleFromInput(moduleItem) {
  */
 function findVariableByName(moduleItem, variableName) {
     const variableItems = moduleItem.find('.variable-item');
-    
+
     for (let i = 0; i < variableItems.length; i++) {
         const variableItem = $(variableItems[i]);
         const nameInput = variableItem.find('.variable-name');
         const compatibleNamesInput = variableItem.find('.variable-compatible-names');
-        
+
         // 检查变量名是否匹配
         if (nameInput.length > 0 && nameInput.val() === variableName) {
             return variableItem;
         }
-        
+
         // 检查兼容变量名是否匹配
         if (compatibleNamesInput.length > 0 && compatibleNamesInput.val()) {
             const compatibleNames = compatibleNamesInput.val().split(/[,，\s]+/).filter(name => name.trim());
@@ -328,7 +355,7 @@ function findVariableByName(moduleItem, variableName) {
             }
         }
     }
-    
+
     return null;
 }
 
@@ -349,7 +376,26 @@ function addVariableFromParse(moduleItem, variable) {
     // 检查是否已存在同名变量
     const existingVariable = findVariableByName(moduleItem, variable.name);
     if (existingVariable) {
-        debugLog(`变量 ${variable.name} 已存在，跳过添加`);
+        debugLog(`变量 ${variable.name} 已存在，更新描述`);
+
+        // 更新现有变量的描述
+        const descriptionInput = existingVariable.find('.variable-desc');
+        if (descriptionInput.length > 0) {
+            descriptionInput.val(variable.description);
+
+            // 触发输入事件以更新预览
+            const inputEvent = new Event('input', { bubbles: true });
+            descriptionInput[0].dispatchEvent(inputEvent);
+
+            // 强制刷新UI显示
+            descriptionInput.trigger('change');
+
+            // 更新模块预览
+            updateModulePreview(moduleItem);
+
+            debugLog(`变量描述已更新: ${variable.name} -> ${variable.description}`);
+        }
+
         return;
     }
 
@@ -363,7 +409,7 @@ function addVariableFromParse(moduleItem, variable) {
 
     // 绑定变量事件
     bindVariableEvents(variableItem, moduleItem);
-    
+
     debugLog(`变量添加完成: ${variable.name}`);
 }
 
@@ -404,4 +450,56 @@ function bindVariableEvents(variableItem, moduleItem) {
         updateModulePreview(moduleItem);
         updateVariableCountDisplay(moduleItem);
     });
+}
+
+/**
+ * 解析嵌套的模块字符串，支持 [[]] 嵌套结构
+ * @param {string} inputText 输入文本
+ * @returns {Array} 解析出的模块字符串数组
+ */
+function parseNestedModules(inputText) {
+    const results = [];
+    let stack = [];
+    let currentPos = 0;
+
+    for (let i = 0; i < inputText.length; i++) {
+        const char = inputText[i];
+
+        if (char === '[') {
+            // 遇到开括号，记录位置
+            stack.push(i);
+        } else if (char === ']') {
+            // 遇到闭括号，检查是否有匹配的开括号
+            if (stack.length > 0) {
+                const start = stack.pop();
+
+                // 如果栈为空，说明找到了一个完整的模块
+                if (stack.length === 0) {
+                    const moduleString = inputText.substring(start, i + 1);
+
+                    // 验证模块字符串格式
+                    if (validateModuleString(moduleString)) {
+                        results.push(moduleString);
+                    }
+
+                    currentPos = i + 1;
+                }
+            }
+        }
+    }
+
+    // 如果栈中还有未匹配的开括号，尝试处理最外层的情况
+    if (stack.length > 0) {
+        // 从最后一个开括号开始，尝试匹配到文本末尾
+        const start = stack[stack.length - 1];
+        const moduleString = inputText.substring(start);
+
+        // 验证模块字符串格式
+        if (validateModuleString(moduleString)) {
+            results.push(moduleString);
+        }
+    }
+
+    debugLog(`嵌套解析结果: ${JSON.stringify(results)}`);
+    return results;
 }
