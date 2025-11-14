@@ -7,13 +7,14 @@ import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 import { getModulesData } from '../modules/moduleManager.js';
 import { generateFormalPrompt } from '../modules/promptGenerator.js';
 import { extension_settings, extensionName } from '../index.js';
+import { replaceVariables } from '../utils/variableReplacer.js';
 
 /**
  * 获取完整的连续性提示词
  * 返回所有模块的格式化提示词内容
- * @returns {string} 完整的提示词内容
+ * @returns {Promise<string>} 完整的提示词内容
  */
-export function getContinuityPrompt() {
+export async function getContinuityPrompt() {
     try {
         debugLog("宏管理器: 获取连续性提示词");
 
@@ -35,8 +36,11 @@ export function getContinuityPrompt() {
         // 生成正式提示词
         const prompt = generateFormalPrompt(modulesData);
 
-        debugLog("宏管理器: 成功生成连续性提示词");
-        return prompt;
+        // 替换提示词中的变量
+        const replacedPrompt = await replaceVariables(prompt);
+
+        debugLog("宏管理器: 成功生成并替换变量后的连续性提示词");
+        return replacedPrompt;
     } catch (error) {
         errorLog("宏管理器: 获取连续性提示词失败", error);
         return "";
@@ -116,9 +120,9 @@ export function getContinuityModules() {
 /**
  * 获取模块使用指导提示词
  * 只显示使用提示词不为空的模块，用于指导AI如何使用模块数据
- * @returns {string} 使用指导提示词内容
+ * @returns {Promise<string>} 使用指导提示词内容
  */
-export function getContinuityUsageGuide() {
+export async function getContinuityUsageGuide() {
     try {
         debugLog("宏管理器: 获取模块使用指导提示词");
 
@@ -160,8 +164,11 @@ export function getContinuityUsageGuide() {
 
         usageGuide += "</module_usage_guide>\n";
 
-        debugLog("宏管理器: 成功生成模块使用指导提示词");
-        return usageGuide.trim();
+        // 替换提示词中的变量
+        const replacedUsageGuide = await replaceVariables(usageGuide.trim());
+
+        debugLog("宏管理器: 成功生成并替换变量后的模块使用指导提示词");
+        return replacedUsageGuide;
     } catch (error) {
         errorLog("宏管理器: 获取模块使用指导提示词失败", error);
         return "";
@@ -171,9 +178,9 @@ export function getContinuityUsageGuide() {
 /**
  * 获取连续性顺序提示词
  * 按照模块的生成位置和序号组织输出顺序
- * @returns {string} 顺序提示词内容
+ * @returns {Promise<string>} 顺序提示词内容
  */
-export function getContinuityOrder() {
+export async function getContinuityOrder() {
     try {
         debugLog("宏管理器: 获取连续性顺序提示词");
 
@@ -275,8 +282,11 @@ export function getContinuityOrder() {
         }
         orderPrompt += "</module_order>\n";
 
-        debugLog("宏管理器: 成功生成连续性顺序提示词");
-        return orderPrompt.trim();
+        // 替换提示词中的变量
+        const replacedOrderPrompt = await replaceVariables(orderPrompt.trim());
+
+        debugLog("宏管理器: 成功生成并替换变量后的连续性顺序提示词");
+        return replacedOrderPrompt;
     } catch (error) {
         errorLog("宏管理器: 获取连续性顺序提示词失败", error);
         return "";
