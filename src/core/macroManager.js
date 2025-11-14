@@ -114,6 +114,61 @@ export function getContinuityModules() {
 }
 
 /**
+ * 获取模块使用指导提示词
+ * 只显示使用提示词不为空的模块，用于指导AI如何使用模块数据
+ * @returns {string} 使用指导提示词内容
+ */
+export function getContinuityUsageGuide() {
+    try {
+        debugLog("宏管理器: 获取模块使用指导提示词");
+
+        // 检查全局开关状态
+        const settings = extension_settings[extensionName];
+        if (!settings || !settings.enabled) {
+            debugLog("宏管理器: 全局开关已关闭，返回空提示词");
+            return "";
+        }
+
+        // 获取模块数据
+        const modulesData = getModulesData();
+
+        if (!modulesData || modulesData.length === 0) {
+            debugLog("宏管理器: 未找到模块数据，返回空提示词");
+            return "";
+        }
+
+        // 过滤启用的模块且使用提示词不为空
+        const modulesWithUsagePrompt = modulesData.filter(module =>
+            module.enabled !== false &&
+            module.contentPrompt &&
+            module.contentPrompt.trim() !== ""
+        );
+
+        if (modulesWithUsagePrompt.length === 0) {
+            debugLog("宏管理器: 没有使用提示词不为空的模块，返回空提示词");
+            return "";
+        }
+
+        // 构建使用指导提示词
+        let usageGuide = "<module_usage_guide>\n";
+        usageGuide += "模块内容使用指导：\n\n";
+
+        modulesWithUsagePrompt.forEach(module => {
+            usageGuide += `【${module.name} (${module.displayName})】\n`;
+            usageGuide += `使用指导：${module.contentPrompt}\n\n`;
+        });
+
+        usageGuide += "</module_usage_guide>\n";
+
+        debugLog("宏管理器: 成功生成模块使用指导提示词");
+        return usageGuide.trim();
+    } catch (error) {
+        errorLog("宏管理器: 获取模块使用指导提示词失败", error);
+        return "";
+    }
+}
+
+/**
  * 获取连续性顺序提示词
  * 按照模块的生成位置和序号组织输出顺序
  * @returns {string} 顺序提示词内容
@@ -254,6 +309,9 @@ export function registerMacros() {
 
             context.registerMacro('CONTINUITY_ORDER', getContinuityOrder);
             debugLog("宏管理器: 注册 {{CONTINUITY_ORDER}} 宏");
+
+            context.registerMacro('CONTINUITY_USAGE_GUIDE', getContinuityUsageGuide);
+            debugLog("宏管理器: 注册 {{CONTINUITY_USAGE_GUIDE}} 宏");
 
             infoLog("宏管理器: 成功注册所有宏");
             return true;

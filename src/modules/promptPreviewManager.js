@@ -1,7 +1,7 @@
 // 提示词预览区域管理模块
 import { debugLog, errorLog, infoLog } from '../index.js';
 import { generateModulePrompt, generatePromptWithInsertion, copyToClipboard } from './promptGenerator.js';
-import { getContinuityPrompt, getContinuityConfig, getContinuityModules, getContinuityOrder } from '../core/macroManager.js';
+import { getContinuityPrompt, getContinuityConfig, getContinuityModules, getContinuityOrder, getContinuityUsageGuide } from '../core/macroManager.js';
 
 // 默认插入设置
 const DEFAULT_INSERTION_SETTINGS = {
@@ -67,6 +67,8 @@ function generatePreviewContent() {
             return getContinuityModules();
         case 'macro-order':
             return getContinuityOrder();
+        case 'macro-usage-guide':
+            return getContinuityUsageGuide();
         case 'macro':
         default:
             return getContinuityPrompt();
@@ -87,6 +89,8 @@ function getPreviewModeDescription() {
             return '{{CONTINUITY_MODULES}} 宏会生成的模块列表';
         case 'macro-order':
             return '{{CONTINUITY_ORDER}} 宏会生成的顺序提示词';
+        case 'macro-usage-guide':
+            return '{{CONTINUITY_USAGE_GUIDE}} 宏会生成的使用指导提示词';
         case 'macro':
         default:
             return '{{CONTINUITY_PROMPT}} 宏会生成的提示词';
@@ -247,6 +251,9 @@ export function copyMacroToClipboard() {
                 break;
             case 'macro-order':
                 macroText = '{{CONTINUITY_ORDER}}';
+                break;
+            case 'macro-usage-guide':
+                macroText = '{{CONTINUITY_USAGE_GUIDE}}';
                 break;
             case 'macro':
             default:
