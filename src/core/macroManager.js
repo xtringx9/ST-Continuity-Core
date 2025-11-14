@@ -242,7 +242,9 @@ export async function getContinuityOrder() {
             embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += "可嵌入模块，不限制位置，可在任意位置使用：\n";
             embeddableModules.forEach(module => {
-                orderPrompt += `[${module.name}] `;
+                const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
+                const rangePrompt = getRangePrompt(module);
+                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt} `;
                 orderPrompt += "\n";
             });
             orderPrompt += "\n\n";
@@ -253,7 +255,9 @@ export async function getContinuityOrder() {
             bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += "正文内模块：\n";
             bodyModules.forEach(module => {
-                orderPrompt += `[${module.name}] `;
+                const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
+                const rangePrompt = getRangePrompt(module);
+                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt} `;
                 orderPrompt += "\n";
             });
             orderPrompt += "\n\n";
@@ -264,8 +268,10 @@ export async function getContinuityOrder() {
             specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += "正文内特定位置模块：\n";
             specificPositionModules.forEach(module => {
-                const positionPrompt = module.positionPrompt ? `（${module.positionPrompt}）` : "";
-                orderPrompt += `[${module.name}]${positionPrompt} `;
+                const positionPrompt = module.positionPrompt ? `（位置：${module.positionPrompt}）` : "";
+                const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
+                const rangePrompt = getRangePrompt(module);
+                orderPrompt += `[${module.name}]${positionPrompt}${timingPrompt}${rangePrompt} `;
                 orderPrompt += "\n";
             });
             orderPrompt += "\n\n";
@@ -276,7 +282,9 @@ export async function getContinuityOrder() {
             afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += "正文后的模块：\n";
             afterBodyModules.forEach(module => {
-                orderPrompt += `[${module.name}] `;
+                const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
+                const rangePrompt = getRangePrompt(module);
+                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt} `;
                 orderPrompt += "\n";
             });
         }
@@ -290,6 +298,35 @@ export async function getContinuityOrder() {
     } catch (error) {
         errorLog("宏管理器: 获取连续性顺序提示词失败", error);
         return "";
+    }
+}
+
+/**
+ * 获取模块生成数量限制的提示词
+ * @param {Object} module 模块对象
+ * @returns {string} 数量限制提示词
+ */
+function getRangePrompt(module) {
+    const rangeMode = module.rangeMode || 'specified';
+
+    switch (rangeMode) {
+        case 'unlimited':
+            return "（数量：无限制）";
+        case 'specified': {
+            const maxCount = module.itemMax || 1;
+            return `（数量：${maxCount}条）`;
+        }
+        case 'range': {
+            const minCount = module.itemMin || 0;
+            const maxCount = module.itemMax || 1;
+            if (minCount === maxCount) {
+                return `（数量：${minCount}条）`;
+            } else {
+                return `（数量：${minCount}~${maxCount}条）`;
+            }
+        }
+        default:
+            return "";
     }
 }
 
