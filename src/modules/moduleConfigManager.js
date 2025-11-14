@@ -372,6 +372,17 @@ export function renderModulesFromConfig(config) {
         }
         if (module.outputPosition) {
             moduleItem.find('.module-output-position').val(module.outputPosition);
+            // 根据生成位置显示/隐藏顺序提示词输入框
+            const positionPromptInput = moduleItem.find('.module-position-prompt');
+            if (module.outputPosition === 'specific_position') {
+                positionPromptInput.show();
+            } else {
+                positionPromptInput.hide();
+            }
+        }
+        // 设置顺序提示词
+        if (module.positionPrompt) {
+            moduleItem.find('.module-position-prompt').val(module.positionPrompt);
         }
         // 处理数量范围（使用rangeMode字段优先）
         const rangeModeSelect = moduleItem.find('.module-range-mode');
