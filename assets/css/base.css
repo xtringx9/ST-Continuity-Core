@@ -47,8 +47,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    /* margin-bottom: 20px; */
+    /* 移除底部边框 */
     padding-bottom: 10px;
 }
 
@@ -313,45 +313,70 @@
 }
 
 /* 分页标签样式 */
-.tab-container {
+#continuity-module-config-window .tab-container {
     display: flex;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     margin-bottom: 16px;
+    /* 移除背景色 */
+    padding-left: 10px;
+    /* 移除圆角 */
+    height: 40px;
+    align-items: flex-end;
 }
 
-.tab-item {
+#continuity-module-config-window .tab-item {
     padding: 10px 20px;
     cursor: pointer;
     color: rgba(255, 255, 255, 0.7);
-    border-bottom: 2px solid transparent;
+    border: 1px solid transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     transition: all 0.2s;
+    background-color: transparent;
+    border-radius: 4px 4px 0 0;
+    margin-right: 2px;
+    font-size: 14px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
 }
 
-.tab-item:hover {
+#continuity-module-config-window .tab-item:hover {
     color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    border-bottom-color: rgba(255, 255, 255, 0.2);
 }
 
-.tab-item.active {
+#continuity-module-config-window .tab-item.active {
     color: #ffffff;
-    border-bottom-color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom-color: transparent;
+    background-color: rgba(255, 255, 255, 0.1);
+    font-weight: 600;
+    margin-bottom: -1px;
 }
 
 /* 标签内容样式 */
-.tab-content {
+#continuity-module-config-window .tab-content {
     display: none;
 }
 
-.tab-content.active {
+#continuity-module-config-window .tab-content.active {
     display: block;
 }
 
 /* 提取模块页面样式 */
-.extract-module-section {
+#continuity-module-config-window .extract-module-section {
     margin-bottom: 20px;
+    margin-left: -10px;
+    margin-right: -10px;
+    padding-left: 10px;
+    padding-right: 10px;
 }
 
-.extract-content {
-    padding: 0 10px;
+#continuity-module-config-window .extract-content {
+    padding: 0;
 }
 
 .extract-description {
@@ -363,19 +388,21 @@
     margin-bottom: 20px;
 }
 
-.primary-btn {
-    background-color: #4CAF50;
+/* 统一按钮样式，与模块配置面板按钮保持一致 */
+#continuity-module-config-window .primary-btn {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     color: white;
-    border: none;
-    padding: 10px 20px;
+    padding: 6px 16px;
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
 }
 
-.primary-btn:hover {
-    background-color: #45a049;
+#continuity-module-config-window .primary-btn:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 #continuity-module-config-window .floor-input-group {
@@ -384,25 +411,30 @@
     margin-top: 10px;
 }
 
+/* 统一输入框样式，与模块配置面板输入框保持一致 */
 #continuity-module-config-window .floor-input {
-    padding: 8px;
-    border: 1px solid #ccc;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
+    padding: 8px 12px;
     margin-right: 8px;
     font-size: 14px;
     width: 120px;
+    color: #333;
+    transition: border-color 0.2s;
 }
 
 #continuity-module-config-window .floor-input:focus {
     outline: none;
-    border-color: #4CAF50;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-.extract-results {
+#continuity-module-config-window .extract-results {
     margin-top: 20px;
 }
 
-.results-container {
+#continuity-module-config-window .results-container {
     max-height: 400px;
     overflow-y: auto;
     background-color: rgba(255, 255, 255, 0.05);
@@ -410,35 +442,35 @@
     padding: 10px;
 }
 
-.modules-list {
+#continuity-module-config-window .modules-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-.extracted-module-item {
+#continuity-module-config-window .extracted-module-item {
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     padding: 10px;
 }
 
-.extracted-module-item .module-header {
+#continuity-module-config-window .extracted-module-item .module-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
 }
 
-.module-index {
+#continuity-module-config-window .module-index {
     font-weight: bold;
     color: #ffffff;
 }
 
-.extracted-module-item .module-content {
+#continuity-module-config-window .extracted-module-item .module-content {
     margin-top: 8px;
 }
 
-.extracted-module-item pre {
+#continuity-module-config-window .extracted-module-item pre {
     background-color: rgba(255, 255, 255, 0.05);
     padding: 8px;
     border-radius: 4px;
