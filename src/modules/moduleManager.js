@@ -192,7 +192,7 @@ export function bindModuleEvents(moduleElement) {
     }
 
     // 绑定数量范围输入事件
-    moduleItem.find('.module-item-min, .module-item-specified').on('input', function () {
+    moduleItem.find('.module-item-min, .module-item-specified, .module-retain-layers').on('input', function () {
         // 自动保存配置
         autoSaveModuleConfig();
     });
@@ -489,9 +489,11 @@ export function getModulesData() {
             const itemMax = parseInt($(this).find('.module-item-specified').val()) || -1;
             const rangeMode = $(this).find('.module-range-mode').val();
             const outputMode = $(this).find('.module-output-mode').val();
-            const retainLayers = parseInt($(this).find('.module-retain-layers').val()) || -1;
+            const retainLayersVal = $(this).find('.module-retain-layers').val();
+            const retainLayers = retainLayersVal !== '' ? parseInt(retainLayersVal) : -1;
+            debugLog('获取到保留层数:', retainLayersVal, '转换后:', retainLayers);
 
-            modules.push({
+            const moduleData = {
                 name: moduleName,
                 displayName: moduleDisplayName || '',
                 compatibleModuleNames: moduleCompatibleNames || '',
@@ -506,9 +508,11 @@ export function getModulesData() {
                 itemMax: itemMax,
                 rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
                 outputMode: outputMode || 'full', // 添加outputMode字段，默认值为full（全量输出）
-                retainLayers: retainLayers || -1, // 添加保留层数字段，默认值为-1（无限）
+                retainLayers: retainLayers, // 保留层数，已经设置了默认值
                 order: index // 添加排序索引
-            });
+            };
+            debugLog('构建的模块数据:', moduleData);
+            modules.push(moduleData);
         });
     }
 
@@ -518,28 +522,37 @@ export function getModulesData() {
             // 使用新的扩展设置API加载配置
             const config = loadModuleConfigFromExtension();
             if (config && config.modules && Array.isArray(config.modules)) {
-                // 确保每个模块都有启用状态（默认为true）
+                // 确保每个模块都有启用状态（默认为true）和保留层数（默认为-1）
                 const modulesWithEnabledState = config.modules.map(module => ({
                     ...module,
-                    enabled: module.enabled !== false // 如果未定义enabled，默认为true
+                    enabled: module.enabled !== false, // 如果未定义enabled，默认为true
+                    retainLayers: module.retainLayers !== undefined ? module.retainLayers : -1, // 如果未定义retainLayers，默认为-1
+                    rangeMode: module.rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
+                    outputMode: module.outputMode || 'full' // 添加outputMode字段，默认值为full（全量输出）
                 }));
                 modules.push(...modulesWithEnabledState);
                 debugLog('从扩展设置加载模块配置:', modules.length, '个模块');
             } else {
                 // 降级处理：尝试从旧版localStorage加载
+                // 已注释掉旧版localStorage加载逻辑，仅使用扩展设置存储
+                /*
                 const configStr = localStorage.getItem('continuity_module_config');
                 if (configStr) {
                     const oldConfig = JSON.parse(configStr);
                     if (oldConfig.modules && Array.isArray(oldConfig.modules)) {
-                        // 确保每个模块都有启用状态（默认为true）
+                        // 确保每个模块都有启用状态（默认为true）和保留层数（默认为-1）
                         const modulesWithEnabledState = oldConfig.modules.map(module => ({
                             ...module,
-                            enabled: module.enabled !== false // 如果未定义enabled，默认为true
+                            enabled: module.enabled !== false, // 如果未定义enabled，默认为true
+                            retainLayers: module.retainLayers !== undefined ? module.retainLayers : -1, // 如果未定义retainLayers，默认为-1
+                            rangeMode: module.rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
+                            outputMode: module.outputMode || 'full' // 添加outputMode字段，默认值为full（全量输出）
                         }));
                         modules.push(...modulesWithEnabledState);
                         debugLog('从本地存储加载模块配置:', modules.length, '个模块');
                     }
                 }
+                */
             }
         } catch (error) {
             errorLog('加载模块配置失败:', error);
