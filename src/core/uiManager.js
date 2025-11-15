@@ -26,11 +26,11 @@ import {
     rebindAllModulesEvents,
     updateAllModulesPreview,
     initPromptPreview,
+    ExtractModuleController
 } from '../index.js';
 
 // 导入用于测试的extractModulesFromChat功能
 import { PromptInjector } from '../core/promptInjector.js';
-import { ModuleExtractor } from '../core/moduleExtractor.js';
 
 // 加载CSS文件
 function loadCSS() {
@@ -168,7 +168,8 @@ export async function openModuleConfigWindow() {
             initTabSwitching();
 
             // 初始化提取模块功能
-            initExtractModulesFunctionality();
+            const extractModuleController = new ExtractModuleController();
+            extractModuleController.init();
         }
 
         // 显示窗口和背景
@@ -259,7 +260,7 @@ export function createFabMenu() {
         <div id="continuity-fab-container">
             <div class="continuity-fab-menu">
                 <button id="send-to-backend-btn" class="continuity-fab-item">发送最新楼层</button>
-                <button id="open-module-config-btn" class="continuity-fab-item">模块配置</button>
+                <button id="open-module-config-btn" class="continuity-fab-item">模块面板</button>
             </div>
             <button id="continuity-fab-main-btn" class="continuity-fab-item">
                 <span>&#43;</span>
@@ -311,76 +312,7 @@ function initTabSwitching() {
     });
 }
 
-/**
- * 初始化提取模块功能
- */
-function initExtractModulesFunctionality() {
-    // 绑定提取模块按钮事件
-    $('#extract-modules-btn').on('click', function () {
-        try {
-            debugLog('开始提取模块功能');
 
-            // 直接使用ModuleExtractor提取模块
-            const moduleExtractor = new ModuleExtractor();
-            const modules = moduleExtractor.extractModulesFromChat();
-
-            // 清空结果容器
-            const resultsContainer = $('#extract-results-container');
-            resultsContainer.empty();
-
-            if (modules.length > 0) {
-                let resultText = `成功提取 ${modules.length} 个模块：\n\n`;
-
-                // 创建结果列表
-                const resultsList = $('<div class="modules-list"></div>');
-
-                modules.forEach((module, index) => {
-                    resultText += `模块 ${index + 1}：${module.raw}\n`;
-                    resultText += `消息索引：${module.messageIndex}\n`;
-                    resultText += `发送者：${module.speakerName}\n\n`;
-
-                    // 创建模块项
-                    const moduleItem = $(`
-                        <div class="extracted-module-item">
-                            <div class="module-header">
-                                <span class="module-index">模块 ${index + 1}</span>
-                                <button class="btn-small add-to-config-btn" data-module="${JSON.stringify(module).replace(/"/g, '&quot;')}">添加到配置</button>
-                            </div>
-                            <div class="module-content">
-                                <pre>${module.raw}</pre>
-                                <div class="module-info">
-                                    <p>消息索引：${module.messageIndex}</p>
-                                    <p>发送者：${module.speakerName}</p>
-                                </div>
-                            </div>
-                        </div>
-                    `);
-
-                    resultsList.append(moduleItem);
-                });
-
-                resultsContainer.append(resultsList);
-                debugLog(`提取模块成功，共发现 ${modules.length} 个模块`);
-
-                // 绑定添加到配置按钮事件
-                $('.add-to-config-btn').on('click', function () {
-                    const moduleData = JSON.parse($(this).data('module'));
-                    // 添加到配置
-                    addModule(moduleData);
-                    // 切换到配置标签页
-                    $('.tab-item[data-tab="config"]').click();
-                    toastr.success('模块已添加到配置');
-                });
-            } else {
-                resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
-                debugLog('提取模块完成，未发现模块');
-            }
-        } catch (error) {
-            errorLog('提取模块失败:', error);
-            toastr.error('提取模块失败，请查看控制台日志');
-        }
-    });
-}
 
 /**
  * 初始化解析模块功能

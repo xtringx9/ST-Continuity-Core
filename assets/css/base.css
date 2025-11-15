@@ -375,6 +375,26 @@ textarea {
     background-color: #45a049;
 }
 
+.floor-input-group {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.floor-input {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-right: 8px;
+    font-size: 14px;
+    width: 120px;
+}
+
+.floor-input:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
 .extract-results {
     margin-top: 20px;
 }

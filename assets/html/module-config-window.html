@@ -1,7 +1,7 @@
 <!-- 模块配置侧边栏HTML -->
 <div id="continuity-module-config-window">
     <div class="window-header">
-        <h2>Continuity 配置面板</h2>
+        <h2>Continuity 模块面板</h2>
         <button id="continuity-window-close" class="close-btn">✕</button>
     </div>
     
@@ -23,6 +23,10 @@
                 </div>
                 <div class="extract-actions">
                     <button id="extract-modules-btn" class="primary-btn">提取模块</button>
+                    <div class="floor-input-group">
+                        <input type="number" id="floor-input" class="floor-input" min="1" placeholder="输入楼层号">
+                        <button id="show-floor-btn" class="primary-btn">显示楼层内容</button>
+                    </div>
                 </div>
                 <div class="extract-results">
                     <div id="extract-results-container" class="results-container">
