@@ -1,5 +1,5 @@
 // 模块管理相关功能
-import { debugLog, errorLog, addVariable, initParseModule, showCustomConfirmDialog } from "../index.js";
+import { debugLog, errorLog, addVariable, initParseModule, showCustomConfirmDialog, bindVariableEvents } from "../index.js";
 import { saveModuleConfig } from "./moduleConfigManager.js";
 import { loadModuleConfigFromExtension } from "./moduleStorageManager.js";
 
@@ -210,6 +210,13 @@ export function bindModuleEvents(moduleElement) {
         autoSaveModuleConfig();
     });
 
+    // 为每个变量项绑定事件
+    moduleItem.find('.variable-item').each(function () {
+        const variableItem = $(this);
+        // 使用从index.js导入的bindVariableEvents函数
+        bindVariableEvents(variableItem, moduleItem);
+    });
+
     // 更新变量数量显示
     function updateVariableCount() {
         const variableCount = moduleItem.find('.variable-item').filter(function () {
@@ -309,34 +316,74 @@ export function bindModuleEvents(moduleElement) {
     // 已有的变量事件绑定
     moduleItem.find('.variable-item').each(function () {
         const variableItem = $(this);
+        // 调用variableManager.js中的bindVariableEvents函数来绑定所有变量事件，包括标识符按钮的事件
+        bindVariableEvents(variableItem, moduleItem);
 
-        // 先解绑事件
-        variableItem.find('input').off('input');
-        variableItem.find('.remove-variable').off('click');
+        // 重新绑定拖拽事件（因为bindVariableEvents可能没有包含拖拽事件）
         variableItem.find('.variable-drag-handle').off('mousedown touchstart');
-
-        // 变量输入事件
-        variableItem.find('input').on('input', function () {
-            updateModulePreview(moduleItem);
-            // 自动保存配置
-            autoSaveModuleConfig();
-        });
-
-        // 删除变量事件
-        variableItem.find('.remove-variable').on('click', function () {
-            variableItem.remove();
-            updateModulePreview(moduleItem);
-            // 更新变量数量
-            updateVariableCount(moduleItem);
-        });
-
-        // 变量拖拽手柄事件
         variableItem.find('.variable-drag-handle').on('mousedown touchstart', function (e) {
             const variablesContainer = variableItem.closest('.variables-container');
             startVariableDragging(variableItem, variablesContainer, e);
             e.preventDefault();
             e.stopPropagation();
         });
+
+        // 主标识符按钮事件
+        variableItem.find('.variable-identifier-btn').on('click', function () {
+            const isIdentifierInput = variableItem.find('.variable-is-identifier');
+            const currentValue = isIdentifierInput.val() === 'true';
+            isIdentifierInput.val(!currentValue);
+
+            // 切换激活状态样式
+            const button = $(this);
+            if (!currentValue) {
+                button.addClass('active');
+                // 设置激活状态背景色
+                button.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
+            } else {
+                button.removeClass('active');
+                // 恢复默认背景色
+                button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
+            }
+
+            updateModulePreview(moduleItem);
+            autoSaveModuleConfig();
+        });
+
+        // 备用标识符按钮事件
+        variableItem.find('.variable-backup-identifier-btn').on('click', function () {
+            const isBackupIdentifierInput = variableItem.find('.variable-is-backup-identifier');
+            const currentValue = isBackupIdentifierInput.val() === 'true';
+            isBackupIdentifierInput.val(!currentValue);
+
+            // 切换激活状态样式
+            const button = $(this);
+            if (!currentValue) {
+                button.addClass('active');
+                // 设置激活状态背景色
+                button.find('.variable-order-number').css('background-color', 'rgba(200, 150, 50, 0.6)');
+            } else {
+                button.removeClass('active');
+                // 恢复默认背景色
+                button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
+            }
+
+            updateModulePreview(moduleItem);
+            autoSaveModuleConfig();
+        });
+
+        // 初始化激活状态
+        const identifierBtn = variableItem.find('.variable-identifier-btn');
+        if (variableItem.find('.variable-is-identifier').val() === 'true') {
+            identifierBtn.addClass('active');
+            identifierBtn.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
+        }
+
+        const backupIdentifierBtn = variableItem.find('.variable-backup-identifier-btn');
+        if (variableItem.find('.variable-is-backup-identifier').val() === 'true') {
+            backupIdentifierBtn.addClass('active');
+            backupIdentifierBtn.find('.variable-order-number').css('background-color', 'rgba(200, 150, 50, 0.6)');
+        }
     });
 
     // 更新排序数字
@@ -394,13 +441,17 @@ export function getModulesData() {
                 const varDesc = $(this).find('.variable-desc').val();
                 const varDisplayName = $(this).find('.variable-display-name').val();
                 const varCompatibleNames = $(this).find('.variable-compatible-names').val();
+                const varIsIdentifier = $(this).find('.variable-is-identifier').val() === 'true';
+                const varIsBackupIdentifier = $(this).find('.variable-is-backup-identifier').val() === 'true';
 
                 if (varName) {
                     variables.push({
                         name: varName,
                         description: varDesc,
                         displayName: varDisplayName || '',
-                        compatibleVariableNames: varCompatibleNames || ''
+                        compatibleVariableNames: varCompatibleNames || '',
+                        isIdentifier: varIsIdentifier,
+                        isBackupIdentifier: varIsBackupIdentifier
                     });
                 }
             });
@@ -720,7 +771,8 @@ function updateVariableOrderNumbers(variablesContainer) {
         return $(this).closest('.variable-template').length === 0;
     }).each(function (index) {
         const orderNumber = index + 1;
-        $(this).find('.variable-order-number').text(orderNumber);
+        // 只更新变量项最左侧的序号，不影响标识符按钮中的emoji
+        $(this).find('.variable-order-group > .variable-order-number:first-child').text(orderNumber);
     });
 }
 

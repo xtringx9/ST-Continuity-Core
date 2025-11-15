@@ -1,5 +1,5 @@
 // 模块解析管理器 - 处理模块解析的UI和事件
-import { debugLog, errorLog, infoLog, updateModulePreview } from "../index.js";
+import { debugLog, errorLog, infoLog, updateModulePreview, bindVariableEvents } from "../index.js";
 import { parseModuleString, validateModuleString } from "./moduleParser.js";
 import { getVariableItemTemplate } from "./templateManager.js";
 import { addModule } from "./moduleManager.js";
@@ -427,30 +427,11 @@ function updateVariableCountDisplay(moduleItem) {
 }
 
 /**
- * 绑定变量事件
+ * 绑定变量事件（使用variableManager.js中的实现，确保标识符按钮事件正确绑定）
  * @param {JQuery<HTMLElement>} variableItem 变量项jQuery对象
  * @param {JQuery<HTMLElement>} moduleItem 所属模块jQuery对象
  */
-function bindVariableEvents(variableItem, moduleItem) {
-    // 先解绑事件
-    variableItem.find('input').off('input');
-    variableItem.find('.remove-variable').off('click');
-
-    // 变量输入事件
-    variableItem.find('input').on('input', function () {
-        debugLog('变量输入框内容变化');
-        updateModulePreview(moduleItem);
-        updateVariableCountDisplay(moduleItem);
-    });
-
-    // 删除变量事件
-    variableItem.find('.remove-variable').on('click', function () {
-        debugLog('删除变量按钮被点击');
-        variableItem.remove();
-        updateModulePreview(moduleItem);
-        updateVariableCountDisplay(moduleItem);
-    });
-}
+// 使用从index.js导入的bindVariableEvents函数，不需要本地实现
 
 /**
  * 解析嵌套的模块字符串，支持 [[]] 嵌套结构
