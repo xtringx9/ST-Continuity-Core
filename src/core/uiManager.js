@@ -163,6 +163,12 @@ export async function openModuleConfigWindow() {
 
             // 加载设置到UI（包括自动注入开关状态）
             loadSettingsToUI();
+
+            // 初始化分页标签切换逻辑
+            initTabSwitching();
+
+            // 初始化提取模块功能
+            initExtractModulesFunctionality();
         }
 
         // 显示窗口和背景
@@ -254,7 +260,6 @@ export function createFabMenu() {
             <div class="continuity-fab-menu">
                 <button id="send-to-backend-btn" class="continuity-fab-item">发送最新楼层</button>
                 <button id="open-module-config-btn" class="continuity-fab-item">模块配置</button>
-                <button id="test-extract-modules-btn" class="continuity-fab-item">提取模块</button>
             </div>
             <button id="continuity-fab-main-btn" class="continuity-fab-item">
                 <span>&#43;</span>
@@ -281,36 +286,127 @@ export function createFabMenu() {
         openModuleConfigWindow();
     });
 
-    // 为"提取模块"按钮绑定功能（测试用）
-    $('#test-extract-modules-btn').on('click', function () {
-        // 先关闭菜单
-        $('#continuity-fab-container').removeClass('open');
 
+
+    debugLog('FAB菜单创建完成');
+}
+
+/**
+ * 初始化分页标签切换逻辑
+ */
+function initTabSwitching() {
+    // 绑定标签点击事件
+    $('.tab-item').on('click', function () {
+        // 移除所有标签的active类
+        $('.tab-item').removeClass('active');
+        // 为当前点击的标签添加active类
+        $(this).addClass('active');
+
+        // 获取要显示的标签内容ID
+        const tabId = $(this).data('tab');
+        // 隐藏所有标签内容
+        $('.tab-content').removeClass('active');
+        // 显示当前标签内容
+        $(`#${tabId}-tab`).addClass('active');
+    });
+}
+
+/**
+ * 初始化提取模块功能
+ */
+function initExtractModulesFunctionality() {
+    // 绑定提取模块按钮事件
+    $('#extract-modules-btn').on('click', function () {
         try {
-            debugLog('开始测试提取模块功能');
+            debugLog('开始提取模块功能');
 
             // 直接使用ModuleExtractor提取模块
             const moduleExtractor = new ModuleExtractor();
             const modules = moduleExtractor.extractModulesFromChat();
 
+            // 清空结果容器
+            const resultsContainer = $('#extract-results-container');
+            resultsContainer.empty();
+
             if (modules.length > 0) {
                 let resultText = `成功提取 ${modules.length} 个模块：\n\n`;
+
+                // 创建结果列表
+                const resultsList = $('<div class="modules-list"></div>');
+
                 modules.forEach((module, index) => {
                     resultText += `模块 ${index + 1}：${module.raw}\n`;
                     resultText += `消息索引：${module.messageIndex}\n`;
                     resultText += `发送者：${module.speakerName}\n\n`;
+
+                    // 创建模块项
+                    const moduleItem = $(`
+                        <div class="extracted-module-item">
+                            <div class="module-header">
+                                <span class="module-index">模块 ${index + 1}</span>
+                                <button class="btn-small add-to-config-btn" data-module="${JSON.stringify(module).replace(/"/g, '&quot;')}">添加到配置</button>
+                            </div>
+                            <div class="module-content">
+                                <pre>${module.raw}</pre>
+                                <div class="module-info">
+                                    <p>消息索引：${module.messageIndex}</p>
+                                    <p>发送者：${module.speakerName}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+
+                    resultsList.append(moduleItem);
                 });
-                alert(resultText);
-                debugLog(`提取模块测试成功，共发现 ${modules.length} 个模块`);
+
+                resultsContainer.append(resultsList);
+                debugLog(`提取模块成功，共发现 ${modules.length} 个模块`);
+
+                // 绑定添加到配置按钮事件
+                $('.add-to-config-btn').on('click', function () {
+                    const moduleData = JSON.parse($(this).data('module'));
+                    // 添加到配置
+                    addModule(moduleData);
+                    // 切换到配置标签页
+                    $('.tab-item[data-tab="config"]').click();
+                    toastr.success('模块已添加到配置');
+                });
             } else {
-                alert('未找到任何[模块名|键A:值A|键B:值B...]格式的模块。');
-                debugLog('提取模块测试完成，未发现模块');
+                resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
+                debugLog('提取模块完成，未发现模块');
             }
         } catch (error) {
-            errorLog('提取模块测试失败:', error);
-            alert('提取模块测试失败，请查看控制台日志');
+            errorLog('提取模块失败:', error);
+            toastr.error('提取模块失败，请查看控制台日志');
         }
     });
+}
 
-    debugLog('FAB菜单创建完成');
+/**
+ * 初始化解析模块功能
+ */
+function initParseModule() {
+    // 绑定解析按钮事件
+    $('#parse-modules-btn').on('click', function () {
+        const moduleText = $('#module-parse-input').val().trim();
+        if (!moduleText) {
+            toastr.warning('请输入模块格式');
+            return;
+        }
+
+        try {
+            // 解析模块
+            const module = parseModuleString(moduleText);
+            if (module) {
+                // 添加新模块
+                addModule(module);
+                // 清空输入框
+                $('#module-parse-input').val('');
+                toastr.success('模块解析成功');
+            }
+        } catch (error) {
+            errorLog('解析模块失败:', error);
+            toastr.error('模块格式错误，请检查输入');
+        }
+    });
 }
