@@ -28,6 +28,10 @@ import {
     initPromptPreview,
 } from '../index.js';
 
+// 导入用于测试的extractModulesFromChat功能
+import { PromptInjector } from '../core/promptInjector.js';
+import { ModuleExtractor } from '../core/moduleExtractor.js';
+
 // 加载CSS文件
 function loadCSS() {
     // 加载所有拆分后的CSS文件
@@ -196,18 +200,18 @@ export function showCustomConfirmDialog(title, message, onConfirm, onCancel) {
     $('body').append(confirmDialog);
 
     // 绑定按钮事件
-    confirmDialog.find('.confirm-dialog-confirm').on('click', function() {
+    confirmDialog.find('.confirm-dialog-confirm').on('click', function () {
         if (onConfirm) onConfirm();
         confirmDialog.remove();
     });
 
-    confirmDialog.find('.confirm-dialog-cancel').on('click', function() {
+    confirmDialog.find('.confirm-dialog-cancel').on('click', function () {
         if (onCancel) onCancel();
         confirmDialog.remove();
     });
 
     // 点击背景关闭
-    confirmDialog.on('click', function(e) {
+    confirmDialog.on('click', function (e) {
         if (e.target === this) {
             if (onCancel) onCancel();
             confirmDialog.remove();
@@ -250,7 +254,7 @@ export function createFabMenu() {
             <div class="continuity-fab-menu">
                 <button id="send-to-backend-btn" class="continuity-fab-item">发送最新楼层</button>
                 <button id="open-module-config-btn" class="continuity-fab-item">模块配置</button>
-                <button class="continuity-fab-item">功能三</button>
+                <button id="test-extract-modules-btn" class="continuity-fab-item">提取模块</button>
             </div>
             <button id="continuity-fab-main-btn" class="continuity-fab-item">
                 <span>&#43;</span>
@@ -275,6 +279,37 @@ export function createFabMenu() {
         $('#continuity-fab-container').removeClass('open');
         // 然后打开模块配置窗口
         openModuleConfigWindow();
+    });
+
+    // 为"提取模块"按钮绑定功能（测试用）
+    $('#test-extract-modules-btn').on('click', function () {
+        // 先关闭菜单
+        $('#continuity-fab-container').removeClass('open');
+
+        try {
+            debugLog('开始测试提取模块功能');
+
+            // 直接使用ModuleExtractor提取模块
+            const moduleExtractor = new ModuleExtractor();
+            const modules = moduleExtractor.extractModulesFromChat();
+
+            if (modules.length > 0) {
+                let resultText = `成功提取 ${modules.length} 个模块：\n\n`;
+                modules.forEach((module, index) => {
+                    resultText += `模块 ${index + 1}：${module.raw}\n`;
+                    resultText += `消息索引：${module.messageIndex}\n`;
+                    resultText += `发送者：${module.speakerName}\n\n`;
+                });
+                alert(resultText);
+                debugLog(`提取模块测试成功，共发现 ${modules.length} 个模块`);
+            } else {
+                alert('未找到任何[模块名|键A:值A|键B:值B...]格式的模块。');
+                debugLog('提取模块测试完成，未发现模块');
+            }
+        } catch (error) {
+            errorLog('提取模块测试失败:', error);
+            alert('提取模块测试失败，请查看控制台日志');
+        }
     });
 
     debugLog('FAB菜单创建完成');
