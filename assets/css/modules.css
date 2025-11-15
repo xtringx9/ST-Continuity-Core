@@ -634,7 +634,7 @@
 .module-parse-section .section-title {
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    /* 移除底部边框 */
 }
 
 .module-parse-section .section-title h3 {
