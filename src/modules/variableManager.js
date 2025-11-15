@@ -66,6 +66,10 @@ export function bindVariableEvents(variableItem, moduleItem) {
     variableItem.find('input').on('input', function () {
         debugLog('变量输入框内容变化');
         updateModulePreview(moduleItem);
+        // 自动保存配置
+        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
+            autoSaveModuleConfig();
+        });
     });
 
     // 删除变量事件

@@ -465,7 +465,7 @@ export function getModulesData() {
                 const varIsIdentifier = $(this).find('.variable-is-identifier').val() === 'true';
                 const varIsBackupIdentifier = $(this).find('.variable-is-backup-identifier').val() === 'true';
                 const varIsHideCondition = $(this).find('.variable-is-hide-condition').val() === 'true';
-                const varHideConditionValues = $(this).find('.variable-hide-condition-values, .variable-desc').last().val();
+                const varHideConditionValues = $(this).find('.variable-desc').eq(1).val();
 
                 if (varName) {
                     variables.push({

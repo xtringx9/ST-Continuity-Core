@@ -203,9 +203,11 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
             $(this).find('.variable-item').each(function () {
                 const varName = $(this).find('.variable-name').val();
                 const varDisplayName = $(this).find('.variable-display-name').val();
-                const varDesc = $(this).find('.variable-desc').val();
+                const varDesc = $(this).find('.variable-desc').eq(0).val();
                 const varIsIdentifier = $(this).find('.variable-is-identifier').val() === 'true';
                 const varIsBackupIdentifier = $(this).find('.variable-is-backup-identifier').val() === 'true';
+                const varIsHideCondition = $(this).find('.variable-is-hide-condition').val() === 'true';
+                const varHideConditionValues = $(this).find('.variable-desc').eq(1).val();
 
                 if (varName) {
                     variables.push({
@@ -214,7 +216,9 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                         description: varDesc || '',
                         compatibleVariableNames: $(this).find('.variable-compatible-names').val() || '', // 添加兼容变量名字段
                         isIdentifier: varIsIdentifier,
-                        isBackupIdentifier: varIsBackupIdentifier
+                        isBackupIdentifier: varIsBackupIdentifier,
+                        isHideCondition: varIsHideCondition,
+                        hideConditionValues: varHideConditionValues || ''
                     });
                 }
             });
