@@ -47,36 +47,8 @@ export function parseModuleString(moduleString) {
         return null;
     }
 
-    // 解析变量部分
-    const variables = [];
-    const variableParts = variablesString.split('|');
-    
-    for (const part of variableParts) {
-        const variableMatch = part.match(/^\s*(.+?)\s*:\s*(.+)\s*$/);
-        
-        if (variableMatch) {
-            const variableName = variableMatch[1].trim();
-            const variableDesc = variableMatch[2].trim();
-            
-            if (variableName) {
-                variables.push({
-                    name: variableName,
-                    description: variableDesc || ''
-                });
-                debugLog(`解析变量: ${variableName} - ${variableDesc}`);
-            }
-        } else {
-            // 如果不符合变量格式，尝试作为简单变量名处理
-            const simpleVariableName = part.trim();
-            if (simpleVariableName) {
-                variables.push({
-                    name: simpleVariableName,
-                    description: ''
-                });
-                debugLog(`解析简单变量: ${simpleVariableName}`);
-            }
-        }
-    }
+    // 解析变量部分 - 支持嵌套模块
+    const variables = parseVariablesString(variablesString);
 
     debugLog(`成功解析模块: ${moduleName}, 变量数量: ${variables.length}`);
     
@@ -84,6 +56,89 @@ export function parseModuleString(moduleString) {
         name: moduleName,
         variables: variables
     };
+}
+
+/**
+ * 解析变量字符串，支持嵌套模块结构
+ * @param {string} variablesString 变量字符串，如 "own:所属人|loc:当前位置/所在地|cont:消息内容[item|own:test|type:类型]"
+ * @returns {Array} 解析后的变量数组
+ */
+function parseVariablesString(variablesString) {
+    const variables = [];
+    let currentPos = 0;
+    let inNestedModule = 0;
+    let lastPipePos = 0;
+
+    for (let i = 0; i < variablesString.length; i++) {
+        const char = variablesString[i];
+
+        if (char === '[') {
+            inNestedModule++;
+        } else if (char === ']') {
+            inNestedModule--;
+        } else if (char === '|' && inNestedModule === 0) {
+            // 只在顶级管道符处分割
+            const part = variablesString.substring(lastPipePos, i).trim();
+            parseSingleVariable(part, variables);
+            lastPipePos = i + 1;
+        }
+    }
+
+    // 处理最后一个变量部分
+    const lastPart = variablesString.substring(lastPipePos).trim();
+    parseSingleVariable(lastPart, variables);
+
+    return variables;
+}
+
+/**
+ * 解析单个变量部分
+ * @param {string} part 单个变量部分，如 "own:所属人"
+ * @param {Array} variables 变量数组，用于存储解析结果
+ */
+function parseSingleVariable(part, variables) {
+    if (!part) return;
+
+    let colonIndex = -1;
+    let inNestedModule = 0;
+
+    // 找到第一个顶级冒号
+    for (let i = 0; i < part.length; i++) {
+        const char = part[i];
+
+        if (char === '[') {
+            inNestedModule++;
+        } else if (char === ']') {
+            inNestedModule--;
+        } else if (char === ':' && inNestedModule === 0) {
+            colonIndex = i;
+            break;
+        }
+    }
+
+    if (colonIndex === -1) {
+        // 如果没有冒号，作为简单变量名处理
+        const simpleVariableName = part.trim();
+        if (simpleVariableName) {
+            variables.push({
+                name: simpleVariableName,
+                description: ''
+            });
+            debugLog(`解析简单变量: ${simpleVariableName}`);
+        }
+    } else {
+        // 有冒号，解析为变量名和值
+        const variableName = part.substring(0, colonIndex).trim();
+        const variableDesc = part.substring(colonIndex + 1).trim();
+        
+        if (variableName) {
+            variables.push({
+                name: variableName,
+                description: variableDesc || ''
+            });
+            debugLog(`解析变量: ${variableName} - ${variableDesc}`);
+        }
+    }
 }
 
 /**
