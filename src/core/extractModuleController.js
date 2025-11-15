@@ -411,16 +411,21 @@ export class ExtractModuleController {
                                 variables: {}
                             };
 
+                            // 构建变量名映射表
+                            const variableNameMap = this.buildVariableNameMap(moduleConfig);
+
                             // 处理每个变量
                             parts.forEach(part => {
                                 const colonIndex = part.indexOf(':');
                                 if (colonIndex === -1) return;
 
-                                const key = part.substring(0, colonIndex).trim();
+                                let key = part.substring(0, colonIndex).trim();
                                 const value = part.substring(colonIndex + 1).trim();
 
                                 if (key) {
-                                    moduleData.variables[key] = value;
+                                    // 查找标准变量名（处理兼容变量名）
+                                    const standardKey = variableNameMap[key] || key;
+                                    moduleData.variables[standardKey] = value;
                                 }
                             });
 
@@ -497,6 +502,35 @@ export class ExtractModuleController {
     }
 
     /**
+     * 构建变量名映射表（兼容变量名 -> 标准变量名）
+     * @param {Object} moduleConfig 模块配置
+     * @returns {Object} 变量名映射表
+     */
+    buildVariableNameMap(moduleConfig) {
+        const variableNameMap = {};
+
+        if (!moduleConfig || !moduleConfig.variables) {
+            return variableNameMap;
+        }
+
+        // 为每个变量创建映射
+        moduleConfig.variables.forEach(variable => {
+            // 当前变量名映射到自身
+            variableNameMap[variable.name] = variable.name;
+
+            // 兼容变量名映射到当前变量名
+            if (variable.compatibleVariableNames) {
+                const compatibleNamesArray = parseCompatibleNames(variable.compatibleVariableNames);
+                compatibleNamesArray.forEach(compatName => {
+                    variableNameMap[compatName.trim()] = variable.name;
+                });
+            }
+        });
+
+        return variableNameMap;
+    }
+
+    /**
      * 按顺序合并模块，后面的模块覆盖前面的
      * @param {Array} modules 模块数组
      * @param {Object} moduleConfig 模块配置
@@ -509,6 +543,9 @@ export class ExtractModuleController {
             variables: {}
         };
 
+        // 构建变量名映射表
+        const variableNameMap = this.buildVariableNameMap(moduleConfig);
+
         modules.forEach(module => {
             // 解析模块
             const [moduleName, ...parts] = module.raw.slice(1, -1).split('|');
@@ -519,15 +556,18 @@ export class ExtractModuleController {
                 const colonIndex = part.indexOf(':');
                 if (colonIndex === -1) return;
 
-                const key = part.substring(0, colonIndex).trim();
+                let key = part.substring(0, colonIndex).trim();
                 const value = part.substring(colonIndex + 1).trim();
 
                 if (key) {
+                    // 查找标准变量名（处理兼容变量名）
+                    const standardKey = variableNameMap[key] || key;
+
                     // 如果值为空或undefined，则清空该变量
                     if (value === '' || value === undefined) {
-                        merged.variables[key] = '';
+                        merged.variables[standardKey] = '';
                     } else {
-                        merged.variables[key] = value;
+                        merged.variables[standardKey] = value;
                     }
                 }
             });
