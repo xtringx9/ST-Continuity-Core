@@ -69,6 +69,16 @@ export class ExtractModuleController {
         $('#extract-processed-modules-btn').on('click', () => {
             this.extractProcessedModules();
         });
+
+        // 绑定输出当前整理后的增量更新模块按钮事件
+        $('#extract-incremental-modules-btn').on('click', () => {
+            this.extractIncrementalModules();
+        });
+
+        // 绑定输出当前整理后的全量更新模块按钮事件
+        $('#extract-full-modules-btn').on('click', () => {
+            this.extractFullModules();
+        });
     }
 
     /**
@@ -365,11 +375,14 @@ export class ExtractModuleController {
                 const modulesData = getModulesData();
 
                 // 处理每个模块组
-                for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
-                    const [moduleName, identifier] = moduleKey.split('_');
+            for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
+                // 解析模块名和标识符（使用特殊分隔符）
+                const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
+                if (!match) continue;
+                const [, moduleName, identifier] = match;
 
-                    // 查找模块配置
-                    const moduleConfig = modulesData.find(module => module.name === moduleName);
+                // 查找模块配置
+                const moduleConfig = modulesData.find(module => module.name === moduleName);
 
                     // 只有outputMode为"incremental"的模块才需要统合
                     const needMerge = moduleConfig && moduleConfig.outputMode === 'incremental';
@@ -473,8 +486,8 @@ export class ExtractModuleController {
                 }
             }
 
-            // 构建分组键
-            const groupKey = `${moduleName}_${identifier}`;
+            // 构建分组键（使用特殊分隔符避免模块名包含下划线导致的问题）
+            const groupKey = `__MODULE_GROUP__${moduleName}__IDENTIFIER__${identifier}__`;
 
             // 添加到分组
             if (!groups[groupKey]) {
@@ -586,6 +599,238 @@ export class ExtractModuleController {
 
         moduleStr += ']';
         return moduleStr;
+    }
+
+    /**
+     * 输出当前整理后的增量更新模块
+     */
+    extractIncrementalModules() {
+        try {
+            debugLog('开始输出当前整理后的增量更新模块');
+
+            // 提取参数
+            const params = this.extractParameters();
+            if (!params) return;
+
+            const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
+
+            // 使用ModuleExtractor提取模块，指定范围和过滤条件
+            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+
+            // 清空结果容器
+            const resultsContainer = $('#extract-results-container');
+            resultsContainer.empty();
+
+            if (modules.length > 0) {
+                // 按模块名和标识符分组处理
+                const moduleGroups = this.groupModulesByIdentifier(modules);
+
+                // 构建结果显示内容
+                let resultContent = '';
+
+                // 获取所有模块配置
+                const modulesData = getModulesData();
+
+                // 处理每个模块组
+            for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
+                // 解析模块名和标识符（使用特殊分隔符）
+                const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
+                if (!match) continue;
+                const [, moduleName, identifier] = match;
+
+                // 查找模块配置
+                const moduleConfig = modulesData.find(module => module.name === moduleName);
+
+                    // 只处理outputMode为"incremental"的模块
+                    if (moduleConfig && moduleConfig.outputMode === 'incremental') {
+                        // 统合处理模块
+                        const mergedModule = this.mergeModulesByOrder(moduleList, moduleConfig);
+
+                        // 构建统合后的模块字符串
+                        const mergedModuleStr = this.buildModuleString(mergedModule, moduleConfig);
+
+                        // 添加到结果内容
+                        resultContent += `${moduleName}_${identifier}：
+${mergedModuleStr}\n\n`;
+                    }
+                }
+
+                // 创建结果显示
+                const resultDisplay = $(`
+                    <div class="processed-module-result">
+                        <div class="module-header">
+                            <span class="module-index">增量更新模块结果</span>
+                        </div>
+                        <div class="module-content">
+                            <pre>${this.htmlEscape(resultContent)}</pre>
+                        </div>
+                    </div>
+                `);
+
+                resultsContainer.append(resultDisplay);
+                debugLog(`输出增量更新模块成功，共处理 ${modules.length} 个模块`);
+            } else {
+                resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
+                debugLog('输出增量更新模块完成，未发现模块');
+            }
+        } catch (error) {
+            errorLog('输出增量更新模块失败:', error);
+            toastr.error('输出增量更新模块失败，请查看控制台日志');
+        }
+    }
+
+    /**
+     * 输出当前整理后的全量更新模块
+     */
+    extractFullModules() {
+        try {
+            debugLog('开始输出当前整理后的全量更新模块');
+
+            // 提取参数
+            const params = this.extractParameters();
+            if (!params) return;
+
+            const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
+
+            // 使用ModuleExtractor提取模块，指定范围和过滤条件
+            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+
+            // 清空结果容器
+            const resultsContainer = $('#extract-results-container');
+            resultsContainer.empty();
+
+            if (modules.length > 0) {
+                // 按模块名和标识符分组处理
+                const moduleGroups = this.groupModulesByIdentifier(modules);
+                debugLog('模块分组结果:', moduleGroups);
+
+                // 构建结果显示内容
+                let resultContent = '';
+
+                // 获取所有模块配置
+                const modulesData = getModulesData();
+                debugLog('获取到的模块配置:', modulesData);
+
+                // 处理每个模块组
+            for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
+                debugLog('处理模块组:', moduleKey, '包含', moduleList.length, '个模块');
+                // 解析模块名和标识符（使用特殊分隔符）
+                const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
+                if (!match) {
+                    debugLog('模块键解析失败:', moduleKey);
+                    continue;
+                }
+                const [, moduleName, identifier] = match;
+                debugLog('解析出的模块名:', moduleName, '标识符:', identifier);
+
+                // 查找模块配置 - 同时检查主模块名和兼容模块名
+                const moduleConfig = modulesData.find(module => {
+                    // 检查主模块名是否匹配
+                    if (module.name === moduleName) return true;
+                    // 检查兼容模块名是否包含当前模块名
+                    if (module.compatibleModuleNames) {
+                        const compatibleNames = module.compatibleModuleNames.split(',').map(name => name.trim());
+                        return compatibleNames.includes(moduleName);
+                    }
+                    return false;
+                });
+                debugLog('找到的模块配置:', moduleConfig);
+
+                    // 只处理outputMode为"full"的模块
+                    if (moduleConfig && moduleConfig.outputMode === 'full') {
+                        // 获取retainLayers值（默认为-1，表示无限）
+                        const retainLayers = moduleConfig.retainLayers === undefined ? -1 : parseInt(moduleConfig.retainLayers);
+                        let modulesToShow = moduleList;
+
+                        // 根据retainLayers值决定显示的模块 - 按楼层而不是条数
+                        if (retainLayers === 0) {
+                            // 0表示不保留任何模块
+                            modulesToShow = [];
+                        } else if (retainLayers > 0) {
+                            // 大于0表示只保留最近的retainLayers个楼层的模块
+                            
+                            // 1. 按楼层分组模块
+                            const modulesByFloor = {};
+                            moduleList.forEach(module => {
+                                const floor = module.messageIndex;
+                                if (!modulesByFloor[floor]) {
+                                    modulesByFloor[floor] = [];
+                                }
+                                modulesByFloor[floor].push(module);
+                            });
+                            
+                            // 2. 获取所有楼层并按倒序排列（最近的楼层在前）
+                            const floors = Object.keys(modulesByFloor).map(Number).sort((a, b) => b - a);
+                            
+                            // 3. 选择最近的retainLayers个楼层
+                            const selectedFloors = floors.slice(0, retainLayers);
+                            
+                            // 4. 收集这些楼层中的所有模块，并按楼层倒序排列
+                            modulesToShow = [];
+                            selectedFloors.forEach(floor => {
+                                // 每个楼层内的模块按出现顺序排列
+                                modulesToShow.push(...modulesByFloor[floor]);
+                            });
+                        }
+                        // -1或其他负值表示显示所有模块
+
+                        // 格式化输出每个模块
+                        const formattedModulesStr = modulesToShow.map(module => {
+                            // 解析单个模块
+                            const [modName, ...parts] = module.raw.slice(1, -1).split('|');
+                            const moduleData = {
+                                name: modName,
+                                variables: {}
+                            };
+
+                            // 构建变量名映射表
+                            const variableNameMap = this.buildVariableNameMap(moduleConfig);
+
+                            // 处理每个变量
+                            parts.forEach(part => {
+                                const colonIndex = part.indexOf(':');
+                                if (colonIndex === -1) return;
+
+                                let key = part.substring(0, colonIndex).trim();
+                                const value = part.substring(colonIndex + 1).trim();
+
+                                if (key) {
+                                    // 查找标准变量名（处理兼容变量名）
+                                    const standardKey = variableNameMap[key] || key;
+                                    moduleData.variables[standardKey] = value;
+                                }
+                            });
+
+                            // 按模板格式化构建模块字符串
+                            return this.buildModuleString(moduleData, moduleConfig);
+                        }).join('\n');
+
+                        resultContent += `${moduleName}_${identifier}：\n${formattedModulesStr}\n\n`;
+                    }
+                }
+
+                // 创建结果显示
+                const resultDisplay = $(`
+                    <div class="processed-module-result">
+                        <div class="module-header">
+                            <span class="module-index">全量更新模块结果</span>
+                        </div>
+                        <div class="module-content">
+                            <pre>${this.htmlEscape(resultContent)}</pre>
+                        </div>
+                    </div>
+                `);
+
+                resultsContainer.append(resultDisplay);
+                debugLog(`输出全量更新模块成功，共处理 ${modules.length} 个模块`);
+            } else {
+                resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
+                debugLog('输出全量更新模块完成，未发现模块');
+            }
+        } catch (error) {
+            errorLog('输出全量更新模块失败:', error);
+            toastr.error('输出全量更新模块失败，请查看控制台日志');
+        }
     }
 
     /**
