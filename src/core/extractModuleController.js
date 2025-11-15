@@ -375,14 +375,14 @@ export class ExtractModuleController {
                 const modulesData = getModulesData();
 
                 // 处理每个模块组
-            for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
-                // 解析模块名和标识符（使用特殊分隔符）
-                const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
-                if (!match) continue;
-                const [, moduleName, identifier] = match;
+                for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
+                    // 解析模块名和标识符（使用特殊分隔符）
+                    const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
+                    if (!match) continue;
+                    const [, moduleName, identifier] = match;
 
-                // 查找模块配置
-                const moduleConfig = modulesData.find(module => module.name === moduleName);
+                    // 查找模块配置
+                    const moduleConfig = modulesData.find(module => module.name === moduleName);
 
                     // 只有outputMode为"incremental"的模块才需要统合
                     const needMerge = moduleConfig && moduleConfig.outputMode === 'incremental';
@@ -632,14 +632,14 @@ export class ExtractModuleController {
                 const modulesData = getModulesData();
 
                 // 处理每个模块组
-            for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
-                // 解析模块名和标识符（使用特殊分隔符）
-                const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
-                if (!match) continue;
-                const [, moduleName, identifier] = match;
+                for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
+                    // 解析模块名和标识符（使用特殊分隔符）
+                    const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
+                    if (!match) continue;
+                    const [, moduleName, identifier] = match;
 
-                // 查找模块配置
-                const moduleConfig = modulesData.find(module => module.name === moduleName);
+                    // 查找模块配置
+                    const moduleConfig = modulesData.find(module => module.name === moduleName);
 
                     // 只处理outputMode为"incremental"的模块
                     if (moduleConfig && moduleConfig.outputMode === 'incremental') {
@@ -650,8 +650,9 @@ export class ExtractModuleController {
                         const mergedModuleStr = this.buildModuleString(mergedModule, moduleConfig);
 
                         // 添加到结果内容
-                        resultContent += `${moduleName}_${identifier}：
-${mergedModuleStr}\n\n`;
+                        //                         resultContent += `${moduleName}_${identifier}：
+                        // ${mergedModuleStr}\n\n`;
+                        resultContent += `${mergedModuleStr}\n`;
                     }
                 }
 
@@ -712,29 +713,29 @@ ${mergedModuleStr}\n\n`;
                 debugLog('获取到的模块配置:', modulesData);
 
                 // 处理每个模块组
-            for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
-                debugLog('处理模块组:', moduleKey, '包含', moduleList.length, '个模块');
-                // 解析模块名和标识符（使用特殊分隔符）
-                const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
-                if (!match) {
-                    debugLog('模块键解析失败:', moduleKey);
-                    continue;
-                }
-                const [, moduleName, identifier] = match;
-                debugLog('解析出的模块名:', moduleName, '标识符:', identifier);
-
-                // 查找模块配置 - 同时检查主模块名和兼容模块名
-                const moduleConfig = modulesData.find(module => {
-                    // 检查主模块名是否匹配
-                    if (module.name === moduleName) return true;
-                    // 检查兼容模块名是否包含当前模块名
-                    if (module.compatibleModuleNames) {
-                        const compatibleNames = module.compatibleModuleNames.split(',').map(name => name.trim());
-                        return compatibleNames.includes(moduleName);
+                for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
+                    debugLog('处理模块组:', moduleKey, '包含', moduleList.length, '个模块');
+                    // 解析模块名和标识符（使用特殊分隔符）
+                    const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
+                    if (!match) {
+                        debugLog('模块键解析失败:', moduleKey);
+                        continue;
                     }
-                    return false;
-                });
-                debugLog('找到的模块配置:', moduleConfig);
+                    const [, moduleName, identifier] = match;
+                    debugLog('解析出的模块名:', moduleName, '标识符:', identifier);
+
+                    // 查找模块配置 - 同时检查主模块名和兼容模块名
+                    const moduleConfig = modulesData.find(module => {
+                        // 检查主模块名是否匹配
+                        if (module.name === moduleName) return true;
+                        // 检查兼容模块名是否包含当前模块名
+                        if (module.compatibleModuleNames) {
+                            const compatibleNames = module.compatibleModuleNames.split(',').map(name => name.trim());
+                            return compatibleNames.includes(moduleName);
+                        }
+                        return false;
+                    });
+                    debugLog('找到的模块配置:', moduleConfig);
 
                     // 只处理outputMode为"full"的模块
                     if (moduleConfig && moduleConfig.outputMode === 'full') {
@@ -748,7 +749,7 @@ ${mergedModuleStr}\n\n`;
                             modulesToShow = [];
                         } else if (retainLayers > 0) {
                             // 大于0表示只保留最近的retainLayers个楼层的模块
-                            
+
                             // 1. 按楼层分组模块
                             const modulesByFloor = {};
                             moduleList.forEach(module => {
@@ -758,13 +759,13 @@ ${mergedModuleStr}\n\n`;
                                 }
                                 modulesByFloor[floor].push(module);
                             });
-                            
+
                             // 2. 获取所有楼层并按倒序排列（最近的楼层在前）
                             const floors = Object.keys(modulesByFloor).map(Number).sort((a, b) => b - a);
-                            
+
                             // 3. 选择最近的retainLayers个楼层
                             const selectedFloors = floors.slice(0, retainLayers);
-                            
+
                             // 4. 收集这些楼层中的所有模块，并按楼层倒序排列
                             modulesToShow = [];
                             selectedFloors.forEach(floor => {
