@@ -85,7 +85,8 @@
     border-radius: 3px;
 }
 
-.module-display-name {
+#continuity-module-config-window .module-name,
+#continuity-module-config-window .module-display-name {
     width: 80px;
     padding: 4px 6px;
     font-size: 13px;
@@ -144,7 +145,7 @@
     /* 确保标签垂直居中 */
 }
 
-.module-output-position {
+#continuity-module-config-window .module-output-position {
     padding: 2px 4px;
     font-size: 10px;
     border-radius: 3px;
@@ -152,7 +153,7 @@
 }
 
 /* 表单控件样式 */
-.form-control {
+#continuity-module-config-window .form-control {
     padding: 1px 6px;
     font-size: 10px;
     border-radius: 3px;
@@ -166,7 +167,7 @@
     vertical-align: middle;
 }
 
-.module-range-mode {
+#continuity-module-config-window .module-range-mode {
     padding: 2px 4px;
     font-size: 10px;
     border-radius: 3px;
@@ -174,7 +175,7 @@
 }
 
 /* 输出模式选择器样式 */
-.module-output-mode {
+#continuity-module-config-window .module-output-mode {
     padding: 2px 4px;
     font-size: 10px;
     border-radius: 3px;
@@ -189,8 +190,8 @@
     margin-top: 4px;
 }
 
-.module-item-min,
-.module-item-specified {
+#continuity-module-config-window .module-item-min,
+#continuity-module-config-window .module-item-specified {
     padding: 1px 4px;
     font-size: 10px;
     border-radius: 3px;
@@ -220,7 +221,7 @@
     margin: 0;
 }
 
-.module-limit {
+#continuity-module-config-window .module-limit {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -248,7 +249,7 @@
 }
 
 /* 模块兼容输入框样式 */
-.module-compatible-names {
+#continuity-module-config-window .module-compatible-names {
     width: 120px;
     padding: 4px 6px;
     font-size: 12px;
@@ -477,8 +478,8 @@
     margin: 0;
 }
 
-.module-prompt-input,
-.module-timing-prompt-input {
+#continuity-module-config-window .module-prompt-input,
+#continuity-module-config-window .module-timing-prompt-input {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -491,15 +492,15 @@
     flex: 1;
 }
 
-.module-prompt-input:focus,
-.module-timing-prompt-input:focus {
+#continuity-module-config-window .module-prompt-input:focus,
+#continuity-module-config-window .module-timing-prompt-input:focus {
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* 模块内容使用提示词样式 */
-.module-content-prompt-input {
+#continuity-module-config-window .module-content-prompt-input {
     width: 100%;
     min-height: 40px;
     background-color: rgba(255, 255, 255, 0.9);
@@ -513,7 +514,7 @@
     transition: border-color 0.2s;
 }
 
-.module-content-prompt-input:focus {
+#continuity-module-config-window .module-content-prompt-input:focus {
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
@@ -602,7 +603,7 @@
     margin: 0;
 }
 
-.module-preview-text {
+#continuity-module-config-window .module-preview-text {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -655,7 +656,7 @@
     align-items: center;
 }
 
-.module-parse-input {
+#continuity-module-config-window .module-parse-input {
     flex: 1;
     height: 32px;
     padding: 6px 12px;
@@ -667,7 +668,7 @@
     color: white;
 }
 
-.module-parse-input:focus {
+#continuity-module-config-window .module-parse-input:focus {
     outline: none;
     border-color: #b4c0e8;
     box-shadow: 0 0 0 1px rgba(180, 192, 232, 0.2);

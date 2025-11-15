@@ -1,4 +1,4 @@
-/* 基础样式文件 - 包含模态框、窗口基础样式 */
+/* 基础样式文件 - 包含模态框、窗口基础样式
 
 /* 模态背景样式 */
 .continuity-modal-backdrop {
@@ -155,8 +155,10 @@
     color: rgba(255, 255, 255, 0.9);
 }
 
-/* 基础表单元素样式 - 所有表单元素共享 */
-input, select, textarea {
+/* 基础表单元素样式 - 仅影响Continuity Core扩展内的表单元素 */
+#continuity-module-config-window input,
+#continuity-module-config-window select,
+#continuity-module-config-window textarea {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
@@ -166,13 +168,15 @@ input, select, textarea {
     transition: border-color 0.2s;
 }
 
-input:focus, select:focus, textarea:focus {
+#continuity-module-config-window input:focus,
+#continuity-module-config-window select:focus,
+#continuity-module-config-window textarea:focus {
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-textarea {
+#continuity-module-config-window textarea {
     resize: vertical;
     min-height: 60px;
     font-family: inherit;
@@ -286,7 +290,6 @@ textarea {
 
 .confirm-dialog-confirm:hover {
     background-color: #c0392b;
-}
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
@@ -375,13 +378,13 @@ textarea {
     background-color: #45a049;
 }
 
-.floor-input-group {
+#continuity-module-config-window .floor-input-group {
     display: flex;
     align-items: center;
     margin-top: 10px;
 }
 
-.floor-input {
+#continuity-module-config-window .floor-input {
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -390,7 +393,7 @@ textarea {
     width: 120px;
 }
 
-.floor-input:focus {
+#continuity-module-config-window .floor-input:focus {
     outline: none;
     border-color: #4CAF50;
 }

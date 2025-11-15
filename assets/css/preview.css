@@ -1,7 +1,7 @@
 /* 预览样式文件 - 包含预览相关样式 */
 
 /* 设置区域样式 - 与提示词预览区域保持一致 */
-.settings-section {
+#continuity-module-config-window .settings-section {
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 6px;
     padding: 12px;
@@ -9,11 +9,11 @@
     margin-bottom: 15px;
 }
 
-.settings-section .section-title {
+#continuity-module-config-window .settings-section .section-title {
     margin-bottom: 8px;
 }
 
-.settings-section .section-title h3 {
+#continuity-module-config-window .settings-section .section-title h3 {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
@@ -21,7 +21,7 @@
 }
 
 /* 提示词预览区域样式 */
-.prompt-preview-section {
+#continuity-module-config-window .prompt-preview-section {
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 6px;
     padding: 12px;
@@ -29,11 +29,11 @@
     margin-bottom: 15px;
 }
 
-.prompt-preview-section .section-title {
+#continuity-module-config-window .prompt-preview-section .section-title {
     margin-bottom: 8px;
 }
 
-.prompt-preview-section .section-title h3 {
+#continuity-module-config-window .prompt-preview-section .section-title h3 {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
@@ -44,11 +44,11 @@
     margin-top: 10px;
 }
 
-.preview-section {
+#continuity-module-config-window .preview-section {
     border: none !important;
 }
 
-.prompt-preview-textarea {
+#continuity-module-config-window .prompt-preview-textarea {
     width: 100%;
     min-height: 120px;
     background-color: rgba(255, 255, 255, 0.9);
@@ -64,7 +64,7 @@
     word-wrap: break-word;
 }
 
-.prompt-preview-textarea:focus {
+#continuity-module-config-window .prompt-preview-textarea:focus {
     outline: none;
     background-color: rgba(255, 255, 255, 1);
 }
@@ -85,7 +85,7 @@
     min-width: 60px;
 }
 
-.preview-mode-select {
+#continuity-module-config-window .preview-mode-select {
     background-color: rgba(255, 255, 255, 0.95);
     border: none;
     border-radius: 3px;
@@ -98,40 +98,40 @@
     margin-right: 8px;
 }
 
-.copy-macro-btn {
+#continuity-module-config-window .copy-macro-btn {
     margin-left: auto;
 }
 
-.preview-mode-select:focus {
+#continuity-module-config-window .preview-mode-select:focus {
     outline: none;
     box-shadow: 0 0 0 1px rgba(180, 192, 232, 0.5);
 }
 
-.preview-mode-select option {
+#continuity-module-config-window .preview-mode-select option {
     background-color: #ffffff;
     color: #000000;
 }
 
 /* 模块数据表格样式 */
-.module-data-table {
+#continuity-module-config-window .module-data-table {
     width: 100%;
     border-collapse: collapse;
     margin: 12px 0;
     font-size: 13px;
 }
 
-.module-data-table th,
-.module-data-table td {
+#continuity-module-config-window .module-data-table th,
+#continuity-module-config-window .module-data-table td {
     padding: 8px 12px;
     text-align: left;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.module-data-table th {
+#continuity-module-config-window .module-data-table th {
     background-color: rgba(255, 255, 255, 0.1);
     font-weight: 600;
 }
 
-.module-data-table tr:hover {
+#continuity-module-config-window .module-data-table tr:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }

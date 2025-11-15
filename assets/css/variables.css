@@ -121,29 +121,29 @@
 }
 
 /* Variable input styles - overriding base input styles */
-.variable-name,
-.variable-display-name,
-.variable-desc,
-.variable-compatible-names {
+#continuity-module-config-window .variable-name,
+#continuity-module-config-window .variable-display-name,
+#continuity-module-config-window .variable-desc,
+#continuity-module-config-window .variable-compatible-names {
     padding: 3px 5px;
     font-size: 11px;
     border-radius: 3px;
 }
 
-.variable-name {
+#continuity-module-config-window .variable-name {
     width: 60px;
 }
 
-.variable-display-name {
+#continuity-module-config-window .variable-display-name {
     width: 60px;
 }
 
-.variable-desc {
+#continuity-module-config-window .variable-desc {
     flex: 1;
 }
 
 /* 变量兼容变量名输入框样式 */
-.variable-compatible-names {
+#continuity-module-config-window .variable-compatible-names {
     font-family: monospace;
     min-width: 120px;
     flex: 1;
