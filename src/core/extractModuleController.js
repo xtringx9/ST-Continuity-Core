@@ -402,9 +402,33 @@ export class ExtractModuleController {
                         // 添加到结果内容
                         resultContent += `统合：\n${mergedModuleStr}\n\n历史：\n${historyModulesStr}\n\n`;
                     } else {
-                        // 不需要统合的模块，直接显示所有模块
-                        const modulesStr = moduleList.map(module => module.raw).join('\n');
-                        resultContent += `${moduleName}_${identifier}：\n${modulesStr}\n\n`;
+                        // 不需要统合的模块，按模板格式化输出每个模块
+                        const formattedModulesStr = moduleList.map(module => {
+                            // 解析单个模块
+                            const [modName, ...parts] = module.raw.slice(1, -1).split('|');
+                            const moduleData = {
+                                name: modName,
+                                variables: {}
+                            };
+
+                            // 处理每个变量
+                            parts.forEach(part => {
+                                const colonIndex = part.indexOf(':');
+                                if (colonIndex === -1) return;
+
+                                const key = part.substring(0, colonIndex).trim();
+                                const value = part.substring(colonIndex + 1).trim();
+
+                                if (key) {
+                                    moduleData.variables[key] = value;
+                                }
+                            });
+
+                            // 按模板格式化构建模块字符串
+                            return this.buildModuleString(moduleData, moduleConfig);
+                        }).join('\n');
+
+                        resultContent += `${moduleName}_${identifier}：\n${formattedModulesStr}\n\n`;
                     }
                 }
 
