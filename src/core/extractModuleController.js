@@ -86,51 +86,70 @@ export class ExtractModuleController {
     }
 
     /**
+     * 提取楼层范围和模块过滤条件的辅助方法
+     * @returns {Object} 包含提取参数的对象
+     */
+    extractParameters() {
+        // 获取用户输入的楼层范围
+        const startFloor = parseInt($('#start-floor-input').val().trim());
+        const endFloor = parseInt($('#end-floor-input').val().trim());
+
+        // 获取选择的模块
+        const selectedModuleName = $('#module-select').val();
+
+        // 转换为索引（楼层从1开始，索引从0开始）
+        let startIndex = 0;
+        let endIndex = null;
+
+        if (!isNaN(startFloor) && startFloor >= 1) {
+            startIndex = startFloor - 1;
+        }
+
+        if (!isNaN(endFloor) && endFloor >= 1) {
+            endIndex = endFloor - 1;
+        }
+
+        // 确保起始索引不大于结束索引
+        if (endIndex !== null && startIndex > endIndex) {
+            toastr.warning('起始楼层不能大于结束楼层');
+            return null;
+        }
+
+        // 获取模块过滤条件
+        let moduleFilter = null;
+        if (selectedModuleName && selectedModuleName !== 'all') {
+            // 查找选中的模块配置
+            const modulesData = getModulesData();
+            const selectedModule = modulesData.find(module => module.name === selectedModuleName);
+
+            if (selectedModule) {
+                moduleFilter = {
+                    name: selectedModule.name,
+                    compatibleModuleNames: selectedModule.compatibleModuleNames
+                };
+            }
+        }
+
+        return {
+            startIndex,
+            endIndex,
+            selectedModuleName,
+            moduleFilter
+        };
+    }
+
+    /**
      * 提取模块功能
      */
     extractModules() {
         try {
             debugLog('开始提取模块功能');
 
-            // 获取用户输入的楼层范围
-            const startFloor = parseInt($('#start-floor-input').val().trim());
-            const endFloor = parseInt($('#end-floor-input').val().trim());
+            // 提取参数
+            const params = this.extractParameters();
+            if (!params) return;
 
-            // 获取选择的模块
-            const selectedModuleName = $('#module-select').val();
-
-            // 转换为索引（楼层从1开始，索引从0开始）
-            let startIndex = 0;
-            let endIndex = null;
-
-            if (!isNaN(startFloor) && startFloor >= 1) {
-                startIndex = startFloor - 1;
-            }
-
-            if (!isNaN(endFloor) && endFloor >= 1) {
-                endIndex = endFloor - 1;
-            }
-
-            // 确保起始索引不大于结束索引
-            if (endIndex !== null && startIndex > endIndex) {
-                toastr.warning('起始楼层不能大于结束楼层');
-                return;
-            }
-
-            // 获取模块过滤条件
-            let moduleFilter = null;
-            if (selectedModuleName && selectedModuleName !== 'all') {
-                // 查找选中的模块配置
-                const modulesData = getModulesData();
-                const selectedModule = modulesData.find(module => module.name === selectedModuleName);
-
-                if (selectedModule) {
-                    moduleFilter = {
-                        name: selectedModule.name,
-                        compatibleModuleNames: selectedModule.compatibleModuleNames
-                    };
-                }
-            }
+            const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
 
             // 使用ModuleExtractor提取模块，指定范围和过滤条件
             const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
@@ -322,45 +341,11 @@ export class ExtractModuleController {
         try {
             debugLog('开始提取整理后模块功能');
 
-            // 获取用户输入的楼层范围
-            const startFloor = parseInt($('#start-floor-input').val().trim());
-            const endFloor = parseInt($('#end-floor-input').val().trim());
+            // 提取参数
+            const params = this.extractParameters();
+            if (!params) return;
 
-            // 获取选中的模块名
-            const selectedModuleName = $('#module-select').val();
-
-            // 转换为索引（楼层从1开始，索引从0开始）
-            let startIndex = 0;
-            let endIndex = null;
-
-            if (!isNaN(startFloor) && startFloor >= 1) {
-                startIndex = startFloor - 1;
-            }
-
-            if (!isNaN(endFloor) && endFloor >= 1) {
-                endIndex = endFloor - 1;
-            }
-
-            // 确保起始索引不大于结束索引
-            if (endIndex !== null && startIndex > endIndex) {
-                toastr.warning('起始楼层不能大于结束楼层');
-                return;
-            }
-
-            // 获取模块过滤条件
-            let moduleFilter = null;
-            if (selectedModuleName && selectedModuleName !== 'all') {
-                // 查找选中的模块配置
-                const modulesData = getModulesData();
-                const selectedModule = modulesData.find(module => module.name === selectedModuleName);
-
-                if (selectedModule) {
-                    moduleFilter = {
-                        name: selectedModule.name,
-                        compatibleModuleNames: selectedModule.compatibleModuleNames
-                    };
-                }
-            }
+            const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
 
             // 使用ModuleExtractor提取模块，指定范围和过滤条件
             const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
