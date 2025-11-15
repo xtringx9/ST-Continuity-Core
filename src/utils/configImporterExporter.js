@@ -204,13 +204,17 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                 const varName = $(this).find('.variable-name').val();
                 const varDisplayName = $(this).find('.variable-display-name').val();
                 const varDesc = $(this).find('.variable-desc').val();
+                const varIsIdentifier = $(this).find('.variable-is-identifier').val() === 'true';
+                const varIsBackupIdentifier = $(this).find('.variable-is-backup-identifier').val() === 'true';
 
                 if (varName) {
                     variables.push({
                         name: varName,
                         displayName: varDisplayName || '',
                         description: varDesc || '',
-                        compatibleVariableNames: $(this).find('.variable-compatible-names').val() || '' // 添加兼容变量名字段
+                        compatibleVariableNames: $(this).find('.variable-compatible-names').val() || '', // 添加兼容变量名字段
+                        isIdentifier: varIsIdentifier,
+                        isBackupIdentifier: varIsBackupIdentifier
                     });
                 }
             });

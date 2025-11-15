@@ -80,6 +80,76 @@ export function bindVariableEvents(variableItem, moduleItem) {
         const countElement = moduleItem.find('.toggle-variables .variable-count');
         countElement.text(`(${variableCount})`);
     });
+
+    // 主标识符按钮事件
+    variableItem.find('.variable-identifier-btn').on('click', function () {
+        console.log('[Continuity] 主标识符按钮被点击');
+        const isIdentifierInput = variableItem.find('.variable-is-identifier');
+        console.log('[Continuity] 找到的isIdentifierInput:', isIdentifierInput);
+        console.log('[Continuity] isIdentifierInput长度:', isIdentifierInput.length);
+        const currentValue = isIdentifierInput.val() === 'true';
+        console.log('[Continuity] 当前值:', currentValue);
+        isIdentifierInput.val(!currentValue);
+        console.log('[Continuity] 新值:', isIdentifierInput.val());
+
+        // 切换激活状态样式
+        const button = $(this);
+        if (!currentValue) {
+            button.addClass('active');
+            console.log('[Continuity] 添加active类');
+            // 设置激活状态背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
+        } else {
+            button.removeClass('active');
+            console.log('[Continuity] 移除active类');
+            // 恢复默认背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
+        }
+
+        updateModulePreview(moduleItem);
+        // 自动保存配置
+        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
+            autoSaveModuleConfig();
+        });
+    });
+
+    // 备用标识符按钮事件
+    variableItem.find('.variable-backup-identifier-btn').on('click', function () {
+        const isBackupIdentifierInput = variableItem.find('.variable-is-backup-identifier');
+        const currentValue = isBackupIdentifierInput.val() === 'true';
+        isBackupIdentifierInput.val(!currentValue);
+
+        // 切换激活状态样式
+        const button = $(this);
+        if (!currentValue) {
+            button.addClass('active');
+            // 设置激活状态背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(200, 150, 50, 0.6)');
+        } else {
+            button.removeClass('active');
+            // 恢复默认背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
+        }
+
+        updateModulePreview(moduleItem);
+        // 自动保存配置
+        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
+            autoSaveModuleConfig();
+        });
+    });
+
+    // 初始化激活状态
+    const identifierBtn = variableItem.find('.variable-identifier-btn');
+    if (variableItem.find('.variable-is-identifier').val() === 'true') {
+        identifierBtn.addClass('active');
+        identifierBtn.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
+    }
+
+    const backupIdentifierBtn = variableItem.find('.variable-backup-identifier-btn');
+    if (variableItem.find('.variable-is-backup-identifier').val() === 'true') {
+        backupIdentifierBtn.addClass('active');
+        backupIdentifierBtn.find('.variable-order-number').css('background-color', 'rgba(200, 150, 50, 0.6)');
+    }
 }
 
 /**
@@ -224,6 +294,7 @@ function updateVariableOrderNumbers(variablesContainer) {
         return $(this).closest('.variable-template').length === 0;
     }).each(function (index) {
         const orderNumber = index + 1;
-        $(this).find('.variable-order-number').text(orderNumber);
+        // 只更新变量项最左侧的序号，不影响标识符按钮中的emoji
+        $(this).find('.variable-order-group > .variable-order-number:first-child').text(orderNumber);
     });
 }

@@ -95,11 +95,11 @@
 }
 
 .variable-name-group {
-    min-width: 80px;
+    /* min-width: 80px; */
 }
 
 .variable-display-name-group {
-    min-width: 80px;
+    /* min-width: 80px; */
 }
 
 .variable-desc-group {
@@ -186,4 +186,13 @@
     background-color: rgba(255, 100, 100, 0.7);
     /* border-color: #ff6464;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
+}
+
+/* 变量标识符按钮样式 */
+.variable-identifier-btn.active .variable-order-number {
+    background-color: rgba(100, 200, 100, 0.6) !important;
+}
+
+.variable-backup-identifier-btn.active .variable-order-number {
+    background-color: rgba(200, 150, 50, 0.6) !important;
 }

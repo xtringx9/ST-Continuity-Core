@@ -10,18 +10,27 @@ export function getVariableItemTemplate(variable = {}) {
     const description = variable.description || '';
     const displayName = variable.displayName || '';
     const compatibleNames = variable.compatibleVariableNames || '';
+    const isIdentifier = variable.isIdentifier || false;
+    const isBackupIdentifier = variable.isBackupIdentifier || false;
 
     return `
         <div class="variable-item">
             <div class="variable-order-group">
                 <span class="variable-order-number"></span>
+                <button class="module-toggle-expand-btn variable-identifier-btn" data-is-identifier="true" title="设置为主标识符">
+                    <span class="variable-order-number">🔑</span>
+                </button>
+                <button class="module-toggle-expand-btn variable-backup-identifier-btn" data-is-backup-identifier="true" title="设置为备用标识符">
+                    <span class="variable-order-number">🔗</span>
+                </button>
             </div>
             <div class="variable-name-group">
                 <label>变量名</label>
                 <input type="text" class="variable-name" placeholder="变量名" value="${name}">
+                <input type="hidden" class="variable-is-identifier" value="${isIdentifier ? 'true' : 'false'}">
+                <input type="hidden" class="variable-is-backup-identifier" value="${isBackupIdentifier ? 'true' : 'false'}">
             </div>
             <div class="variable-display-name-group">
-                <label>显示名</label>
                 <input type="text" class="variable-display-name" placeholder="显示名" value="${displayName}">
             </div>
             <div class="variable-desc-group">

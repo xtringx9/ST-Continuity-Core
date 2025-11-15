@@ -2,6 +2,7 @@
 import { extensionFolderPath, debugLog, errorLog, infoLog, initParseModule } from "../index.js";
 import { getVariableItemTemplate } from "./templateManager.js";
 import { updateModulePreview, restoreModuleCollapsedState } from "./moduleManager.js";
+import { bindVariableEvents } from "./variableManager.js";
 import {
     saveModuleConfigToExtension,
     loadModuleConfigFromExtension,
@@ -456,6 +457,9 @@ export function renderModulesFromConfig(config) {
 
                 // 添加variable-item到容器
                 variablesContainer.append(templateItem);
+                
+                // 为变量项绑定事件
+                bindVariableEvents(templateItem, moduleItem);
             });
 
             // 更新变量顺序数字
