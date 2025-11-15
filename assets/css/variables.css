@@ -120,71 +120,36 @@
     margin: 0;
 }
 
-.variable-name {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
+/* Variable input styles - overriding base input styles */
+.variable-name,
+.variable-display-name,
+.variable-desc,
+.variable-compatible-names {
     padding: 3px 5px;
     font-size: 11px;
-    color: #333;
-    transition: border-color 0.2s;
+    border-radius: 3px;
+}
+
+.variable-name {
     width: 60px;
 }
 
 .variable-display-name {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    padding: 3px 5px;
-    font-size: 11px;
-    color: #333;
-    transition: border-color 0.2s;
     width: 60px;
 }
 
-.variable-display-name:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-}
-
 .variable-desc {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    padding: 3px 5px;
-    font-size: 11px;
-    color: #333;
-    transition: border-color 0.2s;
     flex: 1;
-}
-
-.variable-name:focus,
-.variable-desc:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* 变量兼容变量名输入框样式 */
 .variable-compatible-names {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    padding: 3px 5px;
-    font-size: 11px;
-    color: #333;
     font-family: monospace;
-    transition: border-color 0.2s;
     min-width: 120px;
     flex: 1;
 }
 
-.variable-compatible-names:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-}
+/* Focus states are inherited from base input styles */
 
 /* 变量操作按钮 */
 .variable-actions {
