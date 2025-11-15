@@ -75,7 +75,7 @@ export function extractModulesFromChatHistory(moduleRegex, chatArray = null, sta
                 };
 
                 extractedModules.push(moduleData);
-                debugLog(`在第${index}条消息中发现模块:`, moduleData);
+                // debugLog(`在第${index}条消息中发现模块:`, moduleData);
             });
         }
 
