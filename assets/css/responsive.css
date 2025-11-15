@@ -75,7 +75,7 @@
     }
     
     /* 模块名称输入框响应式 */
-    .module-name {
+    #continuity-module-config-window .module-name {
         width: 100px;
         font-size: 12px;
     }
@@ -108,7 +108,7 @@
         padding: 3px 5px;
     }
     
-    .module-name {
+    #continuity-module-config-window .module-name {
         width: 100px;
     }
     
