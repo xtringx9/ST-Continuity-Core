@@ -13,21 +13,25 @@
 
     <!-- 提取模块页面 -->
     <div id="extract-tab" class="tab-content active">
-        <div class="extract-module-section">
+        <!-- 提取模块区域 -->
+        <div class="module-extract-section">
+            <div class="section-title">
+                <h3>提取模块</h3>
+            </div>
             <div class="extract-content">
-                <div class="extract-description">
+                <!-- <div class="extract-description">
                     <p>从对话中提取Continuity模块。点击下方按钮开始提取。</p>
-                </div>
+                </div> -->
                 <div class="extract-actions">
                     <div class="floor-range-group">
                         <input type="number" id="start-floor-input" class="floor-input" min="1" placeholder="起始楼层">
                         <span class="range-separator">-</span>
                         <input type="number" id="end-floor-input" class="floor-input" min="1" placeholder="结束楼层">
-                        <button id="extract-modules-btn" class="primary-btn">提取模块</button>
+                        <button id="extract-modules-btn" class="btn-small">提取楼层范围模块</button>
                     </div>
-                    <div class="floor-input-group">
+                    <div class="floor-range-group">
                         <input type="number" id="floor-input" class="floor-input" min="1" placeholder="输入楼层号">
-                        <button id="show-floor-btn" class="primary-btn">显示楼层内容</button>
+                        <button id="show-floor-btn" class="btn-small">显示楼层消息内容</button>
                     </div>
                 </div>
                 <div class="extract-results">

@@ -190,6 +190,7 @@
     margin-top: 4px;
 }
 
+#continuity-module-config-window .floor-input,
 #continuity-module-config-window .module-item-min,
 #continuity-module-config-window .module-item-specified {
     padding: 1px 4px;
@@ -716,6 +717,27 @@
     margin: 0;
 }
 
+/* 提取模块区域样式 */
+#continuity-module-config-window .module-extract-section {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#continuity-module-config-window .module-extract-section .section-title {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+}
+
+#continuity-module-config-window .module-extract-section .section-title h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+}
+
 /* 楼层范围输入样式 */
 .floor-range-group {
     display: flex;
@@ -723,14 +745,24 @@
     gap: 5px;
 }
 
-#start-floor-input, #end-floor-input {
+#start-floor-input,
+#end-floor-input,
+#floor-input {
     width: 60px;
     padding: 5px;
-    border: 1px solid #ddd;
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
 }
 
-.floor-range-separator {
-    color: #666;
+#start-floor-input::placeholder,
+#end-floor-input::placeholder,
+#floor-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.range-separator {
+    color: rgba(255, 255, 255, 0.7);
     font-weight: bold;
 }
