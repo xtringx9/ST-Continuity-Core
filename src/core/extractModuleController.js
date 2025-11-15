@@ -1,7 +1,8 @@
 // 提取模块控制器 - 独立管理提取模块功能
-import { debugLog, errorLog } from '../index.js';
+import { debugLog, errorLog, getModulesData } from '../index.js';
 import { chat } from '../index.js';
 import { ModuleExtractor } from './moduleExtractor.js';
+import { parseCompatibleNames } from '../modules/moduleParser.js';
 
 /**
  * 提取模块控制器类
@@ -15,8 +16,44 @@ export class ExtractModuleController {
      * 初始化提取模块功能
      */
     init() {
+        this.populateModuleSelect();
         this.bindExtractModuleButtonEvent();
         this.bindShowFloorContentEvent();
+
+        // 当切换到提取标签页时，重新填充模块下拉框
+        $('.tab-item[data-tab="extract"]').on('click', () => {
+            this.populateModuleSelect();
+        });
+    }
+
+    /**
+     * 填充模块选择下拉框
+     */
+    populateModuleSelect() {
+        try {
+            const moduleSelect = $('#module-select');
+            if (!moduleSelect.length) return;
+
+            // 清空下拉框，保留默认选项
+            moduleSelect.find('option:not(:first)').remove();
+
+            // 获取所有模块数据
+            const modulesData = getModulesData();
+
+            if (modulesData && modulesData.length > 0) {
+                modulesData.forEach(module => {
+                    // 添加模块到下拉框
+                    moduleSelect.append($('<option>', {
+                        value: module.name,
+                        text: module.name
+                    }));
+                });
+            }
+
+            debugLog('模块选择下拉框填充完成');
+        } catch (error) {
+            errorLog('填充模块选择下拉框失败:', error);
+        }
     }
 
     /**
@@ -53,6 +90,9 @@ export class ExtractModuleController {
             const startFloor = parseInt($('#start-floor-input').val().trim());
             const endFloor = parseInt($('#end-floor-input').val().trim());
 
+            // 获取选择的模块
+            const selectedModuleName = $('#module-select').val();
+
             // 转换为索引（楼层从1开始，索引从0开始）
             let startIndex = 0;
             let endIndex = null;
@@ -71,49 +111,46 @@ export class ExtractModuleController {
                 return;
             }
 
-            // 使用ModuleExtractor提取模块，指定范围
-            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex);
+            // 获取模块过滤条件
+            let moduleFilter = null;
+            if (selectedModuleName && selectedModuleName !== 'all') {
+                // 查找选中的模块配置
+                const modulesData = getModulesData();
+                const selectedModule = modulesData.find(module => module.name === selectedModuleName);
+
+                if (selectedModule) {
+                    moduleFilter = {
+                        name: selectedModule.name,
+                        compatibleModuleNames: selectedModule.compatibleModuleNames
+                    };
+                }
+            }
+
+            // 使用ModuleExtractor提取模块，指定范围和过滤条件
+            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
 
             // 清空结果容器
             const resultsContainer = $('#extract-results-container');
             resultsContainer.empty();
 
             if (modules.length > 0) {
-                // 创建结果列表
-                const resultsList = $('<div class="modules-list"></div>');
+                // 合并并处理模块数据
+                const processedResult = this.processExtractedModules(modules, selectedModuleName);
 
-                modules.forEach((module, index) => {
-                    // 对模块内容进行HTML转义，确保标签显示为文本
-                    const escapedModuleContent = this.htmlEscape(module.raw);
-
-                    // 创建模块项
-                    const moduleItem = $(`
-                        <div class="extracted-module-item">
-                            <div class="module-header">
-                                <span class="module-index">模块 ${index + 1}</span>
-                                <button class="btn-small add-to-config-btn" data-module="${JSON.stringify(module).replace(/"/g, '&quot;')}">添加到配置</button>
-                            </div>
-                            <div class="module-content">
-                                <pre>${escapedModuleContent}</pre>
-                                <div class="module-info">
-                                    <p>消息索引：${module.messageIndex}</p>
-                                    <p>发送者：${module.speakerName}</p>
-                                </div>
-                            </div>
+                // 创建结果显示
+                const resultDisplay = $(`
+                    <div class="processed-module-result">
+                        <div class="module-header">
+                            <span class="module-index">处理结果</span>
                         </div>
-                    `);
+                        <div class="module-content">
+                            <pre>${this.htmlEscape(processedResult)}</pre>
+                        </div>
+                    </div>
+                `);
 
-                    resultsList.append(moduleItem);
-                });
-
-                resultsContainer.append(resultsList);
+                resultsContainer.append(resultDisplay);
                 debugLog(`提取模块成功，共发现 ${modules.length} 个模块`);
-
-                // 绑定添加到配置按钮事件
-                $('.add-to-config-btn').on('click', (e) => {
-                    const moduleData = JSON.parse($(e.currentTarget).data('module'));
-                    this.addToConfig(moduleData);
-                });
             } else {
                 resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
                 debugLog('提取模块完成，未发现模块');
@@ -122,6 +159,103 @@ export class ExtractModuleController {
             errorLog('提取模块失败:', error);
             toastr.error('提取模块失败，请查看控制台日志');
         }
+    }
+
+    /**
+     * 处理提取的模块数据
+     * @param {Array} modules 提取的模块数据数组
+     * @param {string} selectedModuleName 选择的模块名称
+     * @returns {string} 处理后的模块字符串
+     */
+    processExtractedModules(modules, selectedModuleName) {
+        // 查找选中的模块配置
+        const modulesData = getModulesData();
+        const selectedModule = modulesData.find(module => module.name === selectedModuleName);
+
+        if (!selectedModule) {
+            // 如果没有找到模块配置，直接返回所有模块的原始内容
+            return modules.map(module => module.raw).join('\n');
+        }
+
+        // 构建变量名映射（兼容变量名 -> 当前变量名）
+        const variableNameMap = {};
+
+        // 初始化映射表
+        selectedModule.variables.forEach(variable => {
+            // 当前变量名映射到自身
+            variableNameMap[variable.name] = variable.name;
+
+            // 兼容变量名映射到当前变量名
+            if (variable.compatibleVariableNames) {
+                const compatibleNamesArray = parseCompatibleNames(variable.compatibleVariableNames);
+                compatibleNamesArray.forEach(compatName => {
+                    variableNameMap[compatName.trim()] = variable.name;
+                });
+            }
+        });
+
+        // 处理每个模块并返回所有处理后的模块
+        const processedModules = modules.map(module => {
+            const raw = module.raw;
+
+            // 提取模块内容（去掉首尾的[]）
+            const content = raw.slice(1, -1);
+
+            // 分割模块名和变量
+            const parts = content.split('|');
+            if (parts.length < 2) return module.raw;
+
+            // 初始化当前模块的变量映射
+            const variablesMap = {};
+            selectedModule.variables.forEach(variable => {
+                variablesMap[variable.name] = '';
+            });
+
+            // 解析变量部分
+            for (let i = 1; i < parts.length; i++) {
+                const varPart = parts[i].trim();
+                // 使用更严格的解析，确保只在第一个冒号处分割
+                const colonIndex = varPart.indexOf(':');
+                if (colonIndex === -1) continue;
+
+                const varName = varPart.substring(0, colonIndex).trim();
+                const varValue = varPart.substring(colonIndex + 1).trim();
+
+                if (varName && varValue) {
+                    // 检查变量名是否在映射表中
+                    if (variableNameMap.hasOwnProperty(varName)) {
+                        const currentVarName = variableNameMap[varName];
+                        variablesMap[currentVarName] = varValue;
+                    } else {
+                        // 处理兼容变量名的精确匹配
+                        for (const [compatName, currentName] of Object.entries(variableNameMap)) {
+                            if (varName === compatName) {
+                                variablesMap[currentName] = varValue;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 构建当前模块的字符串
+            let moduleString = `[${selectedModule.name}`;
+
+            // 按照模块配置中的变量顺序添加变量
+            selectedModule.variables.forEach(variable => {
+                // 获取变量值
+                let varValue = variablesMap[variable.name];
+
+                moduleString += `|${variable.name}: ${varValue}`;
+            });
+
+            moduleString += ']';
+
+            return moduleString;
+        });
+
+        // 返回所有处理后的模块，用换行符分隔
+        return processedModules.join('\n');
     }
 
     /**
