@@ -201,42 +201,34 @@ export class ExtractModuleController {
             // 提取模块内容（去掉首尾的[]）
             const content = raw.slice(1, -1);
 
-            // 分割模块名和变量
-            const parts = content.split('|');
-            if (parts.length < 2) return module.raw;
-
-            // 初始化当前模块的变量映射
+            // 解析变量部分 - 支持嵌套模块
             const variablesMap = {};
             selectedModule.variables.forEach(variable => {
                 variablesMap[variable.name] = '';
             });
 
-            // 解析变量部分
-            for (let i = 1; i < parts.length; i++) {
-                const varPart = parts[i].trim();
-                // 使用更严格的解析，确保只在第一个冒号处分割
-                const colonIndex = varPart.indexOf(':');
-                if (colonIndex === -1) continue;
+            // 解析变量字符串
+            let lastPipePos = content.indexOf('|') + 1;
+            let inNestedModule = 0;
 
-                const varName = varPart.substring(0, colonIndex).trim();
-                const varValue = varPart.substring(colonIndex + 1).trim();
+            for (let i = lastPipePos; i < content.length; i++) {
+                const char = content[i];
 
-                if (varName && varValue) {
-                    // 检查变量名是否在映射表中
-                    if (variableNameMap.hasOwnProperty(varName)) {
-                        const currentVarName = variableNameMap[varName];
-                        variablesMap[currentVarName] = varValue;
-                    } else {
-                        // 处理兼容变量名的精确匹配
-                        for (const [compatName, currentName] of Object.entries(variableNameMap)) {
-                            if (varName === compatName) {
-                                variablesMap[currentName] = varValue;
-                                break;
-                            }
-                        }
-                    }
+                if (char === '[') {
+                    inNestedModule++;
+                } else if (char === ']') {
+                    inNestedModule--;
+                } else if (char === '|' && inNestedModule === 0) {
+                    // 只在顶级管道符处分割
+                    const varPart = content.substring(lastPipePos, i).trim();
+                    this.parseSingleVariableInProcess(varPart, variablesMap, variableNameMap);
+                    lastPipePos = i + 1;
                 }
             }
+
+            // 处理最后一个变量部分
+            const lastPart = content.substring(lastPipePos).trim();
+            this.parseSingleVariableInProcess(lastPart, variablesMap, variableNameMap);
 
             // 构建当前模块的字符串
             let moduleString = `[${selectedModule.name}`;
@@ -246,7 +238,7 @@ export class ExtractModuleController {
                 // 获取变量值
                 let varValue = variablesMap[variable.name];
 
-                moduleString += `|${variable.name}: ${varValue}`;
+                moduleString += `|${variable.name}:${varValue}`;
             });
 
             moduleString += ']';
@@ -256,6 +248,54 @@ export class ExtractModuleController {
 
         // 返回所有处理后的模块，用换行符分隔
         return processedModules.join('\n');
+    }
+
+    /**
+     * 解析单个变量部分，支持嵌套模块
+     * @param {string} part 单个变量部分，如 "own:所属人"
+     * @param {Object} variablesMap 变量映射表
+     * @param {Object} variableNameMap 变量名映射表（兼容变量名 -> 当前变量名）
+     */
+    parseSingleVariableInProcess(part, variablesMap, variableNameMap) {
+        if (!part) return;
+
+        let colonIndex = -1;
+        let inNestedModule = 0;
+
+        // 找到第一个顶级冒号
+        for (let i = 0; i < part.length; i++) {
+            const char = part[i];
+
+            if (char === '[') {
+                inNestedModule++;
+            } else if (char === ']') {
+                inNestedModule--;
+            } else if (char === ':' && inNestedModule === 0) {
+                colonIndex = i;
+                break;
+            }
+        }
+
+        if (colonIndex === -1) return;
+
+        const varName = part.substring(0, colonIndex).trim();
+        const varValue = part.substring(colonIndex + 1).trim();
+
+        if (varName && varValue) {
+            // 检查变量名是否在映射表中
+            if (variableNameMap.hasOwnProperty(varName)) {
+                const currentVarName = variableNameMap[varName];
+                variablesMap[currentVarName] = varValue;
+            } else {
+                // 处理兼容变量名的精确匹配
+                for (const [compatName, currentName] of Object.entries(variableNameMap)) {
+                    if (varName === compatName) {
+                        variablesMap[currentName] = varValue;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /**

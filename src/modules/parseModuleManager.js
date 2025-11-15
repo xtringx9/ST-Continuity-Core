@@ -3,6 +3,7 @@ import { debugLog, errorLog, infoLog, updateModulePreview, bindVariableEvents } 
 import { parseModuleString, validateModuleString } from "./moduleParser.js";
 import { getVariableItemTemplate } from "./templateManager.js";
 import { addModule } from "./moduleManager.js";
+import { loadModuleConfigFromExtension } from "./moduleStorageManager.js";
 
 /**
  * 初始化模块解析功能
@@ -62,21 +63,18 @@ function addParseAreaEvents() {
 /**
  * 批量解析多个模块
  */
-function parseMultipleModules() {
+/**
+ * 批量解析模块字符串并更新模块配置
+ * @param {string} inputText 要解析的模块字符串
+ * @param {Array} existingModules 现有的模块配置数组
+ * @returns {Array} 更新后的模块配置数组
+ */
+export function parseMultipleModules(inputText, existingModules = []) {
     debugLog('开始批量解析模块');
 
-    // 获取解析输入框内容
-    const parseInput = document.getElementById('module-parse-input');
-    if (!parseInput) {
-        errorLog('未找到模块解析输入框');
-        toastr.error('未找到解析输入框');
-        return;
-    }
-
-    const inputText = parseInput.value.trim();
-    if (!inputText) {
+    if (!inputText || inputText.trim() === '') {
         toastr.warning('请输入要解析的模块字符串');
-        return;
+        return existingModules;
     }
 
     debugLog(`输入文本: ${inputText}`);
@@ -87,7 +85,7 @@ function parseMultipleModules() {
 
     if (!moduleMatches || moduleMatches.length === 0) {
         toastr.error('未找到有效的模块格式字符串');
-        return;
+        return existingModules;
     }
 
     const moduleMap = new Map(); // 用于去重，同模块名视为同一个模块
@@ -120,7 +118,7 @@ function parseMultipleModules() {
 
     if (moduleMap.size === 0) {
         toastr.error('未找到有效的模块格式字符串');
-        return;
+        return existingModules;
     }
 
     debugLog(`找到 ${moduleMap.size} 个不同的模块`);
@@ -128,24 +126,23 @@ function parseMultipleModules() {
     // 创建或更新模块
     let createdCount = 0;
     let updatedCount = 0;
+    const updatedModules = [...existingModules];
 
     moduleMap.forEach((parsedModule, moduleName) => {
         // 查找是否已存在同名模块
-        const existingModule = findModuleByName(moduleName);
+        const existingModuleIndex = updatedModules.findIndex(module => module.name === moduleName);
 
-        if (existingModule) {
+        if (existingModuleIndex !== -1) {
             // 更新现有模块
-            updateModuleFromParse(existingModule, parsedModule);
+            updatedModules[existingModuleIndex] = updateModuleFromParse(updatedModules[existingModuleIndex], parsedModule);
             updatedCount++;
         } else {
             // 创建新模块
-            createModuleFromParse(parsedModule);
+            const newModule = createModuleFromParse(parsedModule);
+            updatedModules.push(newModule);
             createdCount++;
         }
     });
-
-    // 清空输入框
-    parseInput.value = '';
 
     // 显示结果（使用info而不是success，避免覆盖单个模块的success提示）
     let message = `成功解析并处理了 ${moduleMap.size} 个模块`;
@@ -157,49 +154,69 @@ function parseMultipleModules() {
     }
 
     toastr.info(message);
+    return updatedModules;
     infoLog(message);
 }
 
 /**
  * 根据模块名查找现有模块
  * @param {string} moduleName 模块名
- * @returns {HTMLElement|null} 模块元素或null
+ * @returns {Object|null} 模块配置对象或null
  */
 function findModuleByName(moduleName) {
-    const moduleItems = document.querySelectorAll('.module-item');
-    for (const moduleItem of moduleItems) {
-        const nameInput = moduleItem.querySelector('.module-name');
-        const compatibleNamesInput = moduleItem.querySelector('.module-compatible-names');
+    // 完全基于JSON配置查找模块
+    return findModuleInConfigByName(moduleName);
+}
+
+/**
+ * 根据模块名从JSON配置中查找模块
+ * @param {string} moduleName 模块名
+ * @returns {Object|null} 模块配置对象或null
+ */
+function findModuleInConfigByName(moduleName) {
+    try {
+        const config = loadModuleConfigFromExtension();
+        if (!config || !Array.isArray(config)) return null;
 
         // 检查模块名是否匹配
-        if (nameInput && nameInput.value === moduleName) {
-            return moduleItem;
-        }
+        const exactMatch = config.find(module => module.name === moduleName);
+        if (exactMatch) return exactMatch;
 
         // 检查兼容模块名是否匹配
-        if (compatibleNamesInput && compatibleNamesInput.value) {
-            const compatibleNames = compatibleNamesInput.value.split(/[,，\s]+/).filter(name => name.trim());
-            if (compatibleNames.includes(moduleName)) {
-                return moduleItem;
-            }
-        }
+        return config.find(module => {
+            if (!module.compatibleModuleNames) return false;
+            const compatibleNames = module.compatibleModuleNames.split(/[,，\s]+/).filter(name => name.trim());
+            return compatibleNames.includes(moduleName);
+        });
+    } catch (error) {
+        errorLog('从配置中查找模块失败:', error);
+        return null;
     }
-    return null;
 }
 
 /**
  * 从解析结果创建新模块
  * @param {Object} parsedModule 解析后的模块对象
  */
-function createModuleFromParse(parsedModule) {
+/**
+ * 从解析结果创建新模块配置
+ * @param {Object} parsedModule 解析后的模块对象
+ * @returns {Object} 新模块配置
+ */
+export function createModuleFromParse(parsedModule) {
     debugLog(`创建新模块: ${parsedModule.name}`);
 
-    // 添加新模块
-    const newModuleElement = addModule();
-    const moduleItem = newModuleElement.find('.module-item');
+    // 创建新模块配置对象
+    const newModuleConfig = {
+        name: parsedModule.name,
+        displayName: parsedModule.displayName || parsedModule.name,
+        enabled: true,
+        outputMode: 'full', // 默认输出模式
+        variables: parsedModule.variables || []
+    };
 
-    // 填充模块数据
-    fillModuleFromParse(moduleItem, parsedModule);
+    // 返回新创建的模块配置
+    return newModuleConfig;
 }
 
 /**
@@ -207,52 +224,79 @@ function createModuleFromParse(parsedModule) {
  * @param {HTMLElement} moduleItem 模块项元素
  * @param {Object} parsedModule 解析后的模块对象
  */
-function updateModuleFromParse(moduleItem, parsedModule) {
+/**
+ * 更新现有模块配置
+ * @param {Object} moduleConfig 模块配置对象
+ * @param {Object} parsedModule 解析后的模块对象
+ * @returns {Object} 更新后的模块配置
+ */
+export function updateModuleFromParse(moduleConfig, parsedModule) {
     debugLog(`更新现有模块: ${parsedModule.name}`);
-
-    // 将HTMLElement转换为jQuery对象
-    const moduleItemJQ = $(moduleItem);
-
-    // 填充模块数据
-    fillModuleFromParse(moduleItemJQ, parsedModule);
+    return fillModuleFromParse(moduleConfig, parsedModule);
 }
 
 /**
- * 从解析结果填充模块数据
- * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
+ * 从解析结果填充模块配置
+ * @param {Object} moduleConfig 模块配置对象
  * @param {Object} parsedModule 解析后的模块对象
+ * @returns {Object} 更新后的模块配置
  */
-function fillModuleFromParse(moduleItem, parsedModule) {
+export function fillModuleFromParse(moduleConfig, parsedModule) {
+    // 创建模块配置的副本，避免直接修改原对象
+    const updatedModule = { ...moduleConfig };
+
     // 设置模块名称
-    const moduleNameInput = moduleItem.find('.module-name');
-    if (moduleNameInput.length > 0) {
-        moduleNameInput.val(parsedModule.name);
-    }
+    updatedModule.name = parsedModule.name;
 
     let updatedVariables = 0;
     let addedVariables = 0;
 
-    // 添加解析出的变量（不清空现有变量，避免重复添加）
+    // 获取模块的输出模式，默认使用full
+    const outputMode = updatedModule.outputMode || 'full';
+
+    // 确保variables数组存在
+    if (!updatedModule.variables) {
+        updatedModule.variables = [];
+    }
+
+    // 添加解析出的变量
     if (parsedModule.variables && parsedModule.variables.length > 0) {
         parsedModule.variables.forEach(variable => {
             // 检查是否已存在同名变量
-            const existingVariable = findVariableByName(moduleItem, variable.name);
-            if (existingVariable) {
-                updatedVariables++;
+            const existingVariableIndex = updatedModule.variables.findIndex(v => v.name === variable.name);
+
+            // 处理增量更新模式
+            if (outputMode === 'incremental') {
+                // 查找具有相同标识符的变量
+                const variableWithSameIdentifierIndex = updatedModule.variables.findIndex(v =>
+                    v.identifier === variable.identifier
+                );
+                if (variableWithSameIdentifierIndex !== -1) {
+                    // 更新现有变量的内容
+                    updatedModule.variables[variableWithSameIdentifierIndex] = {
+                        ...updatedModule.variables[variableWithSameIdentifierIndex],
+                        ...variable
+                    };
+                    updatedVariables++;
+                } else {
+                    // 添加新变量
+                    updatedModule.variables.push(variable);
+                    addedVariables++;
+                }
             } else {
-                addedVariables++;
+                // 全量更新模式
+                if (existingVariableIndex !== -1) {
+                    // 更新现有变量
+                    updatedModule.variables[existingVariableIndex] = variable;
+                    updatedVariables++;
+                } else {
+                    // 添加新变量
+                    updatedModule.variables.push(variable);
+                    addedVariables++;
+                }
             }
-            addVariableFromParse(moduleItem, variable);
         });
     }
-
-    // 强制更新模块预览
-    if (updateModulePreview) {
-        updateModulePreview(moduleItem);
-    }
-
-    // 更新变量数量显示
-    updateVariableCountDisplay(moduleItem);
 
     // 显示成功提示
     let message = `成功更新模块 "${parsedModule.name}"`;
@@ -267,6 +311,7 @@ function fillModuleFromParse(moduleItem, parsedModule) {
     }
 
     toastr.success(message);
+    return updatedModule;
 
     debugLog(`成功填充模块: ${parsedModule.name}`);
 }
@@ -330,33 +375,117 @@ function parseModuleFromInput(moduleItem) {
 
 /**
  * 在模块中根据变量名查找变量
- * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
+ * @param {Object} moduleConfig 模块配置对象
  * @param {string} variableName 变量名
- * @returns {JQuery<HTMLElement>|null} 变量项jQuery对象或null
+ * @returns {Object|null} 变量配置对象或null
  */
-function findVariableByName(moduleItem, variableName) {
-    const variableItems = moduleItem.find('.variable-item');
+function findVariableByName(moduleConfig, variableName) {
+    // 完全基于JSON配置查找变量
+    return findVariableInConfigByName(moduleConfig, variableName);
+}
 
-    for (let i = 0; i < variableItems.length; i++) {
-        const variableItem = $(variableItems[i]);
-        const nameInput = variableItem.find('.variable-name');
-        const compatibleNamesInput = variableItem.find('.variable-compatible-names');
+/**
+ * 在模块配置中根据变量名查找变量
+ * @param {Object} moduleConfig 模块配置对象
+ * @param {string} variableName 变量名
+ * @returns {Object|null} 变量配置对象或null
+ */
+function findVariableInConfigByName(moduleConfig, variableName) {
+    try {
+        if (!moduleConfig || !moduleConfig.variables || !Array.isArray(moduleConfig.variables)) return null;
 
         // 检查变量名是否匹配
-        if (nameInput.length > 0 && nameInput.val() === variableName) {
-            return variableItem;
-        }
+        const exactMatch = moduleConfig.variables.find(variable => variable.name === variableName);
+        if (exactMatch) return exactMatch;
 
         // 检查兼容变量名是否匹配
-        if (compatibleNamesInput.length > 0 && compatibleNamesInput.val()) {
-            const compatibleNames = compatibleNamesInput.val().split(/[,，\s]+/).filter(name => name.trim());
-            if (compatibleNames.includes(variableName)) {
-                return variableItem;
+        return moduleConfig.variables.find(variable => {
+            if (!variable.compatibleVariableNames) return false;
+            const compatibleNames = variable.compatibleVariableNames.split(/[,，\s]+/).filter(name => name.trim());
+            return compatibleNames.includes(variableName);
+        });
+    } catch (error) {
+        errorLog('从配置中查找变量失败:', error);
+        return null;
+    }
+}
+
+/**
+ * 查找具有相同标识符变量内容的条目
+ * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
+ * @param {Object} parsedModule 解析后的模块对象
+ * @returns {JQuery<HTMLElement>|null} 找到的变量项jQuery对象或null
+ */
+function findVariableByIdentifierContent(moduleItem, parsedModule) {
+    const variableItems = moduleItem.find('.variable-item');
+
+    // 获取当前模块的所有标识符变量
+    const identifierVariables = moduleItem.find('.variable-is-identifier').filter((index, elem) => $(elem).val() === 'true');
+
+    // 如果没有标识符变量，则不进行特殊处理
+    if (identifierVariables.length === 0) {
+        return null;
+    }
+
+    // 遍历所有变量项
+    for (let i = 0; i < variableItems.length; i++) {
+        const variableItem = $(variableItems[i]);
+        let allIdentifiersMatch = true;
+
+        // 检查所有标识符变量的内容是否都匹配
+        identifierVariables.each((index, identifierInput) => {
+            const identifierVariable = $(identifierInput).closest('.variable-item');
+            const identifierVariableName = identifierVariable.find('.variable-name').val();
+
+            // 找到当前变量项中对应的标识符变量
+            const currentIdentifierVariable = variableItem.find('.variable-name').filter((idx, elem) => $(elem).val() === identifierVariableName);
+            if (currentIdentifierVariable.length === 0) {
+                allIdentifiersMatch = false;
+                return false; // 退出each循环
             }
+
+            // 检查标识符变量的内容是否匹配
+            const currentIdentifierDesc = currentIdentifierVariable.closest('.variable-item').find('.variable-desc').val();
+
+            // 从整个parsedModule中查找对应标识符变量的内容
+            const newIdentifier = parsedModule.variables.find(v => v.name === identifierVariableName);
+            const newIdentifierValue = newIdentifier ? newIdentifier.description : null;
+
+            // 如果在新变量中找不到对应的标识符变量内容，或者内容不匹配，则认为不匹配
+            if (!newIdentifierValue || currentIdentifierDesc !== newIdentifierValue) {
+                allIdentifiersMatch = false;
+                return false; // 退出each循环
+            }
+        });
+
+        if (allIdentifiersMatch) {
+            return variableItem;
         }
     }
 
     return null;
+}
+
+/**
+ * 更新现有变量的内容
+ * @param {JQuery<HTMLElement>} existingVariable 现有变量项jQuery对象
+ * @param {Object} newVariable 新变量对象
+ */
+function updateVariableContent(existingVariable, newVariable) {
+    // 更新变量描述
+    const descriptionInput = existingVariable.find('.variable-desc');
+    if (descriptionInput.length > 0) {
+        descriptionInput.val(newVariable.description);
+
+        // 触发输入事件以更新预览
+        const inputEvent = new Event('input', { bubbles: true });
+        descriptionInput[0].dispatchEvent(inputEvent);
+
+        // 强制刷新UI显示
+        descriptionInput.trigger('change');
+
+        debugLog(`变量内容已更新: ${newVariable.name} -> ${newVariable.description}`);
+    }
 }
 
 /**
