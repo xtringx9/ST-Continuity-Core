@@ -49,8 +49,30 @@ export class ExtractModuleController {
         try {
             debugLog('开始提取模块功能');
 
-            // 使用ModuleExtractor提取模块
-            const modules = this.moduleExtractor.extractModulesFromChat();
+            // 获取用户输入的楼层范围
+            const startFloor = parseInt($('#start-floor-input').val().trim());
+            const endFloor = parseInt($('#end-floor-input').val().trim());
+
+            // 转换为索引（楼层从1开始，索引从0开始）
+            let startIndex = 0;
+            let endIndex = null;
+
+            if (!isNaN(startFloor) && startFloor >= 1) {
+                startIndex = startFloor - 1;
+            }
+
+            if (!isNaN(endFloor) && endFloor >= 1) {
+                endIndex = endFloor - 1;
+            }
+
+            // 确保起始索引不大于结束索引
+            if (endIndex !== null && startIndex > endIndex) {
+                toastr.warning('起始楼层不能大于结束楼层');
+                return;
+            }
+
+            // 使用ModuleExtractor提取模块，指定范围
+            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex);
 
             // 清空结果容器
             const resultsContainer = $('#extract-results-container');

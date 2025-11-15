@@ -4,13 +4,13 @@
         <h2>Continuity 模块面板</h2>
         <button id="continuity-window-close" class="close-btn">✕</button>
     </div>
-    
+
     <!-- 分页标签 -->
     <div class="tab-container">
         <div class="tab-item active" data-tab="extract">提取模块</div>
         <div class="tab-item" data-tab="config">模块配置</div>
     </div>
-    
+
     <!-- 提取模块页面 -->
     <div id="extract-tab" class="tab-content active">
         <div class="extract-module-section">
@@ -19,7 +19,12 @@
                     <p>从对话中提取Continuity模块。点击下方按钮开始提取。</p>
                 </div>
                 <div class="extract-actions">
-                    <button id="extract-modules-btn" class="primary-btn">提取模块</button>
+                    <div class="floor-range-group">
+                        <input type="number" id="start-floor-input" class="floor-input" min="1" placeholder="起始楼层">
+                        <span class="range-separator">-</span>
+                        <input type="number" id="end-floor-input" class="floor-input" min="1" placeholder="结束楼层">
+                        <button id="extract-modules-btn" class="primary-btn">提取模块</button>
+                    </div>
                     <div class="floor-input-group">
                         <input type="number" id="floor-input" class="floor-input" min="1" placeholder="输入楼层号">
                         <button id="show-floor-btn" class="primary-btn">显示楼层内容</button>
@@ -33,10 +38,10 @@
             </div>
         </div>
     </div>
-    
+
     <!-- 模块配置页面 -->
     <div id="config-tab" class="tab-content">
-    <!--
+        <!--
     <div class="info-section">
         <p><strong>配置说明：</strong>在此页面可自定义模块，每个模块可设置名称、变量和变量解释。</p>
         <div class="example">
@@ -45,250 +50,250 @@
         </div>
     </div> -->
 
-    <!-- 设置区域 -->
-    <div class="settings-section">
-        <div class="section-title">
-            <h3>设置</h3>
-        </div>
-
-        <div class="settings-content">
-            <div class="setting-group">
-                <div class="flex-container">
-                    <input id="auto-inject-toggle" type="checkbox" />
-                    <label for="auto-inject-toggle">自动注入提示词</label>
-                </div>
+        <!-- 设置区域 -->
+        <div class="settings-section">
+            <div class="section-title">
+                <h3>设置</h3>
             </div>
 
-            <div id="injection-settings" class="injection-settings">
+            <div class="settings-content">
                 <div class="setting-group">
-                    <div class="inline-settings-row">
-                        <div class="setting-item">
-                            <label for="insertion-role">插入角色</label>
-                            <select id="insertion-role" class="role-select">
-                                <option value="system">系统 (⚙️)</option>
-                                <option value="user">用户 (👤)</option>
-                                <option value="assistant">助手 (🤖)</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <label for="insertion-depth">插入深度</label>
-                            <input type="number" id="insertion-depth" class="depth-input" min="0" max="10" value="1"
-                                title="0 = 最后一条消息之后，1 = 最后一条消息之前，以此类推">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 核心原则提示词设置 -->
-            <div class="setting-group">
-                <div class="setting-item">
-                    <label for="core-principles-input">核心原则提示词</label>
-                    <textarea id="core-principles-input" class="prompt-textarea"
-                        placeholder="输入核心原则提示词，用于指导模型遵循的核心原则和价值观"></textarea>
-                </div>
-            </div>
-
-            <!-- 通用格式描述提示词设置 -->
-            <div class="setting-group">
-                <div class="setting-item">
-                    <label for="format-description-input">通用格式描述提示词</label>
-                    <textarea id="format-description-input" class="prompt-textarea"
-                        placeholder="输入通用格式描述提示词，用于描述模块的标准格式和结构"></textarea>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 提示词预览区域 -->
-    <div class="prompt-preview-section">
-        <div class="section-title">
-            <h3>提示词预览</h3>
-            <div class="header-actions">
-                <button id="toggle-preview-btn" class="btn-small">
-                    <span class="toggle-arrow">▶</span> 展开预览
-                </button>
-                <button id="update-prompt-btn" class="btn-small">更新提示词</button>
-                <button id="copy-prompt-btn" class="btn-small">复制提示词</button>
-            </div>
-        </div>
-
-        <div id="prompt-preview-content" class="preview-content" style="display: none;">
-            <div class="preview-section">
-                <div class="preview-mode-selector">
-                    <label for="preview-mode-select">预览模式：</label>
-                    <select id="preview-mode-select" class="preview-mode-select">
-                        <option value="macro">{{CONTINUITY_PROMPT}} 宏</option>
-                        <option value="macro-config">{{CONTINUITY_CONFIG}} 宏</option>
-                        <option value="macro-modules">{{CONTINUITY_MODULES}} 宏</option>
-                        <option value="macro-order">{{CONTINUITY_ORDER}} 宏</option>
-                        <option value="macro-usage-guide">{{CONTINUITY_USAGE_GUIDE}} 宏</option>
-                    </select>
-                    <button id="copy-macro-btn" class="btn-small copy-macro-btn" title="复制当前宏">复制宏</button>
-                </div>
-                <textarea id="prompt-preview-textarea" class="prompt-preview-textarea" readonly></textarea>
-            </div>
-        </div>
-    </div>
-
-    <!-- 模块解析区域 -->
-    <div class="module-parse-section">
-        <div class="section-title">
-            <h3>快速解析模块</h3>
-        </div>
-        <div class="parse-content">
-            <div class="parse-input-group">
-                <input type="text" id="module-parse-input" class="module-parse-input"
-                    placeholder="输入模块格式，如：[item|own:所属人|loc:当前位置]" />
-                <button id="parse-modules-btn" class="parse-modules-btn">解析</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="custom-modules-container">
-        <div class="section-title">
-            <h3>自定义模块</h3>
-            <div class="header-actions">
-                <button id="import-config-btn" class="btn-small">导入JSON</button>
-                <button id="export-config-btn" class="btn-small">导出JSON</button>
-                <button id="add-module-btn" class="btn-small">
-                    <span>+</span> 添加模块
-                </button>
-            </div>
-        </div>
-
-        <!-- 模块模板（默认隐藏） -->
-        <div class="module-template" style="display: none;">
-            <div class="module-item">
-                <div class="module-header">
-                    <div class="module-header-left">
-                        <label class="module-toggle">
-                            <input type="checkbox" class="module-enabled-toggle" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <div class="module-name-group">
-                            <button class="module-toggle-expand-btn" title="展开/折叠模块">
-                                <span class="module-order-number"></span>
-                            </button>
-                            <label>模块名</label>
-                            <input type="text" class="module-name" placeholder="模块名">
-                            <input type="text" class="module-display-name" placeholder="显示名">
-                            <div class="module-compatible-group">
-                                <label>兼容</label>
-                                <input type="text" class="module-compatible-names" placeholder="兼容模块名A,兼容模块名B,...">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="module-actions">
-                        <button class="btn-small add-variable">+ 添加变量</button>
-                        <button class="btn-small remove-module">- 删除模块</button>
-                        <button class="btn-small drag-handle" title="拖拽移动模块">⋮⋮</button>
+                    <div class="flex-container">
+                        <input id="auto-inject-toggle" type="checkbox" />
+                        <label for="auto-inject-toggle">自动注入提示词</label>
                     </div>
                 </div>
 
-                <!-- 模块设置行 - 生成位置、数量限制、输出模式和展开变量按钮 -->
-                <div class="module-settings-row">
-                    <div class="module-settings-inline">
-                        <div class="module-setting-item">
-                            <label>生成位置</label>
-                            <select class="module-output-position">
-                                <option value="after_body">正文后输出</option>
-                                <option value="body">正文内输出</option>
-                                <option value="specific_position">正文内特定位置</option>
-                                <option value="embedded">可嵌入</option>
-                            </select>
-                            <input type="text" class="module-position-prompt form-control" placeholder="顺序提示词"
-                                style="display: none;">
-                        </div>
-                        <div class="module-setting-item">
-                            <label>生成数量</label>
-                            <div class="range-mode-group">
-                                <select class="module-range-mode">
-                                    <option value="specified">指定数量</option>
-                                    <option value="unlimited">无限制</option>
-                                    <option value="range">指定范围</option>
+                <div id="injection-settings" class="injection-settings">
+                    <div class="setting-group">
+                        <div class="inline-settings-row">
+                            <div class="setting-item">
+                                <label for="insertion-role">插入角色</label>
+                                <select id="insertion-role" class="role-select">
+                                    <option value="system">系统 (⚙️)</option>
+                                    <option value="user">用户 (👤)</option>
+                                    <option value="assistant">助手 (🤖)</option>
                                 </select>
                             </div>
-                            <div class="range-input-group" style="display: none;">
-                                <input type="number" class="module-item-min" min="0" value="0" placeholder="最小"
-                                    title="最小数量">
-                                <span class="range-separator">-</span>
-                                <input type="number" class="module-item-specified" min="0" value="1" placeholder="数量"
-                                    title="指定数量">
-                            </div>
-                        </div>
-                        <div class="module-setting-item">
-                            <label>输出模式</label>
-                            <select class="module-output-mode">
-                                <option value="full">全量输出</option>
-                                <option value="incremental">增量更新</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="module-actions-right">
-                        <button class="btn-small toggle-variables"><span class="arrow">▶</span><span
-                                class="text">展开变量</span><span class="variable-count">(0)</span></button>
-                    </div>
-                </div>
-
-                <div class="variables-container-wrapper">
-                    <div class="variables-container">
-                        <!-- 变量模板 -->
-                        <div class="variable-template" style="display: none;">
-                            <div class="variable-item">
-                                <div class="variable-order-group">
-                                    <span class="variable-order-number"></span>
-                                    <button class="btn-small variable-drag-handle" title="拖拽移动变量">⋮⋮</button>
-                                </div>
-                                <div class="variable-name-group">
-                                    <label>变量名</label>
-                                    <input type="text" class="variable-name" placeholder="变量名">
-                                    <input type="text" class="variable-display-name" placeholder="显示名">
-                                </div>
-                                <div class="variable-desc-group">
-                                    <label>描述</label>
-                                    <input type="text" class="variable-desc" placeholder="变量描述">
-                                    <div class="variable-compatible-group">
-                                        <label>兼容</label>
-                                        <input type="text" class="variable-compatible-names"
-                                            placeholder="兼容变量名A,兼容变量名B,...">
-                                    </div>
-                                </div>
-                                <div class="variable-actions">
-                                    <button class="btn-small remove-variable">-</button>
-                                </div>
+                            <div class="setting-item">
+                                <label for="insertion-depth">插入深度</label>
+                                <input type="number" id="insertion-depth" class="depth-input" min="0" max="10" value="1"
+                                    title="0 = 最后一条消息之后，1 = 最后一条消息之前，以此类推">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="module-prompt">
-                    <label>生成的时机</label>
-                    <textarea class="module-timing-prompt-input" placeholder="输入生成时机提示词，用于指导模型何时生成此模块内容"></textarea>
+                <!-- 核心原则提示词设置 -->
+                <div class="setting-group">
+                    <div class="setting-item">
+                        <label for="core-principles-input">核心原则提示词</label>
+                        <textarea id="core-principles-input" class="prompt-textarea"
+                            placeholder="输入核心原则提示词，用于指导模型遵循的核心原则和价值观"></textarea>
+                    </div>
                 </div>
 
-                <div class="module-prompt">
-                    <label>生成提示词</label>
-                    <textarea class="module-prompt-input" placeholder="输入生成提示词，用于指导模型如何生成模块内容"></textarea>
-                </div>
-
-                <div class="module-prompt">
-                    <label>使用提示词</label>
-                    <textarea class="module-content-prompt-input" placeholder="输入使用提示词，用于指导模型如何使用此模块"></textarea>
-                </div>
-
-                <div class="module-preview">
-                    <label>格式预览</label>
-                    <input type="text" class="module-preview-text" readonly placeholder="[模块名|变量1:值1|变量2:值2...]" />
+                <!-- 通用格式描述提示词设置 -->
+                <div class="setting-group">
+                    <div class="setting-item">
+                        <label for="format-description-input">通用格式描述提示词</label>
+                        <textarea id="format-description-input" class="prompt-textarea"
+                            placeholder="输入通用格式描述提示词，用于描述模块的标准格式和结构"></textarea>
+                    </div>
                 </div>
             </div>
         </div>
 
+        <!-- 提示词预览区域 -->
+        <div class="prompt-preview-section">
+            <div class="section-title">
+                <h3>提示词预览</h3>
+                <div class="header-actions">
+                    <button id="toggle-preview-btn" class="btn-small">
+                        <span class="toggle-arrow">▶</span> 展开预览
+                    </button>
+                    <button id="update-prompt-btn" class="btn-small">更新提示词</button>
+                    <button id="copy-prompt-btn" class="btn-small">复制提示词</button>
+                </div>
+            </div>
 
-    </div>
+            <div id="prompt-preview-content" class="preview-content" style="display: none;">
+                <div class="preview-section">
+                    <div class="preview-mode-selector">
+                        <label for="preview-mode-select">预览模式：</label>
+                        <select id="preview-mode-select" class="preview-mode-select">
+                            <option value="macro">{{CONTINUITY_PROMPT}} 宏</option>
+                            <option value="macro-config">{{CONTINUITY_CONFIG}} 宏</option>
+                            <option value="macro-modules">{{CONTINUITY_MODULES}} 宏</option>
+                            <option value="macro-order">{{CONTINUITY_ORDER}} 宏</option>
+                            <option value="macro-usage-guide">{{CONTINUITY_USAGE_GUIDE}} 宏</option>
+                        </select>
+                        <button id="copy-macro-btn" class="btn-small copy-macro-btn" title="复制当前宏">复制宏</button>
+                    </div>
+                    <textarea id="prompt-preview-textarea" class="prompt-preview-textarea" readonly></textarea>
+                </div>
+            </div>
+        </div>
 
-    <div class="window-actions">
-        <button id="module-cancel-btn">取消</button>
-        <button id="module-save-btn">保存配置</button>
+        <!-- 模块解析区域 -->
+        <div class="module-parse-section">
+            <div class="section-title">
+                <h3>快速解析模块</h3>
+            </div>
+            <div class="parse-content">
+                <div class="parse-input-group">
+                    <input type="text" id="module-parse-input" class="module-parse-input"
+                        placeholder="输入模块格式，如：[item|own:所属人|loc:当前位置]" />
+                    <button id="parse-modules-btn" class="parse-modules-btn">解析</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="custom-modules-container">
+            <div class="section-title">
+                <h3>自定义模块</h3>
+                <div class="header-actions">
+                    <button id="import-config-btn" class="btn-small">导入JSON</button>
+                    <button id="export-config-btn" class="btn-small">导出JSON</button>
+                    <button id="add-module-btn" class="btn-small">
+                        <span>+</span> 添加模块
+                    </button>
+                </div>
+            </div>
+
+            <!-- 模块模板（默认隐藏） -->
+            <div class="module-template" style="display: none;">
+                <div class="module-item">
+                    <div class="module-header">
+                        <div class="module-header-left">
+                            <label class="module-toggle">
+                                <input type="checkbox" class="module-enabled-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <div class="module-name-group">
+                                <button class="module-toggle-expand-btn" title="展开/折叠模块">
+                                    <span class="module-order-number"></span>
+                                </button>
+                                <label>模块名</label>
+                                <input type="text" class="module-name" placeholder="模块名">
+                                <input type="text" class="module-display-name" placeholder="显示名">
+                                <div class="module-compatible-group">
+                                    <label>兼容</label>
+                                    <input type="text" class="module-compatible-names" placeholder="兼容模块名A,兼容模块名B,...">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="module-actions">
+                            <button class="btn-small add-variable">+ 添加变量</button>
+                            <button class="btn-small remove-module">- 删除模块</button>
+                            <button class="btn-small drag-handle" title="拖拽移动模块">⋮⋮</button>
+                        </div>
+                    </div>
+
+                    <!-- 模块设置行 - 生成位置、数量限制、输出模式和展开变量按钮 -->
+                    <div class="module-settings-row">
+                        <div class="module-settings-inline">
+                            <div class="module-setting-item">
+                                <label>生成位置</label>
+                                <select class="module-output-position">
+                                    <option value="after_body">正文后输出</option>
+                                    <option value="body">正文内输出</option>
+                                    <option value="specific_position">正文内特定位置</option>
+                                    <option value="embedded">可嵌入</option>
+                                </select>
+                                <input type="text" class="module-position-prompt form-control" placeholder="顺序提示词"
+                                    style="display: none;">
+                            </div>
+                            <div class="module-setting-item">
+                                <label>生成数量</label>
+                                <div class="range-mode-group">
+                                    <select class="module-range-mode">
+                                        <option value="specified">指定数量</option>
+                                        <option value="unlimited">无限制</option>
+                                        <option value="range">指定范围</option>
+                                    </select>
+                                </div>
+                                <div class="range-input-group" style="display: none;">
+                                    <input type="number" class="module-item-min" min="0" value="0" placeholder="最小"
+                                        title="最小数量">
+                                    <span class="range-separator">-</span>
+                                    <input type="number" class="module-item-specified" min="0" value="1"
+                                        placeholder="数量" title="指定数量">
+                                </div>
+                            </div>
+                            <div class="module-setting-item">
+                                <label>输出模式</label>
+                                <select class="module-output-mode">
+                                    <option value="full">全量输出</option>
+                                    <option value="incremental">增量更新</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="module-actions-right">
+                            <button class="btn-small toggle-variables"><span class="arrow">▶</span><span
+                                    class="text">展开变量</span><span class="variable-count">(0)</span></button>
+                        </div>
+                    </div>
+
+                    <div class="variables-container-wrapper">
+                        <div class="variables-container">
+                            <!-- 变量模板 -->
+                            <div class="variable-template" style="display: none;">
+                                <div class="variable-item">
+                                    <div class="variable-order-group">
+                                        <span class="variable-order-number"></span>
+                                        <button class="btn-small variable-drag-handle" title="拖拽移动变量">⋮⋮</button>
+                                    </div>
+                                    <div class="variable-name-group">
+                                        <label>变量名</label>
+                                        <input type="text" class="variable-name" placeholder="变量名">
+                                        <input type="text" class="variable-display-name" placeholder="显示名">
+                                    </div>
+                                    <div class="variable-desc-group">
+                                        <label>描述</label>
+                                        <input type="text" class="variable-desc" placeholder="变量描述">
+                                        <div class="variable-compatible-group">
+                                            <label>兼容</label>
+                                            <input type="text" class="variable-compatible-names"
+                                                placeholder="兼容变量名A,兼容变量名B,...">
+                                        </div>
+                                    </div>
+                                    <div class="variable-actions">
+                                        <button class="btn-small remove-variable">-</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="module-prompt">
+                        <label>生成的时机</label>
+                        <textarea class="module-timing-prompt-input" placeholder="输入生成时机提示词，用于指导模型何时生成此模块内容"></textarea>
+                    </div>
+
+                    <div class="module-prompt">
+                        <label>生成提示词</label>
+                        <textarea class="module-prompt-input" placeholder="输入生成提示词，用于指导模型如何生成模块内容"></textarea>
+                    </div>
+
+                    <div class="module-prompt">
+                        <label>使用提示词</label>
+                        <textarea class="module-content-prompt-input" placeholder="输入使用提示词，用于指导模型如何使用此模块"></textarea>
+                    </div>
+
+                    <div class="module-preview">
+                        <label>格式预览</label>
+                        <input type="text" class="module-preview-text" readonly placeholder="[模块名|变量1:值1|变量2:值2...]" />
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+
+        <div class="window-actions">
+            <button id="module-cancel-btn">取消</button>
+            <button id="module-save-btn">保存配置</button>
+        </div>
     </div>
-</div>
 </div>

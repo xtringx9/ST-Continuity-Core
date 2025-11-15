@@ -715,3 +715,22 @@
 .parse-info p {
     margin: 0;
 }
+
+/* 楼层范围输入样式 */
+.floor-range-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#start-floor-input, #end-floor-input {
+    width: 60px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.floor-range-separator {
+    color: #666;
+    font-weight: bold;
+}
