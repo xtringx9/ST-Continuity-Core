@@ -403,6 +403,10 @@ export function renderModulesFromConfig(config) {
         if (module.outputMode) {
             moduleItem.find('.module-output-mode').val(module.outputMode);
         }
+        // 设置保留层数
+        if (module.retainLayers) {
+            moduleItem.find('.module-retain-layers').val(module.retainLayers);
+        }
         // 处理数量范围（使用rangeMode字段优先）
         const rangeModeSelect = moduleItem.find('.module-range-mode');
         const rangeInputGroup = moduleItem.find('.range-input-group');
@@ -457,7 +461,7 @@ export function renderModulesFromConfig(config) {
 
                 // 添加variable-item到容器
                 variablesContainer.append(templateItem);
-                
+
                 // 为变量项绑定事件
                 bindVariableEvents(templateItem, moduleItem);
             });

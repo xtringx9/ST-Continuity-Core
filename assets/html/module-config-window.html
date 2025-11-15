@@ -236,6 +236,8 @@
                                     <option value="full">全量输出</option>
                                     <option value="incremental">增量更新</option>
                                 </select>
+                                <input type="number" class="module-retain-layers form-control" min="-1" value="-1"
+                                    placeholder="保留层数" title="-1为无限，0为不保留" style="width: 50px;">
                             </div>
                         </div>
                         <div class="module-actions-right">
@@ -247,35 +249,37 @@
                     <div class="variables-container-wrapper">
                         <div class="variables-container">
                             <!-- 变量模板 -->
-                        <div class="variable-template" style="display: none;">
-                            <div class="variable-item">
-                                <div class="variable-order-group">
-                                    <span class="variable-order-number"></span>
-                                    <button class="btn-small variable-identifier-btn" data-is-identifier="true" title="设置为主标识符">🔑</button>
-                                    <button class="btn-small variable-backup-identifier-btn" data-is-backup-identifier="true" title="设置为备用标识符">🔒</button>
-                                    <button class="btn-small variable-drag-handle" title="拖拽移动变量">⋮⋮</button>
-                                </div>
-                                <div class="variable-name-group">
-                                    <label>变量名</label>
-                                    <input type="text" class="variable-name" placeholder="变量名">
-                                    <input type="text" class="variable-display-name" placeholder="显示名">
-                                    <input type="hidden" class="variable-is-identifier" value="false">
-                                    <input type="hidden" class="variable-is-backup-identifier" value="false">
-                                </div>
-                                <div class="variable-desc-group">
-                                    <label>描述</label>
-                                    <input type="text" class="variable-desc" placeholder="变量描述">
-                                    <div class="variable-compatible-group">
-                                        <label>兼容</label>
-                                        <input type="text" class="variable-compatible-names"
-                                            placeholder="兼容变量名A,兼容变量名B,...">
+                            <div class="variable-template" style="display: none;">
+                                <div class="variable-item">
+                                    <div class="variable-order-group">
+                                        <span class="variable-order-number"></span>
+                                        <button class="btn-small variable-identifier-btn" data-is-identifier="true"
+                                            title="设置为主标识符">🔑</button>
+                                        <button class="btn-small variable-backup-identifier-btn"
+                                            data-is-backup-identifier="true" title="设置为备用标识符">🔒</button>
+                                        <button class="btn-small variable-drag-handle" title="拖拽移动变量">⋮⋮</button>
+                                    </div>
+                                    <div class="variable-name-group">
+                                        <label>变量名</label>
+                                        <input type="text" class="variable-name" placeholder="变量名">
+                                        <input type="text" class="variable-display-name" placeholder="显示名">
+                                        <input type="hidden" class="variable-is-identifier" value="false">
+                                        <input type="hidden" class="variable-is-backup-identifier" value="false">
+                                    </div>
+                                    <div class="variable-desc-group">
+                                        <label>描述</label>
+                                        <input type="text" class="variable-desc" placeholder="变量描述">
+                                        <div class="variable-compatible-group">
+                                            <label>兼容</label>
+                                            <input type="text" class="variable-compatible-names"
+                                                placeholder="兼容变量名A,兼容变量名B,...">
+                                        </div>
+                                    </div>
+                                    <div class="variable-actions">
+                                        <button class="btn-small remove-variable">-</button>
                                     </div>
                                 </div>
-                                <div class="variable-actions">
-                                    <button class="btn-small remove-variable">-</button>
-                                </div>
                             </div>
-                        </div>
                         </div>
                     </div>
 

@@ -170,6 +170,27 @@ export function bindModuleEvents(moduleElement) {
         autoSaveModuleConfig();
     });
 
+    // 绑定输出模式选择事件，控制保留层数输入框的显示/隐藏
+    moduleItem.find('.module-output-mode').on('change', function () {
+        const mode = $(this).val();
+        const retainLayersInput = moduleItem.find('.module-retain-layers');
+
+        if (mode === 'full') {
+            retainLayersInput.show();
+        } else {
+            retainLayersInput.hide();
+        }
+        // 自动保存配置
+        autoSaveModuleConfig();
+    });
+
+    // 初始状态下根据输出模式设置保留层数输入框的显示/隐藏
+    const initialOutputMode = moduleItem.find('.module-output-mode').val();
+    const initialRetainLayersInput = moduleItem.find('.module-retain-layers');
+    if (initialOutputMode !== 'full') {
+        initialRetainLayersInput.hide();
+    }
+
     // 绑定数量范围输入事件
     moduleItem.find('.module-item-min, .module-item-specified').on('input', function () {
         // 自动保存配置
@@ -468,6 +489,7 @@ export function getModulesData() {
             const itemMax = parseInt($(this).find('.module-item-specified').val()) || -1;
             const rangeMode = $(this).find('.module-range-mode').val();
             const outputMode = $(this).find('.module-output-mode').val();
+            const retainLayers = parseInt($(this).find('.module-retain-layers').val()) || -1;
 
             modules.push({
                 name: moduleName,
@@ -484,6 +506,7 @@ export function getModulesData() {
                 itemMax: itemMax,
                 rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
                 outputMode: outputMode || 'full', // 添加outputMode字段，默认值为full（全量输出）
+                retainLayers: retainLayers || -1, // 添加保留层数字段，默认值为-1（无限）
                 order: index // 添加排序索引
             });
         });
