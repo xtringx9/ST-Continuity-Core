@@ -259,6 +259,8 @@
                                             title="设置为主标识符">🔑</button>
                                         <button class="btn-small variable-backup-identifier-btn"
                                             data-is-backup-identifier="true" title="设置为备用标识符">🔒</button>
+                                        <button class="btn-small variable-hide-condition-btn"
+                                            data-is-hide-condition="true" title="设置为隐藏条件变量">👁️</button>
                                         <button class="btn-small variable-drag-handle" title="拖拽移动变量">⋮⋮</button>
                                     </div>
                                     <div class="variable-name-group">
@@ -267,10 +269,17 @@
                                         <input type="text" class="variable-display-name" placeholder="显示名">
                                         <input type="hidden" class="variable-is-identifier" value="false">
                                         <input type="hidden" class="variable-is-backup-identifier" value="false">
+                                        <input type="hidden" class="variable-is-hide-condition" value="false">
                                     </div>
                                     <div class="variable-desc-group">
-                                        <label>描述</label>
-                                        <input type="text" class="variable-desc" placeholder="变量描述">
+                                        <div <div
+                                            style="display: flex; gap: 2px; align-items: center; margin-bottom: 5px; flex: 1; max-width: 400px;">
+                                            <label style="white-space: nowrap;">描述</label>
+                                            <input type="text" class="variable-desc" placeholder="变量描述"
+                                                style="flex: 1;">
+                                            <input type="text" class="variable-desc" placeholder="隐藏条件值（逗号分隔）"
+                                                style="display: none; flex: 1;" title="当变量值等于这些值时，条目将被隐藏">
+                                        </div>
                                         <div class="variable-compatible-group">
                                             <label>兼容</label>
                                             <input type="text" class="variable-compatible-names"

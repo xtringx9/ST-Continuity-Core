@@ -12,6 +12,8 @@ export function getVariableItemTemplate(variable = {}) {
     const compatibleNames = variable.compatibleVariableNames || '';
     const isIdentifier = variable.isIdentifier || false;
     const isBackupIdentifier = variable.isBackupIdentifier || false;
+    const isHideCondition = variable.isHideCondition || false;
+    const hideConditionValues = variable.hideConditionValues || '';
 
     return `
         <div class="variable-item">
@@ -23,19 +25,24 @@ export function getVariableItemTemplate(variable = {}) {
                 <button class="module-toggle-expand-btn variable-backup-identifier-btn" data-is-backup-identifier="true" title="设置为备用标识符">
                     <span class="variable-order-number">🔗</span>
                 </button>
+                <button class="module-toggle-expand-btn variable-hide-condition-btn" data-is-hide-condition="true" title="设置为隐藏条件">
+                    <span class="variable-order-number">👁️</span>
+                </button>
             </div>
             <div class="variable-name-group">
                 <label>变量名</label>
                 <input type="text" class="variable-name" placeholder="变量名" value="${name}">
                 <input type="hidden" class="variable-is-identifier" value="${isIdentifier ? 'true' : 'false'}">
                 <input type="hidden" class="variable-is-backup-identifier" value="${isBackupIdentifier ? 'true' : 'false'}">
+                <input type="hidden" class="variable-is-hide-condition" value="${isHideCondition ? 'true' : 'false'}">
             </div>
             <div class="variable-display-name-group">
                 <input type="text" class="variable-display-name" placeholder="显示名" value="${displayName}">
             </div>
-            <div class="variable-desc-group">
-                <label>描述</label>
-                <input type="text" class="variable-desc" placeholder="变量描述" value="${description}">
+            <div class="variable-desc-group" style="display: flex; gap: 2px; align-items: center; flex: 1; max-width: 400px;">
+                <label style="white-space: nowrap;">描述</label>
+                <input type="text" class="variable-desc" placeholder="变量描述" value="${description}" style="flex: ${isHideCondition ? '3' : '1'};">
+                <input type="text" class="variable-desc" placeholder="隐藏条件值（逗号分隔）" value="${hideConditionValues}" style="display: ${isHideCondition ? 'block' : 'none'}; flex: 1; max-width: 200px;">
             </div>
             <div class="variable-compatible-names-group">
                 <label>兼容</label>

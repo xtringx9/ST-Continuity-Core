@@ -106,6 +106,10 @@
     flex: 1;
 }
 
+.variable-desc-group > div:first-child {
+    width: 100%;
+}
+
 .variable-compatible-names-group {
     min-width: 120px;
 }

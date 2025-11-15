@@ -646,13 +646,32 @@ export class ExtractModuleController {
                         // 统合处理模块
                         const mergedModule = this.mergeModulesByOrder(moduleList, moduleConfig);
 
-                        // 构建统合后的模块字符串
-                        const mergedModuleStr = this.buildModuleString(mergedModule, moduleConfig);
+                        // 检查是否需要隐藏该模块条目
+                        let shouldHide = false;
+                        for (const variable of moduleConfig.variables) {
+                            if (variable.isHideCondition) {
+                                const variableValue = mergedModule.variables[variable.name];
+                                if (variableValue) {
+                                    // 分割隐藏条件值（支持逗号分隔）
+                                    const hideValues = variable.hideConditionValues.split(',').map(v => v.trim());
+                                    if (hideValues.includes(variableValue)) {
+                                        shouldHide = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
 
-                        // 添加到结果内容
-                        //                         resultContent += `${moduleName}_${identifier}：
-                        // ${mergedModuleStr}\n\n`;
-                        resultContent += `${mergedModuleStr}\n`;
+                        // 如果不需要隐藏，则构建模块字符串
+                        if (!shouldHide) {
+                            // 构建统合后的模块字符串
+                            const mergedModuleStr = this.buildModuleString(mergedModule, moduleConfig);
+
+                            // 添加到结果内容
+                            //                         resultContent += `${moduleName}_${identifier}：
+                            // ${mergedModuleStr}\n\n`;
+                            resultContent += `${mergedModuleStr}\n`;
+                        }
                     }
                 }
 
@@ -802,9 +821,28 @@ export class ExtractModuleController {
                                 }
                             });
 
-                            // 按模板格式化构建模块字符串
-                            return this.buildModuleString(moduleData, moduleConfig);
-                        }).join('\n');
+                            // 检查是否需要隐藏该模块条目
+                            let shouldHide = false;
+                            for (const variable of moduleConfig.variables) {
+                                if (variable.isHideCondition) {
+                                    const variableValue = moduleData.variables[variable.name];
+                                    if (variableValue) {
+                                        // 分割隐藏条件值（支持逗号分隔）
+                                        const hideValues = variable.hideConditionValues.split(',').map(v => v.trim());
+                                        if (hideValues.includes(variableValue)) {
+                                            shouldHide = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 如果不需要隐藏，则构建模块字符串
+                            if (!shouldHide) {
+                                return this.buildModuleString(moduleData, moduleConfig);
+                            }
+                            return null;
+                        }).filter(Boolean).join('\n');
 
                         resultContent += `${moduleName}_${identifier}：\n${formattedModulesStr}\n\n`;
                     }
