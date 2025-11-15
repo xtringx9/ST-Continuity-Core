@@ -73,23 +73,7 @@
 /* 添加变量和删除模块按钮 */
 .add-variable,
 .remove-module {
-    background-color: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    color: white;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 4px 8px;
-}
-
-.add-variable:hover,
-.remove-module:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    /* 基础样式已在.btn-small中定义 */
 }
 
 /* 操作按钮样式 */

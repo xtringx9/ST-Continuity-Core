@@ -80,36 +80,16 @@
 
 .module-name {
     width: 80px;
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
     padding: 4px 6px;
     font-size: 13px;
-    color: #333;
-    transition: border-color 0.2s;
-}
-
-.module-name:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
 }
 
 .module-display-name {
     width: 80px;
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
     padding: 4px 6px;
     font-size: 13px;
-    color: #333;
-    transition: border-color 0.2s;
-}
-
-.module-display-name:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
 }
 
 /* 模块设置行 */
@@ -165,38 +145,18 @@
 }
 
 .module-output-position {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
     padding: 2px 4px;
     font-size: 10px;
-    color: #333;
-    transition: border-color 0.2s;
+    border-radius: 3px;
     width: 80px;
-}
-
-.module-output-position:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* 表单控件样式 */
 .form-control {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
     padding: 1px 6px;
     font-size: 10px;
-    color: #333;
-    transition: border-color 0.2s;
+    border-radius: 3px;
     width: 100%;
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* 数量范围模式选择组 */
@@ -207,38 +167,18 @@
 }
 
 .module-range-mode {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
     padding: 2px 4px;
     font-size: 10px;
-    color: #333;
-    transition: border-color 0.2s;
+    border-radius: 3px;
     width: 90px;
-}
-
-.module-range-mode:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* 输出模式选择器样式 */
 .module-output-mode {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
     padding: 2px 4px;
     font-size: 10px;
-    color: #333;
-    transition: border-color 0.2s;
+    border-radius: 3px;
     width: 90px;
-}
-
-.module-output-mode:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* 数量范围输入组 */
@@ -251,22 +191,11 @@
 
 .module-item-min,
 .module-item-specified {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
     padding: 1px 4px;
     font-size: 10px;
-    color: #333;
-    transition: border-color 0.2s;
+    border-radius: 3px;
     width: 40px;
     margin-bottom: 4px;
-}
-
-.module-item-min:focus,
-.module-item-specified:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .range-separator {
@@ -321,20 +250,10 @@
 /* 模块兼容输入框样式 */
 .module-compatible-names {
     width: 120px;
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
     padding: 4px 6px;
     font-size: 12px;
-    color: #333;
+    border-radius: 3px;
     font-family: monospace;
-    transition: border-color 0.2s;
-}
-
-.module-compatible-names:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* 模块滑块开关样式 */
