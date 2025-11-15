@@ -464,6 +464,8 @@ export function getModulesData() {
                 const varCompatibleNames = $(this).find('.variable-compatible-names').val();
                 const varIsIdentifier = $(this).find('.variable-is-identifier').val() === 'true';
                 const varIsBackupIdentifier = $(this).find('.variable-is-backup-identifier').val() === 'true';
+                const varIsHideCondition = $(this).find('.variable-is-hide-condition').val() === 'true';
+                const varHideConditionValues = $(this).find('.variable-hide-condition-values, .variable-desc').last().val();
 
                 if (varName) {
                     variables.push({
@@ -472,7 +474,9 @@ export function getModulesData() {
                         displayName: varDisplayName || '',
                         compatibleVariableNames: varCompatibleNames || '',
                         isIdentifier: varIsIdentifier,
-                        isBackupIdentifier: varIsBackupIdentifier
+                        isBackupIdentifier: varIsBackupIdentifier,
+                        isHideCondition: varIsHideCondition,
+                        hideConditionValues: varHideConditionValues || ''
                     });
                 }
             });
@@ -491,7 +495,7 @@ export function getModulesData() {
             const outputMode = $(this).find('.module-output-mode').val();
             const retainLayersVal = $(this).find('.module-retain-layers').val();
             const retainLayers = retainLayersVal !== '' ? parseInt(retainLayersVal) : -1;
-            debugLog('获取到保留层数:', retainLayersVal, '转换后:', retainLayers);
+            // debugLog('获取到保留层数:', retainLayersVal, '转换后:', retainLayers);
 
             const moduleData = {
                 name: moduleName,
@@ -511,7 +515,7 @@ export function getModulesData() {
                 retainLayers: retainLayers, // 保留层数，已经设置了默认值
                 order: index // 添加排序索引
             };
-            debugLog('构建的模块数据:', moduleData);
+            // debugLog('构建的模块数据:', moduleData);
             modules.push(moduleData);
         });
     }
@@ -857,7 +861,7 @@ function restoreModuleCollapsedState(moduleItem) {
             moduleItem.removeClass('collapsed').addClass('expanded');
         }
 
-        debugLog('模块折叠状态已恢复:', moduleName, isCollapsed);
+        // debugLog('模块折叠状态已恢复:', moduleName, isCollapsed);
     }
 }
 

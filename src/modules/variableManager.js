@@ -138,6 +138,43 @@ export function bindVariableEvents(variableItem, moduleItem) {
         });
     });
 
+    // 隐藏条件按钮事件
+    variableItem.find('.variable-hide-condition-btn').on('click', function () {
+        const isHideConditionInput = variableItem.find('.variable-is-hide-condition');
+        const currentValue = isHideConditionInput.val() === 'true';
+        isHideConditionInput.val(!currentValue);
+
+        // 切换激活状态样式
+        const button = $(this);
+        const descGroup = variableItem.find('.variable-desc-group');
+        const descInput = descGroup.find('.variable-desc').first();
+        const hideConditionInput = descGroup.find('.variable-desc').last();
+
+        if (!currentValue) {
+            button.addClass('active');
+            // 设置激活状态背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(150, 150, 255, 0.6)');
+            // 显示隐藏条件值输入框
+            hideConditionInput.show();
+            // 调整描述输入框宽度
+            descInput.css('flex', '3');
+        } else {
+            button.removeClass('active');
+            // 恢复默认背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
+            // 隐藏隐藏条件值输入框
+            hideConditionInput.hide();
+            // 恢复描述输入框宽度
+            descInput.css('flex', '1');
+        }
+
+        updateModulePreview(moduleItem);
+        // 自动保存配置
+        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
+            autoSaveModuleConfig();
+        });
+    });
+
     // 初始化激活状态
     const identifierBtn = variableItem.find('.variable-identifier-btn');
     if (variableItem.find('.variable-is-identifier').val() === 'true') {
@@ -149,6 +186,23 @@ export function bindVariableEvents(variableItem, moduleItem) {
     if (variableItem.find('.variable-is-backup-identifier').val() === 'true') {
         backupIdentifierBtn.addClass('active');
         backupIdentifierBtn.find('.variable-order-number').css('background-color', 'rgba(200, 150, 50, 0.6)');
+    }
+
+    const hideConditionBtn = variableItem.find('.variable-hide-condition-btn');
+    const descInput = variableItem.find('.variable-desc').first();
+    const hideConditionValuesInput = variableItem.find('.variable-desc').last();
+
+    if (variableItem.find('.variable-is-hide-condition').val() === 'true') {
+        hideConditionBtn.addClass('active');
+        hideConditionBtn.find('.variable-order-number').css('background-color', 'rgba(150, 150, 255, 0.6)');
+        hideConditionValuesInput.show();
+        hideConditionValuesInput.css('max-width', '200px');
+        descInput.css('flex', '3');
+    } else {
+        hideConditionBtn.removeClass('active');
+        hideConditionBtn.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
+        hideConditionValuesInput.hide();
+        descInput.css('flex', '1');
     }
 }
 
