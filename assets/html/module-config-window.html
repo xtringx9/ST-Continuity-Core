@@ -4,6 +4,37 @@
         <h2>Continuity 配置面板</h2>
         <button id="continuity-window-close" class="close-btn">✕</button>
     </div>
+    
+    <!-- 分页标签 -->
+    <div class="tab-container">
+        <div class="tab-item active" data-tab="extract">提取模块</div>
+        <div class="tab-item" data-tab="config">模块配置</div>
+    </div>
+    
+    <!-- 提取模块页面 -->
+    <div id="extract-tab" class="tab-content active">
+        <div class="extract-module-section">
+            <div class="section-title">
+                <h3>提取模块</h3>
+            </div>
+            <div class="extract-content">
+                <div class="extract-description">
+                    <p>从对话中提取Continuity模块。点击下方按钮开始提取。</p>
+                </div>
+                <div class="extract-actions">
+                    <button id="extract-modules-btn" class="primary-btn">提取模块</button>
+                </div>
+                <div class="extract-results">
+                    <div id="extract-results-container" class="results-container">
+                        <!-- 提取结果将显示在这里 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 模块配置页面 -->
+    <div id="config-tab" class="tab-content">
     <!--
     <div class="info-section">
         <p><strong>配置说明：</strong>在此页面可自定义模块，每个模块可设置名称、变量和变量解释。</p>
@@ -258,4 +289,5 @@
         <button id="module-cancel-btn">取消</button>
         <button id="module-save-btn">保存配置</button>
     </div>
+</div>
 </div>

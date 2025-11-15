@@ -274,7 +274,8 @@ export function getContinuityOrder() {
         // 正文内特定位置模块（使用顺序提示词）
         if (specificPositionModules.length > 0) {
             specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "正文内特定位置模块：\n";
+            orderPrompt += "正文内特定位置模块（位于正文开始标签后，被<某正文标签></某正文标签>包裹）：\n";
+            orderPrompt += "<某正文标签>\n";
             specificPositionModules.forEach(module => {
                 const positionPrompt = module.positionPrompt ? `（位置：${module.positionPrompt}）` : "";
                 const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
@@ -283,13 +284,16 @@ export function getContinuityOrder() {
                 orderPrompt += `[${module.name}]${positionPrompt}${timingPrompt}${rangePrompt}${outputModePrompt} `;
                 orderPrompt += "\n";
             });
+            orderPrompt += "</某正文标签>\n";
             orderPrompt += "\n\n";
         }
 
         // 正文后模块（按序号排序）
         if (afterBodyModules.length > 0) {
             afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "正文后的模块：\n";
+            orderPrompt += "正文后的模块（位于正文结束标签后，被<module></module>包裹）：\n";
+            orderPrompt += "</某正文标签>\n";
+            orderPrompt += "<module>\n";
             afterBodyModules.forEach(module => {
                 const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
                 const rangePrompt = getRangePrompt(module);
@@ -298,6 +302,7 @@ export function getContinuityOrder() {
                 orderPrompt += "\n";
             });
         }
+        orderPrompt += "</module>\n\n";
         orderPrompt += "</module_order>\n";
 
         // 替换提示词中的变量
