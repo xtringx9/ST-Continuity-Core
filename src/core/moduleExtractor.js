@@ -4,7 +4,7 @@ import { chat } from "../index.js";
 
 /**
  * 从聊天记录中提取模块数据的帮助函数
- * @param {RegExp} moduleRegex 用于匹配模块数据的正则表达式
+ * @param {RegExp} moduleRegex 用于匹配模块数据的正则表达式（这里不再使用，改为手动解析）
  * @param {Array} chatArray 可选的聊天数组，如果未提供则使用全局chat数组
  * @param {number} startIndex 可选的起始索引（包含），如果未提供则从0开始
  * @param {number} endIndex 可选的结束索引（包含），如果未提供则到最后一条消息
@@ -32,7 +32,7 @@ export function extractModulesFromChatHistory(moduleRegex, chatArray = null, sta
         // 遍历指定范围的聊天消息
         for (let index = effectiveStartIndex; index <= effectiveEndIndex; index++) {
             const message = targetChat[index];
-            
+
             // 检查消息对象是否有效
             if (!message || (message.mes === undefined && message.content === undefined)) {
                 continue;
@@ -43,12 +43,11 @@ export function extractModulesFromChatHistory(moduleRegex, chatArray = null, sta
             const isUserMessage = message.is_user || message.role === 'user';
             const speakerName = message.name || (isUserMessage ? 'user' : 'assistant');
 
-            // 使用正则表达式匹配模块数据
-            let match;
-            while ((match = moduleRegex.exec(messageContent)) !== null) {
-                // 直接保留整个模块内容，不拆分键值对
-                const rawModule = match[0];
+            // 使用栈来解析嵌套的模块结构
+            const modules = parseNestedModules(messageContent);
 
+            // 将提取到的模块添加到结果数组
+            modules.forEach(rawModule => {
                 const moduleData = {
                     raw: rawModule,
                     messageIndex: index,
@@ -59,7 +58,7 @@ export function extractModulesFromChatHistory(moduleRegex, chatArray = null, sta
 
                 extractedModules.push(moduleData);
                 debugLog(`在第${index}条消息中发现模块:`, moduleData);
-            }
+            });
         }
 
         infoLog(`从聊天记录中成功提取了${extractedModules.length}个模块`);
@@ -68,6 +67,40 @@ export function extractModulesFromChatHistory(moduleRegex, chatArray = null, sta
     }
 
     return extractedModules;
+}
+
+/**
+ * 解析嵌套的模块结构
+ * @param {string} content 包含模块的文本内容
+ * @returns {Array} 提取到的所有模块（包括嵌套的）
+ */
+function parseNestedModules(content) {
+    const modules = [];
+    const stack = [];
+    const potentialModuleStarts = [];
+
+    for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+
+        if (char === '[') {
+            // 记录潜在的模块开始位置
+            potentialModuleStarts.push(i);
+            stack.push(i);
+        } else if (char === ']' && stack.length > 0) {
+            // 找到模块的结束
+            const start = stack.pop();
+
+            // 检查这个[ ]对是否包含|字符，并且确保|在当前的[和]之间
+            const substringBetweenBrackets = content.substring(start + 1, i);
+            if (substringBetweenBrackets.includes('|')) {
+                // 这是一个有效的模块
+                const module = content.substring(start, i + 1);
+                modules.push(module);
+            }
+        }
+    }
+
+    return modules;
 }
 
 /**
