@@ -71,9 +71,31 @@
 }
 
 /* 添加变量和删除模块按钮 */
-.add-variable,
-.remove-module {
+.add-variable {
     /* 基础样式已在.btn-small中定义 */
+}
+
+/* 删除模块按钮样式 */
+#continuity-module-config-window .remove-module {
+    background-color: rgba(255, 100, 100, 0.5);
+    border: 1px solid rgba(255, 100, 100, 0.9);
+    /* border-radius: 4px;
+    color: #ffffff;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 20px;
+    padding: 3px 6px; */
+}
+
+#continuity-module-config-window .remove-module:hover {
+    background-color: rgba(255, 100, 100, 0.7);
+    /* border-color: #ff6464; */
+    /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
 }
 
 /* 操作按钮样式 */
