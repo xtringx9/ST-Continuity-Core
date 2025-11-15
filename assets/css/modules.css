@@ -766,3 +766,43 @@
     color: rgba(255, 255, 255, 0.7);
     font-weight: bold;
 }
+
+/* 处理后模块结果样式 */
+.processed-module-result {
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.processed-module-result .module-header {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.processed-module-result .module-index {
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.processed-module-result .module-content {
+    padding: 12px;
+}
+
+.processed-module-result pre {
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 10px;
+    margin: 0;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #ddd;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
