@@ -26,14 +26,20 @@ export function initParseModule() {
  * 批量解析模块字符串并更新模块配置
  * @param {string} inputText 要解析的模块字符串
  * @param {Array} existingModules 现有的模块配置数组
- * @returns {Array} 更新后的模块配置数组
+ * @returns {Object} 包含更新后模块配置和处理信息的结果对象
  */
 export function parseMultipleModules(inputText, existingModules = []) {
     debugLog('开始批量解析模块');
 
     if (!inputText || inputText.trim() === '') {
         errorLog('请输入要解析的模块字符串');
-        return existingModules;
+        return {
+            modules: existingModules,
+            oldModules: [...existingModules],
+            createdCount: 0,
+            updatedCount: 0,
+            message: '请输入要解析的模块字符串'
+        };
     }
 
     debugLog(`输入文本: ${inputText}`);
@@ -44,7 +50,13 @@ export function parseMultipleModules(inputText, existingModules = []) {
 
     if (!moduleMatches || moduleMatches.length === 0) {
         errorLog('未找到有效的模块格式字符串');
-        return existingModules;
+        return {
+            modules: existingModules,
+            oldModules: [...existingModules],
+            createdCount: 0,
+            updatedCount: 0,
+            message: '未找到有效的模块格式字符串'
+        };
     }
 
     const moduleMap = new Map(); // 用于去重，同模块名视为同一个模块
@@ -77,7 +89,13 @@ export function parseMultipleModules(inputText, existingModules = []) {
 
     if (moduleMap.size === 0) {
         errorLog('未找到有效的模块格式字符串');
-        return existingModules;
+        return {
+            modules: existingModules,
+            oldModules: [...existingModules],
+            createdCount: 0,
+            updatedCount: 0,
+            message: '未找到有效的模块格式字符串'
+        };
     }
 
     debugLog(`找到 ${moduleMap.size} 个不同的模块`);
@@ -86,6 +104,7 @@ export function parseMultipleModules(inputText, existingModules = []) {
     let createdCount = 0;
     let updatedCount = 0;
     const updatedModules = [...existingModules];
+    const processingResults = [];
 
     moduleMap.forEach((parsedModule, moduleName) => {
         // 查找是否已存在同名模块
@@ -93,12 +112,29 @@ export function parseMultipleModules(inputText, existingModules = []) {
 
         if (existingModuleIndex !== -1) {
             // 更新现有模块
-            updatedModules[existingModuleIndex] = updateModuleFromParse(updatedModules[existingModuleIndex], parsedModule);
+            const updateResult = updateModuleFromParse(updatedModules[existingModuleIndex], parsedModule);
+            updatedModules[existingModuleIndex] = updateResult.moduleConfig;
+            processingResults.push({
+                moduleName: moduleName,
+                action: 'updated',
+                oldVariables: updateResult.oldVariables,
+                newVariables: updateResult.moduleConfig.variables,
+                updatedVariables: updateResult.updatedVariables,
+                addedVariables: updateResult.addedVariables
+            });
             updatedCount++;
         } else {
             // 创建新模块
             const newModule = createModuleFromParse(parsedModule);
             updatedModules.push(newModule);
+            processingResults.push({
+                moduleName: moduleName,
+                action: 'created',
+                oldVariables: [],
+                newVariables: newModule.variables,
+                updatedVariables: 0,
+                addedVariables: newModule.variables.length
+            });
             createdCount++;
         }
     });
@@ -113,7 +149,17 @@ export function parseMultipleModules(inputText, existingModules = []) {
     }
 
     infoLog(message);
-    return updatedModules;
+
+    // 返回包含更新后模块配置和处理信息的结果对象
+    return {
+        modules: updatedModules,
+        oldModules: existingModules,
+        processingResults: processingResults,
+        createdCount: createdCount,
+        updatedCount: updatedCount,
+        totalModules: moduleMap.size,
+        message: message
+    };
 }
 
 /**
@@ -186,7 +232,7 @@ export function createModuleFromParse(parsedModule) {
  * 更新现有模块配置
  * @param {Object} moduleConfig 模块配置对象
  * @param {Object} parsedModule 解析后的模块对象
- * @returns {Object} 更新后的模块配置
+ * @returns {Object} 包含更新后模块配置和旧条目的结果对象
  */
 export function updateModuleFromParse(moduleConfig, parsedModule) {
     debugLog(`更新现有模块: ${parsedModule.name}`);
@@ -197,11 +243,14 @@ export function updateModuleFromParse(moduleConfig, parsedModule) {
  * 从解析结果填充模块配置
  * @param {Object} moduleConfig 模块配置对象
  * @param {Object} parsedModule 解析后的模块对象
- * @returns {Object} 更新后的模块配置
+ * @returns {Object} 包含更新后模块配置和旧条目的结果对象
  */
 export function fillModuleFromParse(moduleConfig, parsedModule) {
     // 创建模块配置的副本，避免直接修改原对象
     const updatedModule = { ...moduleConfig };
+
+    // 保存旧的变量列表副本，用于输出处理结果
+    const oldVariables = [...(moduleConfig.variables || [])];
 
     // 设置模块名称
     updatedModule.name = parsedModule.name;
@@ -220,9 +269,6 @@ export function fillModuleFromParse(moduleConfig, parsedModule) {
     // 添加解析出的变量
     if (parsedModule.variables && parsedModule.variables.length > 0) {
         parsedModule.variables.forEach(variable => {
-            // 检查是否已存在同名变量
-            const existingVariableIndex = updatedModule.variables.findIndex(v => v.name === variable.name);
-
             // 处理增量更新模式
             if (outputMode === 'incremental') {
                 // 查找具有相同标识符的变量
@@ -243,6 +289,8 @@ export function fillModuleFromParse(moduleConfig, parsedModule) {
                 }
             } else {
                 // 全量更新模式
+                // 检查是否已存在同名变量
+                const existingVariableIndex = updatedModule.variables.findIndex(v => v.name === variable.name);
                 if (existingVariableIndex !== -1) {
                     // 更新现有变量
                     updatedModule.variables[existingVariableIndex] = variable;
@@ -269,7 +317,14 @@ export function fillModuleFromParse(moduleConfig, parsedModule) {
     }
 
     debugLog(message);
-    return updatedModule;
+
+    // 返回包含更新后模块配置和旧条目的结果对象
+    return {
+        moduleConfig: updatedModule,
+        oldVariables: oldVariables,
+        updatedVariables: updatedVariables,
+        addedVariables: addedVariables
+    };
 }
 
 /**

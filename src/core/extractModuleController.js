@@ -3,6 +3,7 @@ import { debugLog, errorLog, getModulesData } from '../index.js';
 import { chat } from '../index.js';
 import { ModuleExtractor } from './moduleExtractor.js';
 import { parseCompatibleNames } from '../modules/moduleParser.js';
+import { parseMultipleModules } from '../modules/parseModuleManager.js';
 
 /**
  * 提取模块控制器类
@@ -62,6 +63,11 @@ export class ExtractModuleController {
     bindExtractModuleButtonEvent() {
         $('#extract-modules-btn').on('click', () => {
             this.extractModules();
+        });
+
+        // 绑定提取整理后模块按钮事件
+        $('#extract-processed-modules-btn').on('click', () => {
+            this.extractProcessedModules();
         });
     }
 
@@ -307,6 +313,230 @@ export class ExtractModuleController {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * 提取整理后模块功能
+     */
+    extractProcessedModules() {
+        try {
+            debugLog('开始提取整理后模块功能');
+
+            // 获取用户输入的楼层范围
+            const startFloor = parseInt($('#start-floor-input').val().trim());
+            const endFloor = parseInt($('#end-floor-input').val().trim());
+
+            // 获取选中的模块名
+            const selectedModuleName = $('#module-select').val();
+
+            // 转换为索引（楼层从1开始，索引从0开始）
+            let startIndex = 0;
+            let endIndex = null;
+
+            if (!isNaN(startFloor) && startFloor >= 1) {
+                startIndex = startFloor - 1;
+            }
+
+            if (!isNaN(endFloor) && endFloor >= 1) {
+                endIndex = endFloor - 1;
+            }
+
+            // 确保起始索引不大于结束索引
+            if (endIndex !== null && startIndex > endIndex) {
+                toastr.warning('起始楼层不能大于结束楼层');
+                return;
+            }
+
+            // 获取模块过滤条件
+            let moduleFilter = null;
+            if (selectedModuleName && selectedModuleName !== 'all') {
+                // 查找选中的模块配置
+                const modulesData = getModulesData();
+                const selectedModule = modulesData.find(module => module.name === selectedModuleName);
+
+                if (selectedModule) {
+                    moduleFilter = {
+                        name: selectedModule.name,
+                        compatibleModuleNames: selectedModule.compatibleModuleNames
+                    };
+                }
+            }
+
+            // 使用ModuleExtractor提取模块，指定范围和过滤条件
+            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+
+            // 清空结果容器
+            const resultsContainer = $('#extract-results-container');
+            resultsContainer.empty();
+
+            if (modules.length > 0) {
+                // 按模块名和标识符分组处理
+                const moduleGroups = this.groupModulesByIdentifier(modules);
+
+                // 构建结果显示内容
+                let resultContent = '';
+
+                // 获取所有模块配置
+                const modulesData = getModulesData();
+
+                // 处理每个模块组
+                for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
+                    const [moduleName, identifier] = moduleKey.split('_');
+
+                    // 查找模块配置
+                    const moduleConfig = modulesData.find(module => module.name === moduleName);
+
+                    // 只有outputMode为"incremental"的模块才需要统合
+                    const needMerge = moduleConfig && moduleConfig.outputMode === 'incremental';
+
+                    if (needMerge) {
+                        // 统合处理模块
+                        const mergedModule = this.mergeModulesByOrder(moduleList, moduleConfig);
+
+                        // 构建统合后的模块字符串
+                        const mergedModuleStr = this.buildModuleString(mergedModule, moduleConfig);
+
+                        // 构建历史记录
+                        const historyModulesStr = moduleList.map(module => module.raw).join('\n');
+
+                        // 添加到结果内容
+                        resultContent += `统合：\n${mergedModuleStr}\n\n历史：\n${historyModulesStr}\n\n`;
+                    } else {
+                        // 不需要统合的模块，直接显示所有模块
+                        const modulesStr = moduleList.map(module => module.raw).join('\n');
+                        resultContent += `${moduleName}_${identifier}：\n${modulesStr}\n\n`;
+                    }
+                }
+
+                // 创建结果显示
+                const resultDisplay = $(`
+                    <div class="processed-module-result">
+                        <div class="module-header">
+                            <span class="module-index">整理后模块结果</span>
+                        </div>
+                        <div class="module-content">
+                            <pre>${this.htmlEscape(resultContent)}</pre>
+                        </div>
+                    </div>
+                `);
+
+                resultsContainer.append(resultDisplay);
+                debugLog(`提取整理后模块成功，共处理 ${modules.length} 个模块`);
+            } else {
+                resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
+                debugLog('提取整理后模块完成，未发现模块');
+            }
+        } catch (error) {
+            errorLog('提取整理后模块失败:', error);
+            toastr.error('提取整理后模块失败，请查看控制台日志');
+        }
+    }
+
+    /**
+     * 将模块按模块名和标识符分组
+     * @param {Array} modules 提取的模块数组
+     * @returns {Object} 分组后的模块对象
+     */
+    groupModulesByIdentifier(modules) {
+        const groups = {};
+
+        modules.forEach(module => {
+            // 解析模块名和标识符
+            const [moduleName, ...parts] = module.raw.slice(1, -1).split('|');
+            let identifier = 'default';
+
+            // 查找标识符变量（如id、identifier等）
+            for (const part of parts) {
+                const colonIndex = part.indexOf(':');
+                if (colonIndex === -1) continue;
+
+                const key = part.substring(0, colonIndex).trim();
+                const value = part.substring(colonIndex + 1).trim();
+
+                if (key && (key.toLowerCase() === 'id' || key.toLowerCase() === 'identifier')) {
+                    identifier = value || 'default';
+                    break;
+                }
+            }
+
+            // 构建分组键
+            const groupKey = `${moduleName}_${identifier}`;
+
+            // 添加到分组
+            if (!groups[groupKey]) {
+                groups[groupKey] = [];
+            }
+            groups[groupKey].push(module);
+        });
+
+        return groups;
+    }
+
+    /**
+     * 按顺序合并模块，后面的模块覆盖前面的
+     * @param {Array} modules 模块数组
+     * @param {Object} moduleConfig 模块配置
+     * @returns {Object} 合并后的模块数据
+     */
+    mergeModulesByOrder(modules, moduleConfig) {
+        // 初始化合并结果
+        const merged = {
+            name: '',
+            variables: {}
+        };
+
+        modules.forEach(module => {
+            // 解析模块
+            const [moduleName, ...parts] = module.raw.slice(1, -1).split('|');
+            merged.name = moduleName;
+
+            // 处理每个变量
+            parts.forEach(part => {
+                const colonIndex = part.indexOf(':');
+                if (colonIndex === -1) return;
+
+                const key = part.substring(0, colonIndex).trim();
+                const value = part.substring(colonIndex + 1).trim();
+
+                if (key) {
+                    // 如果值为空或undefined，则清空该变量
+                    if (value === '' || value === undefined) {
+                        merged.variables[key] = '';
+                    } else {
+                        merged.variables[key] = value;
+                    }
+                }
+            });
+        });
+
+        return merged;
+    }
+
+    /**
+     * 构建模块字符串
+     * @param {Object} moduleData 模块数据
+     * @param {Object} moduleConfig 模块配置
+     * @returns {string} 模块字符串
+     */
+    buildModuleString(moduleData, moduleConfig) {
+        let moduleStr = `[${moduleData.name}`;
+
+        // 如果有模块配置，按配置的变量顺序构建
+        if (moduleConfig && moduleConfig.variables) {
+            moduleConfig.variables.forEach(variable => {
+                const value = moduleData.variables[variable.name] || '';
+                moduleStr += `|${variable.name}:${value}`;
+            });
+        } else {
+            // 没有配置时，按变量名顺序构建
+            Object.keys(moduleData.variables).sort().forEach(key => {
+                const value = moduleData.variables[key] || '';
+                moduleStr += `|${key}:${value}`;
+            });
+        }
+
+        moduleStr += ']';
+        return moduleStr;
     }
 
     /**
