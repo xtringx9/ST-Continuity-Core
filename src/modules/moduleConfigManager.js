@@ -404,8 +404,11 @@ export function renderModulesFromConfig(config) {
             moduleItem.find('.module-output-mode').val(module.outputMode);
         }
         // 设置保留层数
-        if (module.retainLayers) {
+        if (module.retainLayers !== undefined) {
             moduleItem.find('.module-retain-layers').val(module.retainLayers);
+        } else {
+            // 设置默认值为-1
+            moduleItem.find('.module-retain-layers').val(-1);
         }
         // 处理数量范围（使用rangeMode字段优先）
         const rangeModeSelect = moduleItem.find('.module-range-mode');
