@@ -1,13 +1,7 @@
 /* 按钮样式文件 - 包含按钮相关样式 */
 
-/* 头部操作按钮 */
-.header-actions {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-}
-
-.header-actions .btn-small {
+/* 基础按钮样式 */
+.btn-small {
     padding: 4px 8px;
     background-color: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
@@ -21,9 +15,16 @@
     gap: 3px;
 }
 
-.header-actions .btn-small:hover {
+.btn-small:hover {
     background-color: rgba(255, 255, 255, 0.3);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 头部操作按钮 */
+.header-actions {
+    display: flex;
+    gap: 5px;
+    align-items: center;
 }
 
 /* 模块操作按钮 */
