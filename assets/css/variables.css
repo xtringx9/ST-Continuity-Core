@@ -165,12 +165,12 @@
     justify-content: center;
 }
 
-/* 删除变量按钮样式 */
-.remove-variable {
-    background-color: rgba(255, 100, 100, 0.3);
-    border: 1px solid rgba(255, 100, 100, 0.5);
-    border-radius: 4px;
-    color: rgba(255, 255, 255, 0.9);
+/* 删除变量按钮样式 - 提高特异性以覆盖.btn-small */
+#continuity-module-config-window .variable-actions .btn-small.remove-variable {
+    background-color: rgba(255, 100, 100, 0.5);
+    border: 1px solid rgba(255, 100, 100, 0.9);
+    /* border-radius: 4px;
+    color: #ffffff;
     font-size: 11px;
     cursor: pointer;
     transition: all 0.2s;
@@ -179,11 +179,11 @@
     justify-content: center;
     min-width: 24px;
     height: 20px;
-    padding: 3px 6px;
+    padding: 3px 6px; */
 }
 
-.remove-variable:hover {
-    background-color: rgba(255, 100, 100, 0.5);
-    border-color: rgba(255, 100, 100, 0.7);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+#continuity-module-config-window .variable-actions .btn-small.remove-variable:hover {
+    background-color: rgba(255, 100, 100, 0.7);
+    /* border-color: #ff6464;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
 }
