@@ -367,71 +367,29 @@
 }
 
 /* 提取模块页面样式 */
-#continuity-module-config-window .extract-module-section {
-    margin-bottom: 20px;
-    margin-left: -10px;
-    margin-right: -10px;
-    padding-left: 10px;
-    padding-right: 10px;
-}
-
 #continuity-module-config-window .extract-content {
     padding: 0;
 }
 
 .extract-description {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     color: rgba(255, 255, 255, 0.8);
 }
 
 .extract-actions {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-/* 统一按钮样式，与模块配置面板按钮保持一致 */
-#continuity-module-config-window .primary-btn {
-    background-color: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
-    padding: 6px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
-}
-
-#continuity-module-config-window .primary-btn:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-#continuity-module-config-window .floor-input-group {
+/* #continuity-module-config-window .floor-input-group {
     display: flex;
     align-items: center;
-    margin-top: 10px;
-}
-
-/* 统一输入框样式，与模块配置面板输入框保持一致 */
-#continuity-module-config-window .floor-input {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    padding: 8px 12px;
-    margin-right: 8px;
-    font-size: 14px;
-    width: 120px;
-    color: #333;
-    transition: border-color 0.2s;
-}
-
-#continuity-module-config-window .floor-input:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-}
+} */
 
 #continuity-module-config-window .extract-results {
-    margin-top: 20px;
+    margin-top: 15px;
 }
 
 #continuity-module-config-window .results-container {
