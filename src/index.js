@@ -16,8 +16,9 @@ import { PromptInjector } from './core/promptInjector.js';
 // 导出外部依赖
 export { extension_settings, loadExtensionSettings, chat, saveSettingsDebounced, eventSource, event_types };
 
-// 导出核心配置模块
+// 导出核心模块
 export { extensionName, extensionFolderPath, defaultSettings } from './core/config.js';
+export { ExtractModuleController } from './core/extractModuleController.js';
 
 // 导出设置管理模块
 export {
