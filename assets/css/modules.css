@@ -237,13 +237,38 @@
     color: white;
 }
 
+/* 模块选择器容器 - 单独占一栏 */
+.module-selector-container {
+    width: 100%;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 提取操作行 - 楼层范围和按钮 */
+.extract-actions-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
 /* 楼层范围组布局 */
 .floor-range-group {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 12px;
     flex-wrap: wrap;
+}
+
+/* 提取按钮组 */
+.extract-buttons-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
 }
 
 .floor-range-group #module-select {
@@ -258,7 +283,7 @@
     padding: 12px;
     margin-bottom: 12px;
     min-width: 200px;
-    max-width: 300px;
+    /* max-width: 300px; */
 }
 
 .module-selector-header {
@@ -298,9 +323,9 @@
 }
 
 .module-checkbox-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 4px;
     max-height: 120px;
     overflow-y: auto;
     padding: 4px;
@@ -309,10 +334,11 @@
 .module-checkbox-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 6px;
+    gap: 6px;
+    padding: 3px 4px;
     border-radius: 3px;
     transition: background-color 0.2s;
+    min-width: 0;
 }
 
 .module-checkbox-item:hover {
@@ -341,19 +367,67 @@
         max-width: 100%;
         margin-right: 0;
     }
-    
+
     .module-checkbox-group {
         max-height: 100px;
     }
-    
+
     .floor-range-group {
         flex-direction: column;
         align-items: stretch;
         gap: 10px;
     }
-    
+
     .floor-range-group .module-selector-container {
         order: -1;
+    }
+
+    /* 移动设备适配 */
+    .module-checkbox-group {
+        max-height: 200px;
+        overflow-y: auto;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 3px;
+    }
+
+    .module-checkbox-item {
+        gap: 4px;
+        padding: 2px 3px;
+    }
+
+    .module-selector-actions {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .module-selector-actions .btn-tiny {
+        width: 100%;
+    }
+
+    /* 提取操作行在移动设备上的适配 */
+    .extract-actions-row {
+        gap: 8px;
+    }
+
+    .floor-range-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .floor-range-group .floor-input {
+        width: 100%;
+        margin: 0;
+    }
+
+    .extract-buttons-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .extract-buttons-group .btn-small {
+        width: 100%;
+        margin: 2px 0;
     }
 }
 

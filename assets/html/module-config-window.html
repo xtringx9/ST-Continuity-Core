@@ -23,33 +23,36 @@
                     <p>从对话中提取Continuity模块。点击下方按钮开始提取。</p>
                 </div> -->
                 <div class="extract-actions">
-                    <div class="floor-range-group">
+                    <div class="module-selector-container">
                         <!-- 移动友好的模块选择器 -->
-                        <div class="module-selector-container">
-                            <div class="module-selector-header">
-                                <label>选择模块：</label>
-                                <div class="module-selector-actions">
-                                    <button type="button" id="select-all-modules" class="btn-tiny">全选</button>
-                                    <button type="button" id="clear-all-modules" class="btn-tiny">清空</button>
-                                </div>
+                        <div class="module-selector-header">
+                            <label>选择模块：</label>
+                            <div class="module-selector-actions">
+                                <button type="button" id="select-all-modules" class="btn-tiny">全选</button>
+                                <button type="button" id="clear-all-modules" class="btn-tiny">清空</button>
                             </div>
-                            <div class="module-checkbox-group" id="module-checkbox-container">
-                                <!-- 模块复选框将通过JavaScript动态添加 -->
-                            </div>
-                            <!-- 保留原有的select元素用于向后兼容 -->
-                            <select id="module-select" class="module-range-mode" multiple size="4"
-                                style="display: none;">
-                                <option value="all">所有模块</option>
-                                <!-- 模块选项将通过JavaScript动态添加 -->
-                            </select>
                         </div>
-                        <input type="number" id="start-floor-input" class="floor-input" min="1" placeholder="起始楼层">
-                        <span class="range-separator">-</span>
-                        <input type="number" id="end-floor-input" class="floor-input" min="1" placeholder="结束楼层">
-                        <button id="extract-modules-btn" class="btn-small">提取楼层范围模块</button>
-                        <button id="extract-processed-modules-btn" class="btn-small">提取楼层范围整理后模块</button>
-                        <button id="extract-incremental-modules-btn" class="btn-small">输出当前整理后的增量更新模块</button>
-                        <button id="extract-full-modules-btn" class="btn-small">输出当前整理后的全量更新模块</button>
+                        <div class="module-checkbox-group" id="module-checkbox-container">
+                            <!-- 模块复选框将通过JavaScript动态添加 -->
+                        </div>
+                        <!-- 保留原有的select元素用于向后兼容 -->
+                        <select id="module-select" class="module-range-mode" multiple size="4" style="display: none;">
+                            <option value="all">所有模块</option>
+                            <!-- 模块选项将通过JavaScript动态添加 -->
+                        </select>
+                    </div>
+                    <div class="extract-actions-row">
+                        <div class="floor-range-group">
+                            <input type="number" id="start-floor-input" class="floor-input" min="1" placeholder="起始楼层">
+                            <span class="range-separator">-</span>
+                            <input type="number" id="end-floor-input" class="floor-input" min="1" placeholder="结束楼层">
+                        </div>
+                        <div class="extract-buttons-group">
+                            <button id="extract-modules-btn" class="btn-small">提取楼层范围模块</button>
+                            <button id="extract-processed-modules-btn" class="btn-small">提取楼层范围整理后模块</button>
+                            <button id="extract-incremental-modules-btn" class="btn-small">输出当前整理后的增量更新模块</button>
+                            <button id="extract-full-modules-btn" class="btn-small">输出当前整理后的全量更新模块</button>
+                        </div>
                     </div>
                     <div class="floor-range-group">
                         <input type="number" id="floor-input" class="floor-input" min="1" placeholder="输入楼层号">
