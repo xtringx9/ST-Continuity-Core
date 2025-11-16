@@ -15,11 +15,11 @@ export class ModuleProcessor {
      * 提取模块数据
      * @param {number} startIndex 起始索引
      * @param {number} endIndex 结束索引
-     * @param {Object} moduleFilter 模块过滤条件
+     * @param {Array} moduleFilters 模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
      * @returns {Array} 提取到的原始模块数组
      */
-    extractModules(startIndex, endIndex, moduleFilter) {
-        return this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+    extractModules(startIndex, endIndex, moduleFilters) {
+        return this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilters);
     }
 
     /**
@@ -956,18 +956,23 @@ export class ModuleProcessor {
     }
 
     /**
-     * 处理提取的模块数据（用于提取楼层范围模块按钮）
+     * 处理提取的模块数据（用于提取楼层范围模块按钮，支持多选）
      * @param {Array} modules 提取到的模块数组
-     * @param {string} selectedModuleName 选中的模块名
+     * @param {Array} selectedModuleNames 选中的模块名数组
      * @returns {string} 处理后的模块字符串
      */
-    processExtractedModules(modules, selectedModuleName) {
+    processExtractedModules(modules, selectedModuleNames) {
         // 标准化模块数据
         const normalizedModules = this.normalizeModules(modules);
 
-        // 过滤出选中的模块
+        // 过滤出选中的模块（支持多选）
         const filteredModules = normalizedModules.filter(module => {
-            return !selectedModuleName || module.moduleName === selectedModuleName;
+            // 如果没有选择任何模块，显示所有模块
+            if (!selectedModuleNames || selectedModuleNames.length === 0) {
+                return true;
+            }
+            // 如果选择了模块，只显示选中的模块
+            return selectedModuleNames.includes(module.moduleName);
         });
 
         // 构建处理后的模块字符串
@@ -1069,13 +1074,13 @@ export class ModuleProcessor {
     }
 
     /**
-     * 统一处理模块数据
-     * @param {Object} extractParams 提取参数对象，包含startIndex, endIndex, moduleFilter
+     * 统一处理模块数据（支持多选）
+     * @param {Object} extractParams 提取参数对象，包含startIndex, endIndex, moduleFilters
      * @param {string} processType 处理类型：'extract' | 'processed' | 'incremental' | 'full'
-     * @param {string} selectedModuleName 选中的模块名
+     * @param {Array} selectedModuleNames 选中的模块名数组
      * @returns {Object} 包含处理结果和显示信息的对象
      */
-    processModuleData(extractParams, processType, selectedModuleName) {
+    processModuleData(extractParams, processType, selectedModuleNames) {
         try {
             debugLog(`开始处理模块数据，类型：${processType}`);
 
@@ -1084,10 +1089,10 @@ export class ModuleProcessor {
                 throw new Error('提取参数无效');
             }
 
-            const { startIndex, endIndex, moduleFilter } = extractParams;
+            const { startIndex, endIndex, moduleFilters } = extractParams;
 
             // 提取模块数据
-            const rawModules = this.extractModules(startIndex, endIndex, moduleFilter);
+            const rawModules = this.extractModules(startIndex, endIndex, moduleFilters);
 
             let resultContent = '';
             let displayTitle = '';
@@ -1100,9 +1105,14 @@ export class ModuleProcessor {
                     // 标准化模块数据
                     modules = this.normalizeModules(rawModules);
 
-                    // 过滤出选中的模块
+                    // 过滤出选中的模块（支持多选）
                     const filteredModules = modules.filter(module => {
-                        return !selectedModuleName || module.moduleName === selectedModuleName;
+                        // 如果没有选择任何模块，显示所有模块
+                        if (!selectedModuleNames || selectedModuleNames.length === 0) {
+                            return true;
+                        }
+                        // 如果选择了模块，只显示选中的模块
+                        return selectedModuleNames.includes(module.moduleName);
                     });
 
                     // 构建处理后的模块字符串
@@ -1301,3 +1311,4 @@ export class ModuleProcessor {
         return resultContent;
     }
 }
+

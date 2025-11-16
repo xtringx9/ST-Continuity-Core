@@ -200,6 +200,56 @@
     margin-bottom: 4px;
 }
 
+/* 多选模块选择器样式 */
+#continuity-module-config-window #module-select {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #333;
+    transition: border-color 0.2s;
+    min-width: 120px;
+    max-width: 200px;
+    height: auto;
+}
+
+#continuity-module-config-window #module-select:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+#continuity-module-config-window #module-select option {
+    padding: 4px 8px;
+    font-size: 12px;
+    color: #333;
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+#continuity-module-config-window #module-select option:hover {
+    background-color: #b4c0e8;
+    color: white;
+}
+
+#continuity-module-config-window #module-select option:checked {
+    background-color: #7c89a4;
+    color: white;
+}
+
+/* 楼层范围组布局 */
+.floor-range-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.floor-range-group #module-select {
+    margin-right: 8px;
+}
+
 .range-separator {
     color: rgba(255, 255, 255, 0.7);
     font-size: 10px;
