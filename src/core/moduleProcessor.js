@@ -30,6 +30,7 @@ export class ModuleProcessor {
         const modulesData = getModulesData();
         const normalizedModules = [];
 
+        // 第一步：标准化所有模块
         modules.forEach(module => {
             // 解析模块名和变量
             const [originalModuleName, ...parts] = module.raw.slice(1, -1).split('|');
@@ -118,7 +119,398 @@ export class ModuleProcessor {
             }
         });
 
-        return normalizedModules;
+        // 第二步：智能补全time变量
+        this.completeTimeVariables(normalizedModules);
+
+        // 第三步：对模块进行排序
+        return this.sortModules(normalizedModules);
+    }
+
+    /**
+     * 智能补全time变量
+     * 对于time变量为空或只有时分的模块，根据同一条message内其他模块的time变量来补足
+     * @param {Array} modules 标准化后的模块数组
+     */
+    completeTimeVariables(modules) {
+        // 按messageIndex分组
+        const messageModulesMap = {};
+
+        // 第一步：分组
+        modules.forEach(module => {
+            const messageIndex = module.messageIndex;
+            if (!messageModulesMap[messageIndex]) {
+                messageModulesMap[messageIndex] = [];
+            }
+            messageModulesMap[messageIndex].push(module);
+        });
+
+        // 第二步：为每组message中的模块补全time变量
+        Object.values(messageModulesMap).forEach(messageModules => {
+            // 查找该message中包含完整time信息的模块
+            let referenceTime = null;
+            let referenceTimeStr = '';
+
+            // 先找到有完整年月日的time变量
+            for (const module of messageModules) {
+                if (module.variables && module.variables.time) {
+                    const timeVal = module.variables.time;
+                    const parsedTime = this.parseTime(timeVal);
+
+                    // 检查是否是完整的年月日时间
+                    if (parsedTime > 0) {
+                        const date = new Date(parsedTime);
+                        // 如果时间包含年月日（不是只有时分）
+                        if (date.getFullYear() > 1970 && date.getMonth() >= 0 && date.getDate() > 0) {
+                            referenceTime = parsedTime;
+                            referenceTimeStr = timeVal;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 如果找到了参考时间，为其他模块补全
+            if (referenceTime) {
+                for (const module of messageModules) {
+                    if (module.variables && module.variables.time !== undefined) {
+                        const timeVal = module.variables.time;
+
+                        // 如果time变量为空或只有时分
+                        if (!timeVal || /^\d{1,2}:\d{1,2}$/.test(timeVal)) {
+                            if (!timeVal) {
+                                // time为空，直接使用参考时间
+                                module.variables.time = referenceTimeStr;
+                            } else {
+                                // 只有时分，需要合并到参考时间的年月日
+                                const timeParts = timeVal.split(':');
+                                const hours = parseInt(timeParts[0], 10);
+                                const minutes = parseInt(timeParts[1], 10);
+
+                                // 创建新的时间对象，使用参考时间的年月日和当前模块的时分
+                                const referenceDate = new Date(referenceTime);
+                                const newDate = new Date(referenceDate.getFullYear(),
+                                    referenceDate.getMonth(),
+                                    referenceDate.getDate(),
+                                    hours, minutes);
+
+                                // 格式化回与参考时间相同的格式
+                                module.variables.time = this.formatTimeToSamePattern(referenceTimeStr, newDate);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 根据参考时间字符串的格式，格式化新的时间对象
+     * @param {string} referenceTimeStr 参考时间字符串
+     * @param {Date} date 要格式化的时间对象
+     * @returns {string} 格式化后的时间字符串
+     */
+    formatTimeToSamePattern(referenceTimeStr, date) {
+        // 根据参考时间的格式返回相应格式的时间字符串
+        if (/^\d{4}年\d{1,2}月\d{1,2}日\s+\d{1,2}:\d{1,2}$/.test(referenceTimeStr)) {
+            // 格式：2023年09月30日 21:30
+            return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, '0')}月${String(date.getDate()).padStart(2, '0')}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        } else if (/^\d{2}年\d{1,2}月\d{1,2}日\s+\d{1,2}:\d{1,2}$/.test(referenceTimeStr)) {
+            // 格式：24年4月11日 08:23
+            return `${String(date.getFullYear()).slice(-2)}年${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        } else if (/^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\d{1,2}$/.test(referenceTimeStr)) {
+            // 格式：2023-09-30 21:30
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        } else if (/^\d{4}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{1,2}$/.test(referenceTimeStr)) {
+            // 格式：2023/09/30 21:30
+            return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        } else {
+            // 默认格式
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+    }
+
+    /**
+     * 解析时间字符串为时间戳
+     * 支持多种时间格式，包括时间段
+     * @param {string} timeStr 时间字符串
+     * @returns {number} 时间戳（毫秒）
+     */
+    parseTime(timeStr) {
+        if (!timeStr || typeof timeStr !== 'string') {
+            return 0;
+        }
+
+        // 尝试匹配时间段格式，例如 "24年4月11日 周四 08:23 ~ 24年4月22日 周一 18:40"
+        const timeRangeMatch = timeStr.match(/(.*?)\s*~\s*(.*)/);
+        if (timeRangeMatch) {
+            // 如果是时间段，取开始时间
+            timeStr = timeRangeMatch[1].trim();
+        }
+
+        // 尝试匹配各种时间格式
+        const patterns = [
+            // 格式：2023年09月30日 21:30
+            /^(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：24年4月11日 08:23
+            /^(\d{2})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：2023-09-30 21:30
+            /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：2023/09/30 21:30
+            /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：2023年09月30日
+            /^(\d{4})年(\d{1,2})月(\d{1,2})日$/,
+            // 格式：24年4月11日
+            /^(\d{2})年(\d{1,2})月(\d{1,2})日$/,
+            // 格式：2023-09-30
+            /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+            // 格式：2023/09/30
+            /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/,
+            // 格式：08:23
+            /^(\d{1,2}):(\d{1,2})$/,
+        ];
+
+        for (const pattern of patterns) {
+            const match = timeStr.match(pattern);
+            if (match) {
+                let year, month, day, hour = 0, minute = 0;
+
+                switch (match.length) {
+                    case 4: // 时间格式：HH:MM
+                        [, hour, minute] = match;
+                        year = new Date().getFullYear();
+                        month = new Date().getMonth() + 1;
+                        day = new Date().getDate();
+                        break;
+                    case 6: // 日期+时间格式
+                        if (match[1].length === 2) {
+                            // 两位数年份
+                            [, year, month, day, hour, minute] = match;
+                            year = parseInt(year, 10) + 2000; // 假设是2000年后
+                        } else {
+                            // 四位数年份
+                            [, year, month, day, hour, minute] = match;
+                        }
+                        break;
+                    case 5: // 日期格式
+                        if (match[1].length === 2) {
+                            // 两位数年份
+                            [, year, month, day] = match;
+                            year = parseInt(year, 10) + 2000; // 假设是2000年后
+                        } else {
+                            // 四位数年份
+                            [, year, month, day] = match;
+                        }
+                        break;
+                }
+
+                // 转换为数字
+                year = parseInt(year, 10);
+                month = parseInt(month, 10) - 1; // JavaScript月份从0开始
+                day = parseInt(day, 10);
+                hour = parseInt(hour, 10);
+                minute = parseInt(minute, 10);
+
+                // 创建日期对象
+                const date = new Date(year, month, day, hour, minute);
+                if (!isNaN(date.getTime())) {
+                    return date.getTime();
+                }
+            }
+        }
+
+        // 如果无法解析，返回0
+        return 0;
+    }
+
+    /**
+     * 判断字符串是否可以转换为数值
+     * @param {string} str 要检查的字符串
+     * @returns {boolean} 是否可以转换为数值
+     */
+    isNumeric(str) {
+        if (typeof str !== 'string') {
+            return false;
+        }
+        // 检查是否是数字字符串（整数或小数）
+        return !isNaN(str) && !isNaN(parseFloat(str));
+    }
+
+    /**
+     * 通用模块排序方法
+     * 按照主标识符排序，如果主标识符不完整或为空，尝试使用备用标识符排序
+     * 如果标识符是时间类型，按时间排序
+     * 如果主标识符和备用标识符都不能数值化（时间除外），则按messageIndex排序
+     * @param {Array} modules 模块数组
+     * @returns {Array} 排序后的模块数组
+     */
+    sortModules(modules) {
+        return modules.sort((a, b) => {
+            // 获取模块A的标识符信息
+            let aIdentifierValue = '';
+            let isATimeIdentifier = false;
+            let hasAValidIdentifier = false;
+            if (a.moduleConfig) {
+                // 检查是否有主标识符
+                const aPrimaryIdentifiers = a.moduleConfig.variables
+                    .filter(variable => variable.isMainIdentifier || variable.isIdentifier);
+
+                if (aPrimaryIdentifiers.length > 0) {
+                    // 收集主标识符的值
+                    const aPrimaryValues = aPrimaryIdentifiers.map(variable => {
+                        // 检查是否是time变量
+                        if (variable.name.toLowerCase().includes('time')) {
+                            isATimeIdentifier = true;
+                        }
+                        return a.variables[variable.name] || '';
+                    });
+
+                    // 如果主标识符有值，使用它们的组合
+                    if (aPrimaryValues.some(val => val)) {
+                        aIdentifierValue = aPrimaryValues.join('__');
+                        hasAValidIdentifier = true;
+                    } else {
+                        // 主标识符没有值，尝试使用备用标识符
+                        const aBackupIdentifiers = a.moduleConfig.variables
+                            .filter(variable => variable.isBackupIdentifier);
+
+                        if (aBackupIdentifiers.length > 0) {
+                            const aBackupValues = aBackupIdentifiers.map(variable => {
+                                // 检查是否是time变量
+                                if (variable.name.toLowerCase().includes('time')) {
+                                    isATimeIdentifier = true;
+                                }
+                                return a.variables[variable.name] || '';
+                            });
+
+                            if (aBackupValues.some(val => val)) {
+                                aIdentifierValue = aBackupValues.join('__');
+                                hasAValidIdentifier = true;
+                            }
+                        }
+                    }
+                } else {
+                    // 没有主标识符，尝试使用备用标识符
+                    const aBackupIdentifiers = a.moduleConfig.variables
+                        .filter(variable => variable.isBackupIdentifier);
+
+                    if (aBackupIdentifiers.length > 0) {
+                        const aBackupValues = aBackupIdentifiers.map(variable => {
+                            // 检查是否是time变量
+                            if (variable.name.toLowerCase().includes('time')) {
+                                isATimeIdentifier = true;
+                            }
+                            return a.variables[variable.name] || '';
+                        });
+
+                        if (aBackupValues.some(val => val)) {
+                            aIdentifierValue = aBackupValues.join('__');
+                            hasAValidIdentifier = true;
+                        }
+                    }
+                }
+            }
+
+            // 获取模块B的标识符信息
+            let bIdentifierValue = '';
+            let isBTimeIdentifier = false;
+            let hasBValidIdentifier = false;
+            if (b.moduleConfig) {
+                // 检查是否有主标识符
+                const bPrimaryIdentifiers = b.moduleConfig.variables
+                    .filter(variable => variable.isMainIdentifier || variable.isIdentifier);
+
+                if (bPrimaryIdentifiers.length > 0) {
+                    // 收集主标识符的值
+                    const bPrimaryValues = bPrimaryIdentifiers.map(variable => {
+                        // 检查是否是time变量
+                        if (variable.name.toLowerCase().includes('time')) {
+                            isBTimeIdentifier = true;
+                        }
+                        return b.variables[variable.name] || '';
+                    });
+
+                    // 如果主标识符有值，使用它们的组合
+                    if (bPrimaryValues.some(val => val)) {
+                        bIdentifierValue = bPrimaryValues.join('__');
+                        hasBValidIdentifier = true;
+                    } else {
+                        // 主标识符没有值，尝试使用备用标识符
+                        const bBackupIdentifiers = b.moduleConfig.variables
+                            .filter(variable => variable.isBackupIdentifier);
+
+                        if (bBackupIdentifiers.length > 0) {
+                            const bBackupValues = bBackupIdentifiers.map(variable => {
+                                // 检查是否是time变量
+                                if (variable.name.toLowerCase().includes('time')) {
+                                    isBTimeIdentifier = true;
+                                }
+                                return b.variables[variable.name] || '';
+                            });
+
+                            if (bBackupValues.some(val => val)) {
+                                bIdentifierValue = bBackupValues.join('__');
+                                hasBValidIdentifier = true;
+                            }
+                        }
+                    }
+                } else {
+                    // 没有主标识符，尝试使用备用标识符
+                    const bBackupIdentifiers = b.moduleConfig.variables
+                        .filter(variable => variable.isBackupIdentifier);
+
+                    if (bBackupIdentifiers.length > 0) {
+                        const bBackupValues = bBackupIdentifiers.map(variable => {
+                            // 检查是否是time变量
+                            if (variable.name.toLowerCase().includes('time')) {
+                                isBTimeIdentifier = true;
+                            }
+                            return b.variables[variable.name] || '';
+                        });
+
+                        if (bBackupValues.some(val => val)) {
+                            bIdentifierValue = bBackupValues.join('__');
+                            hasBValidIdentifier = true;
+                        }
+                    }
+                }
+            }
+
+            // 如果双方都有标识符，但都不能数值化（时间除外），则按messageIndex排序
+            if (hasAValidIdentifier && hasBValidIdentifier &&
+                !isATimeIdentifier && !isBTimeIdentifier &&
+                !this.isNumeric(aIdentifierValue) && !this.isNumeric(bIdentifierValue)) {
+                return a.messageIndex - b.messageIndex;
+            }
+
+            // 处理时间类型的标识符 - 只在同模块内进行时间排序
+            if (isATimeIdentifier && isBTimeIdentifier && a.moduleName === b.moduleName) {
+                const aTime = this.parseTime(aIdentifierValue);
+                const bTime = this.parseTime(bIdentifierValue);
+                return aTime - bTime;
+            }
+
+            // 处理数值类型的标识符
+            if (hasAValidIdentifier && hasBValidIdentifier &&
+                this.isNumeric(aIdentifierValue) && this.isNumeric(bIdentifierValue)) {
+                return parseFloat(aIdentifierValue) - parseFloat(bIdentifierValue);
+            }
+
+            // 处理普通标识符
+            if (hasAValidIdentifier && hasBValidIdentifier) {
+                return aIdentifierValue.localeCompare(bIdentifierValue);
+            }
+
+            // 如果只有一个模块有标识符值，有标识符的排在前面
+            if (hasAValidIdentifier && !hasBValidIdentifier) {
+                return -1;
+            }
+            if (!hasAValidIdentifier && hasBValidIdentifier) {
+                return 1;
+            }
+
+            // 没有标识符的模块按messageIndex排序
+            return a.messageIndex - b.messageIndex;
+        });
     }
 
     /**
@@ -193,14 +585,13 @@ export class ModuleProcessor {
                         identifier = allValues || 'default';
                     }
                 } else {
-                    // 没有主标识符和备用标识符时，使用所有变量值的组合作为标识符
-                    const allValues = Object.values(module.variables).join('__');
-                    identifier = allValues || 'default';
+                    // 没有主标识符和备用标识符时，使用'default'作为标识符
+                    // 这样同一模块的所有实例会分到同一组，然后按messageIndex排序
+                    identifier = 'default';
                 }
             } else {
-                // 没有模块配置时，使用所有变量值的组合作为标识符
-                const allValues = Object.values(module.variables).join('__');
-                identifier = allValues || 'default';
+                // 没有模块配置时，使用'default'作为标识符
+                identifier = 'default';
             }
 
             // 使用特殊分隔符构建组键
@@ -426,8 +817,21 @@ export class ModuleProcessor {
         // 构建结果显示内容
         let resultContent = '';
 
-        // 处理每个模块组
-        for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
+        // 转换模块组为数组，以便排序
+        const moduleGroupsArray = Object.entries(moduleGroups);
+
+        // 对模块组进行排序（使用每个组的第一个模块来确定排序）
+        moduleGroupsArray.sort(([keyA, modulesA], [keyB, modulesB]) => {
+            // 使用第一个模块作为代表进行排序
+            const moduleA = modulesA[0];
+            const moduleB = modulesB[0];
+
+            // 直接比较messageIndex即可，因为模块已经在标准化阶段排序过
+            return moduleA.messageIndex - moduleB.messageIndex;
+        });
+
+        // 处理每个排序后的模块组
+        for (const [moduleKey, moduleList] of moduleGroupsArray) {
             // 解析模块名和标识符（使用特殊分隔符）
             const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
             if (!match) continue;
@@ -500,11 +904,11 @@ export class ModuleProcessor {
             // 调试日志：输出模块配置和保留层数
             debugLog(`处理模块：${moduleName}`);
             debugLog(`模块配置：${JSON.stringify(moduleConfig)}`);
-            
+
             // 获取retainLayers值（默认为-1，表示无限）
             const retainLayers = moduleConfig.retainLayers === undefined ? -1 : parseInt(moduleConfig.retainLayers, 10);
             debugLog(`retainLayers值：${retainLayers}`);
-            
+
             let filteredModules = allModulesOfName;
             debugLog(`原始模块数量：${allModulesOfName.length}`);
             debugLog(`模块messageIndex列表：${allModulesOfName.map(m => m.messageIndex).join(', ')}`);
@@ -561,7 +965,7 @@ export class ModuleProcessor {
                 const [, , identifier] = match;
 
                 debugLog(`处理模块组：${moduleName}，标识符：${identifier}`);
-                
+
                 // 格式化输出每个模块
                 const formattedModulesStr = moduleList.map(module => {
                     // 检查是否需要隐藏该模块条目
