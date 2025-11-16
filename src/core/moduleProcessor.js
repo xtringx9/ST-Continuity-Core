@@ -124,7 +124,12 @@ export class ModuleProcessor {
         this.completeTimeVariables(normalizedModules);
 
         // 第三步：对模块进行排序
-        return this.sortModules(normalizedModules);
+        const sortedModules = this.sortModules(normalizedModules);
+
+        // 第四步：智能补全id变量
+        this.completeIdVariables(sortedModules);
+
+        return sortedModules;
     }
 
     /**
@@ -894,6 +899,91 @@ export class ModuleProcessor {
 
         moduleStr += ']';
         return moduleStr;
+    }
+
+    /**
+     * 智能补全id变量
+     * 对于有id变量但值为空的模块条目，根据备用标识符智能补全id
+     * @param {Array} modules 排序后的模块数组
+     */
+    completeIdVariables(modules) {
+        debugLog('[IdCompletion] 开始智能补全id变量，模块数量:', modules.length);
+
+        // 按模块名分组
+        const moduleGroups = {};
+        modules.forEach(module => {
+            const moduleName = module.moduleName;
+            if (!moduleGroups[moduleName]) {
+                moduleGroups[moduleName] = [];
+            }
+            moduleGroups[moduleName].push(module);
+        });
+
+        // 处理每个模块组
+        Object.entries(moduleGroups).forEach(([moduleName, moduleList]) => {
+            debugLog(`[IdCompletion] 处理模块组 ${moduleName}，包含 ${moduleList.length} 个模块`);
+
+            // 检查该模块是否有id变量
+            const hasIdVariable = moduleList.some(module => {
+                return module.moduleConfig && module.moduleConfig.variables.some(variable => variable.name === 'id');
+            });
+
+            if (!hasIdVariable) {
+                debugLog(`[IdCompletion] 模块 ${moduleName} 没有id变量，跳过处理`);
+                return;
+            }
+
+            // 获取模块配置
+            const moduleConfig = moduleList[0].moduleConfig;
+
+            // 获取备用标识符
+            const backupIdentifiers = moduleConfig.variables
+                .filter(variable => variable.isBackupIdentifier)
+                .map(variable => variable.name);
+
+            // 记录已处理的备用标识符组合和对应的id
+            const identifierIdMap = new Map();
+            let currentId = 1;
+
+            // 处理每个模块条目
+            moduleList.forEach(module => {
+                let currentIdValue = module.variables.id || '';
+
+                // 如果id值为空，需要补全
+                if (!currentIdValue) {
+                    // 生成备用标识符组合
+                    let backupKey = '';
+                    if (backupIdentifiers.length > 0) {
+                        backupKey = backupIdentifiers.map(identifier => module.variables[identifier] || '').join('__');
+                    }
+
+                    // 如果有备用标识符，检查是否已存在
+                    if (backupKey) {
+                        if (identifierIdMap.has(backupKey)) {
+                            // 已存在，使用相同的id
+                            currentIdValue = identifierIdMap.get(backupKey);
+                            debugLog(`[IdCompletion] 模块 ${moduleName} 使用已存在的id ${currentIdValue}，备用标识符: ${backupKey}`);
+                        } else {
+                            // 不存在，生成新id
+                            currentIdValue = String(currentId).padStart(3, '0');
+                            identifierIdMap.set(backupKey, currentIdValue);
+                            currentId++;
+                            debugLog(`[IdCompletion] 模块 ${moduleName} 生成新id ${currentIdValue}，备用标识符: ${backupKey}`);
+                        }
+                    } else {
+                        // 没有备用标识符，直接递增生成id
+                        currentIdValue = String(currentId).padStart(3, '0');
+                        currentId++;
+                        debugLog(`[IdCompletion] 模块 ${moduleName} 生成新id ${currentIdValue}，无备用标识符`);
+                    }
+
+                    // 更新模块的id值
+                    module.variables.id = currentIdValue;
+                }
+            });
+        });
+
+        debugLog('[IdCompletion] 智能补全id变量完成');
     }
 
     /**
