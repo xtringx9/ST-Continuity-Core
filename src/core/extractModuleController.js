@@ -151,6 +151,45 @@ export class ExtractModuleController {
     }
 
     /**
+     * 统一显示模块处理结果
+     * @param {Object} processResult 处理结果对象
+     * @param {string} processType 处理类型
+     */
+    displayModuleResult(processResult, processType) {
+        const resultsContainer = $('#extract-results-container');
+        resultsContainer.empty();
+
+        if (processResult.success && processResult.hasContent) {
+            // 创建结果显示
+            const resultDisplay = $(`
+                <div class="processed-module-result">
+                    <div class="module-header">
+                        <span class="module-index">${processResult.displayTitle}</span>
+                    </div>
+                    <div class="module-content">
+                        <pre>${this.moduleProcessor.htmlEscape(processResult.content)}</pre>
+                    </div>
+                </div>
+            `);
+
+            resultsContainer.append(resultDisplay);
+            debugLog(`${processType}处理成功，共处理 ${processResult.moduleCount} 个模块`);
+        } else if (processResult.success && !processResult.hasContent) {
+            // 处理成功但没有内容
+            let noResultsMessage = '未找到任何[模块名|键A:值A|键B:值B...]格式的模块。';
+            if (processType === 'incremental') {
+                noResultsMessage = '未找到任何增量更新模块。';
+            }
+            resultsContainer.append(`<p class="no-results">${noResultsMessage}</p>`);
+            debugLog(`${processType}处理完成，未发现模块`);
+        } else {
+            // 处理失败
+            resultsContainer.append(`<p class="error-results">处理失败：${processResult.error}</p>`);
+            toastr.error(`${processType}处理失败，请查看控制台日志`);
+        }
+    }
+
+    /**
      * 提取模块功能
      */
     extractModules() {
@@ -163,35 +202,15 @@ export class ExtractModuleController {
 
             const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
 
-            // 使用ModuleExtractor提取模块，指定范围和过滤条件
-            const rawModules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+            // 使用统一的模块数据处理方法（包含模块提取逻辑）
+            const processResult = this.moduleProcessor.processModuleData(
+                { startIndex, endIndex, moduleFilter },
+                'extract',
+                selectedModuleName
+            );
 
-            // 清空结果容器
-            const resultsContainer = $('#extract-results-container');
-            resultsContainer.empty();
-
-            if (rawModules.length > 0) {
-                // 使用moduleProcessor处理提取的模块
-                const processedResult = this.moduleProcessor.processExtractedModules(rawModules, selectedModuleName);
-
-                // 创建结果显示
-                const resultDisplay = $(`
-                    <div class="processed-module-result">
-                        <div class="module-header">
-                            <span class="module-index">处理结果</span>
-                        </div>
-                        <div class="module-content">
-                            <pre>${this.moduleProcessor.htmlEscape(processedResult)}</pre>
-                        </div>
-                    </div>
-                `);
-
-                resultsContainer.append(resultDisplay);
-                debugLog(`提取模块成功，共发现 ${rawModules.length} 个模块`);
-            } else {
-                resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
-                debugLog('提取模块完成，未发现模块');
-            }
+            // 显示处理结果
+            this.displayModuleResult(processResult, '提取模块');
         } catch (error) {
             errorLog('提取模块失败:', error);
             toastr.error('提取模块失败，请查看控制台日志');
@@ -222,35 +241,15 @@ export class ExtractModuleController {
 
             const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
 
-            // 使用ModuleExtractor提取模块，指定范围和过滤条件
-            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+            // 使用统一的模块数据处理方法（包含模块提取逻辑）
+            const processResult = this.moduleProcessor.processModuleData(
+                { startIndex, endIndex, moduleFilter },
+                'processed',
+                selectedModuleName
+            );
 
-            // 清空结果容器
-            const resultsContainer = $('#extract-results-container');
-            resultsContainer.empty();
-
-            if (modules.length > 0) {
-                // 使用moduleProcessor处理提取的模块
-                const processedResult = this.moduleProcessor.processExtractedModules(modules, selectedModuleName);
-
-                // 创建结果显示
-                const resultDisplay = $(`
-                    <div class="processed-module-result">
-                        <div class="module-header">
-                            <span class="module-index">整理后模块结果</span>
-                        </div>
-                        <div class="module-content">
-                            <pre>${this.moduleProcessor.htmlEscape(processedResult)}</pre>
-                        </div>
-                    </div>
-                `);
-
-                resultsContainer.append(resultDisplay);
-                debugLog(`提取整理后模块成功，共处理 ${modules.length} 个模块`);
-            } else {
-                resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
-                debugLog('提取整理后模块完成，未发现模块');
-            }
+            // 显示处理结果
+            this.displayModuleResult(processResult, '提取整理后模块');
         } catch (error) {
             errorLog('提取整理后模块失败:', error);
             toastr.error('提取整理后模块失败，请查看控制台日志');
@@ -260,11 +259,11 @@ export class ExtractModuleController {
 
 
     /**
-     * 输出当前整理后的增量更新模块
+     * 提取增量更新模块功能
      */
     extractIncrementalModules() {
         try {
-            debugLog('开始输出当前整理后的增量更新模块');
+            debugLog('开始提取增量更新模块功能');
 
             // 提取参数
             const params = this.extractParameters();
@@ -272,50 +271,27 @@ export class ExtractModuleController {
 
             const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
 
-            // 使用ModuleExtractor提取模块，指定范围和过滤条件
-            const rawModules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+            // 使用统一的模块数据处理方法（包含模块提取逻辑）
+            const processResult = this.moduleProcessor.processModuleData(
+                { startIndex, endIndex, moduleFilter },
+                'incremental',
+                selectedModuleName
+            );
 
-            // 使用ModuleProcessor处理模块数据
-            const modules = this.moduleProcessor.normalizeModules(rawModules);
-
-            // 处理增量更新模块
-            const resultContent = this.moduleProcessor.processIncrementalModules(modules);
-
-            // 清空结果容器
-            const resultsContainer = $('#extract-results-container');
-            resultsContainer.empty();
-
-            if (resultContent.trim()) {
-                // 创建结果显示
-                const resultDisplay = $(`
-                    <div class="processed-module-result">
-                        <div class="module-header">
-                            <span class="module-index">增量更新模块结果</span>
-                        </div>
-                        <div class="module-content">
-                            <pre>${this.moduleProcessor.htmlEscape(resultContent.trim())}</pre>
-                        </div>
-                    </div>
-                `);
-
-                resultsContainer.append(resultDisplay);
-                debugLog(`输出增量更新模块成功，共处理 ${modules.length} 个模块`);
-            } else {
-                resultsContainer.append('<p class="no-results">未找到任何增量更新模块。</p>');
-                debugLog('输出增量更新模块完成，未发现模块');
-            }
+            // 显示处理结果
+            this.displayModuleResult(processResult, '提取增量更新模块');
         } catch (error) {
-            errorLog('输出增量更新模块失败:', error);
-            toastr.error('输出增量更新模块失败，请查看控制台日志');
+            errorLog('提取增量更新模块失败:', error);
+            toastr.error('提取增量更新模块失败，请查看控制台日志');
         }
     }
 
     /**
-     * 输出当前整理后的全量更新模块
+     * 提取全量模块功能
      */
     extractFullModules() {
         try {
-            debugLog('开始输出当前整理后的全量更新模块');
+            debugLog('开始提取全量模块功能');
 
             // 提取参数
             const params = this.extractParameters();
@@ -323,41 +299,18 @@ export class ExtractModuleController {
 
             const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
 
-            // 使用ModuleExtractor提取模块，指定范围和过滤条件
-            const rawModules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+            // 使用统一的模块数据处理方法（包含模块提取逻辑）
+            const processResult = this.moduleProcessor.processModuleData(
+                { startIndex, endIndex, moduleFilter },
+                'full',
+                selectedModuleName
+            );
 
-            // 标准化模块数据
-            const modules = this.moduleProcessor.normalizeModules(rawModules);
-
-            // 清空结果容器
-            const resultsContainer = $('#extract-results-container');
-            resultsContainer.empty();
-
-            if (modules.length > 0) {
-                // 使用ModuleProcessor处理全量模块
-                const resultContent = this.moduleProcessor.processFullModules(modules);
-
-                // 创建结果显示
-                const resultDisplay = $(`
-                    <div class="processed-module-result">
-                        <div class="module-header">
-                            <span class="module-index">全量更新模块结果</span>
-                        </div>
-                        <div class="module-content">
-                            <pre>${this.moduleProcessor.htmlEscape(resultContent)}</pre>
-                        </div>
-                    </div>
-                `);
-
-                resultsContainer.append(resultDisplay);
-                debugLog(`输出全量更新模块成功，共处理 ${modules.length} 个模块`);
-            } else {
-                resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
-                debugLog('输出全量更新模块完成，未发现模块');
-            }
+            // 显示处理结果
+            this.displayModuleResult(processResult, '提取全量模块');
         } catch (error) {
-            errorLog('输出全量更新模块失败:', error);
-            toastr.error('输出全量更新模块失败，请查看控制台日志');
+            errorLog('提取全量模块失败:', error);
+            toastr.error('提取全量模块失败，请查看控制台日志');
         }
     }
 
