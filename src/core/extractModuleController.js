@@ -30,7 +30,7 @@ export class ExtractModuleController {
     }
 
     /**
-     * 填充模块选择下拉框
+     * 填充模块选择下拉框（支持多选）
      */
     populateModuleSelect() {
         try {
@@ -53,7 +53,7 @@ export class ExtractModuleController {
                 });
             }
 
-            debugLog('模块选择下拉框填充完成');
+            debugLog('模块选择下拉框填充完成（支持多选）');
         } catch (error) {
             errorLog('填充模块选择下拉框失败:', error);
         }
@@ -98,7 +98,7 @@ export class ExtractModuleController {
     }
 
     /**
-     * 提取楼层范围和模块过滤条件的辅助方法
+     * 提取楼层范围和模块过滤条件的辅助方法（支持多选）
      * @returns {Object} 包含提取参数的对象
      */
     extractParameters() {
@@ -106,8 +106,8 @@ export class ExtractModuleController {
         const startFloor = parseInt($('#start-floor-input').val().trim());
         const endFloor = parseInt($('#end-floor-input').val().trim());
 
-        // 获取选择的模块
-        const selectedModuleName = $('#module-select').val();
+        // 获取选择的模块（支持多选）
+        const selectedModuleNames = $('#module-select').val();
 
         // 转换为索引（楼层从1开始，索引从0开始）
         let startIndex = 0;
@@ -127,26 +127,34 @@ export class ExtractModuleController {
             return null;
         }
 
-        // 获取模块过滤条件
-        let moduleFilter = null;
-        if (selectedModuleName && selectedModuleName !== 'all') {
+        // 获取模块过滤条件（支持多选）
+        let moduleFilters = null;
+        if (selectedModuleNames && selectedModuleNames.length > 0 && !selectedModuleNames.includes('all')) {
             // 查找选中的模块配置
             const modulesData = getModulesData();
-            const selectedModule = modulesData.find(module => module.name === selectedModuleName);
+            moduleFilters = [];
 
-            if (selectedModule) {
-                moduleFilter = {
-                    name: selectedModule.name,
-                    compatibleModuleNames: selectedModule.compatibleModuleNames
-                };
+            selectedModuleNames.forEach(moduleName => {
+                const selectedModule = modulesData.find(module => module.name === moduleName);
+                if (selectedModule) {
+                    moduleFilters.push({
+                        name: selectedModule.name,
+                        compatibleModuleNames: selectedModule.compatibleModuleNames
+                    });
+                }
+            });
+
+            // 如果没有找到任何有效模块，设置为null
+            if (moduleFilters.length === 0) {
+                moduleFilters = null;
             }
         }
 
         return {
             startIndex,
             endIndex,
-            selectedModuleName,
-            moduleFilter
+            selectedModuleNames: selectedModuleNames || [],
+            moduleFilters
         };
     }
 
@@ -190,23 +198,23 @@ export class ExtractModuleController {
     }
 
     /**
-     * 提取模块功能
+     * 提取模块功能（支持多选）
      */
     extractModules() {
         try {
-            debugLog('开始提取模块功能');
+            debugLog('开始提取模块功能（支持多选）');
 
             // 提取参数
             const params = this.extractParameters();
             if (!params) return;
 
-            const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
+            const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
             const processResult = this.moduleProcessor.processModuleData(
-                { startIndex, endIndex, moduleFilter },
+                { startIndex, endIndex, moduleFilters },
                 'extract',
-                selectedModuleName
+                selectedModuleNames
             );
 
             // 显示处理结果
@@ -229,23 +237,23 @@ export class ExtractModuleController {
     }
 
     /**
-     * 提取整理后模块功能
+     * 提取整理后模块功能（支持多选）
      */
     extractProcessedModules() {
         try {
-            debugLog('开始提取整理后模块功能');
+            debugLog('开始提取整理后模块功能（支持多选）');
 
             // 提取参数
             const params = this.extractParameters();
             if (!params) return;
 
-            const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
+            const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
             const processResult = this.moduleProcessor.processModuleData(
-                { startIndex, endIndex, moduleFilter },
+                { startIndex, endIndex, moduleFilters },
                 'processed',
-                selectedModuleName
+                selectedModuleNames
             );
 
             // 显示处理结果
@@ -259,23 +267,23 @@ export class ExtractModuleController {
 
 
     /**
-     * 提取增量更新模块功能
+     * 提取增量更新模块功能（支持多选）
      */
     extractIncrementalModules() {
         try {
-            debugLog('开始提取增量更新模块功能');
+            debugLog('开始提取增量更新模块功能（支持多选）');
 
             // 提取参数
             const params = this.extractParameters();
             if (!params) return;
 
-            const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
+            const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
             const processResult = this.moduleProcessor.processModuleData(
-                { startIndex, endIndex, moduleFilter },
+                { startIndex, endIndex, moduleFilters },
                 'incremental',
-                selectedModuleName
+                selectedModuleNames
             );
 
             // 显示处理结果
@@ -287,23 +295,23 @@ export class ExtractModuleController {
     }
 
     /**
-     * 提取全量模块功能
+     * 提取全量模块功能（支持多选）
      */
     extractFullModules() {
         try {
-            debugLog('开始提取全量模块功能');
+            debugLog('开始提取全量模块功能（支持多选）');
 
             // 提取参数
             const params = this.extractParameters();
             if (!params) return;
 
-            const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
+            const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
             const processResult = this.moduleProcessor.processModuleData(
-                { startIndex, endIndex, moduleFilter },
+                { startIndex, endIndex, moduleFilters },
                 'full',
-                selectedModuleName
+                selectedModuleNames
             );
 
             // 显示处理结果
@@ -403,5 +411,10 @@ export class ExtractModuleController {
         }
     }
 }
+
+
+
+
+
 
 

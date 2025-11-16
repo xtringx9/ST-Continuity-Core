@@ -8,10 +8,10 @@ import { chat } from "../index.js";
  * @param {Array} chatArray 可选的聊天数组，如果未提供则使用全局chat数组
  * @param {number} startIndex 可选的起始索引
  * @param {number} endIndex 可选的结束索引
- * @param {Object} moduleFilter 可选的模块过滤条件，包含name和compatibleModuleNames
+ * @param {Array} moduleFilters 可选的模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
  * @returns {Array} 解析出的模块数据数组
  */
-export function extractModulesFromChatHistory(moduleRegex, chatArray = null, startIndex = 0, endIndex = null, moduleFilter = null) {
+export function extractModulesFromChatHistory(moduleRegex, chatArray = null, startIndex = 0, endIndex = null, moduleFilters = null) {
     const extractedModules = [];
 
     try {
@@ -50,17 +50,19 @@ export function extractModulesFromChatHistory(moduleRegex, chatArray = null, sta
             // 将提取到的模块添加到结果数组
             modules.forEach(rawModule => {
                 // 如果有模块过滤条件，检查模块名是否匹配
-                if (moduleFilter) {
+                if (moduleFilters && moduleFilters.length > 0) {
                     // 提取模块名
                     const moduleNameMatch = rawModule.match(/^\[(.*?)\|/);
                     if (moduleNameMatch) {
                         const moduleName = moduleNameMatch[1];
-                        // 检查模块名是否在过滤列表中
-                        const matchesFilter = moduleFilter.name === moduleName ||
-                            (moduleFilter.compatibleModuleNames &&
-                                moduleFilter.compatibleModuleNames.includes(moduleName));
-                        // 如果不匹配，跳过这个模块
-                        if (!matchesFilter) {
+                        // 检查模块名是否在任意一个过滤条件中匹配
+                        const matchesAnyFilter = moduleFilters.some(moduleFilter => {
+                            return moduleFilter.name === moduleName ||
+                                (moduleFilter.compatibleModuleNames &&
+                                    moduleFilter.compatibleModuleNames.includes(moduleName));
+                        });
+                        // 如果不匹配任何过滤条件，跳过这个模块
+                        if (!matchesAnyFilter) {
                             return;
                         }
                     }
@@ -142,20 +144,20 @@ export class ModuleExtractor {
      * @param {RegExp} moduleRegex 可选的自定义模块匹配正则表达式，默认为匹配[模块名|键A:值A|键B:值B...]格式
      * @param {number} startIndex 可选的起始索引
      * @param {number} endIndex 可选的结束索引
-     * @param {Object} moduleFilter 可选的模块过滤条件，包含name和compatibleModuleNames
+     * @param {Array} moduleFilters 可选的模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
      * @returns {Array} 提取的模块数据数组
      */
-    extractModulesFromChat(moduleRegex = /\[.*?\|.*?\]/g, startIndex = 0, endIndex = null, moduleFilter = null) {
+    extractModulesFromChat(moduleRegex = /\[.*?\|.*?\]/g, startIndex = 0, endIndex = null, moduleFilters = null) {
         try {
             debugLog('开始从聊天记录中提取模块数据');
 
             // 调用帮助函数提取模块
-            const modules = extractModulesFromChatHistory(moduleRegex, null, startIndex, endIndex, moduleFilter);
+            const modules = extractModulesFromChatHistory(moduleRegex, null, startIndex, endIndex, moduleFilters);
 
             // 也可以从当前的eventData.chat中提取（如果在事件处理上下文中）
             if (this.currentEventData && this.currentEventData.chat) {
                 debugLog('同时从当前事件数据中提取模块');
-                const eventChatModules = extractModulesFromChatHistory(moduleRegex, this.currentEventData.chat, startIndex, endIndex, moduleFilter);
+                const eventChatModules = extractModulesFromChatHistory(moduleRegex, this.currentEventData.chat, startIndex, endIndex, moduleFilters);
                 modules.push(...eventChatModules);
             }
 
