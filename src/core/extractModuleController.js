@@ -404,7 +404,7 @@ export class ExtractModuleController {
 
             // 创建楼层内容显示
             const floorContent = $(`
-                <div class="floor-content-item">
+                <div class="processed-module-result">
                     <div class="module-header">
                         <span class="module-index">第 ${floorNumber} 层</span>
                     </div>
