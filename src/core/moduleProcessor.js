@@ -1069,6 +1069,113 @@ export class ModuleProcessor {
     }
 
     /**
+     * 统一处理模块数据
+     * @param {Object} extractParams 提取参数对象，包含startIndex, endIndex, moduleFilter
+     * @param {string} processType 处理类型：'extract' | 'processed' | 'incremental' | 'full'
+     * @param {string} selectedModuleName 选中的模块名
+     * @returns {Object} 包含处理结果和显示信息的对象
+     */
+    processModuleData(extractParams, processType, selectedModuleName) {
+        try {
+            debugLog(`开始处理模块数据，类型：${processType}`);
+
+            // 提取参数验证
+            if (!extractParams || typeof extractParams !== 'object') {
+                throw new Error('提取参数无效');
+            }
+
+            const { startIndex, endIndex, moduleFilter } = extractParams;
+
+            // 提取模块数据
+            const rawModules = this.extractModules(startIndex, endIndex, moduleFilter);
+
+            let resultContent = '';
+            let displayTitle = '';
+            let modules = [];
+
+            // 根据处理类型选择不同的处理逻辑
+            switch (processType) {
+                case 'extract':
+                case 'processed':
+                    // 标准化模块数据
+                    modules = this.normalizeModules(rawModules);
+
+                    // 过滤出选中的模块
+                    const filteredModules = modules.filter(module => {
+                        return !selectedModuleName || module.moduleName === selectedModuleName;
+                    });
+
+                    // 构建处理后的模块字符串
+                    const processedModules = filteredModules.map(module => {
+                        if (!module.moduleConfig) {
+                            // 没有模块配置，返回原始内容
+                            return module.raw;
+                        }
+
+                        // 构建当前模块的字符串
+                        let moduleString = `[${module.moduleName}`;
+
+                        // 按照模块配置中的变量顺序添加变量
+                        module.moduleConfig.variables.forEach(variable => {
+                            // 获取变量值
+                            let varValue = module.variables[variable.name] || '';
+
+                            moduleString += `|${variable.name}:${varValue}`;
+                        });
+
+                        moduleString += ']';
+
+                        return moduleString;
+                    });
+
+                    resultContent = processedModules.join('\n');
+                    displayTitle = processType === 'extract' ? '处理结果' : '整理后模块结果';
+                    break;
+
+                case 'incremental':
+                    // 标准化模块数据
+                    modules = this.normalizeModules(rawModules);
+
+                    // 处理增量更新模块
+                    resultContent = this.processIncrementalModules(modules);
+                    displayTitle = '增量更新模块结果';
+                    break;
+
+                case 'full':
+                    // 标准化模块数据
+                    modules = this.normalizeModules(rawModules);
+
+                    // 处理全量更新模块
+                    resultContent = this.processFullModules(modules);
+                    displayTitle = '全量更新模块结果';
+                    break;
+
+                default:
+                    throw new Error(`不支持的处理类型：${processType}`);
+            }
+
+            return {
+                success: true,
+                content: resultContent,
+                displayTitle: displayTitle,
+                moduleCount: modules.length,
+                hasContent: resultContent.trim().length > 0
+            };
+
+        } catch (error) {
+            errorLog(`处理模块数据失败（类型：${processType}）:`, error);
+            return {
+                success: false,
+                error: error.message,
+                content: '',
+                displayTitle: '处理失败',
+                moduleCount: 0,
+                hasContent: false
+            };
+        }
+    }
+
+    /**
      * 处理全量更新模块
      * @param {Array} modules 标准化后的模块数组
      * @returns {string} 全量更新模块字符串
