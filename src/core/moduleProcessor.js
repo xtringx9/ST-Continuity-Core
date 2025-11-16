@@ -160,19 +160,19 @@ export class ModuleProcessor {
 
             // 策略1：优先查找开启了时间参考标准的模块
             debugLog(`[TimeCompletion] 策略1：优先查找开启时间参考标准的模块`);
-            
+
             // 获取所有模块配置
             const modulesData = getModulesData();
-            
+
             for (const module of messageModules) {
                 if (module.variables) {
                     // 查找当前模块的配置
                     const moduleConfig = modulesData.find(config => config.name === module.moduleName);
-                    
+
                     // 检查模块是否开启了时间参考标准
                     if (moduleConfig && moduleConfig.timeReferenceStandard) {
                         debugLog(`[TimeCompletion] 模块 ${module.moduleName} 开启了时间参考标准`);
-                        
+
                         // 遍历所有变量，查找包含time的变量名
                         for (const [variableName, timeVal] of Object.entries(module.variables)) {
                             if (variableName.toLowerCase().includes('time') && timeVal) {
@@ -207,7 +207,7 @@ export class ModuleProcessor {
             // 策略2：如果策略1没找到，查找有完整年月日的time变量（支持所有包含time的变量名）
             if (!referenceTime) {
                 debugLog(`[TimeCompletion] 策略1未找到参考时间，尝试策略2：查找有完整年月日的time变量`);
-                
+
                 for (const module of messageModules) {
                     if (module.variables) {
                         debugLog(`[TimeCompletion] 检查模块 ${module.moduleName} 的变量:`, Object.keys(module.variables));
@@ -330,27 +330,9 @@ export class ModuleProcessor {
             timeStr = timeRangeMatch[1].trim();
         }
 
-        // 尝试匹配各种时间格式
+        // 尝试匹配各种时间格式（按从具体到通用的顺序）
         const patterns = [
-            // 格式：2023年09月30日 21:30
-            /^(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})$/,
-            // 格式：24年4月11日 08:23
-            /^(\d{2})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})$/,
-            // 格式：2023-09-30 21:30
-            /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/,
-            // 格式：2023/09/30 21:30
-            /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/,
-            // 格式：2023年09月30日
-            /^(\d{4})年(\d{1,2})月(\d{1,2})日$/,
-            // 格式：24年4月11日
-            /^(\d{2})年(\d{1,2})月(\d{1,2})日$/,
-            // 格式：2023-09-30
-            /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
-            // 格式：2023/09/30
-            /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/,
-            // 格式：08:23
-            /^(\d{1,2}):(\d{1,2})$/,
-            // 新增：支持带星期的时间格式
+            // 最具体的格式：带星期的完整日期时间
             // 格式：2023年09月28日 周四 10:10
             /^(\d{4})年(\d{1,2})月(\d{1,2})日\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
             // 格式：24年4月11日 周四 08:23
@@ -359,6 +341,30 @@ export class ModuleProcessor {
             /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
             // 格式：2023/09/28 Thursday 10:10
             /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
+
+            // 完整的日期时间格式
+            // 格式：2023年09月30日 21:30
+            /^(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：24年4月11日 08:23
+            /^(\d{2})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：2023-09-30 21:30
+            /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：2023/09/30 21:30
+            /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/,
+
+            // 仅日期格式
+            // 格式：2023年09月30日
+            /^(\d{4})年(\d{1,2})月(\d{1,2})日$/,
+            // 格式：24年4月11日
+            /^(\d{2})年(\d{1,2})月(\d{1,2})日$/,
+            // 格式：2023-09-30
+            /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+            // 格式：2023/09/30
+            /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/,
+
+            // 仅时间格式（放在最后，因为最通用）
+            // 格式：08:23
+            /^(\d{1,2}):(\d{1,2})$/,
         ];
 
         for (const pattern of patterns) {
@@ -367,11 +373,17 @@ export class ModuleProcessor {
                 let year, month, day, hour = 0, minute = 0;
 
                 switch (match.length) {
-                    case 4: // 时间格式：HH:MM
-                        [, hour, minute] = match;
-                        year = new Date().getFullYear();
-                        month = new Date().getMonth() + 1;
-                        day = new Date().getDate();
+                    case 4: // 时间格式：HH:MM 或 日期格式：YYYY年MM月DD日
+                        if (pattern.toString().includes('年') && pattern.toString().includes('月') && pattern.toString().includes('日')) {
+                            // 日期格式：YYYY年MM月DD日
+                            [, year, month, day] = match;
+                        } else {
+                            // 时间格式：HH:MM
+                            [, hour, minute] = match;
+                            year = new Date().getFullYear();
+                            month = new Date().getMonth() + 1;
+                            day = new Date().getDate();
+                        }
                         break;
                     case 6: // 日期+时间格式
                         if (match[1].length === 2) {
@@ -415,6 +427,49 @@ export class ModuleProcessor {
     }
 
     /**
+     * 解析时间字符串为时间戳，支持时间段的中点排序
+     * 支持混合时间格式：完整日期时间、仅日期、仅时间、时间段
+     * @param {string} timeStr 时间字符串
+     * @returns {number} 时间戳（毫秒），对于时间段返回中点时间戳
+     */
+    parseTimeForSorting(timeStr) {
+        if (!timeStr || typeof timeStr !== 'string') {
+            return 0;
+        }
+
+        // 尝试匹配时间段格式，例如 "24年4月11日 周四 08:23 ~ 24年4月22日 周一 18:40"
+        const timeRangeMatch = timeStr.match(/(.*?)\s*~\s*(.*)/);
+        if (timeRangeMatch) {
+            // 如果是时间段，计算中点时间
+            const startTimeStr = timeRangeMatch[1].trim();
+            const endTimeStr = timeRangeMatch[2].trim();
+
+            const startTime = this.parseTime(startTimeStr);
+            const endTime = this.parseTime(endTimeStr);
+
+            // 如果开始时间和结束时间都有效，计算中点
+            if (startTime > 0 && endTime > 0) {
+                return (startTime + endTime) / 2;
+            }
+            // 如果只有开始时间有效，使用开始时间
+            else if (startTime > 0) {
+                return startTime;
+            }
+            // 如果只有结束时间有效，使用结束时间
+            else if (endTime > 0) {
+                return endTime;
+            }
+            // 如果都无法解析，返回0
+            else {
+                return 0;
+            }
+        }
+
+        // 如果不是时间段，使用原有的parseTime逻辑
+        return this.parseTime(timeStr);
+    }
+
+    /**
      * 判断字符串是否可以转换为数值
      * @param {string} str 要检查的字符串
      * @returns {boolean} 是否可以转换为数值
@@ -436,7 +491,9 @@ export class ModuleProcessor {
      * @returns {Array} 排序后的模块数组
      */
     sortModules(modules) {
+        debugLog('[SortModules]', '开始排序模块，模块数量:', modules.length);
         return modules.sort((a, b) => {
+            debugLog('[SortModules]', '比较模块:', a.moduleName, 'vs', b.moduleName, 'messageIndex:', a.messageIndex, 'vs', b.messageIndex);
             // 获取模块A的标识符信息
             let aIdentifierValue = '';
             let isATimeIdentifier = false;
@@ -447,6 +504,7 @@ export class ModuleProcessor {
                     .filter(variable => variable.isMainIdentifier || variable.isIdentifier);
 
                 if (aPrimaryIdentifiers.length > 0) {
+                    debugLog('[SortModules]', '模块A有主标识符:', aPrimaryIdentifiers.map(v => v.name).join(', '));
                     // 收集主标识符的值
                     const aPrimaryValues = aPrimaryIdentifiers.map(variable => {
                         // 检查是否是time变量
@@ -460,7 +518,9 @@ export class ModuleProcessor {
                     if (aPrimaryValues.some(val => val)) {
                         aIdentifierValue = aPrimaryValues.join('__');
                         hasAValidIdentifier = true;
+                        debugLog('[SortModules]', '模块A使用主标识符值:', aIdentifierValue, '是时间标识符:', isATimeIdentifier);
                     } else {
+                        debugLog('[SortModules]', '模块A主标识符无值，尝试备用标识符');
                         // 主标识符没有值，尝试使用备用标识符
                         const aBackupIdentifiers = a.moduleConfig.variables
                             .filter(variable => variable.isBackupIdentifier);
@@ -477,10 +537,12 @@ export class ModuleProcessor {
                             if (aBackupValues.some(val => val)) {
                                 aIdentifierValue = aBackupValues.join('__');
                                 hasAValidIdentifier = true;
+                                debugLog('[SortModules]', '模块A使用备用标识符值:', aIdentifierValue, '是时间标识符:', isATimeIdentifier);
                             }
                         }
                     }
                 } else {
+                    debugLog('[SortModules]', '模块A无主标识符，尝试备用标识符');
                     // 没有主标识符，尝试使用备用标识符
                     const aBackupIdentifiers = a.moduleConfig.variables
                         .filter(variable => variable.isBackupIdentifier);
@@ -497,9 +559,14 @@ export class ModuleProcessor {
                         if (aBackupValues.some(val => val)) {
                             aIdentifierValue = aBackupValues.join('__');
                             hasAValidIdentifier = true;
+                            debugLog('[SortModules]', '模块A使用备用标识符值:', aIdentifierValue, '是时间标识符:', isATimeIdentifier);
                         }
                     }
                 }
+            }
+
+            if (!hasAValidIdentifier) {
+                debugLog('[SortModules]', '模块A无有效标识符');
             }
 
             // 获取模块B的标识符信息
@@ -512,6 +579,7 @@ export class ModuleProcessor {
                     .filter(variable => variable.isMainIdentifier || variable.isIdentifier);
 
                 if (bPrimaryIdentifiers.length > 0) {
+                    debugLog('[SortModules]', '模块B有主标识符:', bPrimaryIdentifiers.map(v => v.name).join(', '));
                     // 收集主标识符的值
                     const bPrimaryValues = bPrimaryIdentifiers.map(variable => {
                         // 检查是否是time变量
@@ -525,7 +593,9 @@ export class ModuleProcessor {
                     if (bPrimaryValues.some(val => val)) {
                         bIdentifierValue = bPrimaryValues.join('__');
                         hasBValidIdentifier = true;
+                        debugLog('[SortModules]', '模块B使用主标识符值:', bIdentifierValue, '是时间标识符:', isBTimeIdentifier);
                     } else {
+                        debugLog('[SortModules]', '模块B主标识符无值，尝试备用标识符');
                         // 主标识符没有值，尝试使用备用标识符
                         const bBackupIdentifiers = b.moduleConfig.variables
                             .filter(variable => variable.isBackupIdentifier);
@@ -542,10 +612,12 @@ export class ModuleProcessor {
                             if (bBackupValues.some(val => val)) {
                                 bIdentifierValue = bBackupValues.join('__');
                                 hasBValidIdentifier = true;
+                                debugLog('[SortModules]', '模块B使用备用标识符值:', bIdentifierValue, '是时间标识符:', isBTimeIdentifier);
                             }
                         }
                     }
                 } else {
+                    debugLog('[SortModules]', '模块B无主标识符，尝试备用标识符');
                     // 没有主标识符，尝试使用备用标识符
                     const bBackupIdentifiers = b.moduleConfig.variables
                         .filter(variable => variable.isBackupIdentifier);
@@ -562,45 +634,60 @@ export class ModuleProcessor {
                         if (bBackupValues.some(val => val)) {
                             bIdentifierValue = bBackupValues.join('__');
                             hasBValidIdentifier = true;
+                            debugLog('[SortModules]', '模块B使用备用标识符值:', bIdentifierValue, '是时间标识符:', isBTimeIdentifier);
                         }
                     }
                 }
+            }
+
+            if (!hasBValidIdentifier) {
+                debugLog('[SortModules]', '模块B无有效标识符');
             }
 
             // 如果双方都有标识符，但都不能数值化（时间除外），则按messageIndex排序
             if (hasAValidIdentifier && hasBValidIdentifier &&
                 !isATimeIdentifier && !isBTimeIdentifier &&
                 !this.isNumeric(aIdentifierValue) && !this.isNumeric(bIdentifierValue)) {
+                debugLog('[SortModules]', '决策: 双方都有非数值标识符，按messageIndex排序');
                 return a.messageIndex - b.messageIndex;
             }
 
             // 处理时间类型的标识符 - 只在同模块内进行时间排序
             if (isATimeIdentifier && isBTimeIdentifier && a.moduleName === b.moduleName) {
-                const aTime = this.parseTime(aIdentifierValue);
-                const bTime = this.parseTime(bIdentifierValue);
+                const aTime = this.parseTimeForSorting(aIdentifierValue);
+                const bTime = this.parseTimeForSorting(bIdentifierValue);
+                debugLog('[SortModules]', '决策: 时间类型标识符排序，A时间:', aTime, 'B时间:', bTime, '差值:', aTime - bTime);
                 return aTime - bTime;
             }
 
             // 处理数值类型的标识符
             if (hasAValidIdentifier && hasBValidIdentifier &&
                 this.isNumeric(aIdentifierValue) && this.isNumeric(bIdentifierValue)) {
-                return parseFloat(aIdentifierValue) - parseFloat(bIdentifierValue);
+                const aNum = parseFloat(aIdentifierValue);
+                const bNum = parseFloat(bIdentifierValue);
+                debugLog('[SortModules]', '决策: 数值类型标识符排序，A值:', aNum, 'B值:', bNum, '差值:', aNum - bNum);
+                return aNum - bNum;
             }
 
             // 处理普通标识符
             if (hasAValidIdentifier && hasBValidIdentifier) {
-                return aIdentifierValue.localeCompare(bIdentifierValue);
+                const compareResult = aIdentifierValue.localeCompare(bIdentifierValue);
+                debugLog('[SortModules]', '决策: 普通标识符排序，A值:', aIdentifierValue, 'B值:', bIdentifierValue, '比较结果:', compareResult);
+                return compareResult;
             }
 
             // 如果只有一个模块有标识符值，有标识符的排在前面
             if (hasAValidIdentifier && !hasBValidIdentifier) {
+                debugLog('[SortModules]', '决策: 只有模块A有标识符，A排在前面');
                 return -1;
             }
             if (!hasAValidIdentifier && hasBValidIdentifier) {
+                debugLog('[SortModules]', '决策: 只有模块B有标识符，B排在前面');
                 return 1;
             }
 
             // 没有标识符的模块按messageIndex排序
+            debugLog('[SortModules]', '决策: 双方都无标识符，按messageIndex排序，A:', a.messageIndex, 'B:', b.messageIndex, '差值:', a.messageIndex - b.messageIndex);
             return a.messageIndex - b.messageIndex;
         });
     }
