@@ -106,7 +106,7 @@
     flex: 1;
 }
 
-.variable-desc-group > div:first-child {
+.variable-desc-group>div:first-child {
     width: 100%;
 }
 
@@ -199,4 +199,33 @@
 
 .variable-backup-identifier-btn.active .variable-order-number {
     background-color: rgba(200, 150, 50, 0.6) !important;
+}
+
+/* 时间参考标准按钮样式 - 与module-toggle-expand-btn保持一致 */
+.module-time-reference-standard-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.module-time-reference-standard-btn:hover {
+    transform: scale(1.1);
+}
+
+.module-time-reference-standard-btn:active {
+    transform: scale(0.95);
+}
+
+.module-time-reference-standard-btn.active .variable-order-number {
+    background-color: rgba(100, 181, 246, 0.6);
+}
+
+.module-time-reference-standard-btn.active:hover .variable-order-number {
+    background-color: rgba(100, 181, 246, 0.8);
 }

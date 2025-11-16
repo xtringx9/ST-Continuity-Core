@@ -122,6 +122,7 @@ export function bindModuleEvents(moduleElement) {
     moduleItem.find('.variable-item input').off('input');
     moduleItem.find('.variable-item .remove-variable').off('click');
     moduleItem.find('.module-enabled-toggle').off('change');
+    moduleItem.find('.module-time-reference-standard-btn').off('click');
     moduleItem.find('.drag-handle').off('mousedown touchstart');
 
     // 绑定模块名称输入事件
@@ -261,6 +262,32 @@ export function bindModuleEvents(moduleElement) {
 
         updateModulePreview(moduleItem);
         debugLog('模块启用状态改变:', moduleItem.find('.module-name').val(), isEnabled);
+        // 自动保存配置
+        autoSaveModuleConfig();
+    });
+
+    // 时间参考标准按钮点击事件
+    moduleItem.find('.module-time-reference-standard-btn').on('click', function () {
+        const button = $(this);
+        const moduleItem = button.closest('.module-item');
+        const hiddenInput = moduleItem.find('.module-time-reference-standard');
+
+        // 切换状态
+        const currentState = hiddenInput.val() === 'true';
+        const newState = !currentState;
+
+        // 更新隐藏输入框的值
+        hiddenInput.val(newState.toString());
+
+        // 更新按钮状态
+        button.attr('data-time-reference-standard', newState.toString());
+        if (newState) {
+            button.addClass('active');
+        } else {
+            button.removeClass('active');
+        }
+
+        debugLog('时间参考标准状态改变:', moduleItem.find('.module-name').val(), newState);
         // 自动保存配置
         autoSaveModuleConfig();
     });
@@ -472,6 +499,7 @@ export function getModulesData() {
             const outputMode = $(this).find('.module-output-mode').val();
             const retainLayersVal = $(this).find('.module-retain-layers').val();
             const retainLayers = retainLayersVal !== '' ? parseInt(retainLayersVal) : -1;
+            const timeReferenceStandard = $(this).find('.module-time-reference-standard').val() === 'true' || false;
             // debugLog('获取到保留层数:', retainLayersVal, '转换后:', retainLayers);
 
             const moduleData = {
@@ -490,6 +518,7 @@ export function getModulesData() {
                 rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
                 outputMode: outputMode || 'full', // 添加outputMode字段，默认值为full（全量输出）
                 retainLayers: retainLayers, // 保留层数，已经设置了默认值
+                timeReferenceStandard: timeReferenceStandard, // 时间参考标准，默认为false
                 order: index // 添加排序索引
             };
             // debugLog('构建的模块数据:', moduleData);
@@ -509,7 +538,8 @@ export function getModulesData() {
                     enabled: module.enabled !== false, // 如果未定义enabled，默认为true
                     retainLayers: module.retainLayers !== undefined ? module.retainLayers : -1, // 如果未定义retainLayers，默认为-1
                     rangeMode: module.rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
-                    outputMode: module.outputMode || 'full' // 添加outputMode字段，默认值为full（全量输出）
+                    outputMode: module.outputMode || 'full', // 添加outputMode字段，默认值为full（全量输出）
+                    timeReferenceStandard: module.timeReferenceStandard || false // 添加时间参考标准字段，默认为false
                 }));
                 modules.push(...modulesWithEnabledState);
                 debugLog('从配置管理器加载模块配置:', modules.length, '个模块');

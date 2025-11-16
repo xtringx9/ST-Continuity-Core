@@ -13,6 +13,9 @@ import {
     event_types
 } from "./src/index.js";
 
+// 导入配置管理器
+import configManager from "./src/modules/configManager.js";
+
 infoLog("♥️ Continuity Core LOADED!");
 
 // 采用st-memory-enhancement模式：一次性注册事件监听器
@@ -62,6 +65,10 @@ jQuery(async function () {
     }
 
     infoLog("♥️ Continuity Core 已启用，开始完整初始化");
+
+    // 手动加载配置（避免过早加载）
+    configManager.load();
+    infoLog("Continuity Core 配置已手动加载");
 
     // 创建FAB菜单
     createFabMenu();

@@ -22,8 +22,8 @@ class ConfigManager {
         this.autoSaveTimeout = null; // 自动保存的超时ID
         this.autoSaveDelay = 1000; // 自动保存延迟（毫秒）
 
-        // 初始化时加载配置
-        this.load();
+        // 注意：配置加载现在需要在初始化流程中手动调用，避免过早加载
+        // this.load(); // 已移除，将在continuity-core.js的初始化流程中调用
     }
 
     /**
