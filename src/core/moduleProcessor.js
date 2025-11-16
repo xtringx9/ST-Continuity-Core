@@ -478,62 +478,92 @@ export class ModuleProcessor {
      * @returns {string} 全量更新模块字符串
      */
     processFullModules(modules) {
-        // 按模块名和标识符分组处理
-        const moduleGroups = this.groupModulesByIdentifier(modules);
+        // 首先按模块名分组，使retainLayers在所有标识符的模块上工作
+        const modulesByModuleName = {};
+        modules.forEach(module => {
+            const moduleName = module.moduleName;
+            if (!modulesByModuleName[moduleName]) {
+                modulesByModuleName[moduleName] = [];
+            }
+            modulesByModuleName[moduleName].push(module);
+        });
 
         // 构建结果显示内容
         let resultContent = '';
 
-        // 处理每个模块组
-        for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
-            // 解析模块名和标识符（使用特殊分隔符）
-            const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
-            if (!match) continue;
-            const [, moduleName, identifier] = match;
-
+        // 处理每个模块名组
+        for (const [moduleName, allModulesOfName] of Object.entries(modulesByModuleName)) {
             // 获取模块配置
-            const moduleConfig = moduleList[0].moduleConfig;
+            const moduleConfig = allModulesOfName[0]?.moduleConfig;
+            if (!moduleConfig || moduleConfig.outputMode !== 'full') continue;
 
-            // 只处理outputMode为"full"的模块
-            if (moduleConfig && moduleConfig.outputMode === 'full') {
-                // 获取retainLayers值（默认为-1，表示无限）
-                const retainLayers = moduleConfig.retainLayers === undefined ? -1 : parseInt(moduleConfig.retainLayers);
-                let modulesToShow = moduleList;
+            // 调试日志：输出模块配置和保留层数
+            debugLog(`处理模块：${moduleName}`);
+            debugLog(`模块配置：${JSON.stringify(moduleConfig)}`);
+            
+            // 获取retainLayers值（默认为-1，表示无限）
+            const retainLayers = moduleConfig.retainLayers === undefined ? -1 : parseInt(moduleConfig.retainLayers, 10);
+            debugLog(`retainLayers值：${retainLayers}`);
+            
+            let filteredModules = allModulesOfName;
+            debugLog(`原始模块数量：${allModulesOfName.length}`);
+            debugLog(`模块messageIndex列表：${allModulesOfName.map(m => m.messageIndex).join(', ')}`);
 
-                // 根据retainLayers值决定显示的模块 - 按楼层而不是条数
-                if (retainLayers === 0) {
-                    // 0表示不保留任何模块
-                    modulesToShow = [];
-                } else if (retainLayers > 0) {
-                    // 大于0表示只保留最近的retainLayers个楼层的模块
+            // 根据retainLayers值决定显示的模块 - 按楼层而不是条数，在所有标识符的模块上应用
+            if (retainLayers === 0) {
+                // 0表示不保留任何模块
+                filteredModules = [];
+                debugLog(`retainLayers为0，不显示任何模块`);
+            } else if (retainLayers > 0) {
+                // 大于0表示只保留最近的retainLayers个楼层的模块
+                debugLog(`retainLayers大于0，开始过滤`);
 
-                    // 1. 按楼层分组模块
-                    const modulesByFloor = {};
-                    moduleList.forEach(module => {
-                        const floor = module.messageIndex;
-                        if (!modulesByFloor[floor]) {
-                            modulesByFloor[floor] = [];
-                        }
-                        modulesByFloor[floor].push(module);
-                    });
+                // 1. 按楼层分组所有该模块名的模块（跨标识符）
+                const modulesByFloor = {};
+                allModulesOfName.forEach(module => {
+                    const floor = module.messageIndex;
+                    if (!modulesByFloor[floor]) {
+                        modulesByFloor[floor] = [];
+                    }
+                    modulesByFloor[floor].push(module);
+                });
+                debugLog(`按楼层分组结果：${JSON.stringify(modulesByFloor)}`);
 
-                    // 2. 获取所有楼层并按倒序排列（最近的楼层在前）
-                    const floors = Object.keys(modulesByFloor).map(Number).sort((a, b) => b - a);
+                // 2. 获取所有楼层并按倒序排列（最近的楼层在前）
+                const floors = Object.keys(modulesByFloor).map(Number).sort((a, b) => b - a);
+                debugLog(`所有楼层（倒序）：${floors.join(', ')}`);
 
-                    // 3. 选择最近的retainLayers个楼层
-                    const selectedFloors = floors.slice(0, retainLayers);
+                // 3. 选择最近的retainLayers个楼层
+                const selectedFloors = floors.slice(0, retainLayers);
+                debugLog(`选择的楼层：${selectedFloors.join(', ')}`);
 
-                    // 4. 收集这些楼层中的所有模块，并按楼层倒序排列
-                    modulesToShow = [];
-                    selectedFloors.forEach(floor => {
-                        // 每个楼层内的模块按出现顺序排列
-                        modulesToShow.push(...modulesByFloor[floor]);
-                    });
-                }
+                // 4. 收集这些楼层中的所有模块，并按楼层倒序排列
+                filteredModules = [];
+                selectedFloors.forEach(floor => {
+                    // 每个楼层内的模块按出现顺序排列
+                    filteredModules.push(...modulesByFloor[floor]);
+                });
+                debugLog(`过滤后的模块数量：${filteredModules.length}`);
+                debugLog(`过滤后的模块messageIndex列表：${filteredModules.map(m => m.messageIndex).join(', ')}`);
+            } else {
                 // -1或其他负值表示显示所有模块
+                debugLog(`retainLayers为-1或负值，显示所有模块`);
+            }
 
+            // 对过滤后的模块按标识符分组
+            const moduleGroups = this.groupModulesByIdentifier(filteredModules);
+
+            // 处理每个标识符组
+            for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
+                // 解析标识符
+                const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
+                if (!match) continue;
+                const [, , identifier] = match;
+
+                debugLog(`处理模块组：${moduleName}，标识符：${identifier}`);
+                
                 // 格式化输出每个模块
-                const formattedModulesStr = modulesToShow.map(module => {
+                const formattedModulesStr = moduleList.map(module => {
                     // 检查是否需要隐藏该模块条目
                     let shouldHide = false;
                     for (const variable of moduleConfig.variables) {
@@ -559,7 +589,9 @@ export class ModuleProcessor {
                 }).filter(Boolean).join('\n');
 
                 // 添加到结果内容
-                resultContent += `${formattedModulesStr}\n`;
+                if (formattedModulesStr) {
+                    resultContent += `${formattedModulesStr}\n`;
+                }
             }
         }
 
