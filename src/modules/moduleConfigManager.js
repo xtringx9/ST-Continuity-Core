@@ -3,12 +3,8 @@ import { extensionFolderPath, debugLog, errorLog, infoLog, initParseModule } fro
 import { getVariableItemTemplate } from "./templateManager.js";
 import { updateModulePreview, restoreModuleCollapsedState } from "./moduleManager.js";
 import { bindVariableEvents } from "./variableManager.js";
+import configManager from "./configManager.js";
 import {
-    saveModuleConfigToExtension,
-    loadModuleConfigFromExtension,
-    hasModuleConfig,
-    clearModuleConfig,
-    getModuleConfigStats,
     backupModuleConfig,
     restoreModuleConfig
 } from "./moduleStorageManager.js";
@@ -25,19 +21,25 @@ export function setBindModuleEvents(fn) {
 }
 
 /**
- * 保存模块配置到SillyTavern扩展设置
+ * 保存模块配置
  * @param {Array} modules 模块配置数组
  * @param {Object} globalSettings 全局设置对象（包含核心原则提示词和通用格式描述提示词）
  */
 export function saveModuleConfig(modules, globalSettings = {}) {
     try {
-        // 使用新的扩展设置存储
-        const success = saveModuleConfigToExtension(modules, globalSettings);
+        // 使用统一配置管理器
+        configManager.setModules(modules);
+        if (Object.keys(globalSettings).length > 0) {
+            configManager.setGlobalSettings(globalSettings);
+        }
+
+        // 立即保存
+        const success = configManager.saveNow();
         if (success) {
-            infoLog('模块配置已保存到SillyTavern扩展设置');
+            infoLog('模块配置已保存');
             return true;
         } else {
-            errorLog('保存模块配置到扩展设置失败');
+            errorLog('保存模块配置失败');
             return false;
         }
     } catch (error) {
@@ -49,53 +51,35 @@ export function saveModuleConfig(modules, globalSettings = {}) {
 
 
 /**
- * 从SillyTavern扩展设置加载模块配置
+ * 加载模块配置
  * @returns {Object|null} 模块配置对象或null
  */
 export function loadModuleConfig() {
     try {
-        // 使用新的扩展设置加载
-        const config = loadModuleConfigFromExtension();
-        if (config) {
-            debugLog('从SillyTavern扩展设置加载模块配置:', config);
-            return config;
-        }
-
-        // 向后兼容：检查是否存在旧的localStorage配置
-        const oldConfigStr = localStorage.getItem('continuity_module_config');
-        if (oldConfigStr) {
-            try {
-                const oldConfig = JSON.parse(oldConfigStr);
-                debugLog('从旧版localStorage加载模块配置:', oldConfig);
-
-                // 迁移到新存储
-                if (oldConfig.modules) {
-                    saveModuleConfigToExtension(oldConfig.modules);
-                    infoLog('已从localStorage迁移模块配置到SillyTavern扩展设置');
-
-                    // 可选：清除旧的localStorage配置
-                    // localStorage.removeItem('continuity_module_config');
-                }
-
-                return oldConfig;
-            } catch (error) {
-                errorLog('迁移旧版配置失败:', error);
-            }
-        }
+        // 使用统一配置管理器
+        const config = configManager.get();
+        debugLog('从配置管理器加载模块配置:', config);
+        return config;
     } catch (error) {
         errorLog('加载模块配置失败:', error);
+        return null;
     }
-    return null;
 }
 
 /**
  * 导出模块配置为JSON文件
- * @param {Array} modules 模块配置数组
+ * @param {Array} modules 模块配置数组（可选，如果提供则使用当前配置）
  */
 export function exportModuleConfig(modules) {
     try {
-        // 使用新的备份功能
-        const success = backupModuleConfig(modules);
+        // 确保使用最新的配置
+        if (modules) {
+            // 如果提供了modules，先更新到配置管理器
+            configManager.setModules(modules);
+        }
+
+        // 使用新的备份功能 - 不传递modules参数，让backupModuleConfig使用完整配置
+        const success = backupModuleConfig();
         if (success) {
             infoLog('模块配置已导出为JSON文件');
         } else {
@@ -105,7 +89,7 @@ export function exportModuleConfig(modules) {
         errorLog('导出模块配置失败:', error);
 
         // 降级处理：使用旧的导出方式
-        const config = { modules };
+        const config = configManager.get();
         const dataStr = JSON.stringify(config, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
 
@@ -153,8 +137,14 @@ export function importModuleConfig(file) {
 
                 debugLog('成功导入模块配置:', config);
 
-                // 保存到扩展设置，包括globalSettings
-                if (saveModuleConfigToExtension(config.modules, config.globalSettings)) {
+                // 保存到配置管理器，包括globalSettings
+                configManager.setModules(config.modules);
+                if (config.globalSettings) {
+                    configManager.setGlobalSettings(config.globalSettings);
+                }
+
+                // 立即保存
+                if (configManager.saveNow()) {
                     infoLog('导入的模块配置已保存到SillyTavern扩展设置');
                     resolve(config);
                 } else {
@@ -208,8 +198,14 @@ export function restoreModuleConfigFromFile(file) {
 
                 debugLog('成功从备份文件恢复模块配置:', config);
 
-                // 保存到扩展设置，包括globalSettings
-                if (saveModuleConfigToExtension(config.modules, config.globalSettings)) {
+                // 保存到配置管理器，包括globalSettings
+                configManager.setModules(config.modules);
+                if (config.globalSettings) {
+                    configManager.setGlobalSettings(config.globalSettings);
+                }
+
+                // 立即保存
+                if (configManager.saveNow()) {
                     infoLog('备份的模块配置已恢复到SillyTavern扩展设置');
                     resolve(config);
                 } else {
@@ -236,14 +232,12 @@ export function restoreModuleConfigFromFile(file) {
  */
 export function getModuleConfigStatsInfo() {
     try {
-        const config = loadModuleConfigFromExtension();
-        if (!config || !Array.isArray(config)) {
-            return { moduleCount: 0, enabledCount: 0, variableCount: 0 };
-        }
+        const config = configManager.get();
+        const modules = config.modules || [];
 
-        const moduleCount = config.length;
-        const enabledCount = config.filter(module => module.enabled !== false).length;
-        const variableCount = config.reduce((total, module) => {
+        const moduleCount = modules.length;
+        const enabledCount = modules.filter(module => module.enabled !== false).length;
+        const variableCount = modules.reduce((total, module) => {
             return total + (Array.isArray(module.variables) ? module.variables.length : 0);
         }, 0);
 
@@ -251,7 +245,7 @@ export function getModuleConfigStatsInfo() {
             moduleCount,
             enabledCount,
             variableCount,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: config.lastUpdated || new Date().toISOString()
         };
     } catch (error) {
         errorLog('获取模块配置统计信息失败:', error);
@@ -265,8 +259,8 @@ export function getModuleConfigStatsInfo() {
  */
 export function hasModuleConfigData() {
     try {
-        const config = loadModuleConfigFromExtension();
-        return !!(config && Array.isArray(config) && config.length > 0);
+        const config = configManager.get();
+        return !!(config && config.modules && config.modules.length > 0);
     } catch (error) {
         errorLog('检查模块配置存在性失败:', error);
         return false;
@@ -279,20 +273,15 @@ export function hasModuleConfigData() {
  */
 export function clearModuleConfigData() {
     try {
-        // 使用扩展设置API清除配置
-        if (window.extension_settings) {
-            if (window.extension_settings.continuity) {
-                delete window.extension_settings.continuity.modules;
-                saveSettingsDebounced();
-                infoLog('模块配置已从扩展设置中清除');
-                return true;
-            }
+        // 使用配置管理器重置到默认值
+        configManager.resetToDefault();
+        const success = configManager.saveNow();
+        if (success) {
+            infoLog('模块配置已清除');
+        } else {
+            errorLog('清除模块配置失败');
         }
-
-        // 降级处理：尝试清除localStorage
-        localStorage.removeItem('continuity_module_config');
-        infoLog('模块配置已从localStorage中清除');
-        return true;
+        return success;
     } catch (error) {
         errorLog('清除模块配置失败:', error);
         return false;
@@ -400,15 +389,23 @@ export function renderModulesFromConfig(config) {
             moduleItem.find('.module-position-prompt').val(module.positionPrompt);
         }
         // 设置输出模式
-        if (module.outputMode) {
-            moduleItem.find('.module-output-mode').val(module.outputMode);
-        }
+        const outputMode = module.outputMode || 'full';
+        moduleItem.find('.module-output-mode').val(outputMode);
+
         // 设置保留层数
         if (module.retainLayers !== undefined) {
             moduleItem.find('.module-retain-layers').val(module.retainLayers);
         } else {
             // 设置默认值为-1
             moduleItem.find('.module-retain-layers').val(-1);
+        }
+
+        // 根据输出模式控制保留层数输入框的显示/隐藏
+        const retainLayersInput = moduleItem.find('.module-retain-layers');
+        if (outputMode === 'full') {
+            retainLayersInput.show();
+        } else {
+            retainLayersInput.hide();
         }
         // 处理数量范围（使用rangeMode字段优先）
         const rangeModeSelect = moduleItem.find('.module-range-mode');

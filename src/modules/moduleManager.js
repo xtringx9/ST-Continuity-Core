@@ -1,7 +1,7 @@
-// 模块管理相关功能
+// 模块配置管理器 - 用于管理模块的添加、编辑、删除等操作
 import { debugLog, errorLog, addVariable, initParseModule, showCustomConfirmDialog, bindVariableEvents } from "../index.js";
 import { saveModuleConfig } from "./moduleConfigManager.js";
-import { loadModuleConfigFromExtension } from "./moduleStorageManager.js";
+import configManager from "./configManager.js";
 
 /**
  * 添加新模块
@@ -520,11 +520,11 @@ export function getModulesData() {
         });
     }
 
-    // 如果DOM中没有模块数据，则从扩展设置加载
+    // 如果DOM中没有模块数据，则从配置管理器加载
     if (modules.length === 0) {
         try {
-            // 使用新的扩展设置API加载配置
-            const config = loadModuleConfigFromExtension();
+            // 使用配置管理器加载配置
+            const config = configManager.get();
             if (config && config.modules && Array.isArray(config.modules)) {
                 // 确保每个模块都有启用状态（默认为true）和保留层数（默认为-1）
                 const modulesWithEnabledState = config.modules.map(module => ({
@@ -535,28 +535,7 @@ export function getModulesData() {
                     outputMode: module.outputMode || 'full' // 添加outputMode字段，默认值为full（全量输出）
                 }));
                 modules.push(...modulesWithEnabledState);
-                debugLog('从扩展设置加载模块配置:', modules.length, '个模块');
-            } else {
-                // 降级处理：尝试从旧版localStorage加载
-                // 已注释掉旧版localStorage加载逻辑，仅使用扩展设置存储
-                /*
-                const configStr = localStorage.getItem('continuity_module_config');
-                if (configStr) {
-                    const oldConfig = JSON.parse(configStr);
-                    if (oldConfig.modules && Array.isArray(oldConfig.modules)) {
-                        // 确保每个模块都有启用状态（默认为true）和保留层数（默认为-1）
-                        const modulesWithEnabledState = oldConfig.modules.map(module => ({
-                            ...module,
-                            enabled: module.enabled !== false, // 如果未定义enabled，默认为true
-                            retainLayers: module.retainLayers !== undefined ? module.retainLayers : -1, // 如果未定义retainLayers，默认为-1
-                            rangeMode: module.rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
-                            outputMode: module.outputMode || 'full' // 添加outputMode字段，默认值为full（全量输出）
-                        }));
-                        modules.push(...modulesWithEnabledState);
-                        debugLog('从本地存储加载模块配置:', modules.length, '个模块');
-                    }
-                }
-                */
+                debugLog('从配置管理器加载模块配置:', modules.length, '个模块');
             }
         } catch (error) {
             errorLog('加载模块配置失败:', error);

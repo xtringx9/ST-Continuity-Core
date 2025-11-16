@@ -108,16 +108,28 @@ export function collectModulesForExport() {
             const varName = $(this).find('.variable-name').val();
             const varDisplayName = $(this).find('.variable-display-name').val();
             const varDesc = $(this).find('.variable-desc').val();
+            // 获取变量类型标识
+            const varIsIdentifier = $(this).find('.variable-is-identifier').val() === 'true';
+            const varIsBackupIdentifier = $(this).find('.variable-is-backup-identifier').val() === 'true';
+            const varIsHideCondition = $(this).find('.variable-is-hide-condition').val() === 'true';
+            const varHideConditionValues = $(this).find('.variable-desc').eq(1).val() || '';
 
             if (varName) {
                 variables.push({
                     name: varName,
                     displayName: varDisplayName || '',
                     description: varDesc || '',
-                    compatibleVariableNames: $(this).find('.variable-compatible-names').val() || '' // 添加兼容变量名字段
+                    compatibleVariableNames: $(this).find('.variable-compatible-names').val() || '', // 添加兼容变量名字段
+                    isIdentifier: varIsIdentifier,
+                    isBackupIdentifier: varIsBackupIdentifier,
+                    isHideCondition: varIsHideCondition,
+                    hideConditionValues: varHideConditionValues
                 });
             }
         });
+
+        // 获取模块保留层数
+        const retainLayers = parseInt($(this).find('.module-retain-layers').val()) || -1;
 
         modules.push({
             name: moduleName,
@@ -130,6 +142,7 @@ export function collectModulesForExport() {
             outputPosition: outputPosition || 'after_body',
             positionPrompt: positionPrompt || '', // 添加顺序提示词字段
             outputMode: outputMode || 'full', // 添加输出模式字段，默认值为full（全量输出）
+            retainLayers: retainLayers, // 添加保留层数字段
             itemMin: itemMin,
             itemMax: itemMax,
             rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
@@ -223,6 +236,9 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                 }
             });
 
+            // 获取模块保留层数
+            const retainLayers = parseInt($(this).find('.module-retain-layers').val()) || -1;
+
             modules.push({
                 name: moduleName,
                 displayName: moduleDisplayName || '',
@@ -234,6 +250,7 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                 outputPosition: outputPosition || 'body',
                 positionPrompt: positionPrompt || '', // 添加顺序提示词字段
                 outputMode: outputMode || 'full', // 添加输出模式字段，默认值为full（全量输出）
+                retainLayers: retainLayers, // 添加保留层数字段
                 itemMin: itemMin,
                 itemMax: itemMax,
                 rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
