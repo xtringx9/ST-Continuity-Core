@@ -150,51 +150,59 @@ export class ModuleProcessor {
             let referenceTime = null;
             let referenceTimeStr = '';
 
-            // 先找到有完整年月日的time变量
+            // 先找到有完整年月日的time变量（支持所有包含time的变量名）
             for (const module of messageModules) {
-                if (module.variables && module.variables.time) {
-                    const timeVal = module.variables.time;
-                    const parsedTime = this.parseTime(timeVal);
+                if (module.variables) {
+                    // 遍历所有变量，查找包含time的变量名
+                    for (const [variableName, timeVal] of Object.entries(module.variables)) {
+                        if (variableName.toLowerCase().includes('time') && timeVal) {
+                            const parsedTime = this.parseTime(timeVal);
 
-                    // 检查是否是完整的年月日时间
-                    if (parsedTime > 0) {
-                        const date = new Date(parsedTime);
-                        // 如果时间包含年月日（不是只有时分）
-                        if (date.getFullYear() > 1970 && date.getMonth() >= 0 && date.getDate() > 0) {
-                            referenceTime = parsedTime;
-                            referenceTimeStr = timeVal;
-                            break;
+                            // 检查是否是完整的年月日时间
+                            if (parsedTime > 0) {
+                                const date = new Date(parsedTime);
+                                // 如果时间包含年月日（不是只有时分）
+                                if (date.getFullYear() > 1970 && date.getMonth() >= 0 && date.getDate() > 0) {
+                                    referenceTime = parsedTime;
+                                    referenceTimeStr = timeVal;
+                                    break;
+                                }
+                            }
                         }
                     }
+                    if (referenceTime) break;
                 }
             }
 
             // 如果找到了参考时间，为其他模块补全
             if (referenceTime) {
                 for (const module of messageModules) {
-                    if (module.variables && module.variables.time !== undefined) {
-                        const timeVal = module.variables.time;
+                    if (module.variables) {
+                        // 遍历所有变量，补全包含time的变量
+                        for (const [variableName, timeVal] of Object.entries(module.variables)) {
+                            if (variableName.toLowerCase().includes('time') && timeVal !== undefined) {
+                                // 如果time变量为空或只有时分
+                                if (!timeVal || /^\d{1,2}:\d{1,2}$/.test(timeVal)) {
+                                    if (!timeVal) {
+                                        // time为空，直接使用参考时间
+                                        module.variables[variableName] = referenceTimeStr;
+                                    } else {
+                                        // 只有时分，需要合并到参考时间的年月日
+                                        const timeParts = timeVal.split(':');
+                                        const hours = parseInt(timeParts[0], 10);
+                                        const minutes = parseInt(timeParts[1], 10);
 
-                        // 如果time变量为空或只有时分
-                        if (!timeVal || /^\d{1,2}:\d{1,2}$/.test(timeVal)) {
-                            if (!timeVal) {
-                                // time为空，直接使用参考时间
-                                module.variables.time = referenceTimeStr;
-                            } else {
-                                // 只有时分，需要合并到参考时间的年月日
-                                const timeParts = timeVal.split(':');
-                                const hours = parseInt(timeParts[0], 10);
-                                const minutes = parseInt(timeParts[1], 10);
+                                        // 创建新的时间对象，使用参考时间的年月日和当前模块的时分
+                                        const referenceDate = new Date(referenceTime);
+                                        const newDate = new Date(referenceDate.getFullYear(),
+                                            referenceDate.getMonth(),
+                                            referenceDate.getDate(),
+                                            hours, minutes);
 
-                                // 创建新的时间对象，使用参考时间的年月日和当前模块的时分
-                                const referenceDate = new Date(referenceTime);
-                                const newDate = new Date(referenceDate.getFullYear(),
-                                    referenceDate.getMonth(),
-                                    referenceDate.getDate(),
-                                    hours, minutes);
-
-                                // 格式化回与参考时间相同的格式
-                                module.variables.time = this.formatTimeToSamePattern(referenceTimeStr, newDate);
+                                        // 格式化回与参考时间相同的格式
+                                        module.variables[variableName] = this.formatTimeToSamePattern(referenceTimeStr, newDate);
+                                    }
+                                }
                             }
                         }
                     }
