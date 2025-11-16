@@ -400,6 +400,13 @@ export function renderModulesFromConfig(config) {
             moduleItem.find('.module-retain-layers').val(-1);
         }
 
+        // 设置时间参考标准
+        const timeReferenceStandard = module.timeReferenceStandard || false;
+        moduleItem.find('.module-time-reference-standard').val(timeReferenceStandard ? 'true' : 'false');
+        moduleItem.find('.module-time-reference-standard-btn')
+            .attr('data-time-reference-standard', timeReferenceStandard ? 'true' : 'false')
+            .toggleClass('active', timeReferenceStandard);
+
         // 根据输出模式控制保留层数输入框的显示/隐藏
         const retainLayersInput = moduleItem.find('.module-retain-layers');
         if (outputMode === 'full') {

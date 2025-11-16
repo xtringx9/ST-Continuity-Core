@@ -192,7 +192,8 @@
                                     <label>兼容</label>
                                     <input type="text" class="module-compatible-names" placeholder="兼容模块名A,兼容模块名B,...">
                                     <!-- 标识符警告提示 -->
-                                    <div class="module-identifier-warning" style="display: none; color: #ff6b6b; font-size: 0.9em; margin-left: 10px;">
+                                    <div class="module-identifier-warning"
+                                        style="display: none; color: #ff6b6b; font-size: 0.9em; margin-left: 10px;">
                                         ⚠️ 未设置标识符
                                     </div>
                                 </div>
@@ -244,6 +245,11 @@
                                 </select>
                                 <input type="number" class="module-retain-layers form-control" min="-1" value="-1"
                                     placeholder="保留层数" title="-1为无限，0为不保留" style="width: 50px;">
+                                <button class="module-toggle-expand-btn module-time-reference-standard-btn"
+                                    data-time-reference-standard="false" title="启用后，此模块的时间值将作为同messageIndex其他模块的时间参考标准">
+                                    <span class="variable-order-number">⏰</span>
+                                </button>
+                                <input type="hidden" class="module-time-reference-standard" value="false">
                             </div>
                         </div>
                         <div class="module-actions-right">

@@ -130,6 +130,9 @@ export function collectModulesForExport() {
 
         // 获取模块保留层数
         const retainLayers = parseInt($(this).find('.module-retain-layers').val()) || -1;
+        
+        // 获取时间参考标准状态
+        const timeReferenceStandard = $(this).find('.module-time-reference-standard').val() === 'true' || false;
 
         modules.push({
             name: moduleName,
@@ -146,7 +149,8 @@ export function collectModulesForExport() {
             itemMin: itemMin,
             itemMax: itemMax,
             rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
-            compatibleModuleNames: $(this).find('.module-compatible-names').val() || '' // 添加兼容模块名字段
+            compatibleModuleNames: $(this).find('.module-compatible-names').val() || '', // 添加兼容模块名字段
+            timeReferenceStandard: timeReferenceStandard // 添加时间参考标准字段，默认为false
         });
     });
 
@@ -238,6 +242,9 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
 
             // 获取模块保留层数
             const retainLayers = parseInt($(this).find('.module-retain-layers').val()) || -1;
+            
+            // 获取时间参考标准状态
+            const timeReferenceStandard = $(this).find('.module-time-reference-standard').val() === 'true' || false;
 
             modules.push({
                 name: moduleName,
@@ -255,6 +262,7 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
                 itemMax: itemMax,
                 rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
                 compatibleModuleNames: $(this).find('.module-compatible-names').val() || '', // 添加兼容模块名字段
+                timeReferenceStandard: timeReferenceStandard, // 添加时间参考标准字段，默认为false
                 order: index // 添加排序索引
             });
         });

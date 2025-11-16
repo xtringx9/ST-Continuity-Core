@@ -133,6 +133,8 @@ export class ModuleProcessor {
      * @param {Array} modules 标准化后的模块数组
      */
     completeTimeVariables(modules) {
+        debugLog('[TimeCompletion] 开始智能补全time变量，模块数量:', modules.length);
+
         // 按messageIndex分组
         const messageModulesMap = {};
 
@@ -145,54 +147,138 @@ export class ModuleProcessor {
             messageModulesMap[messageIndex].push(module);
         });
 
+        debugLog('[TimeCompletion] 按messageIndex分组完成，分组数量:', Object.keys(messageModulesMap).length);
+
         // 第二步：为每组message中的模块补全time变量
-        Object.values(messageModulesMap).forEach(messageModules => {
+        Object.values(messageModulesMap).forEach((messageModules, index) => {
+            debugLog(`[TimeCompletion] 处理第${index + 1}组message，包含${messageModules.length}个模块`);
+
             // 查找该message中包含完整time信息的模块
             let referenceTime = null;
             let referenceTimeStr = '';
+            let referenceModuleName = '';
 
-            // 先找到有完整年月日的time变量（支持所有包含time的变量名）
+            // 策略1：优先查找开启了时间参考标准的模块
+            debugLog(`[TimeCompletion] 策略1：优先查找开启时间参考标准的模块`);
+            
+            // 获取所有模块配置
+            const modulesData = getModulesData();
+            
             for (const module of messageModules) {
                 if (module.variables) {
-                    // 遍历所有变量，查找包含time的变量名
-                    for (const [variableName, timeVal] of Object.entries(module.variables)) {
-                        if (variableName.toLowerCase().includes('time') && timeVal) {
-                            const parsedTime = this.parseTime(timeVal);
+                    // 查找当前模块的配置
+                    const moduleConfig = modulesData.find(config => config.name === module.moduleName);
+                    
+                    // 检查模块是否开启了时间参考标准
+                    if (moduleConfig && moduleConfig.timeReferenceStandard) {
+                        debugLog(`[TimeCompletion] 模块 ${module.moduleName} 开启了时间参考标准`);
+                        
+                        // 遍历所有变量，查找包含time的变量名
+                        for (const [variableName, timeVal] of Object.entries(module.variables)) {
+                            if (variableName.toLowerCase().includes('time') && timeVal) {
+                                debugLog(`[TimeCompletion] 发现time变量 ${variableName}: ${timeVal}`);
+                                const parsedTime = this.parseTime(timeVal);
+                                debugLog(`[TimeCompletion] 解析后的时间戳: ${parsedTime}`);
 
-                            // 检查是否是完整的年月日时间
-                            if (parsedTime > 0) {
-                                const date = new Date(parsedTime);
-                                // 如果时间包含年月日（不是只有时分）
-                                if (date.getFullYear() > 1970 && date.getMonth() >= 0 && date.getDate() > 0) {
-                                    referenceTime = parsedTime;
-                                    referenceTimeStr = timeVal;
-                                    break;
+                                // 检查是否是完整的年月日时间
+                                if (parsedTime > 0) {
+                                    const date = new Date(parsedTime);
+                                    debugLog(`[TimeCompletion] 解析后的日期对象: ${date}`);
+                                    // 如果时间包含年月日（不是只有时分）
+                                    if (date.getFullYear() > 1970 && date.getMonth() >= 0 && date.getDate() > 0) {
+                                        referenceTime = parsedTime;
+                                        referenceTimeStr = timeVal;
+                                        referenceModuleName = module.moduleName;
+                                        debugLog(`[TimeCompletion] 找到参考时间: ${referenceTimeStr} (来自开启时间参考标准的模块 ${referenceModuleName})`);
+                                        break;
+                                    } else {
+                                        debugLog(`[TimeCompletion] 时间不完整: 年份=${date.getFullYear()}, 月份=${date.getMonth()}, 日期=${date.getDate()}`);
+                                    }
+                                } else {
+                                    debugLog(`[TimeCompletion] 无法解析时间: ${timeVal}`);
                                 }
                             }
                         }
+                        if (referenceTime) break;
                     }
-                    if (referenceTime) break;
                 }
+            }
+
+            // 策略2：如果策略1没找到，查找有完整年月日的time变量（支持所有包含time的变量名）
+            if (!referenceTime) {
+                debugLog(`[TimeCompletion] 策略1未找到参考时间，尝试策略2：查找有完整年月日的time变量`);
+                
+                for (const module of messageModules) {
+                    if (module.variables) {
+                        debugLog(`[TimeCompletion] 检查模块 ${module.moduleName} 的变量:`, Object.keys(module.variables));
+
+                        // 遍历所有变量，查找包含time的变量名
+                        for (const [variableName, timeVal] of Object.entries(module.variables)) {
+                            if (variableName.toLowerCase().includes('time') && timeVal) {
+                                debugLog(`[TimeCompletion] 发现time变量 ${variableName}: ${timeVal}`);
+                                const parsedTime = this.parseTime(timeVal);
+                                debugLog(`[TimeCompletion] 解析后的时间戳: ${parsedTime}`);
+
+                                // 检查是否是完整的年月日时间
+                                if (parsedTime > 0) {
+                                    const date = new Date(parsedTime);
+                                    debugLog(`[TimeCompletion] 解析后的日期对象: ${date}`);
+                                    // 如果时间包含年月日（不是只有时分）
+                                    if (date.getFullYear() > 1970 && date.getMonth() >= 0 && date.getDate() > 0) {
+                                        referenceTime = parsedTime;
+                                        referenceTimeStr = timeVal;
+                                        referenceModuleName = module.moduleName;
+                                        debugLog(`[TimeCompletion] 找到参考时间: ${referenceTimeStr} (来自模块 ${referenceModuleName})`);
+                                        break;
+                                    } else {
+                                        debugLog(`[TimeCompletion] 时间不完整: 年份=${date.getFullYear()}, 月份=${date.getMonth()}, 日期=${date.getDate()}`);
+                                    }
+                                } else {
+                                    debugLog(`[TimeCompletion] 无法解析时间: ${timeVal}`);
+                                }
+                            }
+                        }
+                        if (referenceTime) break;
+                    }
+                }
+            }
+
+            if (!referenceTime) {
+                debugLog(`[TimeCompletion] 第${index + 1}组message中未找到完整的参考时间`);
             }
 
             // 如果找到了参考时间，为其他模块补全
             if (referenceTime) {
+                debugLog(`[TimeCompletion] 使用参考时间 ${referenceTimeStr} 补全其他模块`);
+                let completionCount = 0;
+
                 for (const module of messageModules) {
                     if (module.variables) {
                         // 遍历所有变量，补全包含time的变量
                         for (const [variableName, timeVal] of Object.entries(module.variables)) {
                             if (variableName.toLowerCase().includes('time') && timeVal !== undefined) {
+                                debugLog(`[TimeCompletion] 检查模块 ${module.moduleName} 的time变量 ${variableName}: ${timeVal}`);
+
                                 // 如果time变量为空或只有时分
                                 if (!timeVal || /^\d{1,2}:\d{1,2}$/.test(timeVal)) {
+                                    const originalValue = timeVal;
                                     // 使用统一的标识符解析工具处理时间变量
                                     module.variables[variableName] = IdentifierParser.parseTimeVariable(timeVal, referenceTimeStr, new Date(referenceTime));
+                                    completionCount++;
+                                    debugLog(`[TimeCompletion] 补全time变量: ${variableName} 从 "${originalValue}" 变为 "${module.variables[variableName]}"`);
+                                } else {
+                                    debugLog(`[TimeCompletion] time变量 ${variableName} 已完整，无需补全: ${timeVal}`);
                                 }
                             }
                         }
                     }
                 }
+
+                debugLog(`[TimeCompletion] 第${index + 1}组message完成补全，共补全${completionCount}个time变量`);
             }
         });
+
+        debugLog('[TimeCompletion] 智能补全time变量完成');
     }
 
     /**
@@ -233,6 +319,11 @@ export class ModuleProcessor {
         }
 
         // 尝试匹配时间段格式，例如 "24年4月11日 周四 08:23 ~ 24年4月22日 周一 18:40"
+        // 支持中英文时间范围格式：
+        // 2023年09月28日 周四 10:10~17:30
+        // 2023年09月28日 周四 10:10~2023年09月28日 周五 17:30
+        // 2023-09-28 Thursday 10:10~17:30
+        // 2023-09-28 Thursday 10:10~2023-09-29 Friday 17:30
         const timeRangeMatch = timeStr.match(/(.*?)\s*~\s*(.*)/);
         if (timeRangeMatch) {
             // 如果是时间段，取开始时间
@@ -259,6 +350,15 @@ export class ModuleProcessor {
             /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/,
             // 格式：08:23
             /^(\d{1,2}):(\d{1,2})$/,
+            // 新增：支持带星期的时间格式
+            // 格式：2023年09月28日 周四 10:10
+            /^(\d{4})年(\d{1,2})月(\d{1,2})日\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：24年4月11日 周四 08:23
+            /^(\d{2})年(\d{1,2})月(\d{1,2})日\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：2023-09-28 Thursday 10:10
+            /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
+            // 格式：2023/09/28 Thursday 10:10
+            /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
         ];
 
         for (const pattern of patterns) {
