@@ -1,6 +1,7 @@
 // 模块数据处理器 - 独立管理模块数据的文本处理方法
 import { debugLog, errorLog, getModulesData } from '../index.js';
 import { ModuleExtractor } from './moduleExtractor.js';
+import { IdentifierParser } from '../utils/identifierParser.js';
 
 /**
  * 模块数据处理器类
@@ -183,25 +184,8 @@ export class ModuleProcessor {
                             if (variableName.toLowerCase().includes('time') && timeVal !== undefined) {
                                 // 如果time变量为空或只有时分
                                 if (!timeVal || /^\d{1,2}:\d{1,2}$/.test(timeVal)) {
-                                    if (!timeVal) {
-                                        // time为空，直接使用参考时间
-                                        module.variables[variableName] = referenceTimeStr;
-                                    } else {
-                                        // 只有时分，需要合并到参考时间的年月日
-                                        const timeParts = timeVal.split(':');
-                                        const hours = parseInt(timeParts[0], 10);
-                                        const minutes = parseInt(timeParts[1], 10);
-
-                                        // 创建新的时间对象，使用参考时间的年月日和当前模块的时分
-                                        const referenceDate = new Date(referenceTime);
-                                        const newDate = new Date(referenceDate.getFullYear(),
-                                            referenceDate.getMonth(),
-                                            referenceDate.getDate(),
-                                            hours, minutes);
-
-                                        // 格式化回与参考时间相同的格式
-                                        module.variables[variableName] = this.formatTimeToSamePattern(referenceTimeStr, newDate);
-                                    }
+                                    // 使用统一的标识符解析工具处理时间变量
+                                    module.variables[variableName] = IdentifierParser.parseTimeVariable(timeVal, referenceTimeStr, new Date(referenceTime));
                                 }
                             }
                         }
@@ -547,25 +531,34 @@ export class ModuleProcessor {
 
                 // 优先使用主标识符
                 if (primaryIdentifiers.length > 0) {
-                    // 收集所有主标识符的值
+                    // 收集所有主标识符的值，并使用新的解析工具处理多值
                     const identifierValues = primaryIdentifiers.map(id => {
-                        return module.variables[id] || undefined;
+                        const value = module.variables[id];
+                        return value !== undefined ? IdentifierParser.parseMultiValues(value) : undefined;
                     });
 
-                    // 如果所有主标识符都有值，使用它们的组合作为标识符
-                    if (identifierValues.every(value => value !== undefined)) {
-                        identifier = identifierValues.join('__');
+                    // 如果所有主标识符都有值，使用它们的规范化组合作为标识符
+                    if (identifierValues.every(values => values !== undefined && values.length > 0)) {
+                        // 对每个标识符的多值进行排序并合并，确保相同组合产生相同标识符
+                        const normalizedValues = identifierValues.map(values =>
+                            values.sort().join('|')
+                        );
+                        identifier = normalizedValues.join('__');
                     } else {
                         // 主标识符不完整，尝试使用备用标识符
                         if (backupIdentifiers.length > 0) {
-                            // 收集所有备用标识符的值
+                            // 收集所有备用标识符的值，并使用新的解析工具处理多值
                             const backupValues = backupIdentifiers.map(id => {
-                                return module.variables[id] || undefined;
+                                const value = module.variables[id];
+                                return value !== undefined ? IdentifierParser.parseMultiValues(value) : undefined;
                             });
 
-                            // 如果所有备用标识符都有值，使用它们的组合作为标识符
-                            if (backupValues.every(value => value !== undefined)) {
-                                identifier = backupValues.join('__');
+                            // 如果所有备用标识符都有值，使用它们的规范化组合作为标识符
+                            if (backupValues.every(values => values !== undefined && values.length > 0)) {
+                                const normalizedValues = backupValues.map(values =>
+                                    values.sort().join('|')
+                                );
+                                identifier = normalizedValues.join('__');
                             } else {
                                 // 否则，使用所有变量值的组合作为标识符
                                 const allValues = Object.values(module.variables).join('__');
@@ -579,14 +572,18 @@ export class ModuleProcessor {
                     }
                 } else if (backupIdentifiers.length > 0) {
                     // 没有主标识符，使用备用标识符
-                    // 收集所有备用标识符的值
+                    // 收集所有备用标识符的值，并使用新的解析工具处理多值
                     const backupValues = backupIdentifiers.map(id => {
-                        return module.variables[id] || undefined;
+                        const value = module.variables[id];
+                        return value !== undefined ? IdentifierParser.parseMultiValues(value) : undefined;
                     });
 
-                    // 如果所有备用标识符都有值，使用它们的组合作为标识符
-                    if (backupValues.every(value => value !== undefined)) {
-                        identifier = backupValues.join('__');
+                    // 如果所有备用标识符都有值，使用它们的规范化组合作为标识符
+                    if (backupValues.every(values => values !== undefined && values.length > 0)) {
+                        const normalizedValues = backupValues.map(values =>
+                            values.sort().join('|')
+                        );
+                        identifier = normalizedValues.join('__');
                     } else {
                         // 否则，使用所有变量值的组合作为标识符
                         const allValues = Object.values(module.variables).join('__');
@@ -629,9 +626,9 @@ export class ModuleProcessor {
             // 主变量名
             variableNameMap[variable.name] = variable.name;
 
-            // 兼容变量名
+            // 兼容变量名 - 使用新的标识符解析工具处理多值分隔符
             if (variable.compatibleVariableNames) {
-                const compatibleNames = variable.compatibleVariableNames.split(',').map(name => name.trim());
+                const compatibleNames = IdentifierParser.parseMultiValues(variable.compatibleVariableNames);
                 compatibleNames.forEach(name => {
                     variableNameMap[name] = variable.name;
                 });
@@ -859,8 +856,8 @@ export class ModuleProcessor {
                     if (variable.isHideCondition) {
                         const variableValue = mergedModule.variables[variable.name];
                         if (variableValue) {
-                            // 分割隐藏条件值（支持逗号分隔）
-                            const hideValues = variable.hideConditionValues.split(',').map(v => v.trim());
+                            // 使用新的标识符解析工具分割隐藏条件值（支持中英文逗号、分号分隔）
+                            const hideValues = IdentifierParser.parseMultiValues(variable.hideConditionValues);
                             // 修改为包含判断：只要variableValue包含任一条件值即可
                             if (hideValues.some(hideValue => variableValue.includes(hideValue))) {
                                 shouldHide = true;
@@ -982,8 +979,8 @@ export class ModuleProcessor {
                         if (variable.isHideCondition) {
                             const variableValue = module.variables[variable.name];
                             if (variableValue) {
-                                // 分割隐藏条件值（支持逗号分隔）
-                                const hideValues = variable.hideConditionValues.split(',').map(v => v.trim());
+                                // 使用新的标识符解析工具分割隐藏条件值（支持中英文逗号、分号分隔）
+                                const hideValues = IdentifierParser.parseMultiValues(variable.hideConditionValues);
                                 // 修改为包含判断：只要variableValue包含任一条件值即可
                                 if (hideValues.some(hideValue => variableValue.includes(hideValue))) {
                                     shouldHide = true;

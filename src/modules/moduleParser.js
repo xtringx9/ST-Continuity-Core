@@ -1,5 +1,6 @@
 // 模块解析器 - 用于解析模块格式字符串
 import { debugLog, errorLog } from "../index.js";
+import { IdentifierParser } from "../utils/identifierParser.js";
 
 /**
  * 解析模块格式字符串
@@ -14,16 +15,16 @@ export function parseModuleString(moduleString) {
 
     // 移除首尾空格
     const trimmedString = moduleString.trim();
-    
+
     // 检查是否符合模块格式 [模块名|变量1:描述1|变量2:描述2|...]
     const moduleRegex = /^\[(.+?)\|(.+)\]$/;
     const match = trimmedString.match(moduleRegex);
-    
+
     if (!match) {
         // 尝试更宽松的匹配，允许只有模块名的情况
         const simpleModuleRegex = /^\[(.+?)\]$/;
         const simpleMatch = trimmedString.match(simpleModuleRegex);
-        
+
         if (simpleMatch) {
             const moduleName = simpleMatch[1].trim();
             if (moduleName) {
@@ -34,14 +35,14 @@ export function parseModuleString(moduleString) {
                 };
             }
         }
-        
+
         errorLog('模块字符串格式不正确，不符合 [模块名|变量:描述|...] 格式');
         return null;
     }
 
     const moduleName = match[1].trim();
     const variablesString = match[2];
-    
+
     if (!moduleName) {
         errorLog('模块名为空');
         return null;
@@ -51,7 +52,7 @@ export function parseModuleString(moduleString) {
     const variables = parseVariablesString(variablesString);
 
     debugLog(`成功解析模块: ${moduleName}, 变量数量: ${variables.length}`);
-    
+
     return {
         name: moduleName,
         variables: variables
@@ -130,7 +131,7 @@ function parseSingleVariable(part, variables) {
         // 有冒号，解析为变量名和值
         const variableName = part.substring(0, colonIndex).trim();
         const variableDesc = part.substring(colonIndex + 1).trim();
-        
+
         if (variableName) {
             variables.push({
                 name: variableName,
@@ -154,7 +155,7 @@ export function validateModuleString(moduleString) {
     const trimmedString = moduleString.trim();
     const moduleRegex = /^\[(.+?)\|(.+)\]$/;
     const match = trimmedString.match(moduleRegex);
-    
+
     if (!match) {
         return false;
     }
@@ -187,8 +188,8 @@ export function generateModulePreview(moduleName, variables) {
 }
 
 /**
- * 解析兼容名称字符串，支持", "和","分隔符
- * @param {string} compatibleNamesString 兼容名称字符串，如"兼容模块名A,兼容模块名B,..."
+ * 解析兼容名称字符串，支持中英文逗号、中英文分号分隔符
+ * @param {string} compatibleNamesString 兼容名称字符串，如"兼容模块名A,兼容模块名B;兼容模块名C"
  * @returns {Array} 解析后的兼容名称数组
  */
 export function parseCompatibleNames(compatibleNamesString) {
@@ -196,41 +197,12 @@ export function parseCompatibleNames(compatibleNamesString) {
         return [];
     }
 
-    const trimmedString = compatibleNamesString.trim();
-    if (!trimmedString) {
-        return [];
-    }
+    // 使用统一的标识符解析工具
+    const namesArray = IdentifierParser.parseMultiValues(compatibleNamesString);
 
-    // 先按", "分割，然后按","分割，最后合并结果
-    const namesArray = [];
-    
-    // 按", "分割
-    const commaSpaceParts = trimmedString.split(', ');
-    
-    for (const part of commaSpaceParts) {
-        // 如果分割后的部分还包含","，则继续分割
-        if (part.includes(',')) {
-            const commaParts = part.split(',');
-            for (const name of commaParts) {
-                const trimmedName = name.trim();
-                if (trimmedName) {
-                    namesArray.push(trimmedName);
-                }
-            }
-        } else {
-            const trimmedName = part.trim();
-            if (trimmedName) {
-                namesArray.push(trimmedName);
-            }
-        }
-    }
+    debugLog(`解析兼容名称: "${compatibleNamesString}" -> ${JSON.stringify(namesArray)}`);
 
-    // 去重
-    const uniqueNames = [...new Set(namesArray)];
-    
-    debugLog(`解析兼容名称: "${compatibleNamesString}" -> ${JSON.stringify(uniqueNames)}`);
-    
-    return uniqueNames;
+    return namesArray;
 }
 
 /**
