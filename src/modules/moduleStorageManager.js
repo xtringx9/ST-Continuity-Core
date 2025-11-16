@@ -4,151 +4,94 @@ import { extension_settings, saveSettingsDebounced, extensionName, infoLog, erro
 // 模块配置在扩展设置中的键名
 const MODULE_CONFIG_KEY = 'module_config';
 
+// 这些函数已被configManager替代，保留用于向后兼容
 /**
  * 保存模块配置到SillyTavern扩展设置
- * @param {Array} modules 模块配置数组
- * @param {Object} globalSettings 全局设置对象（包含核心原则提示词和通用格式描述提示词）
- * @returns {boolean} 是否保存成功
+ * @deprecated 使用configManager.setModules()和configManager.saveNow()替代
  */
 export function saveModuleConfigToExtension(modules, globalSettings = {}) {
-    try {
-        // 确保扩展设置对象存在
-        if (!extension_settings[extensionName]) {
-            extension_settings[extensionName] = {};
+    return import('./configManager.js').then(({ default: configManager }) => {
+        configManager.setModules(modules);
+        if (Object.keys(globalSettings).length > 0) {
+            configManager.setGlobalSettings(globalSettings);
         }
-
-        // 保存模块配置和全局设置
-        extension_settings[extensionName][MODULE_CONFIG_KEY] = {
-            modules: modules,
-            globalSettings: {
-                corePrinciples: globalSettings.corePrinciples || '',
-                formatDescription: globalSettings.formatDescription || '',
-                ...globalSettings
-            },
-            lastUpdated: new Date().toISOString(),
-            version: '1.1.0'  // 更新版本号以反映新功能
-        };
-
-        // 保存设置
-        saveSettingsDebounced();
-
-        infoLog('模块配置已保存到SillyTavern扩展设置');
-        debugLog('保存的模块配置:', extension_settings[extensionName][MODULE_CONFIG_KEY]);
-        return true;
-    } catch (error) {
-        errorLog('保存模块配置到扩展设置失败:', error);
-        return false;
-    }
+        return configManager.saveNow();
+    });
 }
 
 /**
  * 从SillyTavern扩展设置加载模块配置
- * @returns {Object|null} 模块配置对象或null
+ * @deprecated 使用configManager.get()替代
  */
 export function loadModuleConfigFromExtension() {
-    try {
-        // 检查扩展设置是否存在
-        if (!extension_settings[extensionName]) {
-            debugLog('扩展设置不存在，返回空配置');
-            return null;
-        }
-
-        // 获取模块配置
-        const config = extension_settings[extensionName][MODULE_CONFIG_KEY];
-
-        if (config && config.modules) {
-            debugLog('从SillyTavern扩展设置加载模块配置:', config);
-            return config;
-        }
-
-        debugLog('扩展设置中未找到模块配置');
-        return null;
-    } catch (error) {
-        errorLog('从扩展设置加载模块配置失败:', error);
-        return null;
-    }
+    return import('./configManager.js').then(({ default: configManager }) => {
+        return configManager.get();
+    });
 }
 
 /**
  * 检查模块配置是否存在
- * @returns {boolean} 是否存在模块配置
+ * @deprecated 使用configManager.get().modules.length > 0替代
  */
 export function hasModuleConfig() {
-    return !!(extension_settings[extensionName] && extension_settings[extensionName][MODULE_CONFIG_KEY]);
+    return import('./configManager.js').then(({ default: configManager }) => {
+        const config = configManager.get();
+        return config.modules && config.modules.length > 0;
+    });
 }
 
 /**
  * 清除模块配置
- * @returns {boolean} 是否清除成功
+ * @deprecated 使用configManager.resetToDefault()替代
  */
 export function clearModuleConfig() {
-    try {
-        if (extension_settings[extensionName] && extension_settings[extensionName][MODULE_CONFIG_KEY]) {
-            delete extension_settings[extensionName][MODULE_CONFIG_KEY];
-            saveSettingsDebounced();
-            infoLog('模块配置已清除');
-            return true;
-        }
-        return false;
-    } catch (error) {
-        errorLog('清除模块配置失败:', error);
-        return false;
-    }
+    return import('./configManager.js').then(({ default: configManager }) => {
+        configManager.resetToDefault();
+        return configManager.saveNow();
+    });
 }
 
 /**
  * 获取模块配置统计信息
- * @returns {Object} 统计信息
+ * @deprecated 使用configManager.getStats()替代
  */
 export function getModuleConfigStats() {
-    const config = loadModuleConfigFromExtension();
-    if (!config || !config.modules) {
-        return {
-            totalModules: 0,
-            enabledModules: 0,
-            lastUpdated: null,
-            hasConfig: false
-        };
-    }
-
-    const enabledModules = config.modules.filter(module => module.enabled !== false).length;
-
-    return {
-        totalModules: config.modules.length,
-        enabledModules: enabledModules,
-        lastUpdated: config.lastUpdated,
-        hasConfig: true
-    };
+    return import('./configManager.js').then(({ default: configManager }) => {
+        return configManager.getStats();
+    });
 }
 
 /**
  * 备份模块配置到本地文件
- * @param {Array} modules 模块配置数组
+ * @param {Array} modules 模块配置数组（可选，如果不提供则使用当前配置）
  */
 export function backupModuleConfig(modules) {
     try {
-        // 获取当前的完整配置（包括globalSettings）
-        const currentConfig = loadModuleConfigFromExtension();
+        // 导入configManager以获取当前配置
+        import('./configManager.js').then(({ default: configManager }) => {
+            // 获取当前的完整配置（包括globalSettings）
+            const currentConfig = configManager.get();
 
-        const config = {
-            modules: modules,
-            globalSettings: currentConfig?.globalSettings || {},
-            backupDate: new Date().toISOString(),
-            version: '1.1.0',
-            source: 'ST-Continuity-Core'
-        };
+            const config = {
+                modules: modules || currentConfig.modules,
+                globalSettings: currentConfig.globalSettings,
+                backupDate: new Date().toISOString(),
+                version: '1.1.0',
+                source: 'ST-Continuity-Core'
+            };
 
-        const dataStr = JSON.stringify(config, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            const dataStr = JSON.stringify(config, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
 
-        const exportFileDefaultName = `continuity-modules-backup-${new Date().toISOString().split('T')[0]}.json`;
+            const exportFileDefaultName = `continuity-modules-backup-${new Date().toISOString().split('T')[0]}.json`;
 
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
 
-        infoLog('模块配置已备份为JSON文件');
+            infoLog('模块配置已备份到本地文件');
+        });
         return true;
     } catch (error) {
         errorLog('备份模块配置失败:', error);
@@ -191,13 +134,16 @@ export function restoreModuleConfig(file) {
 
                 debugLog('成功从备份文件恢复模块配置:', config);
 
-                // 保存到扩展设置
-                if (saveModuleConfigToExtension(config.modules)) {
-                    toastr.success(`成功恢复 ${config.modules.length} 个模块配置`);
-                    resolve(config);
-                } else {
-                    throw new Error('保存恢复的配置失败');
-                }
+                // 使用configManager导入配置
+                import('./configManager.js').then(({ default: configManager }) => {
+                    const success = configManager.importConfig(config);
+                    if (success) {
+                        toastr.success(`成功恢复 ${config.modules.length} 个模块配置`);
+                        resolve(config);
+                    } else {
+                        throw new Error('保存恢复的配置失败');
+                    }
+                });
             } catch (error) {
                 errorLog('恢复模块配置失败:', error);
                 toastr.error('恢复模块配置失败，请检查文件格式');
