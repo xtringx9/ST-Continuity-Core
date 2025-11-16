@@ -30,32 +30,50 @@ export class ExtractModuleController {
     }
 
     /**
-     * 填充模块选择下拉框（支持多选）
+     * 填充模块选择下拉框（支持多选和移动友好复选框）
      */
     populateModuleSelect() {
         try {
             const moduleSelect = $('#module-select');
-            if (!moduleSelect.length) return;
+            const moduleCheckboxContainer = $('#module-checkbox-container');
+            
+            if (!moduleSelect.length || !moduleCheckboxContainer.length) return;
 
             // 清空下拉框，保留默认选项
             moduleSelect.find('option:not(:first)').remove();
+            // 清空复选框容器
+            moduleCheckboxContainer.empty();
 
             // 获取所有模块数据
             const modulesData = getModulesData();
 
             if (modulesData && modulesData.length > 0) {
                 modulesData.forEach(module => {
-                    // 添加模块到下拉框
+                    // 添加模块到下拉框（向后兼容）
                     moduleSelect.append($('<option>', {
                         value: module.name,
                         text: module.name
                     }));
+                    
+                    // 添加模块到复选框组（移动友好）
+                    const checkboxItem = $(`
+                        <div class="module-checkbox-item">
+                            <input type="checkbox" id="module-checkbox-${module.name}" value="${module.name}" class="module-checkbox">
+                            <label for="module-checkbox-${module.name}" class="module-checkbox-label">${module.name}</label>
+                        </div>
+                    `);
+                    moduleCheckboxContainer.append(checkboxItem);
                 });
             }
 
-            debugLog('模块选择下拉框填充完成（支持多选）');
+            // 绑定复选框事件，同步到select元素
+            this.bindModuleCheckboxEvents();
+            // 绑定全选/清空按钮事件
+            this.bindModuleSelectorButtonEvents();
+
+            debugLog('模块选择器填充完成（支持多选和移动友好界面）');
         } catch (error) {
-            errorLog('填充模块选择下拉框失败:', error);
+            errorLog('填充模块选择器失败:', error);
         }
     }
 
@@ -98,7 +116,55 @@ export class ExtractModuleController {
     }
 
     /**
-     * 提取楼层范围和模块过滤条件的辅助方法（支持多选）
+     * 绑定模块复选框事件，同步到select元素
+     */
+    bindModuleCheckboxEvents() {
+        $('.module-checkbox').off('change').on('change', (event) => {
+            const checkbox = $(event.target);
+            const moduleName = checkbox.val();
+            const moduleSelect = $('#module-select');
+            
+            if (checkbox.prop('checked')) {
+                // 选中复选框时，添加到select元素
+                if (!moduleSelect.find(`option[value="${moduleName}"]`).length) {
+                    moduleSelect.append($('<option>', {
+                        value: moduleName,
+                        text: moduleName,
+                        selected: true
+                    }));
+                } else {
+                    moduleSelect.find(`option[value="${moduleName}"]`).prop('selected', true);
+                }
+            } else {
+                // 取消选中复选框时，从select元素移除
+                moduleSelect.find(`option[value="${moduleName}"]`).prop('selected', false);
+            }
+            
+            // 触发change事件，确保其他监听器能收到更新
+            moduleSelect.trigger('change');
+        });
+    }
+
+    /**
+     * 绑定模块选择器按钮事件（全选/清空）
+     */
+    bindModuleSelectorButtonEvents() {
+        // 全选按钮
+        $('#select-all-modules').off('click').on('click', () => {
+            $('.module-checkbox').prop('checked', true).trigger('change');
+            toastr.success('已选择所有模块');
+        });
+        
+        // 清空按钮
+        $('#clear-all-modules').off('click').on('click', () => {
+            $('.module-checkbox').prop('checked', false).trigger('change');
+            $('#module-select').val([]).trigger('change');
+            toastr.success('已清空所有模块选择');
+        });
+    }
+
+    /**
+     * 提取楼层范围和模块过滤条件的辅助方法（支持多选和移动友好复选框）
      * @returns {Object} 包含提取参数的对象
      */
     extractParameters() {
@@ -106,8 +172,19 @@ export class ExtractModuleController {
         const startFloor = parseInt($('#start-floor-input').val().trim());
         const endFloor = parseInt($('#end-floor-input').val().trim());
 
-        // 获取选择的模块（支持多选）
-        const selectedModuleNames = $('#module-select').val();
+        // 获取选择的模块（支持多选和复选框）
+        let selectedModuleNames = [];
+        
+        // 优先从复选框组获取选中的模块
+        const checkedCheckboxes = $('.module-checkbox:checked');
+        if (checkedCheckboxes.length > 0) {
+            selectedModuleNames = checkedCheckboxes.map(function() {
+                return $(this).val();
+            }).get();
+        } else {
+            // 如果没有复选框选中，则从select元素获取（向后兼容）
+            selectedModuleNames = $('#module-select').val() || [];
+        }
 
         // 转换为索引（楼层从1开始，索引从0开始）
         let startIndex = 0;

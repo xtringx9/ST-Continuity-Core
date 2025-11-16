@@ -24,10 +24,25 @@
                 </div> -->
                 <div class="extract-actions">
                     <div class="floor-range-group">
-                        <select id="module-select" class="module-range-mode" multiple size="4">
-                            <option value="all">所有模块</option>
-                            <!-- 模块选项将通过JavaScript动态添加 -->
-                        </select>
+                        <!-- 移动友好的模块选择器 -->
+                        <div class="module-selector-container">
+                            <div class="module-selector-header">
+                                <label>选择模块：</label>
+                                <div class="module-selector-actions">
+                                    <button type="button" id="select-all-modules" class="btn-tiny">全选</button>
+                                    <button type="button" id="clear-all-modules" class="btn-tiny">清空</button>
+                                </div>
+                            </div>
+                            <div class="module-checkbox-group" id="module-checkbox-container">
+                                <!-- 模块复选框将通过JavaScript动态添加 -->
+                            </div>
+                            <!-- 保留原有的select元素用于向后兼容 -->
+                            <select id="module-select" class="module-range-mode" multiple size="4"
+                                style="display: none;">
+                                <option value="all">所有模块</option>
+                                <!-- 模块选项将通过JavaScript动态添加 -->
+                            </select>
+                        </div>
                         <input type="number" id="start-floor-input" class="floor-input" min="1" placeholder="起始楼层">
                         <span class="range-separator">-</span>
                         <input type="number" id="end-floor-input" class="floor-input" min="1" placeholder="结束楼层">
