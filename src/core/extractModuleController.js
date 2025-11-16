@@ -90,14 +90,9 @@ export class ExtractModuleController {
             this.extractProcessedModules();
         });
 
-        // 绑定输出当前整理后的增量更新模块按钮事件
-        $('#extract-incremental-modules-btn').on('click', () => {
-            this.extractIncrementalModules();
-        });
-
-        // 绑定输出当前整理后的全量更新模块按钮事件
-        $('#extract-full-modules-btn').on('click', () => {
-            this.extractFullModules();
+        // 绑定自动处理模块按钮事件（合并增量和全量功能）
+        $('#extract-auto-modules-btn').on('click', () => {
+            this.extractAutoModules();
         });
     }
 
@@ -344,11 +339,11 @@ export class ExtractModuleController {
 
 
     /**
-     * 提取增量更新模块功能（支持多选）
+     * 自动处理模块功能（根据模块配置自动选择增量或全量处理）
      */
-    extractIncrementalModules() {
+    extractAutoModules() {
         try {
-            debugLog('开始提取增量更新模块功能（支持多选）');
+            debugLog('开始自动处理模块功能（支持多选）');
 
             // 提取参数
             const params = this.extractParameters();
@@ -359,43 +354,16 @@ export class ExtractModuleController {
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
             const processResult = this.moduleProcessor.processModuleData(
                 { startIndex, endIndex, moduleFilters },
-                'incremental',
-                selectedModuleNames
+                'auto',
+                selectedModuleNames,
+                true // 显示处理方式说明
             );
 
             // 显示处理结果
-            this.displayModuleResult(processResult, '提取增量更新模块');
+            this.displayModuleResult(processResult, '自动处理模块');
         } catch (error) {
-            errorLog('提取增量更新模块失败:', error);
-            toastr.error('提取增量更新模块失败，请查看控制台日志');
-        }
-    }
-
-    /**
-     * 提取全量模块功能（支持多选）
-     */
-    extractFullModules() {
-        try {
-            debugLog('开始提取全量模块功能（支持多选）');
-
-            // 提取参数
-            const params = this.extractParameters();
-            if (!params) return;
-
-            const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
-
-            // 使用统一的模块数据处理方法（包含模块提取逻辑）
-            const processResult = this.moduleProcessor.processModuleData(
-                { startIndex, endIndex, moduleFilters },
-                'full',
-                selectedModuleNames
-            );
-
-            // 显示处理结果
-            this.displayModuleResult(processResult, '提取全量模块');
-        } catch (error) {
-            errorLog('提取全量模块失败:', error);
-            toastr.error('提取全量模块失败，请查看控制台日志');
+            errorLog('自动处理模块失败:', error);
+            toastr.error('自动处理模块失败，请查看控制台日志');
         }
     }
 

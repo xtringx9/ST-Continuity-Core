@@ -1003,6 +1003,86 @@ export class ModuleProcessor {
     }
 
     /**
+     * 自动根据模块配置判断处理方式
+     * @param {Array} rawModules 原始模块数组
+     * @param {Array} selectedModuleNames 选中的模块名数组
+     * @param {boolean} showProcessInfo 是否显示处理方式说明
+     * @returns {string} 处理后的模块字符串
+     */
+    processAutoModules(rawModules, selectedModuleNames, showProcessInfo = true) {
+        debugLog('开始自动处理模块');
+
+        // 标准化模块数据
+        const modules = this.normalizeModules(rawModules);
+
+        // 过滤出选中的模块（支持多选）
+        const filteredModules = modules.filter(module => {
+            // 如果没有选择任何模块，显示所有模块
+            if (!selectedModuleNames || selectedModuleNames.length === 0) {
+                return true;
+            }
+            // 如果选择了模块，只显示选中的模块
+            return selectedModuleNames.includes(module.moduleName);
+        });
+
+        // 按模块名分组
+        const moduleGroups = {};
+        filteredModules.forEach(module => {
+            if (!moduleGroups[module.moduleName]) {
+                moduleGroups[module.moduleName] = [];
+            }
+            moduleGroups[module.moduleName].push(module);
+        });
+
+        let result = '';
+
+        // 处理每个模块组
+        Object.keys(moduleGroups).forEach(moduleName => {
+            const moduleGroup = moduleGroups[moduleName];
+
+            // 获取模块配置
+            const moduleConfig = moduleGroup[0]?.moduleConfig;
+            if (!moduleConfig) {
+                // 没有模块配置，使用全量处理
+                const processedModules = moduleGroup.map(module => {
+                    return module.raw;
+                });
+
+                result += `## ${moduleName}\n`;
+                if (showProcessInfo) {
+                    result += `(全量处理 - 无配置)\n`;
+                }
+                result += processedModules.join('\n') + '\n\n';
+                return;
+            }
+
+            // 获取模块的outputMode配置
+            const outputMode = moduleConfig.outputMode || 'full';
+
+            // 根据outputMode选择处理方式
+            if (outputMode === 'incremental') {
+                // 增量处理
+                const incrementalResult = this.processIncrementalModules(moduleGroup);
+                result += `## ${moduleName}\n`;
+                if (showProcessInfo) {
+                    result += `(增量处理)\n`;
+                }
+                result += incrementalResult + '\n\n';
+            } else {
+                // 全量处理（默认）
+                const fullResult = this.processFullModules(moduleGroup);
+                result += `## ${moduleName}\n`;
+                if (showProcessInfo) {
+                    result += `(全量处理)\n`;
+                }
+                result += fullResult + '\n\n';
+            }
+        });
+
+        return result.trim();
+    }
+
+    /**
      * 处理增量更新模块
      * @param {Array} modules 标准化后的模块数组
      * @returns {string} 增量更新模块字符串
@@ -1076,11 +1156,12 @@ export class ModuleProcessor {
     /**
      * 统一处理模块数据（支持多选）
      * @param {Object} extractParams 提取参数对象，包含startIndex, endIndex, moduleFilters
-     * @param {string} processType 处理类型：'extract' | 'processed' | 'incremental' | 'full'
+     * @param {string} processType 处理类型：'extract' | 'processed' | 'incremental' | 'full' | 'auto'
      * @param {Array} selectedModuleNames 选中的模块名数组
+     * @param {boolean} showProcessInfo 是否显示处理方式说明，默认为true
      * @returns {Object} 包含处理结果和显示信息的对象
      */
-    processModuleData(extractParams, processType, selectedModuleNames) {
+    processModuleData(extractParams, processType, selectedModuleNames, showProcessInfo = true) {
         try {
             debugLog(`开始处理模块数据，类型：${processType}`);
 
@@ -1158,6 +1239,12 @@ export class ModuleProcessor {
                     // 处理全量更新模块
                     resultContent = this.processFullModules(modules);
                     displayTitle = '全量更新模块结果';
+                    break;
+
+                case 'auto':
+                    // 自动根据模块配置判断处理方式
+                    resultContent = this.processAutoModules(rawModules, selectedModuleNames, showProcessInfo);
+                    displayTitle = '自动处理模块结果';
                     break;
 
                 default:
