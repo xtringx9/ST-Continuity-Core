@@ -467,23 +467,118 @@ export class ExtractModuleController {
     groupModulesByIdentifier(modules) {
         const groups = {};
 
+        // 获取所有模块配置
+        const modulesData = getModulesData();
+
         modules.forEach(module => {
             // 解析模块名和标识符
             const [moduleName, ...parts] = module.raw.slice(1, -1).split('|');
             let identifier = 'default';
 
-            // 查找标识符变量（如id、identifier等）
-            for (const part of parts) {
+            // 解析当前模块的变量
+            const moduleVariables = {};
+            parts.forEach(part => {
                 const colonIndex = part.indexOf(':');
-                if (colonIndex === -1) continue;
+                if (colonIndex === -1) return;
 
                 const key = part.substring(0, colonIndex).trim();
                 const value = part.substring(colonIndex + 1).trim();
 
-                if (key && (key.toLowerCase() === 'id' || key.toLowerCase() === 'identifier')) {
-                    identifier = value || 'default';
-                    break;
+                if (key) {
+                    moduleVariables[key] = value;
                 }
+            });
+
+            // 查找模块配置
+            const moduleConfig = modulesData.find(configModule => {
+                // 检查主模块名是否匹配
+                if (configModule.name === moduleName) return true;
+                // 检查兼容模块名是否包含当前模块名
+                if (configModule.compatibleModuleNames) {
+                    const compatibleNames = configModule.compatibleModuleNames.split(',').map(name => name.trim());
+                    return compatibleNames.includes(moduleName);
+                }
+                return false;
+            });
+
+            // 如果找到模块配置，使用配置中定义的主标识符和备用标识符
+            if (moduleConfig && moduleConfig.variables) {
+                // 辅助函数：检查变量是否匹配给定名称或其兼容名称
+                const getVariableValue = (targetVariable) => {
+                    if (!targetVariable) return null;
+
+                    // 检查直接匹配
+                    if (moduleVariables[targetVariable.name]) {
+                        return moduleVariables[targetVariable.name];
+                    }
+
+                    // 检查兼容变量名
+                    if (targetVariable.compatibleVariableNames) {
+                        const compatibleNames = targetVariable.compatibleVariableNames.split(',').map(name => name.trim()).filter(name => name);
+                        for (const compatibleName of compatibleNames) {
+                            if (moduleVariables[compatibleName]) {
+                                return moduleVariables[compatibleName];
+                            }
+                        }
+                    }
+
+                    return null;
+                };
+
+                // 查找所有主标识符
+                const identifierVariables = moduleConfig.variables.filter(v => v.isIdentifier === true);
+                if (identifierVariables.length > 0) {
+                    // 获取所有主标识符的值
+                    const identifierValues = identifierVariables.map(variable => getVariableValue(variable));
+
+                    // 检查是否所有主标识符都有值
+                    const allIdentifiersHaveValue = identifierValues.every(value => value !== null && value !== '');
+
+                    if (allIdentifiersHaveValue) {
+                        // 组合所有主标识符的值作为复合标识符
+                        identifier = identifierValues.join('__');
+                    } else {
+                        // 主标识符不完整，查找备用标识符
+                        const backupIdentifierVariable = moduleConfig.variables.find(v => v.isBackupIdentifier === true);
+                        if (backupIdentifierVariable) {
+                            const backupIdentifierValue = getVariableValue(backupIdentifierVariable);
+                            // 如果备用标识符有值，使用备用标识符
+                            if (backupIdentifierValue) {
+                                identifier = backupIdentifierValue;
+                            } else {
+                                // 主标识符和备用标识符都不完整，使用唯一标识
+                                identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+                            }
+                        } else {
+                            // 只有主标识符配置但不完整，使用唯一标识
+                            identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+                        }
+                    }
+                }
+                // 如果没有配置主标识符，回退到查找固定命名的标识符
+                else {
+                    // 查找固定命名的标识符变量（如id、identifier等）
+                    let foundFixedIdentifier = false;
+                    for (const [key, value] of Object.entries(moduleVariables)) {
+                        if (key && (key.toLowerCase() === 'id' || key.toLowerCase() === 'identifier')) {
+                            if (value) {
+                                identifier = value;
+                            } else {
+                                // 固定命名的标识符为空，使用唯一标识
+                                identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+                            }
+                            foundFixedIdentifier = true;
+                            break;
+                        }
+                    }
+                    // 如果没有找到固定命名的标识符，使用唯一标识
+                    if (!foundFixedIdentifier) {
+                        identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+                    }
+                }
+            } else {
+                // 没有找到模块配置，使用唯一标识
+                identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
             }
 
             // 构建分组键（使用特殊分隔符避免模块名包含下划线导致的问题）
@@ -638,8 +733,17 @@ export class ExtractModuleController {
                     if (!match) continue;
                     const [, moduleName, identifier] = match;
 
-                    // 查找模块配置
-                    const moduleConfig = modulesData.find(module => module.name === moduleName);
+                    // 查找模块配置（支持兼容模块名）
+                    const moduleConfig = modulesData.find(configModule => {
+                        // 检查主模块名是否匹配
+                        if (configModule.name === moduleName) return true;
+                        // 检查兼容模块名是否包含当前模块名
+                        if (configModule.compatibleModuleNames) {
+                            const compatibleNames = configModule.compatibleModuleNames.split(',').map(name => name.trim());
+                            return compatibleNames.includes(moduleName);
+                        }
+                        return false;
+                    });
 
                     // 只处理outputMode为"incremental"的模块
                     if (moduleConfig && moduleConfig.outputMode === 'incremental') {
@@ -654,7 +758,8 @@ export class ExtractModuleController {
                                 if (variableValue) {
                                     // 分割隐藏条件值（支持逗号分隔）
                                     const hideValues = variable.hideConditionValues.split(',').map(v => v.trim());
-                                    if (hideValues.includes(variableValue)) {
+                                    // 修改为包含判断：只要variableValue包含任一条件值即可
+                                    if (hideValues.some(hideValue => variableValue.includes(hideValue))) {
                                         shouldHide = true;
                                         break;
                                     }
@@ -829,7 +934,8 @@ export class ExtractModuleController {
                                     if (variableValue) {
                                         // 分割隐藏条件值（支持逗号分隔）
                                         const hideValues = variable.hideConditionValues.split(',').map(v => v.trim());
-                                        if (hideValues.includes(variableValue)) {
+                                        // 修改为包含判断：只要variableValue包含任一条件值即可
+                                        if (hideValues.some(hideValue => variableValue.includes(hideValue))) {
                                             shouldHide = true;
                                             break;
                                         }
@@ -844,7 +950,8 @@ export class ExtractModuleController {
                             return null;
                         }).filter(Boolean).join('\n');
 
-                        resultContent += `${moduleName}_${identifier}：\n${formattedModulesStr}\n\n`;
+                        // resultContent += `${moduleName}_${identifier}：\n${formattedModulesStr}\n\n`;
+                        resultContent += `${formattedModulesStr}\n`;
                     }
                 }
 
