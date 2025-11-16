@@ -156,3 +156,7 @@ export {
 export {
     initParseModule,
 } from './modules/parseModuleManager.js';
+
+// 导出模块处理器和提取器（用于测试）
+export { ModuleProcessor } from './core/moduleProcessor.js';
+export { ModuleExtractor } from './core/moduleExtractor.js';
