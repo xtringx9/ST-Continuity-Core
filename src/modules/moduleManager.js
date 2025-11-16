@@ -170,7 +170,21 @@ export function bindModuleEvents(moduleElement) {
         autoSaveModuleConfig();
     });
 
-    // 绑定输出模式选择事件，控制保留层数输入框的显示/隐藏
+    // 检查模块是否需要显示标识符警告
+    function checkIdentifierWarning() {
+        const outputMode = moduleItem.find('.module-output-mode').val();
+        const hasMainIdentifier = moduleItem.find('.variable-is-identifier').val() === 'true';
+        const hasBackupIdentifier = moduleItem.find('.variable-is-backup-identifier').val() === 'true';
+        const warningElement = moduleItem.find('.module-identifier-warning');
+
+        if (outputMode === 'incremental' && !hasMainIdentifier && !hasBackupIdentifier) {
+            warningElement.show();
+        } else {
+            warningElement.hide();
+        }
+    }
+
+    // 绑定输出模式选择事件，控制保留层数输入框的显示/隐藏和标识符警告
     moduleItem.find('.module-output-mode').on('change', function () {
         const mode = $(this).val();
         const retainLayersInput = moduleItem.find('.module-retain-layers');
@@ -180,6 +194,10 @@ export function bindModuleEvents(moduleElement) {
         } else {
             retainLayersInput.hide();
         }
+
+        // 检查是否需要显示标识符警告
+        checkIdentifierWarning();
+
         // 自动保存配置
         autoSaveModuleConfig();
     });
@@ -190,6 +208,9 @@ export function bindModuleEvents(moduleElement) {
     if (initialOutputMode !== 'full') {
         initialRetainLayersInput.hide();
     }
+
+    // 初始化时检查是否需要显示标识符警告
+    checkIdentifierWarning();
 
     // 绑定数量范围输入事件
     moduleItem.find('.module-item-min, .module-item-specified, .module-retain-layers').on('input', function () {
@@ -348,63 +369,6 @@ export function bindModuleEvents(moduleElement) {
             e.preventDefault();
             e.stopPropagation();
         });
-
-        // 主标识符按钮事件
-        variableItem.find('.variable-identifier-btn').on('click', function () {
-            const isIdentifierInput = variableItem.find('.variable-is-identifier');
-            const currentValue = isIdentifierInput.val() === 'true';
-            isIdentifierInput.val(!currentValue);
-
-            // 切换激活状态样式
-            const button = $(this);
-            if (!currentValue) {
-                button.addClass('active');
-                // 设置激活状态背景色
-                button.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
-            } else {
-                button.removeClass('active');
-                // 恢复默认背景色
-                button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
-            }
-
-            updateModulePreview(moduleItem);
-            autoSaveModuleConfig();
-        });
-
-        // 备用标识符按钮事件
-        variableItem.find('.variable-backup-identifier-btn').on('click', function () {
-            const isBackupIdentifierInput = variableItem.find('.variable-is-backup-identifier');
-            const currentValue = isBackupIdentifierInput.val() === 'true';
-            isBackupIdentifierInput.val(!currentValue);
-
-            // 切换激活状态样式
-            const button = $(this);
-            if (!currentValue) {
-                button.addClass('active');
-                // 设置激活状态背景色
-                button.find('.variable-order-number').css('background-color', 'rgba(200, 150, 50, 0.6)');
-            } else {
-                button.removeClass('active');
-                // 恢复默认背景色
-                button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
-            }
-
-            updateModulePreview(moduleItem);
-            autoSaveModuleConfig();
-        });
-
-        // 初始化激活状态
-        const identifierBtn = variableItem.find('.variable-identifier-btn');
-        if (variableItem.find('.variable-is-identifier').val() === 'true') {
-            identifierBtn.addClass('active');
-            identifierBtn.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
-        }
-
-        const backupIdentifierBtn = variableItem.find('.variable-backup-identifier-btn');
-        if (variableItem.find('.variable-is-backup-identifier').val() === 'true') {
-            backupIdentifierBtn.addClass('active');
-            backupIdentifierBtn.find('.variable-order-number').css('background-color', 'rgba(200, 150, 50, 0.6)');
-        }
     });
 
     // 更新排序数字

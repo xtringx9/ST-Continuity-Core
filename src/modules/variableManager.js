@@ -49,6 +49,24 @@ export function addVariable(moduleItem) {
 
     // 更新预览
     updateModulePreview(moduleItem);
+
+    // 检查是否需要显示标识符警告
+    // 获取当前模块的输出模式
+    const outputMode = moduleItem.find('.module-output-mode').val();
+    // 检查是否有主标识符
+    const hasMainIdentifier = moduleItem.find('.variable-is-identifier').val() === 'true';
+    // 检查是否有备用标识符
+    const hasBackupIdentifier = moduleItem.find('.variable-is-backup-identifier').val() === 'true';
+    // 获取警告元素
+    const warningElement = moduleItem.find('.module-identifier-warning');
+
+    // 如果输出模式是增量且没有主标识符和备用标识符，则显示警告
+    if (outputMode === 'incremental' && !hasMainIdentifier && !hasBackupIdentifier) {
+        warningElement.show();
+    } else {
+        warningElement.hide();
+    }
+
     debugLog('addVariable函数执行完成');
 }
 
@@ -62,10 +80,28 @@ export function bindVariableEvents(variableItem, moduleItem) {
     variableItem.find('input').off('input');
     variableItem.find('.remove-variable').off('click');
 
+    // 检查是否需要显示标识符警告
+    function checkIdentifierWarning() {
+        const outputMode = moduleItem.find('.module-output-mode').val();
+        const hasMainIdentifier = moduleItem.find('.variable-is-identifier').val() === 'true';
+        const hasBackupIdentifier = moduleItem.find('.variable-is-backup-identifier').val() === 'true';
+        const warningElement = moduleItem.find('.module-identifier-warning');
+
+        if (outputMode === 'incremental' && !hasMainIdentifier && !hasBackupIdentifier) {
+            warningElement.show();
+        } else {
+            warningElement.hide();
+        }
+    }
+
     // 变量输入事件
     variableItem.find('input').on('input', function () {
         debugLog('变量输入框内容变化');
         updateModulePreview(moduleItem);
+
+        // 检查是否需要显示标识符警告
+        checkIdentifierWarning();
+
         // 自动保存配置
         import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
             autoSaveModuleConfig();
@@ -83,6 +119,14 @@ export function bindVariableEvents(variableItem, moduleItem) {
         }).length;
         const countElement = moduleItem.find('.toggle-variables .variable-count');
         countElement.text(`(${variableCount})`);
+
+        // 检查是否需要显示标识符警告
+        checkIdentifierWarning();
+
+        // 自动保存配置
+        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
+            autoSaveModuleConfig();
+        });
     });
 
     // 主标识符按钮事件
@@ -93,8 +137,18 @@ export function bindVariableEvents(variableItem, moduleItem) {
         console.log('[Continuity] isIdentifierInput长度:', isIdentifierInput.length);
         const currentValue = isIdentifierInput.val() === 'true';
         console.log('[Continuity] 当前值:', currentValue);
-        isIdentifierInput.val(!currentValue);
+        const newValue = !currentValue;
+        isIdentifierInput.val(newValue);
         console.log('[Continuity] 新值:', isIdentifierInput.val());
+
+        if (newValue) {
+            // 如果选择了主标识符，取消选择备用标识符
+            const backupIdentifierBtn = variableItem.find('.variable-backup-identifier-btn');
+            const backupIdentifierInput = variableItem.find('.variable-is-backup-identifier');
+            backupIdentifierBtn.removeClass('active');
+            backupIdentifierBtn.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
+            backupIdentifierInput.val('false');
+        }
 
         // 切换激活状态样式
         const button = $(this);
@@ -111,6 +165,10 @@ export function bindVariableEvents(variableItem, moduleItem) {
         }
 
         updateModulePreview(moduleItem);
+
+        // 检查是否需要显示标识符警告
+        checkIdentifierWarning();
+
         // 自动保存配置
         import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
             autoSaveModuleConfig();
@@ -136,6 +194,10 @@ export function bindVariableEvents(variableItem, moduleItem) {
         }
 
         updateModulePreview(moduleItem);
+
+        // 检查是否需要显示标识符警告
+        checkIdentifierWarning();
+
         // 自动保存配置
         import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
             autoSaveModuleConfig();

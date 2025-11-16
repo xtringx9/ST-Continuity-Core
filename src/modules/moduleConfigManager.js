@@ -496,6 +496,22 @@ export function renderModulesFromConfig(config) {
         onRenderCompleteCallback();
     }
 
+    // 为所有模块检查标识符警告状态
+    $('.custom-modules-container .module-item').each(function () {
+        const moduleItem = $(this);
+        const outputMode = moduleItem.find('.module-output-mode').val();
+        const hasMainIdentifier = moduleItem.find('.variable-is-identifier').val() === 'true';
+        const hasBackupIdentifier = moduleItem.find('.variable-is-backup-identifier').val() === 'true';
+        const warningElement = moduleItem.find('.module-identifier-warning');
+
+        // 如果输出模式是增量且没有主标识符和备用标识符，则显示警告
+        if (outputMode === 'incremental' && !hasMainIdentifier && !hasBackupIdentifier) {
+            warningElement.show();
+        } else {
+            warningElement.hide();
+        }
+    });
+
     // 初始化解析模块功能
     initParseModule();
 }
