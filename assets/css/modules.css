@@ -250,6 +250,113 @@
     margin-right: 8px;
 }
 
+/* 移动友好模块选择器样式 */
+.module-selector-container {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.module-selector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.module-selector-header label {
+    font-weight: 500;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+}
+
+.module-selector-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-tiny {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-tiny:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.module-checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.module-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+.module-checkbox-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.module-checkbox-item input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.module-checkbox-item label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    margin: 0;
+    flex: 1;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .module-selector-container {
+        min-width: 100%;
+        max-width: 100%;
+        margin-right: 0;
+    }
+    
+    .module-checkbox-group {
+        max-height: 100px;
+    }
+    
+    .floor-range-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .floor-range-group .module-selector-container {
+        order: -1;
+    }
+}
+
 .range-separator {
     color: rgba(255, 255, 255, 0.7);
     font-size: 10px;
