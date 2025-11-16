@@ -4,6 +4,7 @@ import { chat } from '../index.js';
 import { ModuleExtractor } from './moduleExtractor.js';
 import { parseCompatibleNames } from '../modules/moduleParser.js';
 import { parseMultipleModules } from '../modules/parseModuleManager.js';
+import { ModuleProcessor } from './moduleProcessor.js';
 
 /**
  * 提取模块控制器类
@@ -11,6 +12,7 @@ import { parseMultipleModules } from '../modules/parseModuleManager.js';
 export class ExtractModuleController {
     constructor() {
         this.moduleExtractor = new ModuleExtractor();
+        this.moduleProcessor = new ModuleProcessor();
     }
 
     /**
@@ -162,15 +164,15 @@ export class ExtractModuleController {
             const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
 
             // 使用ModuleExtractor提取模块，指定范围和过滤条件
-            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+            const rawModules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
 
             // 清空结果容器
             const resultsContainer = $('#extract-results-container');
             resultsContainer.empty();
 
-            if (modules.length > 0) {
-                // 合并并处理模块数据
-                const processedResult = this.processExtractedModules(modules, selectedModuleName);
+            if (rawModules.length > 0) {
+                // 使用moduleProcessor处理提取的模块
+                const processedResult = this.moduleProcessor.processExtractedModules(rawModules, selectedModuleName);
 
                 // 创建结果显示
                 const resultDisplay = $(`
@@ -179,13 +181,13 @@ export class ExtractModuleController {
                             <span class="module-index">处理结果</span>
                         </div>
                         <div class="module-content">
-                            <pre>${this.htmlEscape(processedResult)}</pre>
+                            <pre>${this.moduleProcessor.htmlEscape(processedResult)}</pre>
                         </div>
                     </div>
                 `);
 
                 resultsContainer.append(resultDisplay);
-                debugLog(`提取模块成功，共发现 ${modules.length} 个模块`);
+                debugLog(`提取模块成功，共发现 ${rawModules.length} 个模块`);
             } else {
                 resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
                 debugLog('提取模块完成，未发现模块');
@@ -193,143 +195,6 @@ export class ExtractModuleController {
         } catch (error) {
             errorLog('提取模块失败:', error);
             toastr.error('提取模块失败，请查看控制台日志');
-        }
-    }
-
-    /**
-     * 处理提取的模块数据
-     * @param {Array} modules 提取的模块数据数组
-     * @param {string} selectedModuleName 选择的模块名称
-     * @returns {string} 处理后的模块字符串
-     */
-    processExtractedModules(modules, selectedModuleName) {
-        // 查找选中的模块配置
-        const modulesData = getModulesData();
-        const selectedModule = modulesData.find(module => module.name === selectedModuleName);
-
-        if (!selectedModule) {
-            // 如果没有找到模块配置，直接返回所有模块的原始内容
-            return modules.map(module => module.raw).join('\n');
-        }
-
-        // 构建变量名映射（兼容变量名 -> 当前变量名）
-        const variableNameMap = {};
-
-        // 初始化映射表
-        selectedModule.variables.forEach(variable => {
-            // 当前变量名映射到自身
-            variableNameMap[variable.name] = variable.name;
-
-            // 兼容变量名映射到当前变量名
-            if (variable.compatibleVariableNames) {
-                const compatibleNamesArray = parseCompatibleNames(variable.compatibleVariableNames);
-                compatibleNamesArray.forEach(compatName => {
-                    variableNameMap[compatName.trim()] = variable.name;
-                });
-            }
-        });
-
-        // 处理每个模块并返回所有处理后的模块
-        const processedModules = modules.map(module => {
-            const raw = module.raw;
-
-            // 提取模块内容（去掉首尾的[]）
-            const content = raw.slice(1, -1);
-
-            // 解析变量部分 - 支持嵌套模块
-            const variablesMap = {};
-            selectedModule.variables.forEach(variable => {
-                variablesMap[variable.name] = '';
-            });
-
-            // 解析变量字符串
-            let lastPipePos = content.indexOf('|') + 1;
-            let inNestedModule = 0;
-
-            for (let i = lastPipePos; i < content.length; i++) {
-                const char = content[i];
-
-                if (char === '[') {
-                    inNestedModule++;
-                } else if (char === ']') {
-                    inNestedModule--;
-                } else if (char === '|' && inNestedModule === 0) {
-                    // 只在顶级管道符处分割
-                    const varPart = content.substring(lastPipePos, i).trim();
-                    this.parseSingleVariableInProcess(varPart, variablesMap, variableNameMap);
-                    lastPipePos = i + 1;
-                }
-            }
-
-            // 处理最后一个变量部分
-            const lastPart = content.substring(lastPipePos).trim();
-            this.parseSingleVariableInProcess(lastPart, variablesMap, variableNameMap);
-
-            // 构建当前模块的字符串
-            let moduleString = `[${selectedModule.name}`;
-
-            // 按照模块配置中的变量顺序添加变量
-            selectedModule.variables.forEach(variable => {
-                // 获取变量值
-                let varValue = variablesMap[variable.name];
-
-                moduleString += `|${variable.name}:${varValue}`;
-            });
-
-            moduleString += ']';
-
-            return moduleString;
-        });
-
-        // 返回所有处理后的模块，用换行符分隔
-        return processedModules.join('\n');
-    }
-
-    /**
-     * 解析单个变量部分，支持嵌套模块
-     * @param {string} part 单个变量部分，如 "own:所属人"
-     * @param {Object} variablesMap 变量映射表
-     * @param {Object} variableNameMap 变量名映射表（兼容变量名 -> 当前变量名）
-     */
-    parseSingleVariableInProcess(part, variablesMap, variableNameMap) {
-        if (!part) return;
-
-        let colonIndex = -1;
-        let inNestedModule = 0;
-
-        // 找到第一个顶级冒号
-        for (let i = 0; i < part.length; i++) {
-            const char = part[i];
-
-            if (char === '[') {
-                inNestedModule++;
-            } else if (char === ']') {
-                inNestedModule--;
-            } else if (char === ':' && inNestedModule === 0) {
-                colonIndex = i;
-                break;
-            }
-        }
-
-        if (colonIndex === -1) return;
-
-        const varName = part.substring(0, colonIndex).trim();
-        const varValue = part.substring(colonIndex + 1).trim();
-
-        if (varName && varValue) {
-            // 检查变量名是否在映射表中
-            if (variableNameMap.hasOwnProperty(varName)) {
-                const currentVarName = variableNameMap[varName];
-                variablesMap[currentVarName] = varValue;
-            } else {
-                // 处理兼容变量名的精确匹配
-                for (const [compatName, currentName] of Object.entries(variableNameMap)) {
-                    if (varName === compatName) {
-                        variablesMap[currentName] = varValue;
-                        break;
-                    }
-                }
-            }
         }
     }
 
@@ -365,75 +230,8 @@ export class ExtractModuleController {
             resultsContainer.empty();
 
             if (modules.length > 0) {
-                // 按模块名和标识符分组处理
-                const moduleGroups = this.groupModulesByIdentifier(modules);
-
-                // 构建结果显示内容
-                let resultContent = '';
-
-                // 获取所有模块配置
-                const modulesData = getModulesData();
-
-                // 处理每个模块组
-                for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
-                    // 解析模块名和标识符（使用特殊分隔符）
-                    const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
-                    if (!match) continue;
-                    const [, moduleName, identifier] = match;
-
-                    // 查找模块配置
-                    const moduleConfig = modulesData.find(module => module.name === moduleName);
-
-                    // 只有outputMode为"incremental"的模块才需要统合
-                    const needMerge = moduleConfig && moduleConfig.outputMode === 'incremental';
-
-                    if (needMerge) {
-                        // 统合处理模块
-                        const mergedModule = this.mergeModulesByOrder(moduleList, moduleConfig);
-
-                        // 构建统合后的模块字符串
-                        const mergedModuleStr = this.buildModuleString(mergedModule, moduleConfig);
-
-                        // 构建历史记录
-                        const historyModulesStr = moduleList.map(module => module.raw).join('\n');
-
-                        // 添加到结果内容
-                        resultContent += `统合：\n${mergedModuleStr}\n\n历史：\n${historyModulesStr}\n\n`;
-                    } else {
-                        // 不需要统合的模块，按模板格式化输出每个模块
-                        const formattedModulesStr = moduleList.map(module => {
-                            // 解析单个模块
-                            const [modName, ...parts] = module.raw.slice(1, -1).split('|');
-                            const moduleData = {
-                                name: modName,
-                                variables: {}
-                            };
-
-                            // 构建变量名映射表
-                            const variableNameMap = this.buildVariableNameMap(moduleConfig);
-
-                            // 处理每个变量
-                            parts.forEach(part => {
-                                const colonIndex = part.indexOf(':');
-                                if (colonIndex === -1) return;
-
-                                let key = part.substring(0, colonIndex).trim();
-                                const value = part.substring(colonIndex + 1).trim();
-
-                                if (key) {
-                                    // 查找标准变量名（处理兼容变量名）
-                                    const standardKey = variableNameMap[key] || key;
-                                    moduleData.variables[standardKey] = value;
-                                }
-                            });
-
-                            // 按模板格式化构建模块字符串
-                            return this.buildModuleString(moduleData, moduleConfig);
-                        }).join('\n');
-
-                        resultContent += `${moduleName}_${identifier}：\n${formattedModulesStr}\n\n`;
-                    }
-                }
+                // 使用moduleProcessor处理提取的模块
+                const processedResult = this.moduleProcessor.processExtractedModules(modules, selectedModuleName);
 
                 // 创建结果显示
                 const resultDisplay = $(`
@@ -442,7 +240,7 @@ export class ExtractModuleController {
                             <span class="module-index">整理后模块结果</span>
                         </div>
                         <div class="module-content">
-                            <pre>${this.htmlEscape(resultContent)}</pre>
+                            <pre>${this.moduleProcessor.htmlEscape(processedResult)}</pre>
                         </div>
                     </div>
                 `);
@@ -459,242 +257,7 @@ export class ExtractModuleController {
         }
     }
 
-    /**
-     * 将模块按模块名和标识符分组
-     * @param {Array} modules 提取的模块数组
-     * @returns {Object} 分组后的模块对象
-     */
-    groupModulesByIdentifier(modules) {
-        const groups = {};
 
-        // 获取所有模块配置
-        const modulesData = getModulesData();
-
-        modules.forEach(module => {
-            // 解析模块名和标识符
-            const [moduleName, ...parts] = module.raw.slice(1, -1).split('|');
-            let identifier = 'default';
-
-            // 解析当前模块的变量
-            const moduleVariables = {};
-            parts.forEach(part => {
-                const colonIndex = part.indexOf(':');
-                if (colonIndex === -1) return;
-
-                const key = part.substring(0, colonIndex).trim();
-                const value = part.substring(colonIndex + 1).trim();
-
-                if (key) {
-                    moduleVariables[key] = value;
-                }
-            });
-
-            // 查找模块配置
-            const moduleConfig = modulesData.find(configModule => {
-                // 检查主模块名是否匹配
-                if (configModule.name === moduleName) return true;
-                // 检查兼容模块名是否包含当前模块名
-                if (configModule.compatibleModuleNames) {
-                    const compatibleNames = configModule.compatibleModuleNames.split(',').map(name => name.trim());
-                    return compatibleNames.includes(moduleName);
-                }
-                return false;
-            });
-
-            // 如果找到模块配置，使用配置中定义的主标识符和备用标识符
-            if (moduleConfig && moduleConfig.variables) {
-                // 辅助函数：检查变量是否匹配给定名称或其兼容名称
-                const getVariableValue = (targetVariable) => {
-                    if (!targetVariable) return null;
-
-                    // 检查直接匹配
-                    if (moduleVariables[targetVariable.name]) {
-                        return moduleVariables[targetVariable.name];
-                    }
-
-                    // 检查兼容变量名
-                    if (targetVariable.compatibleVariableNames) {
-                        const compatibleNames = targetVariable.compatibleVariableNames.split(',').map(name => name.trim()).filter(name => name);
-                        for (const compatibleName of compatibleNames) {
-                            if (moduleVariables[compatibleName]) {
-                                return moduleVariables[compatibleName];
-                            }
-                        }
-                    }
-
-                    return null;
-                };
-
-                // 查找所有主标识符
-                const identifierVariables = moduleConfig.variables.filter(v => v.isIdentifier === true);
-                if (identifierVariables.length > 0) {
-                    // 获取所有主标识符的值
-                    const identifierValues = identifierVariables.map(variable => getVariableValue(variable));
-
-                    // 检查是否所有主标识符都有值
-                    const allIdentifiersHaveValue = identifierValues.every(value => value !== null && value !== '');
-
-                    if (allIdentifiersHaveValue) {
-                        // 组合所有主标识符的值作为复合标识符
-                        identifier = identifierValues.join('__');
-                    } else {
-                        // 主标识符不完整，查找备用标识符
-                        const backupIdentifierVariable = moduleConfig.variables.find(v => v.isBackupIdentifier === true);
-                        if (backupIdentifierVariable) {
-                            const backupIdentifierValue = getVariableValue(backupIdentifierVariable);
-                            // 如果备用标识符有值，使用备用标识符
-                            if (backupIdentifierValue) {
-                                identifier = backupIdentifierValue;
-                            } else {
-                                // 主标识符和备用标识符都不完整，使用唯一标识
-                                identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-                            }
-                        } else {
-                            // 只有主标识符配置但不完整，使用唯一标识
-                            identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-                        }
-                    }
-                }
-                // 如果没有配置主标识符，回退到查找固定命名的标识符
-                else {
-                    // 查找固定命名的标识符变量（如id、identifier等）
-                    let foundFixedIdentifier = false;
-                    for (const [key, value] of Object.entries(moduleVariables)) {
-                        if (key && (key.toLowerCase() === 'id' || key.toLowerCase() === 'identifier')) {
-                            if (value) {
-                                identifier = value;
-                            } else {
-                                // 固定命名的标识符为空，使用唯一标识
-                                identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-                            }
-                            foundFixedIdentifier = true;
-                            break;
-                        }
-                    }
-                    // 如果没有找到固定命名的标识符，使用唯一标识
-                    if (!foundFixedIdentifier) {
-                        identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-                    }
-                }
-            } else {
-                // 没有找到模块配置，使用唯一标识
-                identifier = `unique_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-            }
-
-            // 构建分组键（使用特殊分隔符避免模块名包含下划线导致的问题）
-            const groupKey = `__MODULE_GROUP__${moduleName}__IDENTIFIER__${identifier}__`;
-
-            // 添加到分组
-            if (!groups[groupKey]) {
-                groups[groupKey] = [];
-            }
-            groups[groupKey].push(module);
-        });
-
-        return groups;
-    }
-
-    /**
-     * 构建变量名映射表（兼容变量名 -> 标准变量名）
-     * @param {Object} moduleConfig 模块配置
-     * @returns {Object} 变量名映射表
-     */
-    buildVariableNameMap(moduleConfig) {
-        const variableNameMap = {};
-
-        if (!moduleConfig || !moduleConfig.variables) {
-            return variableNameMap;
-        }
-
-        // 为每个变量创建映射
-        moduleConfig.variables.forEach(variable => {
-            // 当前变量名映射到自身
-            variableNameMap[variable.name] = variable.name;
-
-            // 兼容变量名映射到当前变量名
-            if (variable.compatibleVariableNames) {
-                const compatibleNamesArray = parseCompatibleNames(variable.compatibleVariableNames);
-                compatibleNamesArray.forEach(compatName => {
-                    variableNameMap[compatName.trim()] = variable.name;
-                });
-            }
-        });
-
-        return variableNameMap;
-    }
-
-    /**
-     * 按顺序合并模块，后面的模块覆盖前面的
-     * @param {Array} modules 模块数组
-     * @param {Object} moduleConfig 模块配置
-     * @returns {Object} 合并后的模块数据
-     */
-    mergeModulesByOrder(modules, moduleConfig) {
-        // 初始化合并结果
-        const merged = {
-            name: '',
-            variables: {}
-        };
-
-        // 构建变量名映射表
-        const variableNameMap = this.buildVariableNameMap(moduleConfig);
-
-        modules.forEach(module => {
-            // 解析模块
-            const [moduleName, ...parts] = module.raw.slice(1, -1).split('|');
-            merged.name = moduleName;
-
-            // 处理每个变量
-            parts.forEach(part => {
-                const colonIndex = part.indexOf(':');
-                if (colonIndex === -1) return;
-
-                let key = part.substring(0, colonIndex).trim();
-                const value = part.substring(colonIndex + 1).trim();
-
-                if (key) {
-                    // 查找标准变量名（处理兼容变量名）
-                    const standardKey = variableNameMap[key] || key;
-
-                    // 如果值为空或undefined，则清空该变量
-                    if (value === '' || value === undefined) {
-                        merged.variables[standardKey] = '';
-                    } else {
-                        merged.variables[standardKey] = value;
-                    }
-                }
-            });
-        });
-
-        return merged;
-    }
-
-    /**
-     * 构建模块字符串
-     * @param {Object} moduleData 模块数据
-     * @param {Object} moduleConfig 模块配置
-     * @returns {string} 模块字符串
-     */
-    buildModuleString(moduleData, moduleConfig) {
-        let moduleStr = `[${moduleData.name}`;
-
-        // 如果有模块配置，按配置的变量顺序构建
-        if (moduleConfig && moduleConfig.variables) {
-            moduleConfig.variables.forEach(variable => {
-                const value = moduleData.variables[variable.name] || '';
-                moduleStr += `|${variable.name}:${value}`;
-            });
-        } else {
-            // 没有配置时，按变量名顺序构建
-            Object.keys(moduleData.variables).sort().forEach(key => {
-                const value = moduleData.variables[key] || '';
-                moduleStr += `|${key}:${value}`;
-            });
-        }
-
-        moduleStr += ']';
-        return moduleStr;
-    }
 
     /**
      * 输出当前整理后的增量更新模块
@@ -710,76 +273,19 @@ export class ExtractModuleController {
             const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
 
             // 使用ModuleExtractor提取模块，指定范围和过滤条件
-            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+            const rawModules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+
+            // 使用ModuleProcessor处理模块数据
+            const modules = this.moduleProcessor.normalizeModules(rawModules);
+
+            // 处理增量更新模块
+            const resultContent = this.moduleProcessor.processIncrementalModules(modules);
 
             // 清空结果容器
             const resultsContainer = $('#extract-results-container');
             resultsContainer.empty();
 
-            if (modules.length > 0) {
-                // 按模块名和标识符分组处理
-                const moduleGroups = this.groupModulesByIdentifier(modules);
-
-                // 构建结果显示内容
-                let resultContent = '';
-
-                // 获取所有模块配置
-                const modulesData = getModulesData();
-
-                // 处理每个模块组
-                for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
-                    // 解析模块名和标识符（使用特殊分隔符）
-                    const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
-                    if (!match) continue;
-                    const [, moduleName, identifier] = match;
-
-                    // 查找模块配置（支持兼容模块名）
-                    const moduleConfig = modulesData.find(configModule => {
-                        // 检查主模块名是否匹配
-                        if (configModule.name === moduleName) return true;
-                        // 检查兼容模块名是否包含当前模块名
-                        if (configModule.compatibleModuleNames) {
-                            const compatibleNames = configModule.compatibleModuleNames.split(',').map(name => name.trim());
-                            return compatibleNames.includes(moduleName);
-                        }
-                        return false;
-                    });
-
-                    // 只处理outputMode为"incremental"的模块
-                    if (moduleConfig && moduleConfig.outputMode === 'incremental') {
-                        // 统合处理模块
-                        const mergedModule = this.mergeModulesByOrder(moduleList, moduleConfig);
-
-                        // 检查是否需要隐藏该模块条目
-                        let shouldHide = false;
-                        for (const variable of moduleConfig.variables) {
-                            if (variable.isHideCondition) {
-                                const variableValue = mergedModule.variables[variable.name];
-                                if (variableValue) {
-                                    // 分割隐藏条件值（支持逗号分隔）
-                                    const hideValues = variable.hideConditionValues.split(',').map(v => v.trim());
-                                    // 修改为包含判断：只要variableValue包含任一条件值即可
-                                    if (hideValues.some(hideValue => variableValue.includes(hideValue))) {
-                                        shouldHide = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        // 如果不需要隐藏，则构建模块字符串
-                        if (!shouldHide) {
-                            // 构建统合后的模块字符串
-                            const mergedModuleStr = this.buildModuleString(mergedModule, moduleConfig);
-
-                            // 添加到结果内容
-                            //                         resultContent += `${moduleName}_${identifier}：
-                            // ${mergedModuleStr}\n\n`;
-                            resultContent += `${mergedModuleStr}\n`;
-                        }
-                    }
-                }
-
+            if (resultContent.trim()) {
                 // 创建结果显示
                 const resultDisplay = $(`
                     <div class="processed-module-result">
@@ -787,7 +293,7 @@ export class ExtractModuleController {
                             <span class="module-index">增量更新模块结果</span>
                         </div>
                         <div class="module-content">
-                            <pre>${this.htmlEscape(resultContent)}</pre>
+                            <pre>${this.moduleProcessor.htmlEscape(resultContent.trim())}</pre>
                         </div>
                     </div>
                 `);
@@ -795,7 +301,7 @@ export class ExtractModuleController {
                 resultsContainer.append(resultDisplay);
                 debugLog(`输出增量更新模块成功，共处理 ${modules.length} 个模块`);
             } else {
-                resultsContainer.append('<p class="no-results">未找到任何[模块名|键A:值A|键B:值B...]格式的模块。</p>');
+                resultsContainer.append('<p class="no-results">未找到任何增量更新模块。</p>');
                 debugLog('输出增量更新模块完成，未发现模块');
             }
         } catch (error) {
@@ -818,142 +324,18 @@ export class ExtractModuleController {
             const { startIndex, endIndex, selectedModuleName, moduleFilter } = params;
 
             // 使用ModuleExtractor提取模块，指定范围和过滤条件
-            const modules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+            const rawModules = this.moduleExtractor.extractModulesFromChat(/\[.*?\|.*?\]/g, startIndex, endIndex, moduleFilter);
+
+            // 标准化模块数据
+            const modules = this.moduleProcessor.normalizeModules(rawModules);
 
             // 清空结果容器
             const resultsContainer = $('#extract-results-container');
             resultsContainer.empty();
 
             if (modules.length > 0) {
-                // 按模块名和标识符分组处理
-                const moduleGroups = this.groupModulesByIdentifier(modules);
-                debugLog('模块分组结果:', moduleGroups);
-
-                // 构建结果显示内容
-                let resultContent = '';
-
-                // 获取所有模块配置
-                const modulesData = getModulesData();
-                debugLog('获取到的模块配置:', modulesData);
-
-                // 处理每个模块组
-                for (const [moduleKey, moduleList] of Object.entries(moduleGroups)) {
-                    debugLog('处理模块组:', moduleKey, '包含', moduleList.length, '个模块');
-                    // 解析模块名和标识符（使用特殊分隔符）
-                    const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
-                    if (!match) {
-                        debugLog('模块键解析失败:', moduleKey);
-                        continue;
-                    }
-                    const [, moduleName, identifier] = match;
-                    debugLog('解析出的模块名:', moduleName, '标识符:', identifier);
-
-                    // 查找模块配置 - 同时检查主模块名和兼容模块名
-                    const moduleConfig = modulesData.find(module => {
-                        // 检查主模块名是否匹配
-                        if (module.name === moduleName) return true;
-                        // 检查兼容模块名是否包含当前模块名
-                        if (module.compatibleModuleNames) {
-                            const compatibleNames = module.compatibleModuleNames.split(',').map(name => name.trim());
-                            return compatibleNames.includes(moduleName);
-                        }
-                        return false;
-                    });
-                    debugLog('找到的模块配置:', moduleConfig);
-
-                    // 只处理outputMode为"full"的模块
-                    if (moduleConfig && moduleConfig.outputMode === 'full') {
-                        // 获取retainLayers值（默认为-1，表示无限）
-                        const retainLayers = moduleConfig.retainLayers === undefined ? -1 : parseInt(moduleConfig.retainLayers);
-                        let modulesToShow = moduleList;
-
-                        // 根据retainLayers值决定显示的模块 - 按楼层而不是条数
-                        if (retainLayers === 0) {
-                            // 0表示不保留任何模块
-                            modulesToShow = [];
-                        } else if (retainLayers > 0) {
-                            // 大于0表示只保留最近的retainLayers个楼层的模块
-
-                            // 1. 按楼层分组模块
-                            const modulesByFloor = {};
-                            moduleList.forEach(module => {
-                                const floor = module.messageIndex;
-                                if (!modulesByFloor[floor]) {
-                                    modulesByFloor[floor] = [];
-                                }
-                                modulesByFloor[floor].push(module);
-                            });
-
-                            // 2. 获取所有楼层并按倒序排列（最近的楼层在前）
-                            const floors = Object.keys(modulesByFloor).map(Number).sort((a, b) => b - a);
-
-                            // 3. 选择最近的retainLayers个楼层
-                            const selectedFloors = floors.slice(0, retainLayers);
-
-                            // 4. 收集这些楼层中的所有模块，并按楼层倒序排列
-                            modulesToShow = [];
-                            selectedFloors.forEach(floor => {
-                                // 每个楼层内的模块按出现顺序排列
-                                modulesToShow.push(...modulesByFloor[floor]);
-                            });
-                        }
-                        // -1或其他负值表示显示所有模块
-
-                        // 格式化输出每个模块
-                        const formattedModulesStr = modulesToShow.map(module => {
-                            // 解析单个模块
-                            const [modName, ...parts] = module.raw.slice(1, -1).split('|');
-                            const moduleData = {
-                                name: modName,
-                                variables: {}
-                            };
-
-                            // 构建变量名映射表
-                            const variableNameMap = this.buildVariableNameMap(moduleConfig);
-
-                            // 处理每个变量
-                            parts.forEach(part => {
-                                const colonIndex = part.indexOf(':');
-                                if (colonIndex === -1) return;
-
-                                let key = part.substring(0, colonIndex).trim();
-                                const value = part.substring(colonIndex + 1).trim();
-
-                                if (key) {
-                                    // 查找标准变量名（处理兼容变量名）
-                                    const standardKey = variableNameMap[key] || key;
-                                    moduleData.variables[standardKey] = value;
-                                }
-                            });
-
-                            // 检查是否需要隐藏该模块条目
-                            let shouldHide = false;
-                            for (const variable of moduleConfig.variables) {
-                                if (variable.isHideCondition) {
-                                    const variableValue = moduleData.variables[variable.name];
-                                    if (variableValue) {
-                                        // 分割隐藏条件值（支持逗号分隔）
-                                        const hideValues = variable.hideConditionValues.split(',').map(v => v.trim());
-                                        // 修改为包含判断：只要variableValue包含任一条件值即可
-                                        if (hideValues.some(hideValue => variableValue.includes(hideValue))) {
-                                            shouldHide = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-
-                            // 如果不需要隐藏，则构建模块字符串
-                            if (!shouldHide) {
-                                return this.buildModuleString(moduleData, moduleConfig);
-                            }
-                            return null;
-                        }).filter(Boolean).join('\n');
-
-                        // resultContent += `${moduleName}_${identifier}：\n${formattedModulesStr}\n\n`;
-                        resultContent += `${formattedModulesStr}\n`;
-                    }
-                }
+                // 使用ModuleProcessor处理全量模块
+                const resultContent = this.moduleProcessor.processFullModules(modules);
 
                 // 创建结果显示
                 const resultDisplay = $(`
@@ -962,7 +344,7 @@ export class ExtractModuleController {
                             <span class="module-index">全量更新模块结果</span>
                         </div>
                         <div class="module-content">
-                            <pre>${this.htmlEscape(resultContent)}</pre>
+                            <pre>${this.moduleProcessor.htmlEscape(resultContent)}</pre>
                         </div>
                     </div>
                 `);
@@ -1068,3 +450,5 @@ export class ExtractModuleController {
         }
     }
 }
+
+
