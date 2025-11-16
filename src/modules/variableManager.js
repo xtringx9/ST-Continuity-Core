@@ -51,17 +51,25 @@ export function addVariable(moduleItem) {
     updateModulePreview(moduleItem);
 
     // 检查是否需要显示标识符警告
-    // 获取当前模块的输出模式
     const outputMode = moduleItem.find('.module-output-mode').val();
-    // 检查是否有主标识符
-    const hasMainIdentifier = moduleItem.find('.variable-is-identifier').val() === 'true';
-    // 检查是否有备用标识符
-    const hasBackupIdentifier = moduleItem.find('.variable-is-backup-identifier').val() === 'true';
-    // 获取警告元素
     const warningElement = moduleItem.find('.module-identifier-warning');
 
-    // 如果输出模式是增量且没有主标识符和备用标识符，则显示警告
-    if (outputMode === 'incremental' && !hasMainIdentifier && !hasBackupIdentifier) {
+    // 检查整个模块中是否有任何一个变量设置了主标识符或备用标识符
+    let hasAnyIdentifier = false;
+    
+    // 遍历模块中的所有变量项
+    moduleItem.find('.variable-item').each(function() {
+        const variableItem = $(this);
+        const isMainIdentifier = variableItem.find('.variable-is-identifier').val() === 'true';
+        const isBackupIdentifier = variableItem.find('.variable-is-backup-identifier').val() === 'true';
+        
+        if (isMainIdentifier || isBackupIdentifier) {
+            hasAnyIdentifier = true;
+            return false; // 跳出循环，因为已经找到一个标识符
+        }
+    });
+
+    if (outputMode === 'incremental' && !hasAnyIdentifier) {
         warningElement.show();
     } else {
         warningElement.hide();
@@ -83,11 +91,24 @@ export function bindVariableEvents(variableItem, moduleItem) {
     // 检查是否需要显示标识符警告
     function checkIdentifierWarning() {
         const outputMode = moduleItem.find('.module-output-mode').val();
-        const hasMainIdentifier = moduleItem.find('.variable-is-identifier').val() === 'true';
-        const hasBackupIdentifier = moduleItem.find('.variable-is-backup-identifier').val() === 'true';
         const warningElement = moduleItem.find('.module-identifier-warning');
 
-        if (outputMode === 'incremental' && !hasMainIdentifier && !hasBackupIdentifier) {
+        // 检查整个模块中是否有任何一个变量设置了主标识符或备用标识符
+        let hasAnyIdentifier = false;
+        
+        // 遍历模块中的所有变量项
+        moduleItem.find('.variable-item').each(function() {
+            const variableItem = $(this);
+            const isMainIdentifier = variableItem.find('.variable-is-identifier').val() === 'true';
+            const isBackupIdentifier = variableItem.find('.variable-is-backup-identifier').val() === 'true';
+            
+            if (isMainIdentifier || isBackupIdentifier) {
+                hasAnyIdentifier = true;
+                return false; // 跳出循环，因为已经找到一个标识符
+            }
+        });
+
+        if (outputMode === 'incremental' && !hasAnyIdentifier) {
             warningElement.show();
         } else {
             warningElement.hide();
