@@ -36,7 +36,7 @@ export class ExtractModuleController {
         try {
             const moduleSelect = $('#module-select');
             const moduleCheckboxContainer = $('#module-checkbox-container');
-            
+
             if (!moduleSelect.length || !moduleCheckboxContainer.length) return;
 
             // 清空下拉框，保留默认选项
@@ -54,7 +54,7 @@ export class ExtractModuleController {
                         value: module.name,
                         text: module.name
                     }));
-                    
+
                     // 添加模块到复选框组（移动友好）
                     const checkboxItem = $(`
                         <div class="module-checkbox-item">
@@ -118,7 +118,7 @@ export class ExtractModuleController {
             const checkbox = $(event.target);
             const moduleName = checkbox.val();
             const moduleSelect = $('#module-select');
-            
+
             if (checkbox.prop('checked')) {
                 // 选中复选框时，添加到select元素
                 if (!moduleSelect.find(`option[value="${moduleName}"]`).length) {
@@ -134,7 +134,7 @@ export class ExtractModuleController {
                 // 取消选中复选框时，从select元素移除
                 moduleSelect.find(`option[value="${moduleName}"]`).prop('selected', false);
             }
-            
+
             // 触发change事件，确保其他监听器能收到更新
             moduleSelect.trigger('change');
         });
@@ -149,7 +149,7 @@ export class ExtractModuleController {
             $('.module-checkbox').prop('checked', true).trigger('change');
             toastr.success('已选择所有模块');
         });
-        
+
         // 清空按钮
         $('#clear-all-modules').off('click').on('click', () => {
             $('.module-checkbox').prop('checked', false).trigger('change');
@@ -169,11 +169,11 @@ export class ExtractModuleController {
 
         // 获取选择的模块（支持多选和复选框）
         let selectedModuleNames = [];
-        
+
         // 优先从复选框组获取选中的模块
         const checkedCheckboxes = $('.module-checkbox:checked');
         if (checkedCheckboxes.length > 0) {
-            selectedModuleNames = checkedCheckboxes.map(function() {
+            selectedModuleNames = checkedCheckboxes.map(function () {
                 return $(this).val();
             }).get();
         } else {
@@ -201,12 +201,28 @@ export class ExtractModuleController {
 
         // 获取模块过滤条件（支持多选）
         let moduleFilters = null;
+        const modulesData = getModulesData();
+        const selectedModulesSet = new Set();
+
+        // 1. 首先添加用户选择的模块
         if (selectedModuleNames && selectedModuleNames.length > 0 && !selectedModuleNames.includes('all')) {
-            // 查找选中的模块配置
-            const modulesData = getModulesData();
+            selectedModuleNames.forEach(moduleName => {
+                selectedModulesSet.add(moduleName);
+            });
+        }
+
+        // 2. 添加所有激活了时间参考标准的模块
+        modulesData.forEach(module => {
+            if (module.timeReferenceStandard) {
+                selectedModulesSet.add(module.name);
+            }
+        });
+
+        // 3. 构建moduleFilters
+        if (selectedModulesSet.size > 0) {
             moduleFilters = [];
 
-            selectedModuleNames.forEach(moduleName => {
+            selectedModulesSet.forEach(moduleName => {
                 const selectedModule = modulesData.find(module => module.name === moduleName);
                 if (selectedModule) {
                     moduleFilters.push({
