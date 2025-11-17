@@ -7,7 +7,7 @@
 import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 
 // 上下文底部UI容器ID
-const CONTEXT_BOTTOM_CONTAINER_ID = 'continuity-context-bottom-ui';
+const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';
 
 /**
  * 加载外部CSS样式文件
@@ -398,7 +398,7 @@ export function checkPageStateAndInsertUI() {
         }
 
         // 检查UI是否已经存在
-        const existingUI = document.getElementById('continuity-context-bottom-ui');
+        const existingUI = document.getElementById('CONTEXT_BOTTOM_CONTAINER_ID');
         if (existingUI) {
             debugLog('[PAGE_CHECK] UI已存在，无需重新插入');
             return true;
