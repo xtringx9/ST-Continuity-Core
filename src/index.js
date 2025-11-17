@@ -76,6 +76,10 @@ export {
     updateModuleOrderNumbers,
     bindModuleEvents,
     getModulesData,
+    bindAddModuleButtonEvent,
+    bindClearModulesButtonEvent,
+    rebindAllModulesEvents,
+    updateAllModulesPreview,
 } from './modules/moduleManager.js';
 
 // 导出提示词生成模块
@@ -119,9 +123,6 @@ export {
     initJsonImportExport,
     collectModulesForExport,
     bindSaveButtonEvent,
-    bindAddModuleButtonEvent,
-    rebindAllModulesEvents,
-    updateAllModulesPreview,
 } from './utils/configImporterExporter.js';
 
 // 导出提示词注入管理器
