@@ -1,5 +1,5 @@
 // 事件处理器 - 处理SillyTavern扩展事件
-import { extension_settings, extensionName } from "../index.js";
+import { extension_settings, extensionName, initializeSettings, insertUItoContextBottom } from "../index.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 
 // 获取SillyTavern上下文
@@ -26,11 +26,99 @@ export class EventHandler {
 
             // 注册事件处理器
             this.registerChatCompletionPromptReady();
+            this.registerUIEvents();
 
             this.isInitialized = true;
             infoLog('事件处理器初始化完成');
         } catch (error) {
             errorLog('事件处理器初始化失败:', error);
+        }
+    }
+
+    /**
+     * 注册UI相关事件（聊天变更、消息接收等）
+     */
+    registerUIEvents() {
+        try {
+            // 注册聊天变更事件
+            this.registerUIEvent(event_types.CHAT_CHANGED, () => {
+                const settings = initializeSettings();
+                if (settings.enabled) {
+                    infoLog("[UI EVENTS][CHAT_CHANGED]检测到聊天变更，重新插入上下文底部UI");
+                    insertUItoContextBottom();
+                }
+            });
+
+            // 注册消息接收事件
+            this.registerUIEvent(event_types.MESSAGE_RECEIVED, () => {
+                const settings = initializeSettings();
+                if (settings.enabled) {
+                    infoLog("[UI EVENTS][MESSAGE_RECEIVED]检测到新消息接收，重新插入上下文底部UI");
+                    insertUItoContextBottom();
+                }
+            });
+
+            // 注册角色消息渲染完成事件
+            this.registerUIEvent(event_types.CHARACTER_MESSAGE_RENDERED, () => {
+                const settings = initializeSettings();
+                if (settings.enabled) {
+                    infoLog("[UI EVENTS][CHARACTER_MESSAGE_RENDERED]检测到角色消息渲染完成，重新插入上下文底部UI");
+                    // 使用更长的延迟确保消息完全渲染
+                    setTimeout(() => {
+                        insertUItoContextBottom();
+                    }, 200);
+                }
+            });
+
+            // 注册消息编辑事件
+            this.registerUIEvent(event_types.MESSAGE_EDITED, () => {
+                const settings = initializeSettings();
+                if (settings.enabled) {
+                    infoLog("[UI EVENTS][MESSAGE_EDITED]检测到消息编辑，重新插入上下文底部UI");
+                    insertUItoContextBottom();
+                }
+            });
+
+            // 注册消息删除事件
+            this.registerUIEvent(event_types.MESSAGE_DELETED, () => {
+                const settings = initializeSettings();
+                if (settings.enabled) {
+                    infoLog("[UI EVENTS][MESSAGE_DELETED]检测到消息删除，重新插入上下文底部UI");
+                    insertUItoContextBottom();
+                }
+            });
+
+            infoLog('UI相关事件处理器注册成功');
+        } catch (error) {
+            errorLog('注册UI相关事件处理器失败:', error);
+        }
+    }
+
+    /**
+     * 通用UI事件注册方法
+     */
+    registerUIEvent(eventType, handler) {
+        try {
+            // 如果已经注册过，先移除旧的事件监听器
+            if (this.eventHandlers.has(eventType)) {
+                const oldHandler = this.eventHandlers.get(eventType);
+                if (eventSource && eventSource.off) {
+                    eventSource.off(eventType, oldHandler);
+                    debugLog(`移除旧的${eventType}事件处理器`);
+                }
+            }
+
+            // 注册到SillyTavern事件系统
+            if (eventSource && eventSource.on) {
+                eventSource.on(eventType, handler);
+                // 存储事件处理器引用
+                this.eventHandlers.set(eventType, handler);
+                debugLog(`${eventType}事件处理器注册成功`);
+            } else {
+                errorLog(`无法注册事件处理器：eventSource不存在（${eventType}）`);
+            }
+        } catch (error) {
+            errorLog(`注册${eventType}事件处理器失败:`, error);
         }
     }
 
