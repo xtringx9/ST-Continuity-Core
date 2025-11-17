@@ -10,7 +10,9 @@ import {
     extension_settings,
     extensionName,
     eventSource,
-    event_types
+    event_types,
+    initContextBottomUI,
+    insertUItoContextBottom
 } from "./src/index.js";
 
 // 导入配置管理器
@@ -18,7 +20,7 @@ import configManager from "./src/modules/configManager.js";
 
 infoLog("♥️ Continuity Core LOADED!");
 
-// 采用st-memory-enhancement模式：一次性注册事件监听器
+// 一次性注册事件监听器
 // 事件监听器始终存在，只在处理函数内部检查开关状态
 function onChatCompletionPromptReady(eventData) {
     // 检查插件是否启用
@@ -44,9 +46,53 @@ jQuery(async function () {
     // 总是加载设置面板（即使插件禁用，也需要让用户能重新启用）
     await loadSettingsPanel();
 
-    // 一次性注册事件监听器（采用st-memory-enhancement模式）
+    // 一次性注册事件监听器
     // 使用全局的eventSource和event_types对象
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
+
+    // 一次性注册所有事件监听器，在回调函数内部检查开关状态
+    // 使用SillyTavern实际可用的事件类型
+    eventSource.on(event_types.CHAT_CHANGED, () => {
+        if (settings.enabled) {
+            infoLog("[UI Event][CHAT_CHANGED]检测到聊天变更，重新插入上下文底部UI");
+            insertUItoContextBottom();
+        }
+    });
+
+    // CHAT_SWITCHED事件不存在，使用CHAT_CHANGED替代
+    // CHAT_LOADED事件不存在，使用CHAT_CHANGED和MESSAGE_RECEIVED组合
+    eventSource.on(event_types.MESSAGE_RECEIVED, () => {
+        if (settings.enabled) {
+            infoLog("[UI Event][MESSAGE_RECEIVED]检测到新消息接收，重新插入上下文底部UI");
+            insertUItoContextBottom();
+        }
+    });
+
+    // 监听消息相关事件，确保UI在消息操作后保持正确位置
+    eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, () => {
+        if (settings.enabled) {
+            infoLog("[UI Event][CHARACTER_MESSAGE_RENDERED]检测到角色消息渲染完成，重新插入上下文底部UI");
+            // 使用更长的延迟确保消息完全渲染
+            setTimeout(() => {
+                insertUItoContextBottom();
+            }, 200);
+        }
+    });
+
+    eventSource.on(event_types.MESSAGE_EDITED, () => {
+        if (settings.enabled) {
+            infoLog("[UI Event][MESSAGE_EDITED]检测到消息编辑，重新插入上下文底部UI");
+            insertUItoContextBottom();
+        }
+    });
+
+    eventSource.on(event_types.MESSAGE_DELETED, () => {
+        if (settings.enabled) {
+            infoLog("[UI Event][MESSAGE_DELETED]检测到消息删除，重新插入上下文底部UI");
+            insertUItoContextBottom();
+        }
+    });
+
     infoLog("Continuity Core 事件监听器已注册（一次性注册模式）");
 
     // 总是注册宏到SillyTavern系统（无论插件是否启用）
@@ -73,10 +119,14 @@ jQuery(async function () {
     // 创建FAB菜单
     createFabMenu();
 
-    // 采用st-memory-enhancement模式：直接创建或重新初始化实例
+    // 直接创建或重新初始化实例
     if (!window.continuityPromptInjector) {
         window.continuityPromptInjector = new PromptInjector();
     }
     window.continuityPromptInjector.initialize();
     infoLog("Continuity Core 提示词注入管理器已初始化");
+
+    // 初始化上下文底部UI
+    initContextBottomUI();
+    infoLog("Continuity Core 上下文底部UI已初始化");
 });

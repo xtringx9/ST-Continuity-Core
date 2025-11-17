@@ -41,6 +41,7 @@ function loadCSS() {
         'variables.css',   // 变量样式
         'buttons.css',     // 按钮样式
         'preview.css',     // 预览样式
+        'context-bottom.css', // 上下文底部UI样式
         'responsive.css'   // 响应式样式
     ];
 

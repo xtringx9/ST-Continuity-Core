@@ -116,7 +116,7 @@ export class PromptInjector {
             // 创建聊天数组的副本以避免修改原始引用
             const chatCopy = [...chatArray];
 
-            // 根据st-memory-enhancement的注入逻辑
+            // 根据注入深度将提示词插入到聊天数组中
             if (depth === 0) {
                 // 深度0：插入到最后一条消息之后
                 chatCopy.push(injectionMessage);
@@ -171,7 +171,7 @@ export class PromptInjector {
             debugLog('原始聊天数组长度:', eventData.chat.length);
             debugLog('原始聊天数组内容:', eventData.chat);
 
-            // 按照st-memory-enhancement的方式直接修改eventData.chat数组
+            // 直接修改eventData.chat数组
             const { depth, role, content } = promptObject;
             const injectionMessage = {
                 role: role,
@@ -225,7 +225,7 @@ export class PromptInjector {
     }
 
     /**
-     * 停止注入管理器功能（采用st-memory-enhancement模式）
+     * 停止注入管理器功能
      * 不销毁实例，只停止功能，事件监听器仍然存在
      */
     destroy() {
