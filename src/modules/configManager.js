@@ -32,11 +32,31 @@ class ConfigManager {
      */
     load() {
         try {
+            debugLog('开始加载配置，检查扩展设置结构:', extension_settings);
+            debugLog('扩展名称:', extensionName);
+            debugLog('配置键名:', CONFIG_KEY);
+
             // 从扩展设置加载配置
             if (extension_settings[extensionName] && extension_settings[extensionName][CONFIG_KEY]) {
                 this.config = extension_settings[extensionName][CONFIG_KEY];
                 this.isLoaded = true;
-                debugLog('配置已从扩展设置加载到内存缓存');
+                debugLog('配置已从扩展设置加载到内存缓存:', this.config);
+                return this.config;
+            }
+
+            // 检查是否有旧的配置格式（兼容性处理）
+            if (extension_settings[extensionName] && extension_settings[extensionName].modules) {
+                debugLog('检测到旧的配置格式，进行迁移');
+                this.config = {
+                    modules: extension_settings[extensionName].modules || [],
+                    globalSettings: extension_settings[extensionName].globalSettings || DEFAULT_CONFIG.globalSettings,
+                    lastUpdated: new Date().toISOString(),
+                    version: DEFAULT_CONFIG.version
+                };
+                // 保存新格式
+                this.saveNow();
+                this.isLoaded = true;
+                debugLog('旧配置已迁移到新格式:', this.config);
                 return this.config;
             }
 
@@ -148,13 +168,18 @@ class ConfigManager {
                 this.load();
             }
 
+            debugLog('开始保存配置，当前配置:', this.config);
+            debugLog('扩展设置结构:', extension_settings);
+
             // 确保扩展设置对象存在
             if (!extension_settings[extensionName]) {
                 extension_settings[extensionName] = {};
+                debugLog('创建了新的扩展设置对象');
             }
 
             // 保存配置到扩展设置
             extension_settings[extensionName][CONFIG_KEY] = this.config;
+            debugLog('配置已设置到扩展设置中');
 
             // 立即保存设置
             saveSettingsDebounced(true); // 参数为true表示立即保存
@@ -162,6 +187,17 @@ class ConfigManager {
             // 输出保存的模块配置对象到控制台
             debugLog('保存的模块配置:', this.config.modules);
             infoLog('配置已保存到扩展设置');
+
+            // 验证保存是否成功
+            setTimeout(() => {
+                const savedConfig = extension_settings[extensionName] && extension_settings[extensionName][CONFIG_KEY];
+                if (savedConfig) {
+                    debugLog('配置保存验证成功:', savedConfig.modules);
+                } else {
+                    errorLog('配置保存验证失败：保存后无法读取');
+                }
+            }, 100);
+
             return true;
         } catch (error) {
             errorLog('保存配置失败:', error);
