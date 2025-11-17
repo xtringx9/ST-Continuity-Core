@@ -11,7 +11,8 @@ import {
     infoLog,
     errorLog,
     insertUItoContextBottom,
-    removeUIfromContextBottom
+    removeUIfromContextBottom,
+    checkPageStateAndInsertUI
 } from "../index.js";
 import { loadModuleConfig, renderModulesFromConfig } from "../modules/moduleConfigManager.js";
 
@@ -103,12 +104,7 @@ function enableContinuityCore() {
         }
 
         // 主动检查页面状态并插入UI
-        if (window.continuityEventHandler && window.continuityEventHandler.checkPageStateAndInsertUI) {
-            window.continuityEventHandler.checkPageStateAndInsertUI();
-        } else {
-            // 如果事件处理器尚未初始化，直接插入UI
-            insertUItoContextBottom();
-        }
+        checkPageStateAndInsertUI();
 
         infoLog("♥️ Continuity Core 已启用，功能已激活");
     } catch (error) {
