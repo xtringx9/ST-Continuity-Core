@@ -1,6 +1,7 @@
 // 配置导入导出相关功能
-import { debugLog, importModuleConfig, exportModuleConfig, renderModulesFromConfig, showCustomConfirmDialog, updateModuleOrderNumbers } from "../index.js";
+import { debugLog, errorLog, importModuleConfig, exportModuleConfig, renderModulesFromConfig, showCustomConfirmDialog, updateModuleOrderNumbers } from "../index.js";
 import { clearAllModules, rebindAllModulesEvents, updateAllModulesPreview, bindModuleEvents, updateModulePreview, bindClearModulesButtonEvent, bindAddModuleButtonEvent } from "../modules/moduleManager.js";
+import { validateConfig, normalizeConfig } from "../modules/moduleConfigTemplate.js";
 
 /**
  * 初始化JSON导入导出功能
@@ -23,7 +24,7 @@ export function initJsonImportExport() {
         // 使用event.target并断言为HTMLInputElement
         const target = event.target;
         if (target instanceof HTMLInputElement && target.files && target.files[0]) {
-            const config = await importModuleConfig(target.files[0]);
+            const config = await importModuleConfigWithValidation(target.files[0]);
             if (config) {
                 renderModulesFromConfig(config);
                 // 使用专门的函数重新绑定所有模块事件并更新预览
@@ -283,6 +284,104 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
         if (typeof onSaveSuccess === 'function') {
             onSaveSuccess(modules, globalSettings);
         }
+    });
+}
+
+/**
+ * 导入模块配置并进行验证
+ * @param {File} file 选择的JSON文件
+ * @returns {Promise<Object|null>} 验证并规范化后的配置对象或null
+ */
+export function importModuleConfigWithValidation(file) {
+    return new Promise((resolve) => {
+        if (!file) {
+            resolve(null);
+            return;
+        }
+
+        if (file.type && file.type !== 'application/json') {
+            errorLog('文件类型错误，需要JSON文件');
+            toastr.error('文件类型错误，请选择JSON文件');
+            resolve(null);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const result = e.target.result;
+                if (typeof result !== 'string') {
+                    throw new Error('文件内容不是文本格式');
+                }
+                const config = JSON.parse(result);
+                
+                // 验证配置是否符合模板规范
+                const validation = validateConfig(config);
+                
+                if (!validation.isValid) {
+                    // 显示验证错误
+                    const errorMessage = `配置验证失败:\n${validation.errors.join('\n')}`;
+                    if (validation.warnings.length > 0) {
+                        errorMessage += `\n警告:\n${validation.warnings.join('\n')}`;
+                    }
+                    
+                    errorLog('配置验证失败:', validation.errors);
+                    toastr.error('配置验证失败，请检查文件格式');
+                    
+                    // 显示详细错误信息
+                    if (validation.errors.length > 0) {
+                        showCustomConfirmDialog(
+                            '配置验证失败',
+                            `配置验证失败，发现以下错误：<br><br>${validation.errors.join('<br>')}<br><br>是否继续导入？`,
+                            () => {
+                                // 用户选择继续导入，进行规范化处理
+                                const normalizedConfig = normalizeConfig(config);
+                                resolve(normalizedConfig);
+                            },
+                            () => {
+                                // 用户选择取消导入
+                                resolve(null);
+                            }
+                        );
+                        return;
+                    }
+                }
+                
+                // 如果有警告但无错误，显示警告信息
+                if (validation.warnings.length > 0) {
+                    showCustomConfirmDialog(
+                        '配置验证警告',
+                        `配置验证通过，但有以下警告：<br><br>${validation.warnings.join('<br>')}<br><br>是否继续导入？`,
+                        () => {
+                            // 用户选择继续导入，进行规范化处理
+                            const normalizedConfig = normalizeConfig(config);
+                            resolve(normalizedConfig);
+                        },
+                        () => {
+                            // 用户选择取消导入
+                            resolve(null);
+                        }
+                    );
+                    return;
+                }
+                
+                // 验证通过，进行规范化处理
+                const normalizedConfig = normalizeConfig(config);
+                debugLog('配置验证通过，已规范化:', normalizedConfig);
+                resolve(normalizedConfig);
+                
+            } catch (error) {
+                errorLog('解析JSON文件失败:', error);
+                toastr.error('解析JSON文件失败，请检查文件格式');
+                resolve(null);
+            }
+        };
+        reader.onerror = () => {
+            errorLog('读取文件失败');
+            toastr.error('读取文件失败');
+            resolve(null);
+        };
+        reader.readAsText(file);
     });
 }
 
