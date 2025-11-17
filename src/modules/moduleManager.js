@@ -417,6 +417,52 @@ export function bindModuleEvents(moduleElement) {
 }
 
 /**
+ * 重新绑定所有模块的事件
+ */
+export function rebindAllModulesEvents() {
+    // 选择模块容器而不是.module-item以确保正确绑定
+    $('.custom-modules-container > div:not(.module-template)').each(function () {
+        bindModuleEvents($(this));
+    });
+}
+
+/**
+ * 更新所有模块的预览
+ */
+export function updateAllModulesPreview() {
+    $('.module-item').each(function () {
+        updateModulePreview($(this));
+    });
+}
+
+/**
+ * 清空所有模块
+ */
+export function clearAllModules() {
+    // 显示自定义确认弹窗
+    showCustomConfirmDialog(
+        '清空所有模块',
+        '确定要清空所有模块吗？此操作将删除所有自定义模块，且无法撤销！',
+        function () {
+            // 用户确认清空 - 只删除模块项，保留标题栏和模板
+            // 使用更精确的选择器，确保只删除真正的模块项，保留.module-template
+            $('.custom-modules-container > div').not('.section-title, .module-template').remove();
+            // 更新模块排序数字
+            updateModuleOrderNumbers();
+            // 重新绑定所有模块事件
+            rebindAllModulesEvents();
+            // 更新所有模块的预览
+            updateAllModulesPreview();
+            toastr.success('所有模块已清空');
+        },
+        function () {
+            // 用户取消清空
+            console.log('用户取消了清空模块操作');
+        }
+    );
+}
+
+/**
  * 自动保存模块配置
  */
 function autoSaveModuleConfig() {
@@ -853,3 +899,31 @@ function restoreModuleCollapsedState(moduleItem) {
 
 // 导出函数
 export { updateVariableOrderNumbers, restoreModuleCollapsedState };
+
+/**
+ * 绑定添加模块按钮事件
+ * @param {Function} addModuleCallback 添加模块的回调函数
+ */
+export function bindAddModuleButtonEvent(addModuleCallback) {
+    $('#add-module-btn').off('click');
+    $('#add-module-btn').on('click', addModuleCallback);
+}
+
+/**
+ * 绑定清空模块按钮事件
+ * @param {Function} clearModulesCallback 清空模块的回调函数
+ */
+export function bindClearModulesButtonEvent(clearModulesCallback) {
+    // 移除现有的事件监听，避免重复绑定
+    $('#clear-modules-btn').off('click');
+
+    // 绑定新的点击事件
+    $('#clear-modules-btn').on('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (typeof clearModulesCallback === 'function') {
+            clearModulesCallback();
+        }
+    });
+}

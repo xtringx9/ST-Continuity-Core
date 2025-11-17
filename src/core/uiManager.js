@@ -23,6 +23,7 @@ import {
     initJsonImportExport,
     bindSaveButtonEvent,
     bindAddModuleButtonEvent,
+    bindClearModulesButtonEvent,
     rebindAllModulesEvents,
     updateAllModulesPreview,
     initPromptPreview,
@@ -133,6 +134,31 @@ export async function openModuleConfigWindow() {
 
             // 绑定添加模块按钮事件
             bindAddModuleButtonEvent(addModule);
+
+            // 绑定清空模块按钮事件
+            bindClearModulesButtonEvent(function () {
+                // 显示自定义确认弹窗
+                showCustomConfirmDialog(
+                    '清空所有模块',
+                    '确定要清空所有模块吗？此操作将删除所有自定义模块，且无法撤销！',
+                    function () {
+                        // 用户确认清空 - 只删除模块项，保留标题栏和模板
+                        // 使用更精确的选择器，确保只删除真正的模块项，保留.module-template
+                        $('.custom-modules-container > div').not('.section-title, .module-template').remove();
+                        // 更新模块排序数字
+                        updateModuleOrderNumbers();
+                        // 重新绑定所有模块事件
+                        rebindAllModulesEvents();
+                        // 更新所有模块的预览
+                        updateAllModulesPreview();
+                        toastr.success('所有模块已清空');
+                    },
+                    function () {
+                        // 用户取消清空
+                        console.log('用户取消了清空模块操作');
+                    }
+                );
+            });
 
             // 初始化JSON导入导出功能
             initJsonImportExport();

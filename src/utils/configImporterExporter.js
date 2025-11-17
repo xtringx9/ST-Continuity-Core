@@ -1,5 +1,6 @@
 // 配置导入导出相关功能
-import { debugLog, importModuleConfig, exportModuleConfig, renderModulesFromConfig, bindModuleEvents, updateModulePreview } from "../index.js";
+import { debugLog, importModuleConfig, exportModuleConfig, renderModulesFromConfig, showCustomConfirmDialog, updateModuleOrderNumbers } from "../index.js";
+import { clearAllModules, rebindAllModulesEvents, updateAllModulesPreview, bindModuleEvents, updateModulePreview, bindClearModulesButtonEvent, bindAddModuleButtonEvent } from "../modules/moduleManager.js";
 
 /**
  * 初始化JSON导入导出功能
@@ -46,6 +47,11 @@ export function initJsonImportExport() {
 
         exportModuleConfig(modules);
         toastr.success('模块配置已导出');
+    });
+
+    // 清空模块按钮事件 - 使用moduleManager.js中的clearAllModules函数
+    bindClearModulesButtonEvent(function () {
+        clearAllModules();
     });
 }
 
@@ -130,7 +136,7 @@ export function collectModulesForExport() {
 
         // 获取模块保留层数
         const retainLayers = parseInt($(this).find('.module-retain-layers').val()) || -1;
-        
+
         // 获取时间参考标准状态
         const timeReferenceStandard = $(this).find('.module-time-reference-standard').val() === 'true' || false;
 
@@ -242,7 +248,7 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
 
             // 获取模块保留层数
             const retainLayers = parseInt($(this).find('.module-retain-layers').val()) || -1;
-            
+
             // 获取时间参考标准状态
             const timeReferenceStandard = $(this).find('.module-time-reference-standard').val() === 'true' || false;
 
@@ -280,30 +286,8 @@ export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
     });
 }
 
-/**
- * 绑定添加模块按钮事件
- * @param {Function} addModuleCallback 添加模块的回调函数
- */
-export function bindAddModuleButtonEvent(addModuleCallback) {
-    $('#add-module-btn').off('click');
-    $('#add-module-btn').on('click', addModuleCallback);
-}
 
-/**
- * 重新绑定所有模块的事件
- */
-export function rebindAllModulesEvents() {
-    // 选择模块容器而不是.module-item以确保正确绑定
-    $('.custom-modules-container > div:not(.module-template)').each(function () {
-        bindModuleEvents($(this));
-    });
-}
 
-/**
- * 更新所有模块的预览
- */
-export function updateAllModulesPreview() {
-    $('.module-item').each(function () {
-        updateModulePreview($(this));
-    });
-}
+
+
+
