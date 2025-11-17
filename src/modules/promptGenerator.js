@@ -114,7 +114,7 @@ export function generatePromptWithInsertion(insertionSettings = DEFAULT_INSERTIO
         const { depth, role } = insertionSettings;
         const prompt = generateFormalPrompt();
 
-        // 根据st-memory-enhancement插件的格式生成扩展提示词
+        // 生成扩展提示词
         const extensionPrompt = `{
     "depth": ${depth},
     "role": "${role}",

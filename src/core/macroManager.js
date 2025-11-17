@@ -246,7 +246,7 @@ export function getContinuityOrder() {
         // 可嵌入模块（按序号排序）
         if (embeddableModules.length > 0) {
             embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "可嵌入模块，不限制位置，可在任意位置使用：\n";
+            orderPrompt += "可嵌入模块，不限制位置，应积极插入正文内：\n";
             embeddableModules.forEach(module => {
                 const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
                 const rangePrompt = getRangePrompt(module);

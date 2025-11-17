@@ -5,7 +5,7 @@
 
 import { debugLog, errorLog } from './logger.js';
 
-// 导入SillyTavern的getContext函数（与st-memory-enhancement扩展相同的方式）
+// 导入SillyTavern的getContext函数
 let getContext;
 try {
     // 尝试从SillyTavern的扩展系统导入getContext函数
@@ -17,7 +17,7 @@ try {
     // 备用方案：从全局对象获取
     getContext = () => {
         try {
-            // 方法1: 尝试从全局对象获取（与st-memory-enhancement扩展相同的方式）
+            // 方法1: 尝试从全局对象获取
             if (typeof window !== 'undefined' && window.SillyTavern && window.SillyTavern.getContext) {
                 return window.SillyTavern.getContext();
             }
@@ -49,7 +49,7 @@ export function getUserAndCharNames() {
     try {
         debugLog("变量替换器: 开始获取用户和角色名称");
 
-        // 方法1: 尝试从Context对象获取（与st-memory-enhancement相同的方法）
+        // 方法1: 尝试从Context对象获取
         try {
             debugLog("变量替换器: 尝试使用内部getContext函数获取用户和角色名称");
 

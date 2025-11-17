@@ -1,0 +1,53 @@
+/**
+ * 上下文底部UI样式
+ */
+
+/* 上下文底部容器 */
+.continuity-context-bottom-container {
+    background-color: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px auto;
+    max-width: 800px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+/* 上下文标题 */
+.continuity-context-bottom-content .continuity-context-title {
+    color: #4a9eff;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 上下文信息区域 */
+.continuity-context-bottom-content .continuity-context-info {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.continuity-context-bottom-content .continuity-context-info p {
+    margin: 8px 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .continuity-context-bottom-container {
+        margin: 12px;
+        padding: 12px;
+    }
+    
+    .continuity-context-bottom-content .continuity-context-title {
+        font-size: 16px;
+    }
+    
+    .continuity-context-bottom-content .continuity-context-info {
+        font-size: 13px;
+    }
+}

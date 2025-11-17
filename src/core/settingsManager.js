@@ -84,7 +84,7 @@ function enableContinuityCore() {
         // 创建FAB菜单
         createFabMenu();
 
-        // 采用st-memory-enhancement模式：直接创建或重新初始化实例
+        // 直接创建或重新初始化实例
         if (!window.continuityPromptInjector) {
             window.continuityPromptInjector = new PromptInjector();
         }
@@ -118,7 +118,7 @@ function disableContinuityCore() {
             fabContainer.hide();
         }
 
-        // 采用st-memory-enhancement模式：不销毁提示词注入管理器，只停止其功能
+        // 不销毁提示词注入管理器，只停止其功能
         // 事件监听器仍然存在，但处理函数内部会检查开关状态
         if (window.continuityPromptInjector) {
             window.continuityPromptInjector.destroy();

@@ -6,7 +6,7 @@ import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 const { eventSource, event_types } = SillyTavern.getContext();
 
 /**
- * 事件处理器类 - 采用st-memory-enhancement扩展的简单模式
+ * 事件处理器类
  */
 export class EventHandler {
     constructor() {
@@ -50,7 +50,7 @@ export class EventHandler {
 
             const handler = (eventData) => {
                 debugLog('chatCompletionPromptReady事件触发', eventData);
-                
+
                 // 调用提示词注入器处理事件
                 if (window.continuityPromptInjector) {
                     return window.continuityPromptInjector.onChatCompletionPromptReady(eventData);
@@ -87,7 +87,7 @@ export class EventHandler {
                 }
                 this.eventHandlers.clear();
             }
-            
+
             this.isInitialized = false;
             infoLog('事件处理器已销毁，所有事件监听器已移除');
         } catch (error) {
@@ -100,7 +100,7 @@ export class EventHandler {
      */
     reinitializeEventHandlers() {
         try {
-            // 采用st-memory-enhancement模式：直接重新初始化
+            // 直接重新初始化
             this.destroy();
             this.initialize();
             debugLog('事件处理器已重新初始化');
