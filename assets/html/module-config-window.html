@@ -9,6 +9,7 @@
     <div class="tab-container">
         <div class="tab-item active" data-tab="extract">提取模块</div>
         <div class="tab-item" data-tab="config">模块配置</div>
+        <div class="tab-item" data-tab="ui">界面配置</div>
     </div>
 
     <!-- 提取模块页面 -->
@@ -351,6 +352,148 @@
         <div class="window-actions">
             <button id="module-cancel-btn">取消</button>
             <button id="module-save-btn">保存配置</button>
+        </div>
+    </div>
+
+    <!-- 界面配置页面 -->
+    <div id="ui-tab" class="tab-content">
+        <!-- 界面配置说明 -->
+        <div class="info-section">
+            <p><strong>界面配置说明：</strong>在此页面可配置模块和变量的UI美化代码，包括CSS样式、HTML结构和JavaScript交互效果。</p>
+            <div class="example">
+                <p>模块UI配置格式：每个模块可设置模块容器样式和变量样式</p>
+                <p>示例：为userProfile模块设置背景色，为username变量设置字体样式</p>
+            </div>
+        </div>
+
+        <!-- 界面配置操作区域 -->
+        <div class="ui-config-section">
+            <div class="section-title">
+                <h3>界面配置</h3>
+                <div class="header-actions">
+                    <button id="import-ui-config-btn" class="btn-small">导入UI配置</button>
+                    <button id="export-ui-config-btn" class="btn-small">导出UI配置</button>
+                    <button id="add-ui-module-btn" class="btn-small">
+                        <span>+</span> 添加UI模块
+                    </button>
+                    <button id="clear-ui-modules-btn" class="btn-small remove-module">- 清空UI模块</button>
+                </div>
+            </div>
+
+            <!-- UI模块模板（默认隐藏） -->
+            <div class="ui-module-template" style="display: none;">
+                <div class="ui-module-item">
+                    <div class="ui-module-header">
+                        <div class="ui-module-header-left">
+                            <label class="ui-module-toggle">
+                                <input type="checkbox" class="ui-module-enabled-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <div class="ui-module-name-group">
+                                <button class="ui-module-toggle-expand-btn" title="展开/折叠UI模块">
+                                    <span class="ui-module-order-number"></span>
+                                </button>
+                                <label>模块名</label>
+                                <input type="text" class="ui-module-name" placeholder="模块名">
+                                <input type="text" class="ui-module-display-name" placeholder="显示名">
+                            </div>
+                        </div>
+                        <div class="ui-module-actions">
+                            <button class="btn-small add-ui-variable">+ 添加UI变量</button>
+                            <button class="btn-small remove-ui-module">- 删除UI模块</button>
+                            <button class="btn-small drag-handle" title="拖拽移动UI模块">⋮⋮</button>
+                        </div>
+                    </div>
+
+                    <!-- 模块美化代码区域 -->
+                    <div class="ui-module-style-section">
+                        <div class="section-title">
+                            <h4>模块美化代码</h4>
+                        </div>
+                        <div class="code-editor-container">
+                            <label>模块容器美化代码（CSS/HTML/JS）</label>
+                            <textarea class="ui-module-style-code" placeholder="输入模块容器美化代码..."></textarea>
+                            <div class="code-preview">
+                                <label>代码预览</label>
+                                <div class="code-preview-content"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- UI变量容器 -->
+                    <div class="ui-variables-container-wrapper">
+                        <div class="section-title">
+                            <h4>变量美化配置</h4>
+                            <div class="header-actions">
+                                <button class="btn-small toggle-ui-variables">
+                                    <span class="arrow">▶</span><span class="text">展开变量</span>
+                                    <span class="ui-variable-count">(0)</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="ui-variables-container">
+                            <!-- UI变量模板 -->
+                            <div class="ui-variable-template" style="display: none;">
+                                <div class="ui-variable-item">
+                                    <div class="ui-variable-order-group">
+                                        <span class="ui-variable-order-number"></span>
+                                        <button class="btn-small ui-variable-drag-handle" title="拖拽移动UI变量">⋮⋮</button>
+                                    </div>
+                                    <div class="ui-variable-name-group">
+                                        <label>变量名</label>
+                                        <input type="text" class="ui-variable-name" placeholder="变量名">
+                                        <input type="text" class="ui-variable-display-name" placeholder="显示名">
+                                    </div>
+                                    <div class="ui-variable-style-section">
+                                        <label>变量美化代码（CSS/HTML/JS）</label>
+                                        <textarea class="ui-variable-style-code" placeholder="输入变量美化代码..."></textarea>
+                                        <div class="code-preview">
+                                            <label>代码预览</label>
+                                            <div class="code-preview-content"></div>
+                                        </div>
+                                    </div>
+                                    <div class="ui-variable-actions">
+                                        <button class="btn-small remove-ui-variable">-</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UI配置预览区域 -->
+            <div class="ui-preview-section">
+                <div class="section-title">
+                    <h3>UI配置预览</h3>
+                    <div class="header-actions">
+                        <button id="toggle-ui-preview-btn" class="btn-small">
+                            <span class="toggle-arrow">▶</span> 展开预览
+                        </button>
+                        <button id="update-ui-preview-btn" class="btn-small">更新预览</button>
+                        <button id="copy-ui-config-btn" class="btn-small">复制UI配置</button>
+                    </div>
+                </div>
+
+                <div id="ui-preview-content" class="preview-content" style="display: none;">
+                    <div class="preview-section">
+                        <div class="preview-mode-selector">
+                            <label for="ui-preview-mode-select">预览模式：</label>
+                            <select id="ui-preview-mode-select" class="preview-mode-select">
+                                <option value="json">JSON格式</option>
+                                <option value="css">CSS代码</option>
+                                <option value="html">HTML结构</option>
+                            </select>
+                        </div>
+                        <textarea id="ui-preview-textarea" class="prompt-preview-textarea" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="window-actions">
+            <button id="ui-cancel-btn">取消</button>
+            <button id="ui-save-btn">保存UI配置</button>
         </div>
     </div>
 </div>
