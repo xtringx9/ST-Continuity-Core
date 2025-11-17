@@ -1,7 +1,7 @@
 /**
  * 上下文底部UI管理模块
- * 实现将UI插入到最后一个消息容器内部的功能
- * 修改为插入到消息容器内部，而不是聊天容器
+ * 实现将UI插入到mes_text下方的功能
+ * 细长折叠栏样式版本
  */
 
 import { debugLog, errorLog } from '../utils/logger.js';
@@ -23,16 +23,26 @@ function createContextBottomContainer() {
     // 创建容器元素
     const container = document.createElement('div');
     container.id = CONTEXT_BOTTOM_CONTAINER_ID;
-    container.className = 'continuity-context-bottom-container';
+    container.className = 'continuity-context-bottom-container collapsed';
     container.innerHTML = `
         <div class="continuity-context-bottom-content">
             <h3 class="continuity-context-title">ST-Continuity-Core</h3>
             <div class="continuity-context-info">
-                <p>这是插入到上下文底部的基础UI组件</p>
-                <p>可以在这里展示扩展的核心信息或快捷操作</p>
+                <p>这是插入到消息底部的细长折叠栏</p>
+                <p>点击标题可以展开/折叠内容</p>
+                <p>自动跟随最新AI消息位置</p>
             </div>
         </div>
     `;
+
+    // 添加点击折叠功能
+    container.addEventListener('click', function (e) {
+        // 检查点击的是标题或标题内的任何元素
+        if (e.target.closest('.continuity-context-title') || e.target.classList.contains('continuity-context-title')) {
+            container.classList.toggle('collapsed');
+            debugLog('UI折叠状态切换: ' + (container.classList.contains('collapsed') ? '折叠' : '展开'));
+        }
+    });
 
     return container;
 }
@@ -82,7 +92,7 @@ function findSuitableMessageContainer() {
 
 /**
  * 将UI插入到上下文底部
- * 修改为插入到最后一个消息容器内部，并支持移动到新的消息容器
+ * 修改为插入到mes_text下方，确保折叠功能正常工作
  */
 export function insertUItoContextBottom() {
     try {
@@ -109,18 +119,40 @@ export function insertUItoContextBottom() {
                 return false;
             }
 
+            // 查找mes_block容器
+            const mesBlock = messageContainer.find('.mes_block');
+            if (mesBlock.length === 0) {
+                debugLog('消息容器中没有找到mes_block，使用默认插入位置');
+                // 如果没有mes_block，回退到消息容器底部
+                const existingUI = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
+                if (existingUI) {
+                    const currentParent = $(existingUI).parent();
+                    if (currentParent.is(messageContainer)) {
+                        debugLog('UI已在正确的消息容器中，无需移动');
+                        return true;
+                    } else {
+                        debugLog('UI在错误的容器中，移动到新的消息容器');
+                        existingUI.remove();
+                    }
+                }
+                const contextBottomUI = existingUI || createContextBottomContainer();
+                messageContainer.append(contextBottomUI);
+                debugLog('UI已成功插入到消息容器内部底部');
+                return true;
+            }
+
             // 检查UI是否已经存在
             const existingUI = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
 
             if (existingUI) {
                 // UI已存在，检查是否在正确的容器中
                 const currentParent = $(existingUI).parent();
-                if (currentParent.is(messageContainer)) {
-                    debugLog('UI已在正确的消息容器中，无需移动');
+                if (currentParent.is(mesBlock) && currentParent.find('.mes_text').next().is(existingUI)) {
+                    debugLog('UI已在正确的mes_text下方位置，无需移动');
                     return true;
                 } else {
                     // UI在错误的容器中，需要移动到新的容器
-                    debugLog('UI在错误的容器中，移动到新的消息容器');
+                    debugLog('UI在错误的容器中，移动到mes_text下方');
                     existingUI.remove();
                 }
             }
@@ -128,14 +160,14 @@ export function insertUItoContextBottom() {
             // 创建或重新插入上下文底部UI
             const contextBottomUI = existingUI || createContextBottomContainer();
 
-            // 插入到消息容器内部
-            messageContainer.append(contextBottomUI);
+            // 插入到mes_text下方
+            messageText.after(contextBottomUI);
 
-            debugLog('UI已成功插入/移动到消息容器内部');
+            debugLog('UI已成功插入/移动到mes_text下方');
             return true;
         }, 0);
     } catch (error) {
-        errorLog('插入UI到消息容器失败:', error);
+        errorLog('插入UI到mes_text下方失败:', error);
         return false;
     }
 }
