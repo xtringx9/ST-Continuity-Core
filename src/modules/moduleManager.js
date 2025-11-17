@@ -2,6 +2,7 @@
 import { debugLog, errorLog, addVariable, initParseModule, showCustomConfirmDialog, bindVariableEvents } from "../index.js";
 import { saveModuleConfig } from "./moduleConfigManager.js";
 import configManager from "./configManager.js";
+import { collectModulesForExport, collectModulesDataFromUI } from "../utils/configImporterExporter.js";
 
 /**
  * 添加新模块
@@ -494,107 +495,36 @@ export function getModulesData() {
 
     // 首先尝试从DOM中获取模块数据（如果配置面板已打开）
     if ($('.module-item').length > 0) {
-        // 收集所有模块数据
-        $('.module-item').each(function (index) {
-            const moduleName = $(this).find('.module-name').val();
-            if (!moduleName) return; // 跳过没有名称的模块
+        // 使用统一的数据收集器收集模块数据
+        modules.push(...collectModulesDataFromUI());
 
-            // 获取模块启用状态（默认为true）
-            const isEnabled = $(this).find('.module-enabled-toggle').prop('checked') !== false;
-
-            // 获取模块显示名和兼容模块名
-            const moduleDisplayName = $(this).find('.module-display-name').val();
-            const moduleCompatibleNames = $(this).find('.module-compatible-names').val();
-
-            const variables = [];
-            $(this).find('.variable-item').each(function () {
-                const varName = $(this).find('.variable-name').val();
-                const varDesc = $(this).find('.variable-desc').val();
-                const varDisplayName = $(this).find('.variable-display-name').val();
-                const varCompatibleNames = $(this).find('.variable-compatible-names').val();
-                const varIsIdentifier = $(this).find('.variable-is-identifier').val() === 'true';
-                const varIsBackupIdentifier = $(this).find('.variable-is-backup-identifier').val() === 'true';
-                const varIsHideCondition = $(this).find('.variable-is-hide-condition').val() === 'true';
-                const varHideConditionValues = $(this).find('.variable-desc').eq(1).val();
-
-                if (varName) {
-                    variables.push({
-                        name: varName,
-                        description: varDesc,
-                        displayName: varDisplayName || '',
-                        compatibleVariableNames: varCompatibleNames || '',
-                        isIdentifier: varIsIdentifier,
-                        isBackupIdentifier: varIsBackupIdentifier,
-                        isHideCondition: varIsHideCondition,
-                        hideConditionValues: varHideConditionValues || ''
-                    });
+        // 如果DOM中没有模块数据，则从配置管理器加载
+        if (modules.length === 0) {
+            try {
+                // 使用配置管理器加载配置
+                const config = configManager.get();
+                if (config && config.modules && Array.isArray(config.modules)) {
+                    // 确保每个模块都有启用状态（默认为true）和保留层数（默认为-1）
+                    const modulesWithEnabledState = config.modules.map(module => ({
+                        ...module,
+                        enabled: module.enabled !== false, // 如果未定义enabled，默认为true
+                        retainLayers: module.retainLayers !== undefined ? module.retainLayers : -1, // 如果未定义retainLayers，默认为-1
+                        rangeMode: module.rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
+                        outputMode: module.outputMode || 'full', // 添加outputMode字段，默认值为full（全量输出）
+                        timeReferenceStandard: module.timeReferenceStandard || false // 添加时间参考标准字段，默认为false
+                    }));
+                    modules.push(...modulesWithEnabledState);
+                    debugLog('从配置管理器加载模块配置:', modules.length, '个模块');
                 }
-            });
-
-            // 获取模块提示词
-            const modulePrompt = $(this).find('.module-prompt-input').val();
-
-            // 获取新的配置项
-            const timingPrompt = $(this).find('.module-timing-prompt-input').val();
-            const contentPrompt = $(this).find('.module-content-prompt-input').val();
-            const outputPosition = $(this).find('.module-output-position').val();
-            const positionPrompt = $(this).find('.module-position-prompt').val();
-            const itemMin = parseInt($(this).find('.module-item-min').val()) || 0;
-            const itemMax = parseInt($(this).find('.module-item-specified').val()) || -1;
-            const rangeMode = $(this).find('.module-range-mode').val();
-            const outputMode = $(this).find('.module-output-mode').val();
-            const retainLayersVal = $(this).find('.module-retain-layers').val();
-            const retainLayers = retainLayersVal !== '' ? parseInt(retainLayersVal) : -1;
-            const timeReferenceStandard = $(this).find('.module-time-reference-standard').val() === 'true' || false;
-            // debugLog('获取到保留层数:', retainLayersVal, '转换后:', retainLayers);
-
-            const moduleData = {
-                name: moduleName,
-                displayName: moduleDisplayName || '',
-                compatibleModuleNames: moduleCompatibleNames || '',
-                enabled: isEnabled,
-                variables: variables,
-                prompt: modulePrompt || '',
-                timingPrompt: timingPrompt || '',
-                contentPrompt: contentPrompt || '',
-                outputPosition: outputPosition || 'body',
-                positionPrompt: positionPrompt || '',
-                itemMin: itemMin,
-                itemMax: itemMax,
-                rangeMode: rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
-                outputMode: outputMode || 'full', // 添加outputMode字段，默认值为full（全量输出）
-                retainLayers: retainLayers, // 保留层数，已经设置了默认值
-                timeReferenceStandard: timeReferenceStandard, // 时间参考标准，默认为false
-                order: index // 添加排序索引
-            };
-            // debugLog('构建的模块数据:', moduleData);
-            modules.push(moduleData);
-        });
-    }
-
-    // 如果DOM中没有模块数据，则从配置管理器加载
-    if (modules.length === 0) {
-        try {
-            // 使用配置管理器加载配置
-            const config = configManager.get();
-            if (config && config.modules && Array.isArray(config.modules)) {
-                // 确保每个模块都有启用状态（默认为true）和保留层数（默认为-1）
-                const modulesWithEnabledState = config.modules.map(module => ({
-                    ...module,
-                    enabled: module.enabled !== false, // 如果未定义enabled，默认为true
-                    retainLayers: module.retainLayers !== undefined ? module.retainLayers : -1, // 如果未定义retainLayers，默认为-1
-                    rangeMode: module.rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
-                    outputMode: module.outputMode || 'full', // 添加outputMode字段，默认值为full（全量输出）
-                    timeReferenceStandard: module.timeReferenceStandard || false // 添加时间参考标准字段，默认为false
-                }));
-                modules.push(...modulesWithEnabledState);
-                debugLog('从配置管理器加载模块配置:', modules.length, '个模块');
+            } catch (error) {
+                errorLog('加载模块配置失败:', error);
             }
-        } catch (error) {
-            errorLog('加载模块配置失败:', error);
         }
+
+        return modules;
     }
 
+    // 如果DOM中没有模块，返回空数组
     return modules;
 }
 
