@@ -47,7 +47,7 @@ async function loadContextBottomUITemplate() {
         console.error('加载UI模板失败:', error);
         // 如果外部文件加载失败，返回备用模板
         return `
-            <div id="continuity-context-bottom-container" class="compact-snapshot-wrapper">
+            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">
                 <details class="bottom-summary">
                     <summary class="summary-title">ST-Continuity-Core</summary>
                     <div class="character-row">

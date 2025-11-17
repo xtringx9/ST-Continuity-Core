@@ -1,7 +1,7 @@
 /* 上下文底部UI样式 */
 
 /* 1. 基础容器设置 */
-.compact-snapshot-wrapper {
+.context-bottom-wrapper {
     max-width: 850px;
     margin: 0.5em auto;
     background-color: #eaeaea;
@@ -16,7 +16,8 @@
 
 /* 2. 折叠面板基础样式 */
 details.bottom-summary {
-    position: relative; /* 为子元素的绝对定位提供基准 */
+    position: relative;
+    /* 为子元素的绝对定位提供基准 */
 }
 
 /* 3. 只在 details 展开时，才添加底部的内边距，为summary留出空间 */
@@ -25,7 +26,7 @@ details.bottom-summary[open] {
 }
 
 /* 4. 当 details 展开时，将 summary 移动到底部 */
-details.bottom-summary[open] > .summary-title {
+details.bottom-summary[open]>.summary-title {
     position: absolute;
     bottom: 0;
     left: 0;
@@ -46,13 +47,15 @@ details.bottom-summary[open] > .summary-title {
 }
 
 /* 6. 定义折叠状态下(默认)的小三角样式 */
-details.bottom-summary > .summary-title::marker {
-    content: '▶ '; /* 一个向右的三角和一个空格 */
+details.bottom-summary>.summary-title::marker {
+    content: '▶ ';
+    /* 一个向右的三角和一个空格 */
 }
 
 /* 7. 定义展开状态下的小三角样式 */
-details.bottom-summary[open] > .summary-title::marker {
-    content: '▲ '; /* 一个向上的三角和一个空格 */
+details.bottom-summary[open]>.summary-title::marker {
+    content: '▲ ';
+    /* 一个向上的三角和一个空格 */
 }
 
 /* 8. 内容区域样式 */
