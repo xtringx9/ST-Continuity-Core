@@ -121,7 +121,7 @@ bindSaveButtonEvent() // 绑定保存按钮事件
 - `defaultValue`: 默认值
 - `isIdentifier`: 是否标识符变量
 - `isBackupIdentifier`: 是否备用标识符
-- `compatibleNames`: 兼容变量名称
+- `compatibleVariableNames`: 兼容变量名称
 - `required`: 是否必填
 - `options`: 选项列表（select类型时使用）
 

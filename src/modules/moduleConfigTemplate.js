@@ -108,10 +108,15 @@ export const MODULE_CONFIG_TEMPLATE = {
             },
 
             // 高级设置
-            compatibleNames: {
+            compatibleModuleNames: {
                 type: 'string',
                 default: '',
-                description: '兼容名称（逗号分隔）'
+                description: '兼容模块名称（逗号分隔）'
+            },
+            timeReferenceStandard: {
+                type: 'boolean',
+                default: false,
+                description: '时间参考标准（是否使用标准时间格式）'
             },
             retainLayers: {
                 type: 'number',
@@ -170,10 +175,20 @@ export const MODULE_CONFIG_TEMPLATE = {
                     },
 
                     // 高级设置
-                    compatibleNames: {
+                    compatibleVariableNames: {
                         type: 'string',
                         default: '',
-                        description: '兼容名称（逗号分隔）'
+                        description: '兼容变量名称别名（逗号分隔）'
+                    },
+                    isHideCondition: {
+                        type: 'boolean',
+                        default: false,
+                        description: '是否为隐藏条件变量'
+                    },
+                    hideConditionValues: {
+                        type: 'string',
+                        default: '',
+                        description: '隐藏条件值（逗号分隔）'
                     },
                     required: {
                         type: 'boolean',
@@ -249,6 +264,10 @@ export function validateConfig(config) {
             warnings.push(`${modulePrefix}: retainLayers字段应为数字`);
         }
 
+        if (module.timeReferenceStandard !== undefined && typeof module.timeReferenceStandard !== 'boolean') {
+            warnings.push(`${modulePrefix}: timeReferenceStandard字段应为布尔值`);
+        }
+
         // 验证枚举值
         const validOutputPositions = ['before_body', 'after_body', 'embedded', 'specific_position', 'custom'];
         if (module.outputPosition && !validOutputPositions.includes(module.outputPosition)) {
@@ -280,6 +299,10 @@ export function validateConfig(config) {
 
                 if (variable.isBackupIdentifier !== undefined && typeof variable.isBackupIdentifier !== 'boolean') {
                     warnings.push(`${varPrefix}: isBackupIdentifier字段应为布尔值`);
+                }
+
+                if (variable.isHideCondition !== undefined && typeof variable.isHideCondition !== 'boolean') {
+                    warnings.push(`${varPrefix}: isHideCondition字段应为布尔值`);
                 }
             });
         }
@@ -328,7 +351,8 @@ export function normalizeConfig(config) {
             rangeMode: module.rangeMode || 'specified',
             itemMin: typeof module.itemMin === 'number' ? module.itemMin : 0,
             itemMax: typeof module.itemMax === 'number' ? module.itemMax : 1,
-            compatibleNames: module.compatibleNames || '',
+            compatibleModuleNames: module.compatibleModuleNames || '',
+            timeReferenceStandard: module.timeReferenceStandard || false,
             retainLayers: typeof module.retainLayers === 'number' ? module.retainLayers : -1,
             variables: []
         }));
@@ -345,7 +369,9 @@ export function normalizeConfig(config) {
                     defaultValue: variable.defaultValue || '',
                     isIdentifier: variable.isIdentifier || false,
                     isBackupIdentifier: variable.isBackupIdentifier || false,
-                    compatibleNames: variable.compatibleNames || '',
+                    compatibleVariableNames: variable.compatibleVariableNames || '',
+                    isHideCondition: variable.isHideCondition || false,
+                    hideConditionValues: variable.hideConditionValues || '',
                     required: variable.required || false,
                     options: Array.isArray(variable.options) ? variable.options : []
                 }));
