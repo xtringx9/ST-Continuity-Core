@@ -1,5 +1,5 @@
 // 事件处理器 - 处理SillyTavern扩展事件
-import { extension_settings, extensionName, initializeSettings, insertUItoContextBottom } from "../index.js";
+import { extension_settings, extensionName, initializeSettings, insertUItoContextBottom, checkPageStateAndInsertUI } from "../index.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 
 // 获取SillyTavern上下文
@@ -46,7 +46,7 @@ export class EventHandler {
                 const settings = initializeSettings();
                 if (settings.enabled) {
                     infoLog("[UI EVENTS][CHAT_CHANGED]检测到聊天变更，检查页面状态并插入UI");
-                    this.checkPageStateAndInsertUI();
+                    checkPageStateAndInsertUI();
                 } else {
                     debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
                     removeUIfromContextBottom();
@@ -58,7 +58,7 @@ export class EventHandler {
                 const settings = initializeSettings();
                 if (settings.enabled) {
                     infoLog("[UI EVENTS][MESSAGE_RECEIVED]检测到新消息接收，检查页面状态并插入UI");
-                    this.checkPageStateAndInsertUI();
+                    checkPageStateAndInsertUI();
                 } else {
                     debugLog("[UI EVENTS][MESSAGE_RECEIVED]插件已禁用，移除UI");
                     removeUIfromContextBottom();
@@ -72,7 +72,7 @@ export class EventHandler {
                     infoLog("[UI EVENTS][CHARACTER_MESSAGE_RENDERED]检测到角色消息渲染完成，检查页面状态并插入UI");
                     // 使用更长的延迟确保消息完全渲染
                     setTimeout(() => {
-                        this.checkPageStateAndInsertUI();
+                        checkPageStateAndInsertUI();
                     }, 200);
                 } else {
                     debugLog("[UI EVENTS][CHARACTER_MESSAGE_RENDERED]插件已禁用，移除UI");
@@ -85,7 +85,7 @@ export class EventHandler {
                 const settings = initializeSettings();
                 if (settings.enabled) {
                     infoLog("[UI EVENTS][MESSAGE_EDITED]检测到消息编辑，检查页面状态并插入UI");
-                    this.checkPageStateAndInsertUI();
+                    checkPageStateAndInsertUI();
                 } else {
                     debugLog("[UI EVENTS][MESSAGE_EDITED]插件已禁用，移除UI");
                     removeUIfromContextBottom();
@@ -97,7 +97,7 @@ export class EventHandler {
                 const settings = initializeSettings();
                 if (settings.enabled) {
                     infoLog("[UI EVENTS][MESSAGE_DELETED]检测到消息删除，检查页面状态并插入UI");
-                    this.checkPageStateAndInsertUI();
+                    checkPageStateAndInsertUI();
                 } else {
                     debugLog("[UI EVENTS][MESSAGE_DELETED]插件已禁用，移除UI");
                     removeUIfromContextBottom();
@@ -172,93 +172,7 @@ export class EventHandler {
     //     }
     // }
 
-    /**
-     * 检测页面状态并插入UI
-     * 确保只有在合适的页面状态下才插入UI
-     */
-    checkPageStateAndInsertUI() {
-        try {
-            // 检查是否在聊天页面
-            if (!this.isInChatPage()) {
-                debugLog('[PAGE_CHECK] 当前不在聊天页面，不插入UI');
-                return false;
-            }
 
-            // 检查是否有有效的消息容器
-            if (!this.hasValidMessageContainer()) {
-                debugLog('[PAGE_CHECK] 没有有效的消息容器，不插入UI');
-                return false;
-            }
-
-            // 检查UI是否已经存在
-            const existingUI = document.getElementById('continuity-context-bottom-ui');
-            if (existingUI) {
-                debugLog('[PAGE_CHECK] UI已存在，无需重新插入');
-                return true;
-            }
-
-            // 所有检查通过，插入UI
-            infoLog('[PAGE_CHECK] 页面状态检查通过，插入UI');
-            insertUItoContextBottom();
-            return true;
-        } catch (error) {
-            errorLog('检测页面状态并插入UI失败:', error);
-            return false;
-        }
-    }
-
-    /**
-     * 检查是否在聊天页面
-     */
-    isInChatPage() {
-        try {
-            // 检查是否存在聊天容器
-            const chatContainer = $('#chat');
-            if (!chatContainer.length) {
-                return false;
-            }
-
-            // 检查聊天容器是否可见
-            if (chatContainer.css('display') === 'none') {
-                return false;
-            }
-
-            // 检查是否有消息容器
-            const messageContainers = $('.mes');
-            if (messageContainers.length === 0) {
-                return false;
-            }
-
-            return true;
-        } catch (error) {
-            errorLog('检查聊天页面状态失败:', error);
-            return false;
-        }
-    }
-
-    /**
-     * 检查是否有有效的消息容器
-     */
-    hasValidMessageContainer() {
-        try {
-            // 查找合适的消息容器
-            const lastMessageContainer = $('.last_mes');
-            if (lastMessageContainer.length === 0) {
-                return false;
-            }
-
-            // 检查消息容器是否有内容
-            const messageText = lastMessageContainer.find('.mes_text');
-            if (messageText.length === 0 || messageText.text().trim() === '') {
-                return false;
-            }
-
-            return true;
-        } catch (error) {
-            errorLog('检查消息容器状态失败:', error);
-            return false;
-        }
-    }
 
     /**
      * 注册聊天完成前提示词准备事件
