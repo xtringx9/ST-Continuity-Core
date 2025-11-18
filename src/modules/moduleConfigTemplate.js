@@ -123,6 +123,11 @@ export const MODULE_CONFIG_TEMPLATE = {
                 default: -1,
                 description: '保留层数（-1表示不限制）'
             },
+            customStyles: {
+                type: 'string',
+                default: '',
+                description: '自定义CSS/HTML样式，支持多行代码'
+            },
 
             // 变量数组
             variables: [
@@ -354,6 +359,7 @@ export function normalizeConfig(config) {
             compatibleModuleNames: module.compatibleModuleNames || '',
             timeReferenceStandard: module.timeReferenceStandard || false,
             retainLayers: typeof module.retainLayers === 'number' ? module.retainLayers : -1,
+            customStyles: module.customStyles || '',
             variables: []
         }));
 

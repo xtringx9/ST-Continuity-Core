@@ -108,6 +108,7 @@ bindSaveButtonEvent() // 绑定保存按钮事件
 - `rangeMode`: 数量范围模式（unlimited/specified/range）
 - `compatibleModuleNames`: 兼容模块名称
 - `timeReferenceStandard`: 时间参考标准
+- `customStyles`: 自定义CSS/HTML样式（支持多行）
 
 ### 变量字段 (Variable Fields)
 

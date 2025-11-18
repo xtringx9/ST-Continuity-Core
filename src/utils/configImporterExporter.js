@@ -111,6 +111,7 @@ export function collectModuleDataFromUI(moduleElement, index = 0) {
         retainLayers: parseInt(moduleElement.find('.module-retain-layers').val()) || -1,
         compatibleModuleNames: moduleElement.find('.module-compatible-names').val() || '',
         timeReferenceStandard: moduleElement.find('.module-time-reference-standard').val() === 'true' || false,
+        customStyles: moduleElement.find('.module-custom-styles').val() || '',
         variables: collectVariablesDataFromUI(moduleElement)
     };
 
