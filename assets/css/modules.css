@@ -752,6 +752,27 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
+/* 模块自定义样式输入框样式 */
+#continuity-module-config-window .module-custom-styles {
+    width: 100%;
+    min-height: 40px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 12px;
+    color: #333;
+    font-family: monospace;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+#continuity-module-config-window .module-custom-styles:focus {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
 /* 变量拖拽样式 */
 .variable-item.dragging {
     cursor: grabbing !important;

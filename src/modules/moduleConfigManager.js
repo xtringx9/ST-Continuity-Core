@@ -388,6 +388,10 @@ export function renderModulesFromConfig(config) {
         if (module.positionPrompt) {
             moduleItem.find('.module-position-prompt').val(module.positionPrompt);
         }
+        // 设置自定义样式
+        if (module.customStyles) {
+            moduleItem.find('.module-custom-styles').val(module.customStyles);
+        }
         // 设置输出模式
         const outputMode = module.outputMode || 'full';
         moduleItem.find('.module-output-mode').val(outputMode);
