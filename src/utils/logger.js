@@ -11,7 +11,7 @@ export function isDebugLogsEnabled() {
 }
 
 /**
- * 获取调用栈信息，提取文件名和行号
+ * 获取调用栈信息，提取文件名、方法名和行号
  * @returns {string} 格式化的调用栈信息
  */
 function getCallerInfo() {
@@ -25,29 +25,37 @@ function getCallerInfo() {
             const line = stackLines[i].trim();
             // 匹配文件名和行号，排除node_modules和logger.js本身
             if (line && !line.includes('logger.js') && !line.includes('node_modules')) {
-                // 提取文件名和行号
-                const match = line.match(/at\s+(.+?)\s+\((.+?):(\d+):(\d+)\)/) ||
-                    line.match(/at\s+(.+?):(\d+):(\d+)/);
+                // 提取文件名、方法名和行号
+                // 匹配格式1: at methodName (filePath:line:column)
+                const match1 = line.match(/at\s+([^(\s]+)\s+\((.+?):(\d+):(\d+)\)/);
+                // 匹配格式2: at filePath:line:column
+                const match2 = line.match(/at\s+(.+?):(\d+):(\d+)/);
+                // 匹配格式3: at Object.methodName (filePath:line:column)
+                const match3 = line.match(/at\s+([^.]+)\.([^(\s]+)\s+\((.+?):(\d+):(\d+)\)/);
 
-                if (match) {
-                    // 如果是函数调用格式
-                    if (match[2]) {
-                        const fileName = match[2].split('/').pop(); // 只取文件名
-                        const lineNumber = match[3];
-                        return `${fileName}:${lineNumber}`;
-                    }
-                    // 如果是直接文件格式
-                    else if (match[1]) {
-                        const fileName = match[1].split('/').pop(); // 只取文件名
-                        const lineNumber = match[2];
-                        return `${fileName}:${lineNumber}`;
-                    }
+                if (match3) {
+                    // 格式3: 包含对象和方法名
+                    const fileName = match3[3].split('/').pop(); // 只取文件名
+                    const methodName = match3[2]; // 方法名
+                    const lineNumber = match3[4]; // 行号
+                    return `${fileName}:${methodName}:${lineNumber}`;
+                } else if (match1) {
+                    // 格式1: 包含方法名
+                    const fileName = match1[2].split('/').pop(); // 只取文件名
+                    const methodName = match1[1]; // 方法名
+                    const lineNumber = match1[3]; // 行号
+                    return `${fileName}:${methodName}:${lineNumber}`;
+                } else if (match2) {
+                    // 格式2: 只有文件路径和行号
+                    const fileName = match2[1].split('/').pop(); // 只取文件名
+                    const lineNumber = match2[2]; // 行号
+                    return `${fileName}:anonymous:${lineNumber}`;
                 }
             }
         }
-        return 'unknown:0';
+        return 'unknown:anonymous:0';
     } catch (error) {
-        return 'error:0';
+        return 'error:anonymous:0';
     }
 }
 
