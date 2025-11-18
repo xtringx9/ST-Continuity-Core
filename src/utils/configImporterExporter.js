@@ -2,7 +2,6 @@
 import { debugLog, errorLog, importModuleConfig, exportModuleConfig, renderModulesFromConfig, showCustomConfirmDialog, updateModuleOrderNumbers } from "../index.js";
 import { clearAllModules, rebindAllModulesEvents, updateAllModulesPreview, bindModuleEvents, updateModulePreview, bindClearModulesButtonEvent, bindAddModuleButtonEvent } from "../modules/moduleManager.js";
 import { validateConfig, normalizeConfig } from "../modules/moduleConfigTemplate.js";
-import { validateUIConfig, normalizeUIConfig, getUIConfigSchema } from "../modules/moduleUIConfigTemplate.js";
 
 // 配置模板版本跟踪
 let currentTemplateVersion = '1.0.0';
@@ -101,8 +100,8 @@ export function collectModuleDataFromUI(moduleElement, index = 0) {
     const moduleData = {
         name: moduleName,
         displayName: moduleElement.find('.module-display-name').val() || '',
+        order: index,
         enabled: moduleElement.find('.module-enabled-toggle').prop('checked') !== false,
-        variables: collectVariablesDataFromUI(moduleElement),
         prompt: moduleElement.find('.module-prompt-input').val() || '',
         timingPrompt: moduleElement.find('.module-timing-prompt-input').val() || '',
         contentPrompt: moduleElement.find('.module-content-prompt-input').val() || '',
@@ -112,7 +111,7 @@ export function collectModuleDataFromUI(moduleElement, index = 0) {
         retainLayers: parseInt(moduleElement.find('.module-retain-layers').val()) || -1,
         compatibleModuleNames: moduleElement.find('.module-compatible-names').val() || '',
         timeReferenceStandard: moduleElement.find('.module-time-reference-standard').val() === 'true' || false,
-        order: index
+        variables: collectVariablesDataFromUI(moduleElement)
     };
 
     // 处理数量范围
