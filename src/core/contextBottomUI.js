@@ -279,8 +279,7 @@ export function insertUItoContextBottom() {
                                         const processResult = moduleProcessor.processModuleData(
                                             extractParams,
                                             'auto', // 自动处理类型
-                                            [moduleConfig.name],
-                                            false // showProcessInfo设为false
+                                            [moduleConfig.name]
                                         );
 
                                         const processedData = processResult.success ? processResult.content : '';

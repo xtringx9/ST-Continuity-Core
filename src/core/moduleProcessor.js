@@ -1099,7 +1099,7 @@ export class ModuleProcessor {
      * @param {boolean} showProcessInfo 是否显示处理方式说明
      * @returns {string} 处理后的模块字符串
      */
-    processAutoModules(rawModules, selectedModuleNames, showProcessInfo = true) {
+    processAutoModules(rawModules, selectedModuleNames, showModuleNames = false, showProcessInfo = false) {
         debugLog('开始自动处理模块');
 
         // 标准化模块数据
@@ -1137,8 +1137,9 @@ export class ModuleProcessor {
                 const processedModules = moduleGroup.map(module => {
                     return module.raw;
                 });
-
-                result += `## ${moduleName}\n`;
+                if (showModuleNames) {
+                    result += `## ${moduleName}\n`;
+                }
                 if (showProcessInfo) {
                     result += `(全量处理 - 无配置)\n`;
                 }
@@ -1153,7 +1154,9 @@ export class ModuleProcessor {
             if (outputMode === 'incremental') {
                 // 增量处理
                 const incrementalResult = this.processIncrementalModules(moduleGroup);
-                result += `## ${moduleName}\n`;
+                if (showModuleNames) {
+                    result += `## ${moduleName}\n`;
+                }
                 if (showProcessInfo) {
                     result += `(增量处理)\n`;
                 }
@@ -1161,7 +1164,9 @@ export class ModuleProcessor {
             } else {
                 // 全量处理（默认）
                 const fullResult = this.processFullModules(moduleGroup);
-                result += `## ${moduleName}\n`;
+                if (showModuleNames) {
+                    result += `## ${moduleName}\n`;
+                }
                 if (showProcessInfo) {
                     result += `(全量处理)\n`;
                 }
@@ -1255,7 +1260,7 @@ export class ModuleProcessor {
      * - moduleFilters: 在提取阶段使用，是一个包含{name, compatibleModuleNames}的数组，用于从聊天记录中过滤出特定类型的模块
      * - selectedModuleNames: 在处理阶段使用，是一个字符串数组，只包含模块名，用于从已提取的模块中选择需要处理的模块
      */
-    processModuleData(extractParams, processType, selectedModuleNames, showProcessInfo = true) {
+    processModuleData(extractParams, processType, selectedModuleNames, showModuleNames = false, showProcessInfo = false) {
         try {
             debugLog(`开始处理模块数据，类型：${processType}`);
 
@@ -1371,7 +1376,7 @@ export class ModuleProcessor {
 
                 case 'auto':
                     // 自动根据模块配置判断处理方式
-                    resultContent = this.processAutoModules(rawModules, selectedModuleNames, showProcessInfo);
+                    resultContent = this.processAutoModules(rawModules, selectedModuleNames, showModuleNames, showProcessInfo);
                     displayTitle = '自动处理模块结果';
                     break;
 
