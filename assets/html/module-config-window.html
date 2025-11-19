@@ -227,6 +227,10 @@
                     <!-- 模块设置行 - 生成位置、数量限制、输出模式和展开变量按钮 -->
                     <div class="module-settings-row">
                         <div class="module-settings-inline">
+                            <button class="module-toggle-expand-btn module-custom-styles-toggle-btn"
+                                data-custom-styles-visible="false" title="显示/隐藏自定义样式输入框">
+                                <span class="variable-order-number">✨</span>
+                            </button>
                             <div class="module-setting-item">
                                 <label>生成位置</label>
                                 <select class="module-output-position">
@@ -273,6 +277,14 @@
                         <div class="module-actions-right">
                             <button class="btn-small toggle-variables"><span class="arrow">▶</span><span
                                     class="text">展开变量</span><span class="variable-count">(0)</span></button>
+                        </div>
+                        <!-- 第二行：自定义样式输入框 -->
+                        <div class="module-settings-inline" style="width: 100%; display: none;">
+                            <div class="module-setting-item" style="width: 100%;">
+                                <label>自定义样式</label>
+                                <textarea class="module-custom-styles" placeholder="输入CSS/HTML代码，支持多行"
+                                    style="height: 32px;"></textarea>
+                            </div>
                         </div>
                     </div>
 
@@ -338,10 +350,7 @@
                         <textarea class="module-content-prompt-input" placeholder="输入使用提示词，用于指导模型如何使用此模块"></textarea>
                     </div>
 
-                    <div class="module-prompt">
-                        <label>自定义样式</label>
-                        <textarea class="module-custom-styles" placeholder="输入CSS/HTML代码，支持多行"></textarea>
-                    </div>
+
 
                     <div class="module-preview">
                         <label>格式预览</label>

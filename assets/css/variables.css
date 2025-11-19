@@ -229,3 +229,12 @@
 .module-time-reference-standard-btn.active:hover .variable-order-number {
     background-color: rgba(100, 181, 246, 0.8);
 }
+
+/* 自定义样式按钮激活状态 */
+.module-custom-styles-toggle-btn.active .variable-order-number {
+    background-color: rgba(255, 215, 0, 0.6);
+}
+
+.module-custom-styles-toggle-btn.active:hover .variable-order-number {
+    background-color: rgba(255, 215, 0, 0.8);
+}

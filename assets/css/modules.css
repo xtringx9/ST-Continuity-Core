@@ -104,9 +104,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 2px;
     margin-top: 6px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     padding: 4px 8px;
     background-color: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
@@ -132,7 +132,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    height: 24px;
+    /* height: 24px; */
     /* 固定高度确保垂直居中 */
 }
 
@@ -696,7 +696,7 @@
 
 /* 模块提示词样式 */
 .module-prompt {
-    margin-top: 6px;
+    /* margin-top: 6px; */
     display: flex;
     align-items: center;
     gap: 6px;
@@ -711,7 +711,9 @@
 }
 
 #continuity-module-config-window .module-prompt-input,
-#continuity-module-config-window .module-timing-prompt-input {
+#continuity-module-config-window .module-timing-prompt-input,
+#continuity-module-config-window .module-content-prompt-input,
+#continuity-module-config-window .module-custom-styles {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
@@ -722,6 +724,8 @@
     min-height: 24px;
     resize: vertical;
     flex: 1;
+    width: 100%;
+    transition: border-color 0.2s;
 }
 
 #continuity-module-config-window .module-prompt-input:focus,
@@ -731,42 +735,7 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-/* 模块内容使用提示词样式 */
-#continuity-module-config-window .module-content-prompt-input {
-    width: 100%;
-    min-height: 40px;
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    padding: 4px 6px;
-    font-size: 12px;
-    color: #333;
-    font-family: monospace;
-    resize: vertical;
-    transition: border-color 0.2s;
-}
-
-#continuity-module-config-window .module-content-prompt-input:focus {
-    outline: none;
-    border-color: #ffffff;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-}
-
-/* 模块自定义样式输入框样式 */
-#continuity-module-config-window .module-custom-styles {
-    width: 100%;
-    min-height: 40px;
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    padding: 4px 6px;
-    font-size: 12px;
-    color: #333;
-    font-family: monospace;
-    resize: vertical;
-    transition: border-color 0.2s;
-}
-
+#continuity-module-config-window .module-content-prompt-input:focus,
 #continuity-module-config-window .module-custom-styles:focus {
     outline: none;
     border-color: #ffffff;
@@ -1058,5 +1027,3 @@
     white-space: pre-wrap;
     word-wrap: break-word;
 }
-
-
