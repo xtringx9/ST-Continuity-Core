@@ -228,7 +228,7 @@
                     <div class="module-settings-row">
                         <div class="module-settings-inline">
                             <button class="module-toggle-expand-btn module-custom-styles-toggle-btn"
-                                data-custom-styles-visible="false" title="显示/隐藏自定义样式输入框">
+                                data-custom-styles-visible="false" title="显示/隐藏样式输入框">
                                 <span class="variable-order-number">✨</span>
                             </button>
                             <div class="module-setting-item">
@@ -278,10 +278,18 @@
                             <button class="btn-small toggle-variables"><span class="arrow">▶</span><span
                                     class="text">展开变量</span><span class="variable-count">(0)</span></button>
                         </div>
-                        <!-- 第二行：自定义样式输入框 -->
+                        <!-- 第二行：自定样式输入框 -->
                         <div class="module-settings-inline" style="width: 100%; display: none;">
                             <div class="module-setting-item" style="width: 100%;">
-                                <label>自定义样式</label>
+                                <label>容器样式</label>
+                                <textarea class="module-container-styles"
+                                    placeholder="输入CSS/HTML代码，支持多行，使用${customStyles}引用自定样式"
+                                    style="height: 32px;"></textarea>
+                            </div>
+                        </div>
+                        <div class="module-settings-inline" style="width: 100%; display: none;">
+                            <div class="module-setting-item" style="width: 100%;">
+                                <label>自定样式</label>
                                 <textarea class="module-custom-styles" placeholder="输入CSS/HTML代码，支持多行"
                                     style="height: 32px;"></textarea>
                             </div>

@@ -496,9 +496,9 @@ export class ModuleProcessor {
      * @returns {Array} 排序后的模块数组
      */
     sortModules(modules) {
-        debugLog('[SortModules]', '开始排序模块，模块数量:', modules.length);
+        // debugLog('[SortModules]', '开始排序模块，模块数量:', modules.length);
         return modules.sort((a, b) => {
-            debugLog('[SortModules]', '比较模块:', a.moduleName, 'vs', b.moduleName, 'messageIndex:', a.messageIndex, 'vs', b.messageIndex);
+            // debugLog('[SortModules]', '比较模块:', a.moduleName, 'vs', b.moduleName, 'messageIndex:', a.messageIndex, 'vs', b.messageIndex);
             // 获取模块A的标识符信息
             let aIdentifierValue = '';
             let isATimeIdentifier = false;
@@ -509,7 +509,7 @@ export class ModuleProcessor {
                     .filter(variable => variable.isMainIdentifier || variable.isIdentifier);
 
                 if (aPrimaryIdentifiers.length > 0) {
-                    debugLog('[SortModules]', '模块A有主标识符:', aPrimaryIdentifiers.map(v => v.name).join(', '));
+                    // debugLog('[SortModules]', '模块A有主标识符:', aPrimaryIdentifiers.map(v => v.name).join(', '));
                     // 收集主标识符的值
                     const aPrimaryValues = aPrimaryIdentifiers.map(variable => {
                         // 检查是否是time变量
@@ -523,9 +523,9 @@ export class ModuleProcessor {
                     if (aPrimaryValues.some(val => val)) {
                         aIdentifierValue = aPrimaryValues.join('__');
                         hasAValidIdentifier = true;
-                        debugLog('[SortModules]', '模块A使用主标识符值:', aIdentifierValue, '是时间标识符:', isATimeIdentifier);
+                        // debugLog('[SortModules]', '模块A使用主标识符值:', aIdentifierValue, '是时间标识符:', isATimeIdentifier);
                     } else {
-                        debugLog('[SortModules]', '模块A主标识符无值，尝试备用标识符');
+                        // debugLog('[SortModules]', '模块A主标识符无值，尝试备用标识符');
                         // 主标识符没有值，尝试使用备用标识符
                         const aBackupIdentifiers = a.moduleConfig.variables
                             .filter(variable => variable.isBackupIdentifier);
@@ -542,12 +542,12 @@ export class ModuleProcessor {
                             if (aBackupValues.some(val => val)) {
                                 aIdentifierValue = aBackupValues.join('__');
                                 hasAValidIdentifier = true;
-                                debugLog('[SortModules]', '模块A使用备用标识符值:', aIdentifierValue, '是时间标识符:', isATimeIdentifier);
+                                // debugLog('[SortModules]', '模块A使用备用标识符值:', aIdentifierValue, '是时间标识符:', isATimeIdentifier);
                             }
                         }
                     }
                 } else {
-                    debugLog('[SortModules]', '模块A无主标识符，尝试备用标识符');
+                    // debugLog('[SortModules]', '模块A无主标识符，尝试备用标识符');
                     // 没有主标识符，尝试使用备用标识符
                     const aBackupIdentifiers = a.moduleConfig.variables
                         .filter(variable => variable.isBackupIdentifier);
@@ -564,14 +564,14 @@ export class ModuleProcessor {
                         if (aBackupValues.some(val => val)) {
                             aIdentifierValue = aBackupValues.join('__');
                             hasAValidIdentifier = true;
-                            debugLog('[SortModules]', '模块A使用备用标识符值:', aIdentifierValue, '是时间标识符:', isATimeIdentifier);
+                            // debugLog('[SortModules]', '模块A使用备用标识符值:', aIdentifierValue, '是时间标识符:', isATimeIdentifier);
                         }
                     }
                 }
             }
 
             if (!hasAValidIdentifier) {
-                debugLog('[SortModules]', '模块A无有效标识符');
+                // debugLog('[SortModules]', '模块A无有效标识符');
             }
 
             // 获取模块B的标识符信息
@@ -584,7 +584,7 @@ export class ModuleProcessor {
                     .filter(variable => variable.isMainIdentifier || variable.isIdentifier);
 
                 if (bPrimaryIdentifiers.length > 0) {
-                    debugLog('[SortModules]', '模块B有主标识符:', bPrimaryIdentifiers.map(v => v.name).join(', '));
+                    // debugLog('[SortModules]', '模块B有主标识符:', bPrimaryIdentifiers.map(v => v.name).join(', '));
                     // 收集主标识符的值
                     const bPrimaryValues = bPrimaryIdentifiers.map(variable => {
                         // 检查是否是time变量
@@ -598,9 +598,9 @@ export class ModuleProcessor {
                     if (bPrimaryValues.some(val => val)) {
                         bIdentifierValue = bPrimaryValues.join('__');
                         hasBValidIdentifier = true;
-                        debugLog('[SortModules]', '模块B使用主标识符值:', bIdentifierValue, '是时间标识符:', isBTimeIdentifier);
+                        // debugLog('[SortModules]', '模块B使用主标识符值:', bIdentifierValue, '是时间标识符:', isBTimeIdentifier);
                     } else {
-                        debugLog('[SortModules]', '模块B主标识符无值，尝试备用标识符');
+                        // debugLog('[SortModules]', '模块B主标识符无值，尝试备用标识符');
                         // 主标识符没有值，尝试使用备用标识符
                         const bBackupIdentifiers = b.moduleConfig.variables
                             .filter(variable => variable.isBackupIdentifier);
@@ -617,12 +617,12 @@ export class ModuleProcessor {
                             if (bBackupValues.some(val => val)) {
                                 bIdentifierValue = bBackupValues.join('__');
                                 hasBValidIdentifier = true;
-                                debugLog('[SortModules]', '模块B使用备用标识符值:', bIdentifierValue, '是时间标识符:', isBTimeIdentifier);
+                                // debugLog('[SortModules]', '模块B使用备用标识符值:', bIdentifierValue, '是时间标识符:', isBTimeIdentifier);
                             }
                         }
                     }
                 } else {
-                    debugLog('[SortModules]', '模块B无主标识符，尝试备用标识符');
+                    // debugLog('[SortModules]', '模块B无主标识符，尝试备用标识符');
                     // 没有主标识符，尝试使用备用标识符
                     const bBackupIdentifiers = b.moduleConfig.variables
                         .filter(variable => variable.isBackupIdentifier);
@@ -639,21 +639,21 @@ export class ModuleProcessor {
                         if (bBackupValues.some(val => val)) {
                             bIdentifierValue = bBackupValues.join('__');
                             hasBValidIdentifier = true;
-                            debugLog('[SortModules]', '模块B使用备用标识符值:', bIdentifierValue, '是时间标识符:', isBTimeIdentifier);
+                            // debugLog('[SortModules]', '模块B使用备用标识符值:', bIdentifierValue, '是时间标识符:', isBTimeIdentifier);
                         }
                     }
                 }
             }
 
             if (!hasBValidIdentifier) {
-                debugLog('[SortModules]', '模块B无有效标识符');
+                // debugLog('[SortModules]', '模块B无有效标识符');
             }
 
             // 如果双方都有标识符，但都不能数值化（时间除外），则按messageIndex排序
             if (hasAValidIdentifier && hasBValidIdentifier &&
                 !isATimeIdentifier && !isBTimeIdentifier &&
                 !this.isNumeric(aIdentifierValue) && !this.isNumeric(bIdentifierValue)) {
-                debugLog('[SortModules]', '决策: 双方都有非数值标识符，按messageIndex排序');
+                // debugLog('[SortModules]', '决策: 双方都有非数值标识符，按messageIndex排序');
                 return a.messageIndex - b.messageIndex;
             }
 
@@ -661,7 +661,7 @@ export class ModuleProcessor {
             if (isATimeIdentifier && isBTimeIdentifier && a.moduleName === b.moduleName) {
                 const aTime = this.parseTimeForSorting(aIdentifierValue);
                 const bTime = this.parseTimeForSorting(bIdentifierValue);
-                debugLog('[SortModules]', '决策: 时间类型标识符排序，A时间:', aTime, 'B时间:', bTime, '差值:', aTime - bTime);
+                // debugLog('[SortModules]', '决策: 时间类型标识符排序，A时间:', aTime, 'B时间:', bTime, '差值:', aTime - bTime);
                 return aTime - bTime;
             }
 
@@ -670,29 +670,29 @@ export class ModuleProcessor {
                 this.isNumeric(aIdentifierValue) && this.isNumeric(bIdentifierValue)) {
                 const aNum = parseFloat(aIdentifierValue);
                 const bNum = parseFloat(bIdentifierValue);
-                debugLog('[SortModules]', '决策: 数值类型标识符排序，A值:', aNum, 'B值:', bNum, '差值:', aNum - bNum);
+                // debugLog('[SortModules]', '决策: 数值类型标识符排序，A值:', aNum, 'B值:', bNum, '差值:', aNum - bNum);
                 return aNum - bNum;
             }
 
             // 处理普通标识符
             if (hasAValidIdentifier && hasBValidIdentifier) {
                 const compareResult = aIdentifierValue.localeCompare(bIdentifierValue);
-                debugLog('[SortModules]', '决策: 普通标识符排序，A值:', aIdentifierValue, 'B值:', bIdentifierValue, '比较结果:', compareResult);
+                // debugLog('[SortModules]', '决策: 普通标识符排序，A值:', aIdentifierValue, 'B值:', bIdentifierValue, '比较结果:', compareResult);
                 return compareResult;
             }
 
             // 如果只有一个模块有标识符值，有标识符的排在前面
             if (hasAValidIdentifier && !hasBValidIdentifier) {
-                debugLog('[SortModules]', '决策: 只有模块A有标识符，A排在前面');
+                // debugLog('[SortModules]', '决策: 只有模块A有标识符，A排在前面');
                 return -1;
             }
             if (!hasAValidIdentifier && hasBValidIdentifier) {
-                debugLog('[SortModules]', '决策: 只有模块B有标识符，B排在前面');
+                // debugLog('[SortModules]', '决策: 只有模块B有标识符，B排在前面');
                 return 1;
             }
 
             // 没有标识符的模块按messageIndex排序
-            debugLog('[SortModules]', '决策: 双方都无标识符，按messageIndex排序，A:', a.messageIndex, 'B:', b.messageIndex, '差值:', a.messageIndex - b.messageIndex);
+            // debugLog('[SortModules]', '决策: 双方都无标识符，按messageIndex排序，A:', a.messageIndex, 'B:', b.messageIndex, '差值:', a.messageIndex - b.messageIndex);
             return a.messageIndex - b.messageIndex;
         });
     }
@@ -1096,8 +1096,9 @@ export class ModuleProcessor {
      * 自动根据模块配置判断处理方式
      * @param {Array} rawModules 原始模块数组
      * @param {Array} selectedModuleNames 选中的模块名数组
+     * @param {boolean} showModuleNames 是否显示模块名
      * @param {boolean} showProcessInfo 是否显示处理方式说明
-     * @returns {string} 处理后的模块字符串
+     * @returns {Object} 按模块名分组的结构化数据
      */
     processAutoModules(rawModules, selectedModuleNames, showModuleNames = false, showProcessInfo = false) {
         debugLog('开始自动处理模块');
@@ -1124,54 +1125,90 @@ export class ModuleProcessor {
             moduleGroups[module.moduleName].push(module);
         });
 
+        // 处理每个模块组并返回结构化数据
+        const structuredResult = {};
+
+        Object.keys(moduleGroups).forEach(moduleName => {
+            const moduleGroup = moduleGroups[moduleName];
+            const moduleConfig = moduleGroup[0]?.moduleConfig;
+            let processType = 'full';
+            let resultData;
+
+            if (!moduleConfig) {
+                // 没有模块配置，使用全量处理
+                processType = 'full_without_config';
+                resultData = moduleGroup.map(module => module.raw);
+            } else {
+                // 获取模块的outputMode配置
+                const outputMode = moduleConfig.outputMode || 'full';
+                processType = outputMode;
+
+                // 根据outputMode选择处理方式
+                if (outputMode === 'incremental') {
+                    // 增量处理
+                    resultData = this.processIncrementalModules(moduleGroup);
+                } else {
+                    // 全量处理（默认）
+                    resultData = this.processFullModules(moduleGroup);
+                }
+            }
+
+            structuredResult[moduleName] = {
+                processType: processType,
+                data: resultData,
+                moduleCount: moduleGroup.length
+            };
+        });
+
+        return structuredResult;
+    }
+
+    /**
+     * 将结构化的模块数据转换为字符串
+     * @param {Object} structuredModules 按模块名分组的结构化数据
+     * @param {boolean} showModuleNames 是否显示模块名
+     * @param {boolean} showProcessInfo 是否显示处理信息
+     * @returns {string} 转换后的模块字符串
+     */
+    buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false) {
         let result = '';
 
         // 处理每个模块组
-        Object.keys(moduleGroups).forEach(moduleName => {
-            const moduleGroup = moduleGroups[moduleName];
+        Object.keys(structuredModules).forEach(moduleName => {
+            const moduleData = structuredModules[moduleName];
+            const { processType, data } = moduleData;
 
-            // 获取模块配置
-            const moduleConfig = moduleGroup[0]?.moduleConfig;
-            if (!moduleConfig) {
-                // 没有模块配置，使用全量处理
-                const processedModules = moduleGroup.map(module => {
-                    return module.raw;
+            if (showModuleNames) {
+                result += `## ${moduleName}\n`;
+            }
+
+            if (showProcessInfo) {
+                let processInfo = '';
+                switch (processType) {
+                    case 'incremental':
+                        processInfo = '(增量处理)';
+                        break;
+                    case 'full_without_config':
+                        processInfo = '(全量处理 - 无配置)';
+                        break;
+                    default:
+                        processInfo = '(全量处理)';
+                }
+                result += `${processInfo}\n`;
+            }
+
+            // 根据数据类型处理
+            if (Array.isArray(data)) {
+                // 处理结构化条目数组
+                data.forEach(item => {
+                    result += `${item.moduleString || item}\n`;
                 });
-                if (showModuleNames) {
-                    result += `## ${moduleName}\n`;
-                }
-                if (showProcessInfo) {
-                    result += `(全量处理 - 无配置)\n`;
-                }
-                result += processedModules.join('\n') + '\n\n';
-                return;
+            } else if (typeof data === 'string') {
+                // 处理字符串
+                result += data + '\n\n';
             }
 
-            // 获取模块的outputMode配置
-            const outputMode = moduleConfig.outputMode || 'full';
-
-            // 根据outputMode选择处理方式
-            if (outputMode === 'incremental') {
-                // 增量处理
-                const incrementalResult = this.processIncrementalModules(moduleGroup);
-                if (showModuleNames) {
-                    result += `## ${moduleName}\n`;
-                }
-                if (showProcessInfo) {
-                    result += `(增量处理)\n`;
-                }
-                result += incrementalResult + '\n\n';
-            } else {
-                // 全量处理（默认）
-                const fullResult = this.processFullModules(moduleGroup);
-                if (showModuleNames) {
-                    result += `## ${moduleName}\n`;
-                }
-                if (showProcessInfo) {
-                    result += `(全量处理)\n`;
-                }
-                result += fullResult + '\n\n';
-            }
+            result += '\n';
         });
 
         return result.trim();
@@ -1180,14 +1217,14 @@ export class ModuleProcessor {
     /**
      * 处理增量更新模块
      * @param {Array} modules 标准化后的模块数组
-     * @returns {string} 增量更新模块字符串
+     * @returns {Array} 结构化的增量更新模块条目数组
      */
     processIncrementalModules(modules) {
         // 按模块名和标识符分组处理
         const moduleGroups = this.groupModulesByIdentifier(modules);
 
-        // 构建结果显示内容
-        let resultContent = '';
+        // 构建结果数组
+        const resultItems = [];
 
         // 转换模块组为数组，以便排序
         const moduleGroupsArray = Object.entries(moduleGroups);
@@ -1234,18 +1271,23 @@ export class ModuleProcessor {
                     }
                 }
 
-                // 如果不需要隐藏，则构建模块字符串
+                // 如果不需要隐藏，则构建模块条目
                 if (!shouldHide) {
                     // 构建统合后的模块字符串
-                    const mergedModuleStr = this.buildModuleString(mergedModule, moduleConfig);
+                    const moduleString = this.buildModuleString(mergedModule, moduleConfig);
 
-                    // 添加到结果内容
-                    resultContent += `${mergedModuleStr}\n`;
+                    // 添加结构化条目到结果数组
+                    resultItems.push({
+                        moduleName,
+                        identifier,
+                        moduleData: mergedModule,
+                        moduleString
+                    });
                 }
             }
         }
 
-        return resultContent;
+        return resultItems;
     }
 
     /**
@@ -1253,14 +1295,16 @@ export class ModuleProcessor {
      * @param {Object} extractParams 提取参数对象，包含startIndex, endIndex, moduleFilters
      * @param {string} processType 处理类型：'extract' | 'processed' | 'incremental' | 'full' | 'auto'
      * @param {Array} selectedModuleNames 选中的模块名数组，用于在处理阶段过滤已提取的模块
-     * @param {boolean} showProcessInfo 是否显示处理方式说明，默认为true
+     * @param {boolean} returnString 是否返回字符串（默认：true），如果为false则返回结构化数据
+     * @param {boolean} showModuleNames 是否显示模块名
+     * @param {boolean} showProcessInfo 是否显示处理方式说明
      * @returns {Object} 包含处理结果和显示信息的对象
      *
      * 注意：extractParams.moduleFilters和selectedModuleNames的区别：
      * - moduleFilters: 在提取阶段使用，是一个包含{name, compatibleModuleNames}的数组，用于从聊天记录中过滤出特定类型的模块
      * - selectedModuleNames: 在处理阶段使用，是一个字符串数组，只包含模块名，用于从已提取的模块中选择需要处理的模块
      */
-    processModuleData(extractParams, processType, selectedModuleNames, showModuleNames = false, showProcessInfo = false) {
+    processModuleData(extractParams, processType, selectedModuleNames, returnString = false, showModuleNames = false, showProcessInfo = false) {
         try {
             debugLog(`开始处理模块数据，类型：${processType}`);
 
@@ -1329,30 +1373,47 @@ export class ModuleProcessor {
                         return selectedModuleNames.includes(module.moduleName);
                     });
 
-                    // 构建处理后的模块字符串
-                    const processedModules = filteredModules.map(module => {
-                        if (!module.moduleConfig) {
-                            // 没有模块配置，返回原始内容
-                            return module.raw;
-                        }
+                    // 根据参数决定返回格式
+                    if (returnString) {
+                        // 构建处理后的模块字符串
+                        const processedModules = filteredModules.map(module => {
+                            if (!module.moduleConfig) {
+                                // 没有模块配置，返回原始内容
+                                return module.raw;
+                            }
 
-                        // 构建当前模块的字符串
-                        let moduleString = `[${module.moduleName}`;
+                            // 构建当前模块的字符串
+                            let moduleString = `[${module.moduleName}`;
 
-                        // 按照模块配置中的变量顺序添加变量
-                        module.moduleConfig.variables.forEach(variable => {
-                            // 获取变量值
-                            let varValue = module.variables[variable.name] || '';
+                            // 按照模块配置中的变量顺序添加变量
+                            module.moduleConfig.variables.forEach(variable => {
+                                // 获取变量值
+                                let varValue = module.variables[variable.name] || '';
 
-                            moduleString += `|${variable.name}:${varValue}`;
+                                moduleString += `|${variable.name}:${varValue}`;
+                            });
+
+                            moduleString += ']';
+
+                            return moduleString;
                         });
 
-                        moduleString += ']';
+                        resultContent = processedModules.join('\n');
+                    } else {
+                        // 返回结构化数据
+                        resultContent = filteredModules.map(module => {
+                            // 构建当前模块的结构化数据
+                            const moduleData = {
+                                moduleName: module.moduleName,
+                                identifier: module.identifier || '',
+                                variables: module.variables || {},
+                                raw: module.raw,
+                                moduleConfig: module.moduleConfig || null
+                            };
 
-                        return moduleString;
-                    });
-
-                    resultContent = processedModules.join('\n');
+                            return moduleData;
+                        });
+                    }
                     displayTitle = processType === 'extract' ? '处理结果' : '整理后模块结果';
                     break;
 
@@ -1361,7 +1422,14 @@ export class ModuleProcessor {
                     modules = this.normalizeModules(rawModules);
 
                     // 处理增量更新模块
-                    resultContent = this.processIncrementalModules(modules);
+                    const incrementalResult = this.processIncrementalModules(modules);
+
+                    // 根据参数决定返回格式
+                    if (returnString) {
+                        resultContent = this.buildModulesString(incrementalResult, showModuleNames, showProcessInfo);
+                    } else {
+                        resultContent = incrementalResult;
+                    }
                     displayTitle = '增量更新模块结果';
                     break;
 
@@ -1370,13 +1438,27 @@ export class ModuleProcessor {
                     modules = this.normalizeModules(rawModules);
 
                     // 处理全量更新模块
-                    resultContent = this.processFullModules(modules);
+                    const fullResult = this.processFullModules(modules);
+
+                    // 根据参数决定返回格式
+                    if (returnString) {
+                        resultContent = this.buildModulesString(fullResult, showModuleNames, showProcessInfo);
+                    } else {
+                        resultContent = fullResult;
+                    }
                     displayTitle = '全量更新模块结果';
                     break;
 
                 case 'auto':
                     // 自动根据模块配置判断处理方式
-                    resultContent = this.processAutoModules(rawModules, selectedModuleNames, showModuleNames, showProcessInfo);
+                    const structuredResult = this.processAutoModules(rawModules, selectedModuleNames, showModuleNames, showProcessInfo);
+
+                    // 如果需要返回字符串，则转换结构化数据
+                    if (returnString) {
+                        resultContent = this.buildModulesString(structuredResult, showModuleNames, showProcessInfo);
+                    } else {
+                        resultContent = structuredResult;
+                    }
                     displayTitle = '自动处理模块结果';
                     break;
 
@@ -1384,12 +1466,29 @@ export class ModuleProcessor {
                     throw new Error(`不支持的处理类型：${processType}`);
             }
 
+            // 判断是否有内容
+            let hasContent = false;
+            if (typeof resultContent === 'string') {
+                hasContent = resultContent.trim().length > 0;
+            } else if (Array.isArray(resultContent)) {
+                hasContent = resultContent.length > 0;
+            } else if (resultContent && typeof resultContent === 'object') {
+                hasContent = Object.keys(resultContent).length > 0;
+            }
+
+            // 构建字符串表示
+            let contentString = resultContent;
+            if (typeof resultContent !== 'string') {
+                contentString = this.buildModulesString(resultContent, showModuleNames, showProcessInfo);
+            }
+
             return {
                 success: true,
-                content: resultContent,
+                content: resultContent, // 原始内容（可能是结构化数据或字符串）
+                contentString: contentString, // 字符串表示
                 displayTitle: displayTitle,
                 moduleCount: modules.length,
-                hasContent: resultContent.trim().length > 0
+                hasContent: hasContent
             };
 
         } catch (error) {
@@ -1408,7 +1507,7 @@ export class ModuleProcessor {
     /**
      * 处理全量更新模块
      * @param {Array} modules 标准化后的模块数组
-     * @returns {string} 全量更新模块字符串
+     * @returns {Array} 结构化的全量更新模块条目数组
      */
     processFullModules(modules) {
         // 首先按模块名分组，使retainLayers在所有标识符的模块上工作
@@ -1421,8 +1520,8 @@ export class ModuleProcessor {
             modulesByModuleName[moduleName].push(module);
         });
 
-        // 构建结果显示内容
-        let resultContent = '';
+        // 构建结果数组
+        const resultItems = [];
 
         // 处理每个模块名组
         for (const [moduleName, allModulesOfName] of Object.entries(modulesByModuleName)) {
@@ -1495,8 +1594,8 @@ export class ModuleProcessor {
 
                 debugLog(`处理模块组：${moduleName}，标识符：${identifier}`);
 
-                // 格式化输出每个模块
-                const formattedModulesStr = moduleList.map(module => {
+                // 处理每个模块
+                for (const module of moduleList) {
                     // 检查是否需要隐藏该模块条目
                     let shouldHide = false;
                     for (const variable of moduleConfig.variables) {
@@ -1514,21 +1613,26 @@ export class ModuleProcessor {
                         }
                     }
 
-                    // 如果不需要隐藏，则构建模块字符串
+                    // 如果不需要隐藏，则构建模块条目
                     if (!shouldHide) {
-                        return this.buildModuleString(module, moduleConfig);
-                    }
-                    return null;
-                }).filter(Boolean).join('\n');
+                        // 构建模块字符串
+                        const moduleString = this.buildModuleString(module, moduleConfig);
 
-                // 添加到结果内容
-                if (formattedModulesStr) {
-                    resultContent += `${formattedModulesStr}\n`;
+                        // 添加结构化条目到结果数组
+                        resultItems.push({
+                            moduleName,
+                            identifier,
+                            moduleData: module,
+                            moduleString
+                        });
+                    }
                 }
             }
         }
 
-        return resultContent;
+        return resultItems;
     }
 }
+
+
 

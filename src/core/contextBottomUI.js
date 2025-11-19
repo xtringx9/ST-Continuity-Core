@@ -257,41 +257,49 @@ export function insertUItoContextBottom() {
                             // 处理每个模块配置
                             allModuleConfigs.forEach(moduleConfig => {
                                 if (moduleConfig) {
-                                    // 检查模块是否有自定义样式
-                                    const hasCustomStyles = moduleConfig.customStyles && moduleConfig.customStyles.trim() !== '';
+                                    // 提取全部聊天记录的模块数据
+                                    const extractParams = {
+                                        startIndex: 0,
+                                        endIndex: null, // null表示提取到最新
+                                        moduleFilters: [{ name: moduleConfig.name }]
+                                    };
 
-                                    if (hasCustomStyles) {
-                                        // 样式不为空，插入样式
-                                        debugLog(`模块 ${moduleConfig.name} 有自定义样式，插入样式`);
-                                        insertCombinedStylesToDetails('.modules-content-container', moduleConfig);
-                                    } else {
-                                        // 样式为空，插入模块数据
-                                        debugLog(`模块 ${moduleConfig.name} 没有自定义样式，插入模块数据`);
+                                    // 使用processModuleData方法处理模块数据
+                                    const processResult = moduleProcessor.processModuleData(
+                                        extractParams,
+                                        'auto', // 自动处理类型
+                                        [moduleConfig.name]
+                                    );
 
-                                        // 提取全部聊天记录的模块数据
-                                        const extractParams = {
-                                            startIndex: 0,
-                                            endIndex: null, // null表示提取到最新
-                                            moduleFilters: [{ name: moduleConfig.name }]
-                                        };
+                                    // 使用contentString确保获得的是字符串表示
+                                    const processedData = processResult.success ? processResult.contentString : '';
+                                    if (processedData && processedData.trim() !== '') {
+                                        // 获取处理后的样式字符串
+                                        const processedStyles = insertCombinedStylesToDetails('.modules-content-container', moduleConfig, null, processResult.content);
 
-                                        // 使用processModuleData方法处理模块数据，showProcessInfo设为false
-                                        const processResult = moduleProcessor.processModuleData(
-                                            extractParams,
-                                            'auto', // 自动处理类型
-                                            [moduleConfig.name]
-                                        );
-
-                                        const processedData = processResult.success ? processResult.content : '';
-                                        if (processedData && processedData.trim() !== '') {
-                                            // 插入模块数据到模块内容容器
-                                            const contentContainer = contextBottomUI.querySelector('.modules-content-container');
-                                            if (contentContainer) {
+                                        // 插入模块数据和样式到模块内容容器
+                                        const contentContainer = contextBottomUI.querySelector('.modules-content-container');
+                                        if (contentContainer) {
+                                            // 添加处理后的样式
+                                            if (((moduleConfig.customStyles && moduleConfig.customStyles.trim() !== '') || (moduleConfig.containerStyles && moduleConfig.containerStyles.trim() !== ''))) {
+                                                contentContainer.innerHTML += `${processedStyles}`;
+                                                debugLog(`模块 ${moduleConfig.name} 的样式已插入到模块内容容器`);
+                                            }
+                                            else {
+                                                // 创建模块数据元素
                                                 const moduleDataElement = document.createElement('div');
                                                 moduleDataElement.className = 'module-data-container';
-                                                moduleDataElement.innerHTML = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name}</summary>${processedData}</details>`;
-                                                contentContainer.appendChild(moduleDataElement);
-                                                debugLog(`模块 ${moduleConfig.name} 的数据已插入到模块内容容器`);
+                                                let moduleContent = '';
+                                                // 添加处理后的模块数据
+                                                if (processedData && processedData.trim() !== '') {
+                                                    moduleContent += `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name}</summary>${processedData}</details>`;
+                                                }
+                                                // 如果有模块内容，插入到容器中
+                                                if (moduleContent) {
+                                                    moduleDataElement.innerHTML = moduleContent;
+                                                    contentContainer.appendChild(moduleDataElement);
+                                                    debugLog(`模块 ${moduleConfig.name} 的数据已插入到模块内容容器`);
+                                                }
                                             }
                                         }
                                     }

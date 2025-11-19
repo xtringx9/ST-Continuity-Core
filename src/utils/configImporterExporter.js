@@ -111,6 +111,7 @@ export function collectModuleDataFromUI(moduleElement, index = 0) {
         retainLayers: !isNaN(parseInt(moduleElement.find('.module-retain-layers').val())) ? parseInt(moduleElement.find('.module-retain-layers').val()) : -1,
         compatibleModuleNames: moduleElement.find('.module-compatible-names').val() || '',
         timeReferenceStandard: moduleElement.find('.module-time-reference-standard').val() === 'true' || false,
+        containerStyles: moduleElement.find('.module-container-styles').val() || '',
         customStyles: moduleElement.find('.module-custom-styles').val() || '',
         variables: collectVariablesDataFromUI(moduleElement)
     };
@@ -214,7 +215,8 @@ export function validateDataCollectorSync() {
         const moduleFields = ['name', 'displayName', 'enabled', 'variables', 'prompt',
             'timingPrompt', 'contentPrompt', 'outputPosition', 'positionPrompt',
             'outputMode', 'retainLayers', 'compatibleModuleNames',
-            'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode'];
+            'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode',
+            'containerStyles', 'customStyles'];
 
         // 检查变量级别的字段同步
         const variableFields = ['name', 'displayName', 'description', 'compatibleVariableNames',
@@ -239,7 +241,8 @@ export function getSupportedFields() {
             'name', 'displayName', 'enabled', 'variables', 'prompt',
             'timingPrompt', 'contentPrompt', 'outputPosition', 'positionPrompt',
             'outputMode', 'retainLayers', 'compatibleModuleNames',
-            'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode'
+            'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode',
+            'containerStyles', 'customStyles'
         ],
         variableFields: [
             'name', 'displayName', 'description', 'compatibleVariableNames',

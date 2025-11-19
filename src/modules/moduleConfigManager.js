@@ -388,6 +388,10 @@ export function renderModulesFromConfig(config) {
         if (module.positionPrompt) {
             moduleItem.find('.module-position-prompt').val(module.positionPrompt);
         }
+        // 设置自定义容器样式
+        if (module.containerStyles) {
+            moduleItem.find('.module-container-styles').val(module.containerStyles);
+        }
         // 设置自定义样式
         if (module.customStyles) {
             moduleItem.find('.module-custom-styles').val(module.customStyles);
@@ -500,7 +504,7 @@ export function renderModulesFromConfig(config) {
         if (restoreModuleCollapsedState) {
             restoreModuleCollapsedState(moduleItem);
         }
-        
+
         // 恢复自定义样式框显示状态
         if (restoreCustomStylesVisibleState) {
             restoreCustomStylesVisibleState(moduleItem);

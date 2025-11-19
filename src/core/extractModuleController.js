@@ -259,7 +259,7 @@ export class ExtractModuleController {
                         <span class="module-index">${processResult.displayTitle}</span>
                     </div>
                     <div class="module-content">
-                        <pre>${this.moduleProcessor.htmlEscape(processResult.content)}</pre>
+                        <pre>${this.moduleProcessor.htmlEscape(processResult.contentString)}</pre>
                     </div>
                 </div>
             `);
@@ -299,6 +299,7 @@ export class ExtractModuleController {
                 { startIndex, endIndex, moduleFilters },
                 'extract',
                 selectedModuleNames,
+                true,
                 true,
                 true
             );
@@ -341,6 +342,7 @@ export class ExtractModuleController {
                 'processed',
                 selectedModuleNames,
                 true,
+                true,
                 true
             );
 
@@ -372,6 +374,7 @@ export class ExtractModuleController {
                 { startIndex, endIndex, moduleFilters },
                 'auto',
                 selectedModuleNames,
+                true,
                 true,
                 true
             );

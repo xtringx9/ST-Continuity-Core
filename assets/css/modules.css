@@ -728,6 +728,7 @@
     margin: 0;
 }
 
+#continuity-module-config-window .module-container-styles,
 #continuity-module-config-window .variable-custom-styles,
 #continuity-module-config-window .module-prompt-input,
 #continuity-module-config-window .module-timing-prompt-input,
@@ -754,6 +755,7 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
+#continuity-module-config-window .module-container-styles:focus,
 #continuity-module-config-window .variable-custom-styles:focus,
 #continuity-module-config-window .module-content-prompt-input:focus,
 #continuity-module-config-window .module-custom-styles:focus {
