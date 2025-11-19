@@ -7,14 +7,14 @@ import { getEmptyVariableItemTemplate } from "./templateManager.js";
  * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
  */
 export function addVariable(moduleItem) {
-    console.log('[Continuity] addVariable函数开始执行');
-    console.log('[Continuity] 传入的moduleItem:', moduleItem);
-    console.log('[Continuity] moduleItem长度:', moduleItem.length);
-    console.log('[Continuity] moduleItem选择器:', moduleItem.selector || '无选择器');
+    debugLog('addVariable函数开始执行');
+    debugLog('传入的moduleItem:', moduleItem);
+    debugLog('moduleItem长度:', moduleItem.length);
+    debugLog('moduleItem选择器:', moduleItem.selector || '无选择器');
 
     // 检查变量容器
     const variablesContainer = moduleItem.find('.variables-container');
-    console.log('[Continuity] 找到的变量容器数量:', variablesContainer.length);
+    debugLog('找到的变量容器数量:', variablesContainer.length);
 
     if (variablesContainer.length === 0) {
         errorLog('[Continuity] 未找到变量容器');
@@ -64,13 +64,13 @@ export function addVariable(moduleItem) {
 
     // 检查整个模块中是否有任何一个变量设置了主标识符或备用标识符
     let hasAnyIdentifier = false;
-    
+
     // 遍历模块中的所有变量项
-    moduleItem.find('.variable-item').each(function() {
+    moduleItem.find('.variable-item').each(function () {
         const variableItem = $(this);
         const isMainIdentifier = variableItem.find('.variable-is-identifier').val() === 'true';
         const isBackupIdentifier = variableItem.find('.variable-is-backup-identifier').val() === 'true';
-        
+
         if (isMainIdentifier || isBackupIdentifier) {
             hasAnyIdentifier = true;
             return false; // 跳出循环，因为已经找到一个标识符
@@ -103,13 +103,13 @@ export function bindVariableEvents(variableItem, moduleItem) {
 
         // 检查整个模块中是否有任何一个变量设置了主标识符或备用标识符
         let hasAnyIdentifier = false;
-        
+
         // 遍历模块中的所有变量项
-        moduleItem.find('.variable-item').each(function() {
+        moduleItem.find('.variable-item').each(function () {
             const variableItem = $(this);
             const isMainIdentifier = variableItem.find('.variable-is-identifier').val() === 'true';
             const isBackupIdentifier = variableItem.find('.variable-is-backup-identifier').val() === 'true';
-            
+
             if (isMainIdentifier || isBackupIdentifier) {
                 hasAnyIdentifier = true;
                 return false; // 跳出循环，因为已经找到一个标识符
@@ -160,15 +160,15 @@ export function bindVariableEvents(variableItem, moduleItem) {
 
     // 主标识符按钮事件
     variableItem.find('.variable-identifier-btn').on('click', function () {
-        console.log('[Continuity] 主标识符按钮被点击');
+        debugLog('主标识符按钮被点击');
         const isIdentifierInput = variableItem.find('.variable-is-identifier');
-        console.log('[Continuity] 找到的isIdentifierInput:', isIdentifierInput);
-        console.log('[Continuity] isIdentifierInput长度:', isIdentifierInput.length);
+        debugLog('找到的isIdentifierInput:', isIdentifierInput);
+        debugLog('isIdentifierInput长度:', isIdentifierInput.length);
         const currentValue = isIdentifierInput.val() === 'true';
-        console.log('[Continuity] 当前值:', currentValue);
+        debugLog('当前值:', currentValue);
         const newValue = !currentValue;
         isIdentifierInput.val(newValue);
-        console.log('[Continuity] 新值:', isIdentifierInput.val());
+        debugLog('新值:', isIdentifierInput.val());
 
         if (newValue) {
             // 如果选择了主标识符，取消选择备用标识符
@@ -183,12 +183,12 @@ export function bindVariableEvents(variableItem, moduleItem) {
         const button = $(this);
         if (!currentValue) {
             button.addClass('active');
-            console.log('[Continuity] 添加active类');
+            debugLog('添加active类');
             // 设置激活状态背景色
             button.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
         } else {
             button.removeClass('active');
-            console.log('[Continuity] 移除active类');
+            debugLog('移除active类');
             // 恢复默认背景色
             button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
         }
