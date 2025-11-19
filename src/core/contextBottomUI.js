@@ -251,13 +251,13 @@ export function insertUItoContextBottom() {
                                 // 为UI容器添加一个特殊的类名，用于样式应用
                                 contextBottomUI.classList.add('continuity-context-bottom-ui');
 
-                                // 插入所有模块的组合样式到details元素内部
+                                // 插入所有模块的组合样式到模块内容容器
                                 allModuleConfigs.forEach(moduleConfig => {
                                     if (moduleConfig) {
-                                        insertCombinedStylesToDetails('details.bottom-summary', moduleConfig);
+                                        insertCombinedStylesToDetails('.modules-content-container', moduleConfig);
                                     }
                                 });
-                                debugLog('组合样式已插入到details元素内部');
+                                debugLog('组合样式已插入到模块内容容器');
                             } else {
                                 debugLog('没有找到模块配置，跳过样式插入');
                             }
