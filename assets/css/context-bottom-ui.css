@@ -99,3 +99,33 @@ details.bottom-summary[open]>.summary-title::before {
     /* 为竖向按钮留出空间 */
     min-height: 40px;
 }
+
+/* 10. 模块数据容器样式 */
+.module-data-container {
+    margin-bottom: 4px;
+    padding: 6px;
+    /* background-color: #f8f9fa; */
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.module-data {
+    color: #495057;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* 模块数据summary样式 */
+.module-data summary {
+    display: list-item;
+    padding: 1px 0;
+    line-height: 1.2;
+    font-size: 11px;
+    font-weight: bold;
+    color: #6c757d;
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+}
