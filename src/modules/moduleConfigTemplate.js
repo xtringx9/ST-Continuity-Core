@@ -200,6 +200,11 @@ export const MODULE_CONFIG_TEMPLATE = {
                         default: false,
                         description: '是否必填'
                     },
+                    customStyles: {
+                        type: 'string',
+                        default: '',
+                        description: '变量级自定义CSS/HTML样式，支持多行代码'
+                    },
 
                     // 选择类型特有设置
                     options: {
@@ -379,6 +384,7 @@ export function normalizeConfig(config) {
                     isHideCondition: variable.isHideCondition || false,
                     hideConditionValues: variable.hideConditionValues || '',
                     required: variable.required || false,
+                    customStyles: variable.customStyles || '',
                     options: Array.isArray(variable.options) ? variable.options : []
                 }));
             }
