@@ -7,6 +7,7 @@
 import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 import styleCombiner from '../modules/styleCombiner.js';
 import { getCombinedStyles, insertCombinedStylesToDetails, clearStyleCombinerCache, getStyleCombinerStats, getAllModuleConfigs } from '../modules/styleCombiner.js';
+import { ModuleProcessor } from './moduleProcessor.js';
 
 // 上下文底部UI容器ID
 const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';
@@ -242,30 +243,68 @@ export function insertUItoContextBottom() {
                     messageText.after(contextBottomUI);
                     debugLog('UI已成功插入/移动到mes_text下方');
 
-                    // 插入组合样式到details元素内部
-                    if (insertCombinedStylesToDetails) {
-                        try {
-                            // 获取所有模块配置并插入样式
-                            const allModuleConfigs = getAllModuleConfigs();
-                            if (allModuleConfigs && allModuleConfigs.length > 0) {
-                                // 为UI容器添加一个特殊的类名，用于样式应用
-                                contextBottomUI.classList.add('continuity-context-bottom-ui');
+                    // 插入模块数据和样式到模块内容容器
+                    try {
+                        // 获取所有模块配置
+                        const allModuleConfigs = getAllModuleConfigs();
+                        if (allModuleConfigs && allModuleConfigs.length > 0) {
+                            // 为UI容器添加一个特殊的类名，用于样式应用
+                            contextBottomUI.classList.add('continuity-context-bottom-ui');
 
-                                // 插入所有模块的组合样式到模块内容容器
-                                allModuleConfigs.forEach(moduleConfig => {
-                                    if (moduleConfig) {
+                            // 创建模块处理器实例
+                            const moduleProcessor = new ModuleProcessor();
+
+                            // 处理每个模块配置
+                            allModuleConfigs.forEach(moduleConfig => {
+                                if (moduleConfig) {
+                                    // 检查模块是否有自定义样式
+                                    const hasCustomStyles = moduleConfig.customStyles && moduleConfig.customStyles.trim() !== '';
+
+                                    if (hasCustomStyles) {
+                                        // 样式不为空，插入样式
+                                        debugLog(`模块 ${moduleConfig.name} 有自定义样式，插入样式`);
                                         insertCombinedStylesToDetails('.modules-content-container', moduleConfig);
-                                    }
-                                });
-                                debugLog('组合样式已插入到模块内容容器');
-                            } else {
-                                debugLog('没有找到模块配置，跳过样式插入');
-                            }
-                        } catch (error) {
-                            errorLog('插入组合样式到details元素内部失败:', error);
-                        }
-                    }
+                                    } else {
+                                        // 样式为空，插入模块数据
+                                        debugLog(`模块 ${moduleConfig.name} 没有自定义样式，插入模块数据`);
 
+                                        // 提取全部聊天记录的模块数据
+                                        const extractParams = {
+                                            startIndex: 0,
+                                            endIndex: null, // null表示提取到最新
+                                            moduleFilters: [{ name: moduleConfig.name }]
+                                        };
+
+                                        // 使用processModuleData方法处理模块数据，showProcessInfo设为false
+                                        const processResult = moduleProcessor.processModuleData(
+                                            extractParams,
+                                            'auto', // 自动处理类型
+                                            [moduleConfig.name],
+                                            false // showProcessInfo设为false
+                                        );
+
+                                        const processedData = processResult.success ? processResult.content : '';
+                                        if (processedData && processedData.trim() !== '') {
+                                            // 插入模块数据到模块内容容器
+                                            const contentContainer = contextBottomUI.querySelector('.modules-content-container');
+                                            if (contentContainer) {
+                                                const moduleDataElement = document.createElement('div');
+                                                moduleDataElement.className = 'module-data-container';
+                                                moduleDataElement.innerHTML = `<details class="module-data"><summary>${moduleConfig.name}</summary>${processedData}</details>`;
+                                                contentContainer.appendChild(moduleDataElement);
+                                                debugLog(`模块 ${moduleConfig.name} 的数据已插入到模块内容容器`);
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                            debugLog('模块数据和样式已插入到模块内容容器');
+                        } else {
+                            debugLog('没有找到模块配置，跳过模块数据和样式插入');
+                        }
+                    } catch (error) {
+                        errorLog('插入模块数据和样式到模块内容容器失败:', error);
+                    }
 
 
                     isInsertingUI = false;
