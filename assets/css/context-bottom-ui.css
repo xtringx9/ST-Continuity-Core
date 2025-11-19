@@ -1,4 +1,4 @@
-/* 上下文底部UI样式 */
+/* 上下文底部UI样式 - 竖向按钮版本 */
 
 /* 1. 基础容器设置 */
 .context-bottom-wrapper {
@@ -8,32 +8,15 @@
     border: 1px solid #d1cac6;
     border-radius: 6px;
     font-family: "Noto Sans SC", sans-serif;
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    padding: 8px;
 }
 
 /* 2. 折叠面板基础样式 */
 details.bottom-summary {
     position: relative;
-    /* 为子元素的绝对定位提供基准 */
 }
 
-/* 3. 只在 details 展开时，才添加底部的内边距，为summary留出空间 */
-details.bottom-summary[open] {
-    padding-bottom: 2em;
-}
-
-/* 4. 当 details 展开时，将 summary 移动到底部 */
-details.bottom-summary[open]>.summary-title {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-}
-
-/* 5. 标题样式 */
+/* 3. 默认状态下的横向标题样式 */
 .summary-title {
     display: list-item;
     padding: 1px 0;
@@ -44,30 +27,65 @@ details.bottom-summary[open]>.summary-title {
     cursor: pointer;
     outline: none;
     user-select: none;
+    min-height: auto;
+}
+
+/* 4. 展开状态下的竖向按钮样式（右侧） */
+details.bottom-summary[open]>.summary-title {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 24px;
+    height: 100%;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    padding: 8px 4px;
+    line-height: 1;
+    background: #f5f5f5;
+    border: 1px solid #d1cac6;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    list-style: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    color: transparent;
+    /* 隐藏文本 */
+}
+
+/* 5. 竖向按钮的悬停效果 */
+details.bottom-summary[open]>.summary-title:hover {
+    background: #e8e8e8;
+    border-color: #b8b2af;
 }
 
 /* 6. 定义折叠状态下(默认)的小三角样式 */
 details.bottom-summary>.summary-title::marker {
     content: '▶ ';
-    /* 一个向右的三角和一个空格 */
 }
 
 /* 7. 定义展开状态下的小三角样式 */
 details.bottom-summary[open]>.summary-title::marker {
-    content: '▲ ';
-    /* 一个向上的三角和一个空格 */
+    content: '';
 }
 
-/* 8. 内容区域样式 */
-.character-row {
-    display: flex;
-    gap: 10px;
-    margin-top: 6px;
+/* 8. 展开状态下使用三角符号 */
+details.bottom-summary[open]>.summary-title::before {
+    content: '▼';
+    font-size: 10px;
+    color: #6D6A67;
+    /* 确保三角符号可见 */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
+/* 9. 内容区域样式 */
 .character-content {
-    flex: 1;
-    min-width: 0;
+    margin-top: 6px;
 }
 
 .info-grid {
