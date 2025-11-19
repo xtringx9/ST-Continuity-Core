@@ -211,12 +211,8 @@ export class ExtractModuleController {
             });
         }
 
-        // 2. 添加所有激活了时间参考标准的模块
-        modulesData.forEach(module => {
-            if (module.timeReferenceStandard) {
-                selectedModulesSet.add(module.name);
-            }
-        });
+        // 注意：激活了时间参考标准的模块现在在moduleProcessor的processModuleData方法中统一处理
+        // 此处不再重复添加
 
         // 3. 构建moduleFilters
         if (selectedModulesSet.size > 0) {
