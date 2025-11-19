@@ -298,7 +298,9 @@ export class ExtractModuleController {
             const processResult = this.moduleProcessor.processModuleData(
                 { startIndex, endIndex, moduleFilters },
                 'extract',
-                selectedModuleNames
+                selectedModuleNames,
+                true,
+                true
             );
 
             // 显示处理结果
@@ -337,7 +339,9 @@ export class ExtractModuleController {
             const processResult = this.moduleProcessor.processModuleData(
                 { startIndex, endIndex, moduleFilters },
                 'processed',
-                selectedModuleNames
+                selectedModuleNames,
+                true,
+                true
             );
 
             // 显示处理结果
@@ -368,7 +372,8 @@ export class ExtractModuleController {
                 { startIndex, endIndex, moduleFilters },
                 'auto',
                 selectedModuleNames,
-                true // 显示处理方式说明
+                true,
+                true
             );
 
             // 显示处理结果
