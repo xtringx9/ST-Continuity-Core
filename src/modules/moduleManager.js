@@ -303,6 +303,8 @@ export function bindModuleEvents(moduleElement) {
         const customStylesTextarea = moduleItem.find('.module-custom-styles');
         // 查找包含自定义样式输入框的.module-settings-inline容器
         const customStylesSection = customStylesTextarea.closest('.module-settings-inline');
+        // 查找所有变量级自定义样式框
+        const variableCustomStylesGroups = moduleItem.find('.variable-custom-styles-group');
 
         // 切换状态
         const currentVisible = button.attr('data-custom-styles-visible') === 'true';
@@ -314,8 +316,10 @@ export function bindModuleEvents(moduleElement) {
         button.toggleClass('active', newVisible);
         if (newVisible) {
             customStylesSection.show();
+            variableCustomStylesGroups.show();
         } else {
             customStylesSection.hide();
+            variableCustomStylesGroups.hide();
         }
 
         // 保存状态到localStorage
@@ -896,15 +900,19 @@ function restoreCustomStylesVisibleState(moduleItem) {
         // 查找自定义样式输入框及其容器
         const customStylesTextarea = moduleItem.find('.module-custom-styles');
         const customStylesSection = customStylesTextarea.closest('.module-settings-inline');
+        // 查找所有变量级自定义样式框
+        const variableCustomStylesGroups = moduleItem.find('.variable-custom-styles-group');
 
         if (!isVisible) {
             // 隐藏自定义样式框
             customStylesSection.hide();
+            variableCustomStylesGroups.hide();
             toggleBtn.attr('data-custom-styles-visible', 'false');
             toggleBtn.removeClass('active');
         } else {
             // 显示自定义样式框
             customStylesSection.show();
+            variableCustomStylesGroups.show();
             toggleBtn.attr('data-custom-styles-visible', 'true');
             toggleBtn.addClass('active');
         }

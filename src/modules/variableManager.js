@@ -47,6 +47,14 @@ export function addVariable(moduleItem) {
     // 更新变量序号
     updateVariableOrderNumbers(variablesContainer);
 
+    // 根据✨按钮的状态设置新变量的自定义样式框显隐
+    const toggleBtn = moduleItem.find('.module-custom-styles-toggle-btn');
+    const isVisible = toggleBtn.attr('data-custom-styles-visible') === 'true';
+    const newVariableCustomStylesGroup = variableItem.find('.variable-custom-styles-group');
+    if (!isVisible) {
+        newVariableCustomStylesGroup.hide();
+    }
+
     // 更新预览
     updateModulePreview(moduleItem);
 
@@ -85,7 +93,7 @@ export function addVariable(moduleItem) {
  */
 export function bindVariableEvents(variableItem, moduleItem) {
     // 先解绑事件
-    variableItem.find('input').off('input');
+    variableItem.find('input, textarea').off('input');
     variableItem.find('.remove-variable').off('click');
 
     // 检查是否需要显示标识符警告
@@ -116,7 +124,7 @@ export function bindVariableEvents(variableItem, moduleItem) {
     }
 
     // 变量输入事件
-    variableItem.find('input').on('input', function () {
+    variableItem.find('input, textarea').on('input', function () {
         debugLog('变量输入框内容变化');
         updateModulePreview(moduleItem);
 

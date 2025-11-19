@@ -489,6 +489,24 @@
     font-family: monospace;
 }
 
+/* 变量自定义样式输入框 */
+#continuity-module-config-window .variable-custom-styles-group {
+    display: flex;
+    align-items: center;
+    /* gap: 5px;
+    margin-bottom: 5px; */
+    margin-top: -6px;
+    width: 100%;
+}
+
+#continuity-module-config-window .variable-custom-styles-group label {
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    margin-right: 5px;
+}
+
 /* 模块滑块开关样式 */
 .module-toggle {
     position: relative;
@@ -710,6 +728,7 @@
     margin: 0;
 }
 
+#continuity-module-config-window .variable-custom-styles,
 #continuity-module-config-window .module-prompt-input,
 #continuity-module-config-window .module-timing-prompt-input,
 #continuity-module-config-window .module-content-prompt-input,
@@ -735,6 +754,7 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
+#continuity-module-config-window .variable-custom-styles:focus,
 #continuity-module-config-window .module-content-prompt-input:focus,
 #continuity-module-config-window .module-custom-styles:focus {
     outline: none;

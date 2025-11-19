@@ -14,6 +14,7 @@ export function getVariableItemTemplate(variable = {}) {
     const isBackupIdentifier = variable.isBackupIdentifier || false;
     const isHideCondition = variable.isHideCondition || false;
     const hideConditionValues = variable.hideConditionValues || '';
+    const customStyles = variable.customStyles || '';
 
     return `
         <div class="variable-item">
@@ -51,6 +52,10 @@ export function getVariableItemTemplate(variable = {}) {
             <div class="variable-actions">
                 <button class="btn-small remove-variable">-</button>
                 <button class="btn-small variable-drag-handle">⋮⋮</button>
+            </div>
+            <div class="variable-custom-styles-group" style="width: 100%;">
+                <label>自定义样式</label>
+                <textarea class="variable-custom-styles" placeholder="输入CSS/HTML代码，支持多行">${customStyles}</textarea>
             </div>
         </div>
     `;

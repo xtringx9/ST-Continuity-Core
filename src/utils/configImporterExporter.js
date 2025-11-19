@@ -164,7 +164,8 @@ export function collectVariablesDataFromUI(moduleElement) {
             isIdentifier: varElement.find('.variable-is-identifier').val() === 'true',
             isBackupIdentifier: varElement.find('.variable-is-backup-identifier').val() === 'true',
             isHideCondition: varElement.find('.variable-is-hide-condition').val() === 'true',
-            hideConditionValues: varElement.find('.variable-desc').eq(1).val() || ''
+            hideConditionValues: varElement.find('.variable-desc').eq(1).val() || '',
+            customStyles: varElement.find('.variable-custom-styles').val() || ''
         };
 
         variables.push(variableData);
