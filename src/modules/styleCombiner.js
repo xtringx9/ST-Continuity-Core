@@ -290,14 +290,16 @@ export function getCombinedStyles(moduleConfig = null, variableName = null) {
 /**
  * 获取组合的自定义样式内容
  * @param {Object} moduleConfig 模块配置对象
- * @param {string} variableName 变量名称（可选）
+ * @param {string} variableName 变量名称（可选），如果为'container'则获取容器样式
+ * @param {Object} moduleData 模块数据对象（可选），用于替换${id.value}等变量
  * @returns {string} 组合后的自定义样式内容
  */
-export function getCombinedCustomStyles(moduleConfig, variableName = null) {
+export function getCombinedCustomStyles(moduleConfig, variableName = null, moduleData = null) {
     try {
         debugLog('[CUSTOM STYLES] getCombinedCustomStyles被调用');
         debugLog('[CUSTOM STYLES] 模块配置:', moduleConfig);
         debugLog('[CUSTOM STYLES] 变量名称:', variableName);
+        debugLog('[CUSTOM STYLES] 模块数据:', moduleData);
 
         if (!moduleConfig) {
             errorLog('获取组合样式失败：模块配置为空');
@@ -306,7 +308,10 @@ export function getCombinedCustomStyles(moduleConfig, variableName = null) {
 
         // 获取原始的自定义样式内容
         let rawStyles = '';
-        if (variableName) {
+        if (variableName === 'container') {
+            // 获取容器样式
+            rawStyles = moduleConfig.containerStyles || '';
+        } else if (variableName) {
             // 获取变量级样式
             const variables = moduleConfig.variables || [];
             const variable = variables.find(v => v.name === variableName);
@@ -314,11 +319,22 @@ export function getCombinedCustomStyles(moduleConfig, variableName = null) {
                 rawStyles = variable.customStyles || '';
             }
         } else {
-            // 获取模块级样式
+            // 获取模块级样式（每条模块条目）
             rawStyles = moduleConfig.customStyles || '';
         }
 
-        debugLog('[CUSTOM STYLES] 获取到的自定义样式:', rawStyles);
+        debugLog('[CUSTOM STYLES] 获取到的原始自定义样式:', rawStyles);
+
+        // 如果有模块数据，进行变量替换
+        if (rawStyles && (moduleConfig || moduleData)) {
+            // 先处理嵌套的customStyles引用（优先替换${某变量.customStyles}）
+            rawStyles = resolveNestedCustomStyles(rawStyles, moduleConfig, moduleData);
+
+            // 再处理其他变量替换
+            rawStyles = replaceVariablesInStyles(rawStyles, moduleConfig, moduleData);
+        }
+
+        debugLog('[CUSTOM STYLES] 处理后的自定义样式:', rawStyles);
         return rawStyles;
     } catch (error) {
         errorLog('获取组合样式失败:', error);
@@ -327,57 +343,310 @@ export function getCombinedCustomStyles(moduleConfig, variableName = null) {
 }
 
 /**
+ * 为多个模块条目生成组合样式
+ * @param {Array} moduleEntries 结构化模块条目数组
+ * @returns {string} 所有模块条目的组合样式
+ */
+export function generateStylesForModuleEntries(moduleEntries) {
+    try {
+        debugLog('[CUSTOM STYLES] generateStylesForModuleEntries被调用');
+        debugLog('[CUSTOM STYLES] 模块条目数量:', moduleEntries.length);
+
+        if (!Array.isArray(moduleEntries) || moduleEntries.length === 0) {
+            debugLog('[CUSTOM STYLES] 没有模块条目，返回空样式');
+            return '';
+        }
+
+        const allStyles = [];
+
+        // 为每个模块条目生成样式
+        moduleEntries.forEach((entry, index) => {
+            debugLog(`[CUSTOM STYLES] 处理模块条目 ${index + 1}/${moduleEntries.length}`);
+            debugLog(`[CUSTOM STYLES] 模块名称: ${entry.moduleName}`);
+            debugLog(`[CUSTOM STYLES] 模块配置: ${entry.moduleConfig ? '存在' : '不存在'}`);
+            debugLog(`[CUSTOM STYLES] 模块数据: ${entry.moduleData ? '存在' : '不存在'}`);
+
+            if (!entry.moduleConfig) {
+                debugLog('[CUSTOM STYLES] 模块配置为空，跳过');
+                return;
+            }
+
+            // 生成当前模块条目的样式
+            const entryStyles = getCombinedCustomStyles(entry.moduleConfig, null, entry.moduleData);
+            if (entryStyles) {
+                allStyles.push(entryStyles);
+            }
+        });
+
+        const combinedStyles = allStyles.join('\n');
+        debugLog('[CUSTOM STYLES] 生成的所有模块样式:', combinedStyles);
+        return combinedStyles;
+    } catch (error) {
+        errorLog('为模块条目生成样式失败:', error);
+        return '';
+    }
+}
+
+/**
+ * 处理容器样式并注入模块条目样式
+ * @param {Object} containerConfig 容器配置对象
+ * @param {Array} moduleEntries 结构化模块条目数组
+ * @returns {string} 最终的组合样式
+ */
+export function processContainerStyles(containerConfig, moduleEntries) {
+    try {
+        debugLog('[CUSTOM STYLES] processContainerStyles被调用');
+        debugLog('[CUSTOM STYLES] 容器配置:', containerConfig);
+        debugLog('[CUSTOM STYLES] 模块条目数量:', moduleEntries.length);
+
+        if (!containerConfig) {
+            debugLog('[CUSTOM STYLES] 容器配置为空，返回空样式');
+            return '';
+        }
+
+        // 获取容器样式
+        let containerStyles = containerConfig.containerStyles || '';
+        // 生成所有模块条目的样式
+        const moduleStyles = generateStylesForModuleEntries(moduleEntries);
+
+        let finalStyles = '';
+
+        if (containerStyles.includes('${customStyles}')) {
+            // 如果containerStyles内部有${customStyles}，则注入处理后的样式
+            finalStyles = containerStyles.replace('${customStyles}', moduleStyles);
+        } else {
+            // 否则将处理后的样式添加到containerStyles下方
+            finalStyles = containerStyles;
+            if (moduleStyles) {
+                finalStyles += '\n' + moduleStyles;
+            }
+        }
+
+        debugLog('[CUSTOM STYLES] 最终的组合样式:', finalStyles);
+        return finalStyles;
+    } catch (error) {
+        errorLog('处理容器样式失败:', error);
+        return '';
+    }
+}
+
+/**
+ * 解析嵌套的customStyles引用
+ * @param {string} styles 样式字符串
+ * @param {Object} moduleConfig 模块配置对象
+ * @param {Object} moduleData 模块数据对象
+ * @returns {string} 解析后的样式字符串
+ */
+function resolveNestedCustomStyles(styles, moduleConfig, moduleData) {
+    // 查找${variableName.customStyles}格式的引用
+    const customStylesRegex = /\$\{([^.]+)\.customStyles\}/g;
+    let processedStyles = styles;
+    let match;
+    const processedVariables = new Set();
+
+    // 最多处理5层嵌套，避免无限循环
+    let maxDepth = 5;
+
+    while ((match = customStylesRegex.exec(processedStyles)) && maxDepth > 0) {
+        const varName = match[1];
+
+        // 避免重复处理同一变量导致无限循环
+        if (processedVariables.has(varName)) {
+            continue;
+        }
+        processedVariables.add(varName);
+
+        // 查找该变量的customStyles
+        const variables = moduleConfig.variables || [];
+        const targetVariable = variables.find(v => v.name === varName);
+
+        if (targetVariable && targetVariable.customStyles) {
+            // 递归处理嵌套的customStyles
+            const nestedStyles = resolveNestedCustomStyles(targetVariable.customStyles, moduleConfig, moduleData);
+
+            // 替换当前引用
+            processedStyles = processedStyles.replace(match[0], nestedStyles);
+
+            // 重置正则表达式的lastIndex，以便重新匹配
+            customStylesRegex.lastIndex = 0;
+        }
+
+        maxDepth--;
+    }
+
+    return processedStyles;
+}
+
+/**
+ * 替换样式字符串中的变量
+ * @param {string} styles 样式字符串
+ * @param {Object} moduleConfig 模块配置对象
+ * @param {Object} moduleData 模块数据对象
+ * @returns {string} 替换后的样式字符串
+ */
+function replaceVariablesInStyles(styles, moduleConfig, moduleData) {
+    // 查找${variablePath}格式的变量引用
+    const variableRegex = /\$\{([^}]+)\}/g;
+
+    return styles.replace(variableRegex, (match, variablePath) => {
+        // 特殊处理${customStyles}，用于在容器样式中引用模块级样式
+        if (variablePath === 'customStyles') {
+            // 获取模块级的自定义样式
+            const moduleStyles = moduleConfig.customStyles || '';
+            // 递归处理模块级样式中的变量
+            return replaceVariablesInStyles(moduleStyles, moduleConfig, moduleData);
+        }
+
+        // 处理模块级别的简单变量，如${name}
+        if (!variablePath.includes('.') && moduleConfig[variablePath] !== undefined) {
+            return String(moduleConfig[variablePath]);
+        }
+
+        // 处理带路径的变量，如${id.name}或${id.value}
+        const [varName, propName] = variablePath.split('.');
+        if (varName && propName) {
+            const variables = moduleConfig.variables || [];
+            const targetVariable = variables.find(v => v.name === varName);
+
+            if (targetVariable) {
+                // 特殊处理${id.value}，从模块数据中获取值
+                if (propName === 'value' && moduleData) {
+                    // 首先尝试从moduleData.variables获取（支持标准模块数据结构）
+                    if (moduleData.variables && moduleData.variables[varName] !== undefined) {
+                        return String(moduleData.variables[varName]);
+                    }
+                    // 然后尝试直接从moduleData获取（支持旧版数据结构）
+                    else if (moduleData[varName] !== undefined) {
+                        return String(moduleData[varName]);
+                    }
+                    // 最后尝试从moduleData.moduleData获取（支持结构化模块条目）
+                    else if (moduleData.moduleData && moduleData.moduleData[varName] !== undefined) {
+                        return String(moduleData.moduleData[varName]);
+                    }
+                    // 还可以从moduleData.variables.variables获取（处理多层嵌套的情况）
+                    else if (moduleData.variables && moduleData.variables.variables && moduleData.variables.variables[varName] !== undefined) {
+                        return String(moduleData.variables.variables[varName]);
+                    }
+                }
+                // 处理其他属性，如${id.name}
+                else if (targetVariable[propName] !== undefined) {
+                    return String(targetVariable[propName]);
+                }
+            }
+        }
+
+        // 如果未找到匹配的变量，保留原始格式
+        return match;
+    });
+}
+
+/**
  * 将组合后的自定义样式插入到指定的模块内容容器中
  * @param {string} selector CSS选择器，默认为'.modules-content-container'
  * @param {Object} moduleConfig 模块配置对象
- * @param {string} variableName 变量名称（可选）
+ * @param {string} variableName 变量名称（可选），如果为'container'则处理容器样式
+ * @param {Object} moduleData 模块数据对象（可选），用于替换样式中的变量
  */
-export function insertCombinedStylesToDetails(selector = '.modules-content-container', moduleConfig, variableName = null) {
+export function insertCombinedStylesToDetails(selector = '.modules-content-container', moduleConfig, variableName = null, moduleData = null) {
     try {
         debugLog('[CUSTOM STYLES] insertCombinedStylesToDetails被调用');
         debugLog('[CUSTOM STYLES] 选择器:', selector);
         debugLog('[CUSTOM STYLES] 模块配置:', moduleConfig);
         debugLog('[CUSTOM STYLES] 变量名称:', variableName);
+        debugLog('[CUSTOM STYLES] 模块数据:', moduleData);
 
         if (!moduleConfig) {
             errorLog('插入组合样式失败：模块配置为空');
-            return;
+            return '';
         }
 
-        // 获取组合的自定义样式内容
-        const rawStyles = getCombinedCustomStyles(moduleConfig, variableName);
+        let finalStyles = '';
 
-        if (!rawStyles) {
-            debugLog('[CUSTOM STYLES] 没有自定义样式，跳过插入');
-            return;
+        // 处理不同格式的模块数据
+        let moduleEntries = [];
+        let isMultiEntry = false;
+
+        if (moduleData[moduleConfig.name] && moduleData[moduleConfig.name].data && Array.isArray(moduleData[moduleConfig.name].data)) {
+            debugLog('[CUSTOM STYLES] 多条目模块数据:', moduleData[moduleConfig.name].data);
+            isMultiEntry = true;
+            moduleEntries = moduleData[moduleConfig.name].data.map(data => ({
+                moduleName: data.moduleName || moduleConfig.name || moduleConfig.id || 'unknown',
+                moduleConfig: data.moduleConfig || moduleConfig,  // 优先使用条目自身的配置
+                moduleData: data.moduleData || data  // 优先使用条目下的moduleData字段
+            }));
         }
 
-        // 查找目标模块内容容器
-        const contentContainer = document.querySelector(selector);
-        if (!contentContainer) {
-            errorLog('插入组合样式失败：未找到目标元素，选择器:', selector);
-            return;
+        if (moduleEntries.length > 0) {
+            // 处理容器样式并注入模块条目样式
+            finalStyles = processContainerStyles(moduleConfig, moduleEntries);
+        } else {
+            // 没有模块数据，只处理自定义样式
+            finalStyles = getCombinedCustomStyles(moduleConfig, variableName, moduleData);
         }
 
-        debugLog('[CUSTOM STYLES] 找到目标元素:', contentContainer);
-
-        // 创建样式容器
-        const styleContainer = document.createElement('div');
-        styleContainer.className = 'custom-styles-container';
-
-        // 直接插入原始样式内容
-        styleContainer.innerHTML = rawStyles;
-
-        // 插入到模块内容容器内部
-        contentContainer.appendChild(styleContainer);
-
-        debugLog('[CUSTOM STYLES] 自定义样式已插入到模块内容容器内部');
+        debugLog('[CUSTOM STYLES] 处理后的最终样式:', finalStyles);
+        return finalStyles;
     } catch (error) {
-        errorLog('插入组合样式到模块内容容器失败:', error);
+        errorLog('插入样式失败:', error);
+        return '';
     }
 }
 
 
+
+/**
+ * 处理并生成最终的模块样式
+ * @param {Object} moduleConfig 模块配置对象
+ * @param {Array} moduleEntries 结构化模块条目数组
+ * @returns {string} 最终的组合样式
+ */
+export function generateFinalModuleStyles(moduleConfig, moduleEntries) {
+    try {
+        debugLog('[CUSTOM STYLES] generateFinalModuleStyles被调用');
+        debugLog('[CUSTOM STYLES] 模块配置:', moduleConfig);
+        debugLog('[CUSTOM STYLES] 模块条目数量:', moduleEntries.length);
+
+        if (!moduleConfig) {
+            errorLog('生成最终模块样式失败：模块配置为空');
+            return '';
+        }
+
+        // 处理容器样式并注入模块条目样式
+        return processContainerStyles(moduleConfig, moduleEntries);
+    } catch (error) {
+        errorLog('生成最终模块样式失败:', error);
+        return '';
+    }
+}
+
+/**
+ * 将生成的最终样式插入到指定的模块内容容器中
+ * @param {string} selector CSS选择器，默认为'.modules-content-container'
+ * @param {Object} moduleConfig 模块配置对象
+ * @param {Array} moduleEntries 结构化模块条目数组
+ */
+export function insertFinalStylesToDetails(selector = '.modules-content-container', moduleConfig, moduleEntries) {
+    try {
+        debugLog('[CUSTOM STYLES] insertFinalStylesToDetails被调用');
+        debugLog('[CUSTOM STYLES] 选择器:', selector);
+        debugLog('[CUSTOM STYLES] 模块配置:', moduleConfig);
+        debugLog('[CUSTOM STYLES] 模块条目:', moduleEntries);
+
+        if (!moduleConfig) {
+            errorLog('插入最终样式失败：模块配置为空');
+            return '';
+        }
+
+        // 生成最终的模块样式
+        const finalStyles = generateFinalModuleStyles(moduleConfig, moduleEntries);
+
+        debugLog('[CUSTOM STYLES] 生成的最终样式:', finalStyles);
+        return finalStyles;
+    } catch (error) {
+        errorLog('插入最终样式失败:', error);
+        return '';
+    }
+}
 
 /**
  * 清除样式组合器缓存

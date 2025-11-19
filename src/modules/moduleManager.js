@@ -293,16 +293,14 @@ export function bindModuleEvents(moduleElement) {
         autoSaveModuleConfig();
     });
 
-    // 自定义样式框显示/隐藏按钮点击事件
+    // 样式框显示/隐藏按钮点击事件
     // 先解绑事件，避免重复绑定
     moduleItem.find('.module-custom-styles-toggle-btn').off('click');
     moduleItem.find('.module-custom-styles-toggle-btn').on('click', function () {
         const button = $(this);
         const moduleItem = button.closest('.module-item');
-        // 直接查找自定义样式输入框
-        const customStylesTextarea = moduleItem.find('.module-custom-styles');
-        // 查找包含自定义样式输入框的.module-settings-inline容器
-        const customStylesSection = customStylesTextarea.closest('.module-settings-inline');
+        // 查找所有样式输入框容器（包括容器样式和自定义样式）
+        const styleSections = moduleItem.find('.module-settings-inline:has(.module-container-styles), .module-settings-inline:has(.module-custom-styles)');
         // 查找所有变量级自定义样式框
         const variableCustomStylesGroups = moduleItem.find('.variable-custom-styles-group');
 
@@ -315,10 +313,10 @@ export function bindModuleEvents(moduleElement) {
         // 切换激活状态类
         button.toggleClass('active', newVisible);
         if (newVisible) {
-            customStylesSection.show();
+            styleSections.show();
             variableCustomStylesGroups.show();
         } else {
-            customStylesSection.hide();
+            styleSections.hide();
             variableCustomStylesGroups.hide();
         }
 
@@ -894,27 +892,26 @@ function restoreCustomStylesVisibleState(moduleItem) {
     if (customStylesVisibleStates.hasOwnProperty(moduleName)) {
         const isVisible = customStylesVisibleStates[moduleName];
         const toggleBtn = moduleItem.find('.module-custom-styles-toggle-btn');
-        // 查找自定义样式输入框及其容器
-        const customStylesTextarea = moduleItem.find('.module-custom-styles');
-        const customStylesSection = customStylesTextarea.closest('.module-settings-inline');
+        // 查找所有样式输入框容器（包括容器样式和自定义样式）
+        const styleSections = moduleItem.find('.module-settings-inline:has(.module-container-styles), .module-settings-inline:has(.module-custom-styles)');
         // 查找所有变量级自定义样式框
         const variableCustomStylesGroups = moduleItem.find('.variable-custom-styles-group');
 
         if (!isVisible) {
-            // 隐藏自定义样式框
-            customStylesSection.hide();
+            // 隐藏所有样式框
+            styleSections.hide();
             variableCustomStylesGroups.hide();
             toggleBtn.attr('data-custom-styles-visible', 'false');
             toggleBtn.removeClass('active');
         } else {
-            // 显示自定义样式框
-            customStylesSection.show();
+            // 显示所有样式框
+            styleSections.show();
             variableCustomStylesGroups.show();
             toggleBtn.attr('data-custom-styles-visible', 'true');
             toggleBtn.addClass('active');
         }
 
-        debugLog('自定义样式框显示状态已恢复:', moduleName, isVisible);
+        debugLog('样式框显示状态已恢复:', moduleName, isVisible);
     }
 }
 
