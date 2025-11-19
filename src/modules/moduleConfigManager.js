@@ -1,7 +1,7 @@
 // 模块配置管理模块
 import { extensionFolderPath, debugLog, errorLog, infoLog, initParseModule } from "../index.js";
 import { getVariableItemTemplate } from "./templateManager.js";
-import { updateModulePreview, restoreModuleCollapsedState } from "./moduleManager.js";
+import { updateModulePreview, restoreModuleCollapsedState, restoreCustomStylesVisibleState } from "./moduleManager.js";
 import { bindVariableEvents } from "./variableManager.js";
 import configManager from "./configManager.js";
 import {
@@ -499,6 +499,11 @@ export function renderModulesFromConfig(config) {
         // 恢复模块折叠状态
         if (restoreModuleCollapsedState) {
             restoreModuleCollapsedState(moduleItem);
+        }
+        
+        // 恢复自定义样式框显示状态
+        if (restoreCustomStylesVisibleState) {
+            restoreCustomStylesVisibleState(moduleItem);
         }
     });
 

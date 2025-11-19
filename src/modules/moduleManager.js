@@ -293,6 +293,35 @@ export function bindModuleEvents(moduleElement) {
         autoSaveModuleConfig();
     });
 
+    // 自定义样式框显示/隐藏按钮点击事件
+    // 先解绑事件，避免重复绑定
+    moduleItem.find('.module-custom-styles-toggle-btn').off('click');
+    moduleItem.find('.module-custom-styles-toggle-btn').on('click', function () {
+        const button = $(this);
+        const moduleItem = button.closest('.module-item');
+        // 直接查找自定义样式输入框
+        const customStylesTextarea = moduleItem.find('.module-custom-styles');
+        // 查找包含自定义样式输入框的.module-settings-inline容器
+        const customStylesSection = customStylesTextarea.closest('.module-settings-inline');
+
+        // 切换状态
+        const currentVisible = button.attr('data-custom-styles-visible') === 'true';
+        const newVisible = !currentVisible;
+
+        // 更新按钮状态
+        button.attr('data-custom-styles-visible', newVisible.toString());
+        // 切换激活状态类
+        button.toggleClass('active', newVisible);
+        if (newVisible) {
+            customStylesSection.show();
+        } else {
+            customStylesSection.hide();
+        }
+
+        // 保存状态到localStorage
+        saveCustomStylesVisibleState(moduleItem, newVisible);
+    });
+
     // 为每个变量项绑定事件
     moduleItem.find('.variable-item').each(function () {
         const variableItem = $(this);
@@ -800,6 +829,27 @@ function saveModuleCollapsedState(moduleItem, isCollapsed) {
 }
 
 /**
+ * 保存自定义样式框的显示状态到localStorage
+ * @param {jQuery} moduleItem 模块元素
+ * @param {boolean} isVisible 是否可见
+ */
+function saveCustomStylesVisibleState(moduleItem, isVisible) {
+    const moduleName = moduleItem.find('.module-name').val();
+    if (!moduleName) return;
+
+    // 获取当前保存的自定义样式框显示状态
+    const customStylesVisibleStates = JSON.parse(localStorage.getItem('moduleCustomStylesVisibleStates') || '{}');
+
+    // 更新当前模块的自定义样式框显示状态
+    customStylesVisibleStates[moduleName] = isVisible;
+
+    // 保存到localStorage
+    localStorage.setItem('moduleCustomStylesVisibleStates', JSON.stringify(customStylesVisibleStates));
+
+    debugLog('自定义样式框显示状态已保存:', moduleName, isVisible);
+}
+
+/**
  * 恢复模块折叠状态
  * @param {jQuery} moduleItem 模块元素
  */
@@ -828,7 +878,42 @@ function restoreModuleCollapsedState(moduleItem) {
 }
 
 // 导出函数
-export { updateVariableOrderNumbers, restoreModuleCollapsedState };
+/**
+ * 恢复自定义样式框的显示状态
+ * @param {jQuery} moduleItem 模块元素
+ */
+function restoreCustomStylesVisibleState(moduleItem) {
+    const moduleName = moduleItem.find('.module-name').val();
+    if (!moduleName) return;
+
+    // 获取保存的自定义样式框显示状态
+    const customStylesVisibleStates = JSON.parse(localStorage.getItem('moduleCustomStylesVisibleStates') || '{}');
+
+    // 如果该模块有保存的自定义样式框显示状态
+    if (customStylesVisibleStates.hasOwnProperty(moduleName)) {
+        const isVisible = customStylesVisibleStates[moduleName];
+        const toggleBtn = moduleItem.find('.module-custom-styles-toggle-btn');
+        // 查找自定义样式输入框及其容器
+        const customStylesTextarea = moduleItem.find('.module-custom-styles');
+        const customStylesSection = customStylesTextarea.closest('.module-settings-inline');
+
+        if (!isVisible) {
+            // 隐藏自定义样式框
+            customStylesSection.hide();
+            toggleBtn.attr('data-custom-styles-visible', 'false');
+            toggleBtn.removeClass('active');
+        } else {
+            // 显示自定义样式框
+            customStylesSection.show();
+            toggleBtn.attr('data-custom-styles-visible', 'true');
+            toggleBtn.addClass('active');
+        }
+
+        debugLog('自定义样式框显示状态已恢复:', moduleName, isVisible);
+    }
+}
+
+export { updateVariableOrderNumbers, restoreModuleCollapsedState, restoreCustomStylesVisibleState };
 
 /**
  * 绑定添加模块按钮事件
