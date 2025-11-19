@@ -14,6 +14,8 @@
 /* 2. 折叠面板基础样式 */
 details.bottom-summary {
     position: relative;
+    overflow: visible;
+    /* 确保内容不会溢出 */
 }
 
 /* 3. 默认状态下的横向标题样式 */
@@ -30,8 +32,11 @@ details.bottom-summary {
     min-height: auto;
 }
 
-/* 4. 展开状态下的竖向按钮样式（右侧） */
-details.bottom-summary[open]>.summary-title {
+/* 4. 主容器summary - 完全独立的竖向按钮（右侧） */
+#continuity-context-bottom-container>details.bottom-summary[open]>.summary-title {
+    /* 完全独立的竖向按钮样式，不受任何内部样式影响 */
+    all: unset;
+    /* 重置所有继承的样式 */
     position: absolute;
     top: 0;
     right: 0;
@@ -53,6 +58,10 @@ details.bottom-summary[open]>.summary-title {
     box-sizing: border-box;
     color: transparent;
     /* 隐藏文本 */
+    z-index: 1000;
+    /* 最高层级，确保在最上层 */
+    pointer-events: auto;
+    /* 确保可点击 */
 }
 
 /* 5. 竖向按钮的悬停效果 */
@@ -83,79 +92,10 @@ details.bottom-summary[open]>.summary-title::before {
     transform: translate(-50%, -50%);
 }
 
-/* 9. 内容区域样式 */
-.character-content {
-    margin-top: 6px;
-}
-
-/* 样式组合器部分样式 */
-.style-combiner-section {
+/* 9. 模块内容容器样式 */
+.modules-content-container {
     margin-top: 8px;
-}
-
-.style-combiner-section h4 {
-    margin: 0 0 8px 0;
-    font-size: 12px;
-    font-weight: bold;
-    color: #6D6A67;
-}
-
-.style-content {
-    font-size: 11px;
-    color: #4A4444;
-    line-height: 1.4;
-    max-height: 300px;
-    overflow-y: auto;
-    padding: 4px;
-    background-color: #f9f9f9;
-    border-radius: 4px;
-    border: 1px solid #e0e0e0;
-}
-
-.style-section {
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.style-section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-}
-
-.style-section h5 {
-    margin: 0 0 6px 0;
-    font-size: 11px;
-    font-weight: bold;
-    color: #6D6A67;
-    background-color: #f0f0f0;
-    padding: 2px 6px;
-    border-radius: 2px;
-}
-
-.style-item {
-    margin-bottom: 6px;
-    padding: 4px 6px;
-    background-color: #f5f5f5;
-    border-radius: 3px;
-    border-left: 3px solid #d1cac6;
-}
-
-.style-item strong {
-    color: #4A4444;
-    font-size: 10.5px;
-}
-
-.style-details {
-    margin-top: 4px;
-    padding-left: 8px;
-    border-left: 2px solid #e0e0e0;
-}
-
-.style-rule {
-    font-family: monospace;
-    font-size: 10px;
-    color: #6D6A67;
-    margin-bottom: 2px;
-    word-break: break-all;
+    max-width: calc(100% - 24px);
+    /* 为竖向按钮留出空间 */
+    min-height: 40px;
 }

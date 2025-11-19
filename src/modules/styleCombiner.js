@@ -327,12 +327,12 @@ export function getCombinedCustomStyles(moduleConfig, variableName = null) {
 }
 
 /**
- * 将组合后的自定义样式插入到指定的details元素内部
- * @param {string} selector CSS选择器，默认为'details.bottom-summary'
+ * 将组合后的自定义样式插入到指定的模块内容容器中
+ * @param {string} selector CSS选择器，默认为'.modules-content-container'
  * @param {Object} moduleConfig 模块配置对象
  * @param {string} variableName 变量名称（可选）
  */
-export function insertCombinedStylesToDetails(selector = 'details.bottom-summary', moduleConfig, variableName = null) {
+export function insertCombinedStylesToDetails(selector = '.modules-content-container', moduleConfig, variableName = null) {
     try {
         debugLog('[CUSTOM STYLES] insertCombinedStylesToDetails被调用');
         debugLog('[CUSTOM STYLES] 选择器:', selector);
@@ -352,14 +352,14 @@ export function insertCombinedStylesToDetails(selector = 'details.bottom-summary
             return;
         }
 
-        // 查找目标details元素
-        const detailsElement = document.querySelector(selector);
-        if (!detailsElement) {
+        // 查找目标模块内容容器
+        const contentContainer = document.querySelector(selector);
+        if (!contentContainer) {
             errorLog('插入组合样式失败：未找到目标元素，选择器:', selector);
             return;
         }
 
-        debugLog('[CUSTOM STYLES] 找到目标元素:', detailsElement);
+        debugLog('[CUSTOM STYLES] 找到目标元素:', contentContainer);
 
         // 创建样式容器
         const styleContainer = document.createElement('div');
@@ -368,12 +368,12 @@ export function insertCombinedStylesToDetails(selector = 'details.bottom-summary
         // 直接插入原始样式内容
         styleContainer.innerHTML = rawStyles;
 
-        // 插入到details元素内部（在summary之后）
-        detailsElement.appendChild(styleContainer);
+        // 插入到模块内容容器内部
+        contentContainer.appendChild(styleContainer);
 
-        debugLog('[CUSTOM STYLES] 自定义样式已插入到details元素内部');
+        debugLog('[CUSTOM STYLES] 自定义样式已插入到模块内容容器内部');
     } catch (error) {
-        errorLog('插入组合样式到details元素失败:', error);
+        errorLog('插入组合样式到模块内容容器失败:', error);
     }
 }
 
