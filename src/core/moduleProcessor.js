@@ -1247,9 +1247,13 @@ export class ModuleProcessor {
      * 统一处理模块数据（支持多选）
      * @param {Object} extractParams 提取参数对象，包含startIndex, endIndex, moduleFilters
      * @param {string} processType 处理类型：'extract' | 'processed' | 'incremental' | 'full' | 'auto'
-     * @param {Array} selectedModuleNames 选中的模块名数组
+     * @param {Array} selectedModuleNames 选中的模块名数组，用于在处理阶段过滤已提取的模块
      * @param {boolean} showProcessInfo 是否显示处理方式说明，默认为true
      * @returns {Object} 包含处理结果和显示信息的对象
+     *
+     * 注意：extractParams.moduleFilters和selectedModuleNames的区别：
+     * - moduleFilters: 在提取阶段使用，是一个包含{name, compatibleModuleNames}的数组，用于从聊天记录中过滤出特定类型的模块
+     * - selectedModuleNames: 在处理阶段使用，是一个字符串数组，只包含模块名，用于从已提取的模块中选择需要处理的模块
      */
     processModuleData(extractParams, processType, selectedModuleNames, showProcessInfo = true) {
         try {
@@ -1260,7 +1264,41 @@ export class ModuleProcessor {
                 throw new Error('提取参数无效');
             }
 
-            const { startIndex, endIndex, moduleFilters } = extractParams;
+            let { startIndex, endIndex, moduleFilters } = extractParams;
+
+            // 添加所有激活了时间参考标准的模块到moduleFilters中
+            const modulesData = getModulesData();
+            if (modulesData && Array.isArray(modulesData)) {
+                // 创建一个Set来存储所有需要包含的模块名，避免重复
+                const modulesToInclude = new Set();
+
+                // 首先添加原有的moduleFilters中的模块
+                if (moduleFilters && Array.isArray(moduleFilters)) {
+                    moduleFilters.forEach(filter => {
+                        modulesToInclude.add(filter.name);
+                    });
+                } else {
+                    moduleFilters = [];
+                }
+
+                // 添加所有激活了时间参考标准的模块
+                modulesData.forEach(module => {
+                    if (module.timeReferenceStandard) {
+                        modulesToInclude.add(module.name);
+                    }
+                });
+
+                // 更新moduleFilters，确保包含所有需要的模块
+                modulesToInclude.forEach(moduleName => {
+                    const moduleData = modulesData.find(m => m.name === moduleName);
+                    if (moduleData && !moduleFilters.some(f => f.name === moduleName)) {
+                        moduleFilters.push({
+                            name: moduleName,
+                            compatibleModuleNames: moduleData.compatibleModuleNames || []
+                        });
+                    }
+                });
+            }
 
             // 提取模块数据
             const rawModules = this.extractModules(startIndex, endIndex, moduleFilters);

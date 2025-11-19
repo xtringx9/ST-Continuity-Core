@@ -290,7 +290,7 @@ export function insertUItoContextBottom() {
                                             if (contentContainer) {
                                                 const moduleDataElement = document.createElement('div');
                                                 moduleDataElement.className = 'module-data-container';
-                                                moduleDataElement.innerHTML = `<details class="module-data"><summary>${moduleConfig.name}</summary>${processedData}</details>`;
+                                                moduleDataElement.innerHTML = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name}</summary>${processedData}</details>`;
                                                 contentContainer.appendChild(moduleDataElement);
                                                 debugLog(`模块 ${moduleConfig.name} 的数据已插入到模块内容容器`);
                                             }
