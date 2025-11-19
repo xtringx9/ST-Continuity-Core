@@ -363,7 +363,7 @@ export function normalizeConfig(config) {
             itemMax: typeof module.itemMax === 'number' ? module.itemMax : 1,
             compatibleModuleNames: module.compatibleModuleNames || '',
             timeReferenceStandard: module.timeReferenceStandard || false,
-            retainLayers: typeof module.retainLayers === 'number' ? module.retainLayers : -1,
+            retainLayers: module.retainLayers !== undefined ? Number(module.retainLayers) : -1,
             customStyles: module.customStyles || '',
             variables: []
         }));

@@ -108,7 +108,7 @@ export function collectModuleDataFromUI(moduleElement, index = 0) {
         outputPosition: moduleElement.find('.module-output-position').val() || 'after_body',
         positionPrompt: moduleElement.find('.module-position-prompt').val() || '',
         outputMode: moduleElement.find('.module-output-mode').val() || 'full',
-        retainLayers: parseInt(moduleElement.find('.module-retain-layers').val()) || -1,
+        retainLayers: !isNaN(parseInt(moduleElement.find('.module-retain-layers').val())) ? parseInt(moduleElement.find('.module-retain-layers').val()) : -1,
         compatibleModuleNames: moduleElement.find('.module-compatible-names').val() || '',
         timeReferenceStandard: moduleElement.find('.module-time-reference-standard').val() === 'true' || false,
         customStyles: moduleElement.find('.module-custom-styles').val() || '',
