@@ -323,7 +323,7 @@ export function getCombinedCustomStyles(moduleConfig, variableName = null, modul
             rawStyles = moduleConfig.customStyles || '';
         }
 
-        debugLog('[CUSTOM STYLES] 获取到的原始自定义样式:', rawStyles);
+        // debugLog('[CUSTOM STYLES] 获取到的原始自定义样式:', rawStyles);
 
         // 如果有模块数据，进行变量替换
         if (rawStyles && (moduleConfig || moduleData)) {
@@ -334,7 +334,7 @@ export function getCombinedCustomStyles(moduleConfig, variableName = null, modul
             rawStyles = replaceVariablesInStyles(rawStyles, moduleConfig, moduleData);
         }
 
-        debugLog('[CUSTOM STYLES] 处理后的自定义样式:', rawStyles);
+        // debugLog('[CUSTOM STYLES] 处理后的自定义样式:', rawStyles);
         return rawStyles;
     } catch (error) {
         errorLog('获取组合样式失败:', error);
@@ -379,7 +379,7 @@ export function generateStylesForModuleEntries(moduleEntries) {
         });
 
         const combinedStyles = allStyles.join('\n');
-        debugLog('[CUSTOM STYLES] 生成的所有模块样式:', combinedStyles);
+        // debugLog('[CUSTOM STYLES] 生成的所有模块样式:', combinedStyles);
         return combinedStyles;
     } catch (error) {
         errorLog('为模块条目生成样式失败:', error);
@@ -432,7 +432,7 @@ export function processContainerStyles(containerConfig, moduleEntries) {
             }
         }
 
-        debugLog('[CUSTOM STYLES] 最终的组合样式:', finalStyles);
+        // debugLog('[CUSTOM STYLES] 最终的组合样式:', finalStyles);
         return finalStyles;
     } catch (error) {
         errorLog('处理容器样式失败:', error);
@@ -633,7 +633,7 @@ export function insertCombinedStylesToDetails(selector = '.modules-content-conta
         // processContainerStyles内部会处理空模块条目的情况
         finalStyles = processContainerStyles(moduleConfig, moduleEntries);
 
-        debugLog('[CUSTOM STYLES] 处理后的最终样式:', finalStyles);
+        // debugLog('[CUSTOM STYLES] 处理后的最终样式:', finalStyles);
         return finalStyles;
     } catch (error) {
         errorLog('插入样式失败:', error);
