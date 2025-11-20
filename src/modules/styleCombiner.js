@@ -415,7 +415,8 @@ export function processContainerStyles(containerConfig, moduleEntries) {
             // 先处理嵌套的customStyles引用
             processedContainerStyles = resolveNestedCustomStyles(processedContainerStyles, containerConfig, moduleEntries);
             // 再处理其他变量替换（包括${count}/${length}）
-            processedContainerStyles = replaceVariablesInStyles(processedContainerStyles, containerConfig, moduleEntries);
+            // 传递isProcessingContainer=true，保留${customStyles}占位符
+            processedContainerStyles = replaceVariablesInStyles(processedContainerStyles, containerConfig, moduleEntries, true);
         }
 
         let finalStyles = '';
@@ -493,7 +494,7 @@ function resolveNestedCustomStyles(styles, moduleConfig, moduleData) {
  * @param {Object} moduleData 模块数据对象
  * @returns {string} 替换后的样式字符串
  */
-function replaceVariablesInStyles(styles, moduleConfig, moduleData) {
+function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessingContainer = false) {
     // 查找${variablePath}格式的变量引用
     const variableRegex = /\$\{([^}]+)\}/g;
 
@@ -513,12 +514,17 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData) {
     }
 
     return styles.replace(variableRegex, (match, variablePath) => {
-        // 特殊处理${customStyles}，用于在容器样式中引用模块级样式
+        // 特殊处理${customStyles}
         if (variablePath === 'customStyles') {
-            // 获取模块级的自定义样式
-            const moduleStyles = moduleConfig.customStyles || '';
-            // 递归处理模块级样式中的变量
-            return replaceVariablesInStyles(moduleStyles, moduleConfig, moduleData);
+            // 如果是处理容器样式，保留${customStyles}占位符，供后续注入所有模块条目样式
+            if (isProcessingContainer) {
+                return match; // 保留${customStyles}占位符
+            } else {
+                // 否则获取模块级的自定义样式
+                const moduleStyles = moduleConfig.customStyles || '';
+                // 递归处理模块级样式中的变量
+                return replaceVariablesInStyles(moduleStyles, moduleConfig, moduleData);
+            }
         }
 
         // 处理${count}和${length}变量
@@ -613,15 +619,19 @@ export function insertCombinedStylesToDetails(selector = '.modules-content-conta
                 moduleConfig: moduleConfig,  // 传递模块配置给每个条目
                 moduleData: data.moduleData || data  // 优先使用条目下的moduleData字段
             }));
+        } else if (moduleData) {
+            // 如果有单条模块数据，创建一个包含单一条目的数组
+            debugLog('[CUSTOM STYLES] 单条目模块数据:', moduleData);
+            moduleEntries = [{
+                moduleName: moduleConfig.name || moduleConfig.id || 'unknown',
+                moduleConfig: moduleConfig,
+                moduleData: moduleData
+            }];
         }
 
-        if (moduleEntries.length > 0) {
-            // 处理容器样式并注入模块条目样式
-            finalStyles = processContainerStyles(moduleConfig, moduleEntries);
-        } else {
-            // 没有模块数据，只处理自定义样式
-            finalStyles = getCombinedCustomStyles(moduleConfig, variableName, moduleData);
-        }
+        // 统一处理：无论是否有模块条目，都调用processContainerStyles
+        // processContainerStyles内部会处理空模块条目的情况
+        finalStyles = processContainerStyles(moduleConfig, moduleEntries);
 
         debugLog('[CUSTOM STYLES] 处理后的最终样式:', finalStyles);
         return finalStyles;
