@@ -1315,38 +1315,41 @@ export class ModuleProcessor {
 
             let { startIndex, endIndex, moduleFilters } = extractParams;
 
-            // 添加所有激活了时间参考标准的模块到moduleFilters中
-            const modulesData = getModulesData();
-            if (modulesData && Array.isArray(modulesData)) {
-                // 创建一个Set来存储所有需要包含的模块名，避免重复
-                const modulesToInclude = new Set();
+            // 如果moduleFilters为null，则加载全部模块，不需要添加时间标准模块
+            if (moduleFilters !== null) {
+                // 添加所有激活了时间参考标准的模块到moduleFilters中
+                const modulesData = getModulesData();
+                if (modulesData && Array.isArray(modulesData)) {
+                    // 创建一个Set来存储所有需要包含的模块名，避免重复
+                    const modulesToInclude = new Set();
 
-                // 首先添加原有的moduleFilters中的模块
-                if (moduleFilters && Array.isArray(moduleFilters)) {
-                    moduleFilters.forEach(filter => {
-                        modulesToInclude.add(filter.name);
-                    });
-                } else {
-                    moduleFilters = [];
-                }
-
-                // 添加所有激活了时间参考标准的模块
-                modulesData.forEach(module => {
-                    if (module.timeReferenceStandard) {
-                        modulesToInclude.add(module.name);
-                    }
-                });
-
-                // 更新moduleFilters，确保包含所有需要的模块
-                modulesToInclude.forEach(moduleName => {
-                    const moduleData = modulesData.find(m => m.name === moduleName);
-                    if (moduleData && !moduleFilters.some(f => f.name === moduleName)) {
-                        moduleFilters.push({
-                            name: moduleName,
-                            compatibleModuleNames: moduleData.compatibleModuleNames || []
+                    // 首先添加原有的moduleFilters中的模块
+                    if (moduleFilters && Array.isArray(moduleFilters)) {
+                        moduleFilters.forEach(filter => {
+                            modulesToInclude.add(filter.name);
                         });
+                    } else {
+                        moduleFilters = [];
                     }
-                });
+
+                    // 添加所有激活了时间参考标准的模块
+                    modulesData.forEach(module => {
+                        if (module.timeReferenceStandard) {
+                            modulesToInclude.add(module.name);
+                        }
+                    });
+
+                    // 更新moduleFilters，确保包含所有需要的模块
+                    modulesToInclude.forEach(moduleName => {
+                        const moduleData = modulesData.find(m => m.name === moduleName);
+                        if (moduleData && !moduleFilters.some(f => f.name === moduleName)) {
+                            moduleFilters.push({
+                                name: moduleName,
+                                compatibleModuleNames: moduleData.compatibleModuleNames || []
+                            });
+                        }
+                    });
+                }
             }
 
             // 提取模块数据
