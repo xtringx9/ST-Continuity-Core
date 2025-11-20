@@ -409,14 +409,23 @@ export function processContainerStyles(containerConfig, moduleEntries) {
         // 生成所有模块条目的样式
         const moduleStyles = generateStylesForModuleEntries(moduleEntries);
 
+        // 处理容器样式中的变量替换（包括${count}/${length}）
+        let processedContainerStyles = containerStyles;
+        if (containerStyles) {
+            // 先处理嵌套的customStyles引用
+            processedContainerStyles = resolveNestedCustomStyles(processedContainerStyles, containerConfig, moduleEntries);
+            // 再处理其他变量替换（包括${count}/${length}）
+            processedContainerStyles = replaceVariablesInStyles(processedContainerStyles, containerConfig, moduleEntries);
+        }
+
         let finalStyles = '';
 
-        if (containerStyles.includes('${customStyles}')) {
+        if (processedContainerStyles.includes('${customStyles}')) {
             // 如果containerStyles内部有${customStyles}，则注入处理后的样式
-            finalStyles = containerStyles.replace('${customStyles}', moduleStyles);
+            finalStyles = processedContainerStyles.replace('${customStyles}', moduleStyles);
         } else {
             // 否则将处理后的样式添加到containerStyles下方
-            finalStyles = containerStyles;
+            finalStyles = processedContainerStyles;
             if (moduleStyles) {
                 finalStyles += '\n' + moduleStyles;
             }
@@ -488,6 +497,21 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData) {
     // 查找${variablePath}格式的变量引用
     const variableRegex = /\$\{([^}]+)\}/g;
 
+    // 计算模块条目数量（用于${count}和${length}变量）
+    let entryCount = 0;
+    // 检查moduleData中是否有模块条目信息
+    if (moduleData && moduleConfig && moduleData[moduleConfig.name] && moduleData[moduleConfig.name].data && Array.isArray(moduleData[moduleConfig.name].data)) {
+        entryCount = moduleData[moduleConfig.name].data.length;
+    }
+    // 检查moduleConfig中是否已经包含count或length（从processContainerStyles传递）
+    else if (moduleConfig && (moduleConfig.count !== undefined || moduleConfig.length !== undefined)) {
+        entryCount = moduleConfig.count || moduleConfig.length || 0;
+    }
+    // 检查moduleData是否直接是数组（用于直接传递模块条目的情况）
+    else if (Array.isArray(moduleData)) {
+        entryCount = moduleData.length;
+    }
+
     return styles.replace(variableRegex, (match, variablePath) => {
         // 特殊处理${customStyles}，用于在容器样式中引用模块级样式
         if (variablePath === 'customStyles') {
@@ -495,6 +519,11 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData) {
             const moduleStyles = moduleConfig.customStyles || '';
             // 递归处理模块级样式中的变量
             return replaceVariablesInStyles(moduleStyles, moduleConfig, moduleData);
+        }
+
+        // 处理${count}和${length}变量
+        if (variablePath === 'count' || variablePath === 'length') {
+            return String(entryCount);
         }
 
         // 处理模块级别的简单变量，如${name}
@@ -511,22 +540,32 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData) {
             if (targetVariable) {
                 // 特殊处理${id.value}，从模块数据中获取值
                 if (propName === 'value' && moduleData) {
+                    // 处理moduleData是数组的情况（如从processContainerStyles传递的moduleEntries）
+                    if (Array.isArray(moduleData)) {
+                        // 在容器样式中使用变量.value时，尝试从模块配置的默认值获取
+                        // 或者返回空字符串（因为容器样式是统一的，无法为每个条目单独设置）
+                        return String(targetVariable.defaultValue || '');
+                    }
                     // 首先尝试从moduleData.variables获取（支持标准模块数据结构）
-                    if (moduleData.variables && moduleData.variables[varName] !== undefined) {
+                    else if (moduleData.variables && moduleData.variables[varName] !== undefined) {
                         return String(moduleData.variables[varName]);
                     }
-                    // 然后尝试直接从moduleData获取（支持旧版数据结构）
-                    else if (moduleData[varName] !== undefined) {
-                        return String(moduleData[varName]);
-                    }
-                    // 最后尝试从moduleData.moduleData获取（支持结构化模块条目）
-                    else if (moduleData.moduleData && moduleData.moduleData[varName] !== undefined) {
-                        return String(moduleData.moduleData[varName]);
-                    }
-                    // 还可以从moduleData.variables.variables获取（处理多层嵌套的情况）
-                    else if (moduleData.variables && moduleData.variables.variables && moduleData.variables.variables[varName] !== undefined) {
-                        return String(moduleData.variables.variables[varName]);
-                    }
+                    // // 然后尝试直接从moduleData获取（支持旧版数据结构）
+                    // else if (moduleData[varName] !== undefined) {
+                    //     return String(moduleData[varName]);
+                    // }
+                    // // 最后尝试从moduleData.moduleData获取（支持结构化模块条目）
+                    // else if (moduleData.moduleData && moduleData.moduleData[varName] !== undefined) {
+                    //     return String(moduleData.moduleData[varName]);
+                    // }
+                    // // 还可以从moduleData.variables.variables获取（处理多层嵌套的情况）
+                    // else if (moduleData.variables && moduleData.variables.variables && moduleData.variables.variables[varName] !== undefined) {
+                    //     return String(moduleData.variables.variables[varName]);
+                    // }
+                    // // 尝试从moduleData的默认结构获取
+                    // else if (moduleData[moduleConfig.name] && moduleData[moduleConfig.name].variables && moduleData[moduleConfig.name].variables[varName] !== undefined) {
+                    //     return String(moduleData[moduleConfig.name].variables[varName]);
+                    // }
                 }
                 // 处理其他属性，如${id.name}
                 else if (targetVariable[propName] !== undefined) {
@@ -571,7 +610,7 @@ export function insertCombinedStylesToDetails(selector = '.modules-content-conta
             isMultiEntry = true;
             moduleEntries = moduleData[moduleConfig.name].data.map(data => ({
                 moduleName: data.moduleName || moduleConfig.name || moduleConfig.id || 'unknown',
-                moduleConfig: data.moduleConfig || moduleConfig,  // 优先使用条目自身的配置
+                moduleConfig: moduleConfig,  // 传递模块配置给每个条目
                 moduleData: data.moduleData || data  // 优先使用条目下的moduleData字段
             }));
         }
