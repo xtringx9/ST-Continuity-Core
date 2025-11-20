@@ -113,7 +113,7 @@ details.bottom-summary[open]>.summary-title::before {
 
 .module-data {
     color: #495057;
-    white-space: pre-wrap;
+    /* white-space: pre-wrap; */
     word-wrap: break-word;
 }
 
