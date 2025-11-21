@@ -9,7 +9,7 @@ import {
     infoLog,
     extension_settings,
     extensionName,
-    initContextBottomUI,
+    // initContextBottomUI,
     insertUItoContextBottom
 } from "./src/index.js";
 
@@ -31,21 +31,18 @@ jQuery(async function () {
     // 总是加载设置面板（即使插件禁用，也需要让用户能重新启用）
     await loadSettingsPanel();
 
-    // 创建事件处理器实例
-    window.continuityEventHandler = new EventHandler();
+    // // 创建事件处理器实例
+    // window.continuityEventHandler = new EventHandler();
 
-    // 初始化事件处理器（一次性注册所有事件）
-    window.continuityEventHandler.initialize();
-    infoLog("Continuity Core 事件监听器已注册（事件处理器模式）");
+    // // 初始化事件处理器（一次性注册所有事件）
+    // window.continuityEventHandler.initialize();
+    // infoLog("Continuity Core 事件监听器已注册（事件处理器模式）");
+
+    const eventHandler = new EventHandler();
 
     // 总是注册宏到SillyTavern系统（无论插件是否启用）
     // 这样插件重新启用时不会出现重复注册问题
     const macrosRegistered = registerMacros();
-    if (macrosRegistered) {
-        infoLog("Continuity Core 宏已成功注册（一次性注册模式）");
-    } else {
-        infoLog("Continuity Core 宏注册失败，但插件将继续运行");
-    }
 
     // 检查全局开关状态
     if (!settings.enabled) {
@@ -62,14 +59,14 @@ jQuery(async function () {
     // 创建FAB菜单
     createFabMenu();
 
-    // 直接创建或重新初始化实例
-    if (!window.continuityPromptInjector) {
-        window.continuityPromptInjector = new PromptInjector();
-    }
-    window.continuityPromptInjector.initialize();
-    infoLog("Continuity Core 提示词注入管理器已初始化");
+    // // 直接创建或重新初始化实例
+    // if (!window.continuityPromptInjector) {
+    //     window.continuityPromptInjector = new PromptInjector();
+    // }
+    // window.continuityPromptInjector.initialize();
+    // infoLog("Continuity Core 提示词注入管理器已初始化");
 
-    // 初始化上下文底部UI
-    initContextBottomUI();
+    // // 初始化上下文底部UI
+    // initContextBottomUI();
     infoLog("Continuity Core 上下文底部UI已初始化");
 });

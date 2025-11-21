@@ -5,16 +5,37 @@
 
 // 导入外部依赖
 import { extension_settings, loadExtensionSettings, getContext, getApiUrl } from '../../../../extensions.js';
-import { chat, saveSettingsDebounced, eventSource, event_types } from '../../../../../script.js';
+import { chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid } from '../../../../../script.js';
+import { uuidv4 } from '../../../../utils.js';
+import {
+    world_info,
+    world_names,
+    selected_world_info,
+    createNewWorldInfo,
+    createWorldInfoEntry, newWorldInfoEntryTemplate,
+    getWorldInfoSettings,
+    worldInfoCache,
+    onWorldInfoChange, convertCharacterBook, getWorldInfoPrompt, loadWorldInfo, reloadEditor, saveWorldInfo, updateWorldInfoList
+} from '../../../../world-info.js';
 
 // 导入核心模块
 import { extensionName, defaultSettings } from './core/config.js';
-import { initializeSettings, onEnabledToggle, updateExtensionUIState } from './core/settingsManager.js';
+import { initializeSettings, onEnabledToggle, updateExtensionUIState, isExtensionEnabled } from './core/settingsManager.js';
 import { EventHandler } from './core/eventHandler.js';
 import { PromptInjector } from './core/promptInjector.js';
 
 // 导出外部依赖
-export { extension_settings, loadExtensionSettings, chat, saveSettingsDebounced, eventSource, event_types };
+export { uuidv4, extension_settings, loadExtensionSettings, getContext, getApiUrl, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid };
+export {
+    world_info,
+    world_names,
+    selected_world_info,
+    createNewWorldInfo,
+    createWorldInfoEntry, newWorldInfoEntryTemplate,
+    getWorldInfoSettings,
+    worldInfoCache,
+    onWorldInfoChange, convertCharacterBook, getWorldInfoPrompt, loadWorldInfo, reloadEditor, saveWorldInfo, updateWorldInfoList
+};
 
 // 导出核心模块
 export { extensionName, extensionFolderPath, defaultSettings } from './core/config.js';
@@ -32,6 +53,7 @@ export {
     onFormatDescriptionChange,
     updateInjectionSettingsVisibility,
     updateExtensionUIState,
+    isExtensionEnabled
 } from './core/settingsManager.js';
 
 // 导出UI管理模块
@@ -167,8 +189,12 @@ export {
     insertUItoContextBottom,
     removeUIfromContextBottom,
     updateContextBottomUI,
-    initContextBottomUI,
+    // initContextBottomUI,
     isInChatPage,
     hasValidMessageContainer,
-    checkPageStateAndInsertUI
+    checkPageStateAndInsertUI,
+    UpdateUI
 } from './core/contextBottomUI.js';
+
+export { checkAndInitializeWorldBook } from './utils/worldBookUtils.js';
+export { registerContinuityRegexPattern } from './utils/regexUtils.js';
