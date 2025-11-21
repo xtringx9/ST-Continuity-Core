@@ -34,7 +34,7 @@ export function getContinuityPrompt() {
         }
 
         // 生成正式提示词
-        const prompt = generateFormalPrompt(modulesData);
+        const prompt = generateFormalPrompt();
 
         // 替换提示词中的变量
         const replacedPrompt = replaceVariables(prompt);
@@ -363,7 +363,7 @@ function getOutputModePrompt(module) {
     }
 }
 
-import { getContext } from '/scripts/extensions.js';
+import { getContext } from '../../../../../extensions.js';
 
 /**
  * 注册所有宏到SillyTavern系统

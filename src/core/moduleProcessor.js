@@ -1534,7 +1534,7 @@ export class ModuleProcessor {
 
             // 调试日志：输出模块配置和保留层数
             debugLog(`处理模块：${moduleName}`);
-            debugLog(`模块配置：${JSON.stringify(moduleConfig)}`);
+            // debugLog(`模块配置：${JSON.stringify(moduleConfig)}`);
 
             // 获取retainLayers值（默认为-1，表示无限）
             const retainLayers = moduleConfig.retainLayers === undefined ? -1 : parseInt(moduleConfig.retainLayers, 10);
