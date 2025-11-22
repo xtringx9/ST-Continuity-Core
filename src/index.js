@@ -17,6 +17,7 @@ import {
     worldInfoCache,
     onWorldInfoChange, convertCharacterBook, getWorldInfoPrompt, loadWorldInfo, reloadEditor, saveWorldInfo, updateWorldInfoList
 } from '../../../../world-info.js';
+import { getRegexScripts, saveScriptsByType, SCRIPT_TYPES } from '../../../regex/engine.js';
 
 // 导入核心模块
 import { extensionName, defaultSettings } from './core/config.js';
@@ -25,7 +26,7 @@ import { EventHandler } from './core/eventHandler.js';
 import { PromptInjector } from './core/promptInjector.js';
 
 // 导出外部依赖
-export { uuidv4, extension_settings, loadExtensionSettings, getContext, getApiUrl, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid };
+export { getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4, extension_settings, loadExtensionSettings, getContext, getApiUrl, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid };
 export {
     world_info,
     world_names,

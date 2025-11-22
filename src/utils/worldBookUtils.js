@@ -21,52 +21,6 @@ import {
     reloadEditor,
 } from '../index.js';
 
-/**
- * 世界书工具类
- */
-// export class WorldBookUtils {
-//     constructor() {
-//         this.isInitialized = false;
-//     }
-
-/**
- * 初始化世界书集成
- * 检查world_names中是否有测试世界书名，无则创建世界书，有则通过loadWorldInfo获取世界书条目，
- * 检查是否有测试条目，无则创建，并最终调用saveWorldInfo保存
- */
-// initializeWorldBookIntegration(eventSource, event_types) {
-// try {
-//     // 检查世界书系统函数是否可用（简化检查）
-//     if (!loadWorldInfo || !saveWorldInfo || !createNewWorldInfo) {
-//         errorLog('世界书系统函数未完全加载，延迟初始化');
-//         // 延迟重试
-//         setTimeout(() => {
-//             this.initializeWorldBookIntegration(eventSource, event_types);
-//         }, 2000);
-//         return;
-//     }
-
-//     // 监听世界书设置加载事件
-//     if (eventSource && eventSource.on) {
-//         eventSource.on(event_types.EXTENSION_SETTINGS_LOADED, () => {
-//             debugLog('世界书扩展设置已加载，初始化世界书集成');
-//             setTimeout(() => {
-//                 this.checkAndInitializeWorldBook();
-//             }, 500);
-//         });
-//     }
-
-//     // 立即尝试初始化（如果系统已经就绪）
-//     setTimeout(() => {
-//         this.checkAndInitializeWorldBook();
-//     }, 3000);
-
-//     this.isInitialized = true;
-//     infoLog('世界书集成初始化完成');
-// } catch (error) {
-//     errorLog('初始化世界书集成失败:', error);
-// }
-// }
 
 /**
  * 检查并初始化世界书和测试条目
@@ -232,13 +186,3 @@ async function createTestEntry(worldBookName, worldBookData) {
         return null;
     }
 }
-
-// /**
-//  * 销毁世界书工具
-//  */
-// function destroy() {
-//     this.isInitialized = false;
-//     infoLog('世界书工具已销毁');
-// }
-// }
-
