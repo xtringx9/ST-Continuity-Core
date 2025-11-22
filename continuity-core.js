@@ -31,13 +31,6 @@ jQuery(async function () {
     // 总是加载设置面板（即使插件禁用，也需要让用户能重新启用）
     await loadSettingsPanel();
 
-    // // 创建事件处理器实例
-    // window.continuityEventHandler = new EventHandler();
-
-    // // 初始化事件处理器（一次性注册所有事件）
-    // window.continuityEventHandler.initialize();
-    // infoLog("Continuity Core 事件监听器已注册（事件处理器模式）");
-
     const eventHandler = new EventHandler();
 
     // 总是注册宏到SillyTavern系统（无论插件是否启用）
