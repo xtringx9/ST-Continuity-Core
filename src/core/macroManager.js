@@ -16,12 +16,12 @@ import { replaceVariables } from '../utils/variableReplacer.js';
  */
 export function getContinuityPrompt() {
     try {
-        debugLog("宏管理器: 获取连续性提示词");
+        debugLog("[Macro]宏管理器: 获取连续性提示词");
 
         // 检查全局开关状态
         const settings = extension_settings[extensionName];
         if (!settings || !settings.enabled) {
-            debugLog("宏管理器: 全局开关已关闭，返回空提示词");
+            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空提示词");
             return "";
         }
 
@@ -29,7 +29,7 @@ export function getContinuityPrompt() {
         const modulesData = getModulesData();
 
         if (!modulesData || modulesData.length === 0) {
-            debugLog("宏管理器: 未找到模块数据，返回空提示词");
+            debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
             return "";
         }
 
@@ -39,10 +39,10 @@ export function getContinuityPrompt() {
         // 替换提示词中的变量
         const replacedPrompt = replaceVariables(prompt);
 
-        debugLog("宏管理器: 成功生成并替换变量后的连续性提示词");
+        debugLog("[Macro]宏管理器: 成功生成并替换变量后的连续性提示词");
         return replacedPrompt;
     } catch (error) {
-        errorLog("宏管理器: 获取连续性提示词失败", error);
+        errorLog("[Macro]宏管理器: 获取连续性提示词失败", error);
         return "";
     }
 }
@@ -54,12 +54,12 @@ export function getContinuityPrompt() {
  */
 export function getContinuityConfig() {
     try {
-        debugLog("宏管理器: 获取模块配置数据");
+        debugLog("[Macro]宏管理器: 获取模块配置数据");
 
         // 检查全局开关状态
         const settings = extension_settings[extensionName];
         if (!settings || !settings.enabled) {
-            debugLog("宏管理器: 全局开关已关闭，返回空配置");
+            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空配置");
             return "";
         }
 
@@ -67,17 +67,17 @@ export function getContinuityConfig() {
         const modulesData = getModulesData();
 
         if (!modulesData || modulesData.length === 0) {
-            debugLog("宏管理器: 未找到模块数据，返回空配置");
+            debugLog("[Macro]宏管理器: 未找到模块数据，返回空配置");
             return "";
         }
 
         // 转换为JSON格式
         const configJson = JSON.stringify(modulesData, null, 2);
 
-        debugLog("宏管理器: 成功生成模块配置数据");
+        debugLog("[Macro]宏管理器: 成功生成模块配置数据");
         return configJson;
     } catch (error) {
-        errorLog("宏管理器: 获取模块配置数据失败", error);
+        errorLog("[Macro]宏管理器: 获取模块配置数据失败", error);
         return "";
     }
 }
@@ -89,12 +89,12 @@ export function getContinuityConfig() {
  */
 export function getContinuityModules() {
     try {
-        debugLog("宏管理器: 获取模块名称列表");
+        debugLog("[Macro]宏管理器: 获取模块名称列表");
 
         // 检查全局开关状态
         const settings = extension_settings[extensionName];
         if (!settings || !settings.enabled) {
-            debugLog("宏管理器: 全局开关已关闭，返回空列表");
+            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空列表");
             return "";
         }
 
@@ -102,17 +102,17 @@ export function getContinuityModules() {
         const modulesData = getModulesData();
 
         if (!modulesData || modulesData.length === 0) {
-            debugLog("宏管理器: 未找到模块数据，返回空列表");
+            debugLog("[Macro]宏管理器: 未找到模块数据，返回空列表");
             return "";
         }
 
         // 提取模块名称
         const moduleNames = modulesData.map(module => module.name).filter(name => name);
 
-        debugLog("宏管理器: 成功生成模块名称列表");
+        debugLog("[Macro]宏管理器: 成功生成模块名称列表");
         return moduleNames.join(", ");
     } catch (error) {
-        errorLog("宏管理器: 获取模块名称列表失败", error);
+        errorLog("[Macro]宏管理器: 获取模块名称列表失败", error);
         return "";
     }
 }
@@ -124,12 +124,12 @@ export function getContinuityModules() {
  */
 export function getContinuityUsageGuide() {
     try {
-        debugLog("宏管理器: 获取模块使用指导提示词");
+        debugLog("[Macro]宏管理器: 获取模块使用指导提示词");
 
         // 检查全局开关状态
         const settings = extension_settings[extensionName];
         if (!settings || !settings.enabled) {
-            debugLog("宏管理器: 全局开关已关闭，返回空提示词");
+            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空提示词");
             return "";
         }
 
@@ -137,7 +137,7 @@ export function getContinuityUsageGuide() {
         const modulesData = getModulesData();
 
         if (!modulesData || modulesData.length === 0) {
-            debugLog("宏管理器: 未找到模块数据，返回空提示词");
+            debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
             return "";
         }
 
@@ -149,7 +149,7 @@ export function getContinuityUsageGuide() {
         );
 
         if (modulesWithUsagePrompt.length === 0) {
-            debugLog("宏管理器: 没有使用提示词不为空的模块，返回空提示词");
+            debugLog("[Macro]宏管理器: 没有使用提示词不为空的模块，返回空提示词");
             return "";
         }
 
@@ -167,10 +167,10 @@ export function getContinuityUsageGuide() {
         // 替换提示词中的变量
         const replacedUsageGuide = replaceVariables(usageGuide.trim());
 
-        debugLog("宏管理器: 成功生成并替换变量后的模块使用指导提示词");
+        debugLog("[Macro]宏管理器: 成功生成并替换变量后的模块使用指导提示词");
         return replacedUsageGuide;
     } catch (error) {
-        errorLog("宏管理器: 获取模块使用指导提示词失败", error);
+        errorLog("[Macro]宏管理器: 获取模块使用指导提示词失败", error);
         return "";
     }
 }
@@ -182,12 +182,12 @@ export function getContinuityUsageGuide() {
  */
 export function getContinuityOrder() {
     try {
-        debugLog("宏管理器: 获取连续性顺序提示词");
+        debugLog("[Macro]宏管理器: 获取连续性顺序提示词");
 
         // 检查全局开关状态
         const settings = extension_settings[extensionName];
         if (!settings || !settings.enabled) {
-            debugLog("宏管理器: 全局开关已关闭，返回空提示词");
+            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空提示词");
             return "";
         }
 
@@ -195,7 +195,7 @@ export function getContinuityOrder() {
         const modulesData = getModulesData();
 
         if (!modulesData || modulesData.length === 0) {
-            debugLog("宏管理器: 未找到模块数据，返回空提示词");
+            debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
             return "";
         }
 
@@ -203,7 +203,7 @@ export function getContinuityOrder() {
         const enabledModules = modulesData.filter(module => module.enabled !== false);
 
         if (enabledModules.length === 0) {
-            debugLog("宏管理器: 没有启用的模块，返回空提示词");
+            debugLog("[Macro]宏管理器: 没有启用的模块，返回空提示词");
             return "";
         }
 
@@ -308,10 +308,10 @@ export function getContinuityOrder() {
         // 替换提示词中的变量
         const replacedOrderPrompt = replaceVariables(orderPrompt.trim());
 
-        debugLog("宏管理器: 成功生成并替换变量后的连续性顺序提示词");
+        debugLog("[Macro]宏管理器: 成功生成并替换变量后的连续性顺序提示词");
         return replacedOrderPrompt;
     } catch (error) {
-        errorLog("宏管理器: 获取连续性顺序提示词失败", error);
+        errorLog("[Macro]宏管理器: 获取连续性顺序提示词失败", error);
         return "";
     }
 }
@@ -371,7 +371,7 @@ import { getContext } from '../../../../../extensions.js';
  */
 export function registerMacros() {
     try {
-        debugLog("宏管理器: 开始注册宏");
+        debugLog("[Macro]宏管理器: 开始注册宏");
 
         // 使用SillyTavern扩展系统的标准方式获取上下文
         const context = getContext();
@@ -379,28 +379,28 @@ export function registerMacros() {
         if (context && typeof context.registerMacro === 'function') {
             // 注册宏
             context.registerMacro('CONTINUITY_PROMPT', getContinuityPrompt);
-            debugLog("宏管理器: 注册 {{CONTINUITY_PROMPT}} 宏");
+            debugLog("[Macro]宏管理器: 注册 {{CONTINUITY_PROMPT}} 宏");
 
-            context.registerMacro('CONTINUITY_CONFIG', getContinuityConfig);
-            debugLog("宏管理器: 注册 {{CONTINUITY_CONFIG}} 宏");
+            // context.registerMacro('CONTINUITY_CONFIG', getContinuityConfig);
+            // debugLog("[Macro]宏管理器: 注册 {{CONTINUITY_CONFIG}} 宏");
 
-            context.registerMacro('CONTINUITY_MODULES', getContinuityModules);
-            debugLog("宏管理器: 注册 {{CONTINUITY_MODULES}} 宏");
+            // context.registerMacro('CONTINUITY_MODULES', getContinuityModules);
+            // debugLog("[Macro]宏管理器: 注册 {{CONTINUITY_MODULES}} 宏");
 
             context.registerMacro('CONTINUITY_ORDER', getContinuityOrder);
-            debugLog("宏管理器: 注册 {{CONTINUITY_ORDER}} 宏");
+            debugLog("[Macro]宏管理器: 注册 {{CONTINUITY_ORDER}} 宏");
 
             context.registerMacro('CONTINUITY_USAGE_GUIDE', getContinuityUsageGuide);
-            debugLog("宏管理器: 注册 {{CONTINUITY_USAGE_GUIDE}} 宏");
+            debugLog("[Macro]宏管理器: 注册 {{CONTINUITY_USAGE_GUIDE}} 宏");
 
-            infoLog("宏管理器: 成功注册所有宏");
+            infoLog("[Macro]宏管理器: 成功注册所有宏");
             return true;
         } else {
-            errorLog("宏管理器: 无法获取有效的上下文或registerMacro方法");
+            errorLog("[Macro]宏管理器: 无法获取有效的上下文或registerMacro方法");
             return false;
         }
     } catch (error) {
-        errorLog("宏管理器: 注册宏失败", error);
+        errorLog("[Macro]宏管理器: 注册宏失败", error);
         return false;
     }
 }
