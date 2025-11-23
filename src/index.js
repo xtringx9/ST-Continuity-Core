@@ -5,9 +5,12 @@
 
 // 导入外部依赖
 import { extension_settings, loadExtensionSettings, getContext, getApiUrl } from '../../../../extensions.js';
-import { chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid } from '../../../../../script.js';
-import { uuidv4 } from '../../../../utils.js';
 import {
+    chat_metadata, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid
+} from '../../../../../script.js';
+import { uuidv4, findChar } from '../../../../utils.js';
+import {
+    METADATA_KEY,
     world_info,
     world_names,
     selected_world_info,
@@ -20,8 +23,9 @@ import {
 import { getRegexScripts, saveScriptsByType, SCRIPT_TYPES } from '../../../regex/engine.js';
 
 // 导出外部依赖
-export { getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4, extension_settings, loadExtensionSettings, getContext, getApiUrl, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid };
+export { chat_metadata, findChar, getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4, extension_settings, loadExtensionSettings, getContext, getApiUrl, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid };
 export {
+    METADATA_KEY,
     world_info,
     world_names,
     selected_world_info,
@@ -177,7 +181,7 @@ export {
     UpdateUI
 } from './core/contextBottomUI.js';
 
-export { checkAndInitializeWorldBook } from './utils/worldBookUtils.js';
+export { checkAndInitializeWorldBook, getTestData, getCurrentCharBooks } from './utils/worldBookUtils.js';
 export { registerContinuityRegexPattern } from './utils/regexUtils.js';
 
 
