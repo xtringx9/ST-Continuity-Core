@@ -95,8 +95,8 @@ export function processExtractModules(rawModules, selectedModuleNames, returnStr
                 moduleName: moduleName,
                 identifier: module.identifier || '',
                 variables: variables,
-                raw: module.raw,
-                moduleConfig: null // 原生数据不包含模块配置
+                raw: module.raw
+                // 不再存储moduleConfig，需要时从configManager动态获取
             };
 
             return moduleData;
@@ -134,7 +134,11 @@ export function processProcessedModules(rawModules, selectedModuleNames, returnS
     if (returnString) {
         // 构建处理后的模块字符串
         const processedModules = filteredModules.map(module => {
-            if (!module.moduleConfig) {
+            // 动态获取模块配置
+            const modulesData = configManager.getModules() || [];
+            const moduleConfig = modulesData.find(config => config.name === module.moduleName);
+
+            if (!moduleConfig) {
                 // 没有模块配置，返回原始内容
                 return module.raw;
             }
@@ -143,7 +147,7 @@ export function processProcessedModules(rawModules, selectedModuleNames, returnS
             let moduleString = `[${module.moduleName}`;
 
             // 按照模块配置中的变量顺序添加变量
-            module.moduleConfig.variables.forEach(variable => {
+            moduleConfig.variables.forEach(variable => {
                 // 获取变量值
                 let varValue = module.variables[variable.name] || '';
 
@@ -164,8 +168,8 @@ export function processProcessedModules(rawModules, selectedModuleNames, returnS
                 moduleName: module.moduleName,
                 identifier: module.identifier || '',
                 variables: module.variables || {},
-                raw: module.raw,
-                moduleConfig: module.moduleConfig || null
+                raw: module.raw
+                // 不再存储moduleConfig，需要时从configManager动态获取
             };
 
             return moduleData;
@@ -256,8 +260,8 @@ export function normalizeModules(modules) {
                 ...module,
                 originalModuleName,
                 moduleName: moduleConfig.name, // 使用配置中的标准模块名
-                variables: normalizedVariables,
-                moduleConfig
+                variables: normalizedVariables
+                // 不再存储moduleConfig，需要时从configManager动态获取
             };
 
             normalizedModules.push(normalizedModule);
@@ -267,13 +271,14 @@ export function normalizeModules(modules) {
                 ...module,
                 originalModuleName,
                 moduleName: originalModuleName,
-                variables: originalVariables,
-                moduleConfig: null
+                variables: originalVariables
+                // 不再存储moduleConfig，需要时从configManager动态获取
             });
         }
     });
 
 
+    debugLog('[Module Processor] 初步标准化模块完成，模块:', normalizedModules);
 
     // 第二步：模块内容去重
     const deduplicatedModules = deduplicateModules(normalizedModules);
@@ -286,6 +291,8 @@ export function normalizeModules(modules) {
 
     // 第五步：智能补全id变量
     completeIdVariables(sortedModules);
+
+    debugLog('[Module Processor] 标准化模块完成，模块:', sortedModules);
 
     return sortedModules;
 }
@@ -719,9 +726,14 @@ export function sortModules(modules) {
         let aIdentifierValue = '';
         let isATimeIdentifier = false;
         let hasAValidIdentifier = false;
-        if (a.moduleConfig) {
+
+        // 动态获取模块A的配置
+        const modulesData = configManager.getModules() || [];
+        const aModuleConfig = modulesData.find(config => config.name === a.moduleName);
+
+        if (aModuleConfig) {
             // 检查是否有主标识符
-            const aPrimaryIdentifiers = a.moduleConfig.variables
+            const aPrimaryIdentifiers = aModuleConfig.variables
                 .filter(variable => variable.isMainIdentifier || variable.isIdentifier);
 
             if (aPrimaryIdentifiers.length > 0) {
@@ -743,7 +755,7 @@ export function sortModules(modules) {
                 } else {
                     // debugLog('[SortModules]', '模块A主标识符无值，尝试备用标识符');
                     // 主标识符没有值，尝试使用备用标识符
-                    const aBackupIdentifiers = a.moduleConfig.variables
+                    const aBackupIdentifiers = aModuleConfig.variables
                         .filter(variable => variable.isBackupIdentifier);
 
                     if (aBackupIdentifiers.length > 0) {
@@ -765,7 +777,7 @@ export function sortModules(modules) {
             } else {
                 // debugLog('[SortModules]', '模块A无主标识符，尝试备用标识符');
                 // 没有主标识符，尝试使用备用标识符
-                const aBackupIdentifiers = a.moduleConfig.variables
+                const aBackupIdentifiers = aModuleConfig.variables
                     .filter(variable => variable.isBackupIdentifier);
 
                 if (aBackupIdentifiers.length > 0) {
@@ -794,9 +806,13 @@ export function sortModules(modules) {
         let bIdentifierValue = '';
         let isBTimeIdentifier = false;
         let hasBValidIdentifier = false;
-        if (b.moduleConfig) {
+
+        // 动态获取模块B的配置
+        const bModuleConfig = modulesData.find(config => config.name === b.moduleName);
+
+        if (bModuleConfig) {
             // 检查是否有主标识符
-            const bPrimaryIdentifiers = b.moduleConfig.variables
+            const bPrimaryIdentifiers = bModuleConfig.variables
                 .filter(variable => variable.isMainIdentifier || variable.isIdentifier);
 
             if (bPrimaryIdentifiers.length > 0) {
@@ -818,7 +834,7 @@ export function sortModules(modules) {
                 } else {
                     // debugLog('[SortModules]', '模块B主标识符无值，尝试备用标识符');
                     // 主标识符没有值，尝试使用备用标识符
-                    const bBackupIdentifiers = b.moduleConfig.variables
+                    const bBackupIdentifiers = bModuleConfig.variables
                         .filter(variable => variable.isBackupIdentifier);
 
                     if (bBackupIdentifiers.length > 0) {
@@ -840,7 +856,7 @@ export function sortModules(modules) {
             } else {
                 // debugLog('[SortModules]', '模块B无主标识符，尝试备用标识符');
                 // 没有主标识符，尝试使用备用标识符
-                const bBackupIdentifiers = b.moduleConfig.variables
+                const bBackupIdentifiers = bModuleConfig.variables
                     .filter(variable => variable.isBackupIdentifier);
 
                 if (bBackupIdentifiers.length > 0) {
@@ -921,19 +937,25 @@ export function sortModules(modules) {
 export function groupModulesByIdentifier(modules) {
     const groups = {};
 
+    // 动态获取所有模块配置
+    const modulesData = configManager.getModules() || [];
+
     modules.forEach(module => {
         // 使用标准化后的模块名
         const moduleName = module.moduleName;
         let identifier = 'default';
 
-        if (module.moduleConfig) {
+        // 动态获取模块配置
+        const moduleConfig = modulesData.find(config => config.name === moduleName);
+
+        if (moduleConfig) {
             // 获取模块配置中的主标识符
-            const primaryIdentifiers = module.moduleConfig.variables
+            const primaryIdentifiers = moduleConfig.variables
                 .filter(variable => variable.isMainIdentifier || variable.isIdentifier)
                 .map(variable => variable.name);
 
             // 获取模块配置中的备用标识符
-            const backupIdentifiers = module.moduleConfig.variables
+            const backupIdentifiers = moduleConfig.variables
                 .filter(variable => variable.isBackupIdentifier)
                 .map(variable => variable.name);
 
@@ -1139,18 +1161,22 @@ export function completeIdVariables(modules) {
     Object.entries(moduleGroups).forEach(([moduleName, moduleList]) => {
         debugLog(`[IdCompletion] 处理模块组 ${moduleName}，包含 ${moduleList.length} 个模块`);
 
+        // 动态获取模块配置
+        const modulesData = configManager.getModules() || [];
+        const moduleConfig = modulesData.find(config => config.name === moduleName);
+
+        if (!moduleConfig) {
+            debugLog(`[IdCompletion] 模块 ${moduleName} 没有配置，跳过处理`);
+            return;
+        }
+
         // 检查该模块是否有id变量
-        const hasIdVariable = moduleList.some(module => {
-            return module.moduleConfig && module.moduleConfig.variables.some(variable => variable.name === 'id');
-        });
+        const hasIdVariable = moduleConfig.variables.some(variable => variable.name === 'id');
 
         if (!hasIdVariable) {
             debugLog(`[IdCompletion] 模块 ${moduleName} 没有id变量，跳过处理`);
             return;
         }
-
-        // 获取模块配置
-        const moduleConfig = moduleList[0].moduleConfig;
 
         // 获取备用标识符
         const backupIdentifiers = moduleConfig.variables
@@ -1283,8 +1309,12 @@ export function processExtractedModules(modules, selectedModuleNames) {
 
     // 构建处理后的模块字符串
     const processedModules = filteredModules.map(module => {
-        if (!module.moduleConfig) {
-            // 没有模块配置，返回原始内容
+        // 动态获取模块配置
+        const modulesData = configManager.getModules() || [];
+        const moduleConfig = modulesData.find(config => config.name === module.moduleName);
+
+        if (!moduleConfig) {
+            // 没有找到配置，返回原始内容
             return module.raw;
         }
 
@@ -1292,7 +1322,7 @@ export function processExtractedModules(modules, selectedModuleNames) {
         let moduleString = `[${module.moduleName}`;
 
         // 按照模块配置中的变量顺序添加变量
-        module.moduleConfig.variables.forEach(variable => {
+        moduleConfig.variables.forEach(variable => {
             // 获取变量值
             let varValue = module.variables[variable.name] || '';
 
@@ -1346,7 +1376,11 @@ export function processAutoModules(rawModules, selectedModuleNames, showModuleNa
 
     Object.keys(moduleGroups).forEach(moduleName => {
         const moduleGroup = moduleGroups[moduleName];
-        const moduleConfig = moduleGroup[0]?.moduleConfig;
+
+        // 动态获取模块配置
+        const modulesData = configManager.getModules() || [];
+        const moduleConfig = modulesData.find(config => config.name === moduleName);
+
         let processType = 'full';
         let resultData;
 
@@ -1462,8 +1496,9 @@ export function processIncrementalModules(modules) {
         if (!match) continue;
         const [, moduleName, identifier] = match;
 
-        // 获取模块配置
-        const moduleConfig = moduleList[0].moduleConfig;
+        // 动态获取模块配置
+        const modulesData = configManager.getModules() || [];
+        const moduleConfig = modulesData.find(config => config.name === moduleName);
 
         // 只处理outputMode为"incremental"的模块
         if (moduleConfig && moduleConfig.outputMode === 'incremental') {
@@ -1667,8 +1702,9 @@ export function processFullModules(modules) {
 
     // 处理每个模块名组
     for (const [moduleName, allModulesOfName] of Object.entries(modulesByModuleName)) {
-        // 获取模块配置
-        const moduleConfig = allModulesOfName[0]?.moduleConfig;
+        // 动态获取模块配置
+        const modulesData = configManager.getModules() || [];
+        const moduleConfig = modulesData.find(config => config.name === moduleName);
         if (!moduleConfig || moduleConfig.outputMode !== 'full') continue;
 
         // 调试日志：输出模块配置和保留层数
