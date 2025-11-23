@@ -31,8 +31,6 @@ import {
     initParseModule
 } from '../index.js';
 
-// 导入用于测试的extractModulesFromChat功能
-import { PromptInjector } from '../core/promptInjector.js';
 
 // 加载CSS文件
 function loadCSS() {

@@ -22,13 +22,14 @@ import {
     getContext,
     chat_metadata, findChar,
     this_chid,
-    METADATA_KEY
+    METADATA_KEY,
+    CONTINUITY_CORE_IDENTIFIER,
 } from '../index.js';
 
 // 世界书相关常量定义
 export const WORLD_BOOK_CONSTANTS = {
     // 世界书名称常量
-    worldBookName: '[CCore]',
+    worldBookName: CONTINUITY_CORE_IDENTIFIER,
 
     // 版本信息常量
     version: '1.0.0',
@@ -315,6 +316,19 @@ export async function getCurrentCharBooksEnabledEntries() {
         if (book.entries && typeof book.entries === 'object') {
             const entriesArray = Object.values(book.entries);
             enabledEntries.push(...entriesArray.filter(entry => !entry.disable));
+        }
+    }
+    return enabledEntries;
+}
+
+export async function getCurrentCharBooksModuleEntries() {
+    const booksData = await getCurrentCharBooks();
+    let enabledEntries = [];
+    for (const book of booksData) {
+        // book.entries 是一个对象 { [uid: number]: entry }，需要转换为数组
+        if (book.entries && typeof book.entries === 'object') {
+            const entriesArray = Object.values(book.entries);
+            enabledEntries.push(...entriesArray.filter(entry => entry.comment && entry.comment.includes(CONTINUITY_CORE_IDENTIFIER)));
         }
     }
     return enabledEntries;
