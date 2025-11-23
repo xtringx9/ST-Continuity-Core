@@ -18,6 +18,11 @@ import {
     worldInfoCache,
     onWorldInfoChange,
     reloadEditor,
+    characters,
+    getContext,
+    chat_metadata, findChar,
+    this_chid,
+    METADATA_KEY
 } from '../index.js';
 
 // 世界书相关常量定义
@@ -252,7 +257,52 @@ async function createEntry(worldBookName, worldBookData) {
         debugLog(`[WORLD BOOK]所有条目创建成功，共创建了 ${createdEntries.length} 个条目`);
         return createdEntries;
     } catch (error) {
-        errorLog('创建条目失败:', error);
+        errorLog('[WORLD BOOK]创建条目失败:', error);
         return null;
     }
+}
+
+export function getTestData() {
+    debugLog("[WORLD BOOK]获取world_info", world_info);
+    debugLog("[WORLD BOOK]获取Context", getContext());
+}
+
+export async function getCurrentCharBooks() {
+    const context = getContext();
+    let books = [];
+    if (this_chid) {
+        const character = characters[this_chid];
+        if (character) {
+            if (character.data?.extensions?.world) {
+                books.push(character.data?.extensions?.world);//角色世界书
+            }
+
+            const charLore = world_info?.charLore?.find(book => book.name === character.name);
+            if (charLore) {
+                books.push(...charLore.extraBooks);//附加世界书
+            }
+
+            const chatBook = chat_metadata?.[METADATA_KEY];
+            if (chatBook) {
+                books.push(chatBook);//聊天世界书
+            }
+        }
+    }
+    debugLog("[WORLD BOOK]获取当前角色世界书", books);
+
+    const booksData = await getAllBooksData(books);
+    debugLog("[WORLD BOOK]获取当前角色世界书数据", booksData);
+
+    return booksData;
+}
+
+async function getAllBooksData(books) {
+    let booksData = [];
+    for (const book of books) {
+        const data = await loadWorldInfo(book); // await 现在有效
+        if (data) {
+            booksData.push(data);
+        }
+    }
+    return booksData;
 }

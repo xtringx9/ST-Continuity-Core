@@ -8,7 +8,7 @@ import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 import styleCombiner from '../modules/styleCombiner.js';
 import { getCombinedStyles, insertCombinedStylesToDetails, clearStyleCombinerCache, getStyleCombinerStats, getAllModuleConfigs } from '../modules/styleCombiner.js';
 import { ModuleProcessor } from './moduleProcessor.js';
-import { configManager } from '../index.js';
+import { getContext, configManager } from '../index.js';
 
 // 上下文底部UI容器ID
 const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';
@@ -502,7 +502,7 @@ export function checkPageStateAndInsertUI() {
         }
 
         // 所有检查通过，插入UI
-        infoLog('[PAGE_CHECK] 页面状态检查通过，插入UI');
+        debugLog('[PAGE_CHECK] 页面状态检查通过，插入UI');
         insertUItoContextBottom();
         return true;
     } catch (error) {
@@ -529,7 +529,7 @@ export function initContextBottomUI() {
 
 export function UpdateUI() {
     if (configManager.isExtensionEnabled()) {
-        infoLog("[UI EVENTS][CHAT_CHANGED]检测到聊天变更，检查页面状态并插入UI");
+        debugLog("[UI EVENTS][CHAT_CHANGED]检测到聊天变更，检查页面状态并插入UI");
         checkPageStateAndInsertUI();
     } else {
         debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");

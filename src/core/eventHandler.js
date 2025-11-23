@@ -1,5 +1,5 @@
 // 事件处理器 - 处理SillyTavern扩展事件
-import { registerContinuityRegexPattern, checkAndInitializeWorldBook } from "../index.js";
+import { getTestData, registerContinuityRegexPattern, checkAndInitializeWorldBook, getCurrentCharBooks } from "../index.js";
 import { eventSource, event_types, insertUItoContextBottom, UpdateUI, removeUIfromContextBottom } from "../index.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 /**
@@ -55,6 +55,8 @@ export class EventHandler {
             this.registerEvent(event_types.MESSAGE_EDITED, UpdateUI);
             // 注册消息删除事件
             this.registerEvent(event_types.MESSAGE_DELETED, UpdateUI);
+            // 注册消息滑动事件
+            this.registerEvent(event_types.MESSAGE_SWIPED, UpdateUI);
             infoLog('[EVENTS]UI相关事件处理器注册成功');
         } catch (error) {
             errorLog('[EVENTS]注册UI相关事件处理器失败:', error);

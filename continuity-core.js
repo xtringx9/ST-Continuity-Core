@@ -5,6 +5,8 @@ import {
     createFabMenu,
     registerMacros,
     infoLog,
+    debugLog,
+    getContext,
 } from "./src/index.js";
 
 // 导入事件处理器
@@ -35,7 +37,6 @@ jQuery(async function () {
         infoLog("♥️ Continuity Core 已禁用，事件监听器和宏已注册但不会处理事件");
         return;
     }
-
     infoLog("♥️ Continuity Core 已启用，开始完整初始化");
 
     // 创建FAB菜单
