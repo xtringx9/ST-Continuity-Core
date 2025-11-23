@@ -1,5 +1,6 @@
 // 设置管理模块 - 已重构为使用configManager单例
 import {
+    configManager, loadModuleConfig, renderModulesFromConfig,
     createFabMenu,
     infoLog,
     errorLog,
@@ -7,8 +8,6 @@ import {
     removeUIfromContextBottom,
     checkPageStateAndInsertUI
 } from "../index.js";
-import { loadModuleConfig, renderModulesFromConfig } from "../modules/moduleConfigManager.js";
-import configManager, { extensionName } from "../singleton/configManager.js";
 
 /**
  * 设置扩展启用状态（全局函数）

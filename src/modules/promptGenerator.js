@@ -56,8 +56,8 @@ export function generateFormalPrompt() {
             if (module.variables && module.variables.length > 0) {
                 const variableDescriptions = module.variables.map(variable => {
                     const variableName = variable.name;
-                    const variableDesc = variable.description ? `:${variable.description}` : '';
-                    return `${variableName}${variableDesc}`;
+                    const variableDesc = variable.description ? `${variable.description}` : '';
+                    return `${variableName}:${variable.isIdentifier ? '(主键)' : ''}${variableDesc}`;
                 }).join('|');
 
                 prompt += `格式：[${module.name}|${variableDescriptions}]\n`;

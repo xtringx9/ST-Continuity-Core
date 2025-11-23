@@ -273,16 +273,68 @@ export function normalizeModules(modules) {
         }
     });
 
-    // 第二步：智能补全time变量
-    completeTimeVariables(normalizedModules);
 
-    // 第三步：对模块进行排序
-    const sortedModules = sortModules(normalizedModules);
 
-    // 第四步：智能补全id变量
+    // 第二步：模块内容去重
+    const deduplicatedModules = deduplicateModules(normalizedModules);
+
+    // 第三步：智能补全time变量
+    completeTimeVariables(deduplicatedModules);
+
+    // 第四步：对模块进行排序
+    const sortedModules = sortModules(deduplicatedModules);
+
+    // 第五步：智能补全id变量
     completeIdVariables(sortedModules);
 
     return sortedModules;
+}
+
+/**
+ * 模块内容去重
+ * 如果所有变量的值都一致，则视为重复条目并去除
+ * 去重时保留messageIndex最小的模块
+ * @param {Array} modules 标准化后的模块数组
+ * @returns {Array} 去重后的模块数组
+ */
+export function deduplicateModules(modules) {
+    // debugLog('[Deduplication] 开始模块去重，模块数量:', modules.length);
+
+    // 使用Map来存储每个唯一模块的最小messageIndex版本
+    const moduleMap = new Map();
+    let duplicateCount = 0;
+
+    modules.forEach(module => {
+        // 构建模块的唯一标识符：基于所有变量值的组合
+        const moduleKey = JSON.stringify({
+            moduleName: module.moduleName,
+            variables: module.variables
+        });
+
+        // 检查是否已经存在相同的模块
+        if (moduleMap.has(moduleKey)) {
+            const existingModule = moduleMap.get(moduleKey);
+
+            // 比较messageIndex，保留较小的那个
+            if (module.messageIndex < existingModule.messageIndex) {
+                moduleMap.set(moduleKey, module);
+                debugLog('[Deduplication] 替换为更小的messageIndex:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex);
+            } else {
+                // debugLog('[Deduplication] 保留较小的messageIndex:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex);
+            }
+            duplicateCount++;
+        } else {
+            // 第一次遇到这个模块，直接存储
+            moduleMap.set(moduleKey, module);
+        }
+    });
+
+    // 将Map中的值转换为数组
+    const uniqueModules = Array.from(moduleMap.values());
+
+    debugLog('[Deduplication] 去重完成，原始模块数:', modules.length, '去重后模块数:', uniqueModules.length, '重复模块数:', duplicateCount);
+
+    return uniqueModules;
 }
 
 /**

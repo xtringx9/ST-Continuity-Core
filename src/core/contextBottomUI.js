@@ -346,7 +346,7 @@ export async function insertModulesDataAndStyles(contextBottomUI) {
                                 let moduleContent = '';
                                 // 添加处理后的模块数据
                                 if (processedData && processedData.trim() !== '') {
-                                    moduleContent += `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name}</summary>${processedData}</details>`;
+                                    moduleContent += `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleContentData.length})</summary>${processedData}</details>`;
                                 }
                                 // 如果有模块内容，插入到容器中
                                 if (moduleContent) {

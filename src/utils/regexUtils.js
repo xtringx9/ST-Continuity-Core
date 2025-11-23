@@ -1,5 +1,5 @@
 // 正则工具模块 - 处理Regex扩展集成
-import { eventSource, event_types, getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4, extension_settings, reloadCurrentChat } from "../index.js";
+import { CONTINUITY_CORE_IDENTIFIER, eventSource, event_types, getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4, extension_settings, reloadCurrentChat } from "../index.js";
 import { debugLog, errorLog, infoLog } from "./logger.js";
 import { saveSettingsDebounced } from "../../../../../../script.js";
 
@@ -14,7 +14,7 @@ export const REGEX_CONSTANTS = {
 const REGEX_PATTERNS = {
     patterns: [
         {
-            scriptName: '[CCore]隐藏<module>内容_' + REGEX_CONSTANTS.version,
+            scriptName: CONTINUITY_CORE_IDENTIFIER + '隐藏<module>内容_' + REGEX_CONSTANTS.version,
             findRegex: '/(?<!<details>\\s*)<(modules?|ccore)>([\\s\\S]*?)<\\/\\1>/g',
             replaceString: '',
             trimStrings: [],
@@ -76,7 +76,7 @@ function registerRegexPatterns(patterns, scripts) {
         const scriptName = patternConfig.scriptName;
 
         // 提取脚本名称（忽略版本号）
-        // scriptName结构：[CCore]名称_版本号，需要忽略最后一个下划线后的版本号
+        // scriptName结构：名称_版本号，需要忽略最后一个下划线后的版本号
         const scriptNameWithoutVersion = scriptName.replace(/_[^_]*$/, '');
 
         // 检查是否已经注册过，避免重复（忽略版本号进行比较）

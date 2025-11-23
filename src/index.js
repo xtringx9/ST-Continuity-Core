@@ -37,7 +37,7 @@ export {
 };
 
 // 导出核心模块
-export { default as configManager, extensionName, extensionFolderPath } from './singleton/configManager.js';
+export { default as configManager, extensionName, extensionFolderPath, CONTINUITY_CORE_IDENTIFIER } from './singleton/configManager.js';
 export { ExtractModuleController } from './core/extractModuleController.js';
 
 
@@ -52,7 +52,7 @@ export {
     updateExtensionUIState,
     onCorePrinciplesChange,
     onFormatDescriptionChange
-} from './core/settingsManager.js';
+} from './ui/settingsManager.js';
 
 // 导出UI管理模块
 export {
@@ -61,7 +61,7 @@ export {
     closeModuleConfigWindow,
     createFabMenu,
     showCustomConfirmDialog,
-} from './core/uiManager.js';
+} from './ui/uiManager.js';
 
 // 导出模块配置管理模块
 export {
@@ -180,7 +180,7 @@ export {
     UpdateUI
 } from './core/contextBottomUI.js';
 
-export { getCurrentCharBooksEnabledEntries, checkAndInitializeWorldBook, getTestData, getCurrentCharBooks } from './utils/worldBookUtils.js';
+export { getCurrentCharBooksModuleEntries, getCurrentCharBooksEnabledEntries, checkAndInitializeWorldBook, getTestData, getCurrentCharBooks } from './utils/worldBookUtils.js';
 export { registerContinuityRegexPattern } from './utils/regexUtils.js';
 
 

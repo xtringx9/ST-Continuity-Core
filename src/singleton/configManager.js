@@ -16,6 +16,8 @@ export const DEFAULT_EXTENSION_CONFIG = {
     autoInject: true, // 自动注入开关，默认开启
 };
 
+export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";
+
 // 配置在扩展设置中的键名
 const MODULE_CONFIG_KEY = 'module_config';
 
@@ -539,7 +541,7 @@ class UIDataCollector {
      */
     collectSingleModuleData(moduleContainer, index = 0) {
         try {
-            debugLog('开始收集模块', index, '的数据', moduleContainer);
+            // debugLog('开始收集模块', index, '的数据', moduleContainer);
 
             const moduleData = {};
 
@@ -605,11 +607,11 @@ class UIDataCollector {
                     const orderText = container.find('.module-order-number').text();
                     return parseInt(orderText) || 0;
                 case 'prompt':
-                    return container.find('.module-prompt').val() || '';
+                    return container.find('.module-prompt-input').val() || '';
                 case 'timingPrompt':
-                    return container.find('.module-timing-prompt').val() || '';
+                    return container.find('.module-timing-prompt-input').val() || '';
                 case 'contentPrompt':
-                    return container.find('.module-content-prompt').val() || '';
+                    return container.find('.module-content-prompt-input').val() || '';
                 case 'positionPrompt':
                     return container.find('.module-position-prompt').val() || '';
                 case 'outputPosition':
