@@ -124,14 +124,7 @@ export async function openModuleConfigWindow() {
             setOnRenderComplete(updateModuleOrderNumbers);
 
             // 绑定确认保存按钮事件
-            bindSaveButtonEvent(function (modules, globalSettings) {
-                // 保存配置到本地存储
-                if (saveModuleConfig(modules, globalSettings)) {
-                    toastr.success('模块配置已保存！');
-                } else {
-                    toastr.error('保存模块配置失败');
-                }
-            });
+            bindSaveButtonEvent();
 
             // 绑定添加模块按钮事件
             bindAddModuleButtonEvent(addModule);
@@ -156,7 +149,7 @@ export async function openModuleConfigWindow() {
                     },
                     function () {
                         // 用户取消清空
-                        console.log('用户取消了清空模块操作');
+                        debugLog('用户取消了清空模块操作');
                     }
                 );
             });

@@ -1,6 +1,6 @@
 // 事件处理器 - 处理SillyTavern扩展事件
-import { registerContinuityRegexPattern, checkAndInitializeWorldBook, isExtensionEnabled } from "../index.js";
-import { eventSource, event_types, initializeSettings, insertUItoContextBottom, UpdateUI, removeUIfromContextBottom } from "../index.js";
+import { registerContinuityRegexPattern, checkAndInitializeWorldBook } from "../index.js";
+import { eventSource, event_types, insertUItoContextBottom, UpdateUI, removeUIfromContextBottom } from "../index.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 /**
  * 事件处理器类
@@ -22,14 +22,11 @@ export class EventHandler {
                 return;
             }
 
-            // 注册事件处理器
-            // this.registerUIEvents();
-            // this.registerFormattingEvents();
-            // // this.registerChatCompletionPromptReady();
-            // // this.registerSettingsChangeHandler();
-
             // 注册测试事件处理器（用于调试）
             // this.registerTestEvents();
+
+            // 注册事件处理器
+            this.registerUIEvents();
 
             // 初始化Regex扩展集成
             this.initializeRegexIntegration();
@@ -98,136 +95,6 @@ export class EventHandler {
         }
     }
 
-    // //**
-    //  * 注册设置变化处理器
-    //  * 监听全局开关状态变化，自动管理UI的插入和移除
-    //  */
-    // registerSettingsChangeHandler() {
-    //     try {
-    //         // 监听设置变化事件
-    //         const handler = () => {
-    //             const settings = initializeSettings();
-
-    //             if (!settings.enabled) {
-    //                 // 全局开关关闭时，移除已插入的UI
-    //                 infoLog('[EVENTS][SETTINGS_CHANGE] 全局开关已关闭，移除UI');
-    //                 removeUIfromContextBottom();
-    //             } else {
-    //                 // 全局开关开启时，检测页面状态并插入UI
-    //                 infoLog('[EVENTS][SETTINGS_CHANGE] 全局开关已开启，检测页面状态并插入UI');
-    //                 this.checkPageStateAndInsertUI();
-    //             }
-    //         };
-
-    //         // 注册设置变化事件
-    //         if (eventSource && eventSource.on) {
-    //             eventSource.on('extension_settings_updated', handler);
-    //             this.eventHandlers.set('extension_settings_updated', handler);
-    //             debugLog('[EVENTS]设置变化事件处理器注册成功');
-    //         } else {
-    //             errorLog('[EVENTS]无法注册设置变化事件处理器：eventSource不存在');
-    //         }
-    //     } catch (error) {
-    //         errorLog('[EVENTS]注册设置变化事件处理器失败:', error);
-    //     }
-    // }
-
-
-
-    /**
-     * 注册聊天完成前提示词准备事件
-     */
-    // registerChatCompletionPromptReady() {
-    //     try {
-    //         // 如果已经注册过，先移除旧的事件监听器
-    //         if (this.eventHandlers.has(event_types.CHAT_COMPLETION_PROMPT_READY)) {
-    //             const oldHandler = this.eventHandlers.get(event_types.CHAT_COMPLETION_PROMPT_READY);
-    //             if (eventSource && eventSource.off) {
-    //                 eventSource.off(event_types.CHAT_COMPLETION_PROMPT_READY, oldHandler);
-    //                 debugLog('[EVENTS]移除旧的chatCompletionPromptReady事件处理器');
-    //             }
-    //         }
-
-    //         const handler = (eventData) => {
-    //             debugLog('[EVENTS]chatCompletionPromptReady事件触发', eventData);
-
-    //             // 调用提示词注入器处理事件
-    //             if (window.continuityPromptInjector) {
-    //                 return window.continuityPromptInjector.onChatCompletionPromptReady(eventData);
-    //             } else {
-    //                 debugLog('[EVENTS]提示词注入器未初始化');
-    //                 return eventData; // 返回原始数据
-    //             }
-    //         };
-
-    //         // 注册到SillyTavern事件系统
-    //         if (eventSource && eventSource.on) {
-    //             eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, handler);
-    //             // 存储事件处理器引用
-    //             this.eventHandlers.set(event_types.CHAT_COMPLETION_PROMPT_READY, handler);
-    //             infoLog('[EVENTS]chatCompletionPromptReady事件处理器注册成功');
-    //         } else {
-    //             errorLog('[EVENTS]无法注册事件处理器：eventSource不存在');
-    //         }
-    //     } catch (error) {
-    //         errorLog('[EVENTS]注册chatCompletionPromptReady事件处理器失败:', error);
-    //     }
-    // }
-
-    /**
-     * 注册格式化功能相关事件
-     */
-    registerFormattingEvents() {
-        try {
-            // 初始化格式化功能模块
-            infoLog('[EVENTS]格式化功能模块已初始化');
-
-            // 注册用户消息渲染完成事件
-            this.registerEvent(event_types.USER_MESSAGE_RENDERED, () => {
-                if (isExtensionEnabled()) {
-                    debugLog('[EVENTS][FORMATTING][USER_MESSAGE_RENDERED] 用户消息渲染完成，准备格式化处理');
-                    // 延迟处理确保DOM完全渲染
-                    // setTimeout(() => {
-                    //     if (messageFormatting.isEnabled) {
-                    //         messageFormatting.handleUserMessageRendered();
-                    //     }
-                    // }, 100);
-                }
-            });
-
-            // 注册角色消息渲染完成事件（格式化处理）
-            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, () => {
-                if (isExtensionEnabled()) {
-                    debugLog('[EVENTS][FORMATTING][CHARACTER_MESSAGE_RENDERED] 角色消息渲染完成，准备格式化处理');
-                    // 延迟处理确保DOM完全渲染
-                    // setTimeout(() => {
-                    //     if (messageFormatting.isEnabled) {
-                    //         messageFormatting.handleCharacterMessageRendered();
-                    //     }
-                    // }, 100);
-                }
-            });
-
-            // 注册聊天完成前提示词准备事件（格式化处理）
-            this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, (eventData) => {
-                if (isExtensionEnabled()) {
-                    debugLog('[EVENTS][FORMATTING][CHAT_COMPLETION_PROMPT_READY] 提示词准备完成，准备格式化处理');
-
-                    // if (promptFormatting.isEnabled) {
-                    //     return promptFormatting.handlePromptReady(eventData);
-                    // }
-                }
-
-                return eventData; // 返回原始数据
-            });
-
-
-
-            infoLog('[EVENTS]格式化功能相关事件处理器注册成功');
-        } catch (error) {
-            errorLog('[EVENTS]注册格式化功能相关事件处理器失败:', error);
-        }
-    }
 
     /**
      * 销毁事件处理器
@@ -279,19 +146,19 @@ export class EventHandler {
         }
     }
 
-    /**
-     * 重新注册事件处理器（当全局开关状态变化时调用）
-     */
-    reinitializeEventHandlers() {
-        try {
-            // 直接重新初始化
-            this.destroy();
-            this.initialize();
-            debugLog('[EVENTS]事件处理器已重新初始化');
-        } catch (error) {
-            errorLog('[EVENTS]重新初始化事件处理器失败:', error);
-        }
-    }
+    // /**
+    //  * 重新注册事件处理器（当全局开关状态变化时调用）
+    //  */
+    // reinitializeEventHandlers() {
+    //     try {
+    //         // 直接重新初始化
+    //         this.destroy();
+    //         this.initialize();
+    //         debugLog('[EVENTS]事件处理器已重新初始化');
+    //     } catch (error) {
+    //         errorLog('[EVENTS]重新初始化事件处理器失败:', error);
+    //     }
+    // }
 
     /**
      * 初始化Regex扩展集成

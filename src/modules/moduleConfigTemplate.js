@@ -109,8 +109,8 @@ export const MODULE_CONFIG_TEMPLATE = {
 
             // 高级设置
             compatibleModuleNames: {
-                type: 'string',
-                default: '',
+                type: 'array',
+                default: [],
                 description: '兼容模块名称（逗号分隔）'
             },
             timeReferenceStandard: {
@@ -159,18 +159,18 @@ export const MODULE_CONFIG_TEMPLATE = {
                         description: '变量描述'
                     },
 
-                    // 变量类型设置
-                    type: {
-                        type: 'string',
-                        enum: ['text', 'number', 'boolean', 'select'],
-                        default: 'text',
-                        description: '变量类型'
-                    },
-                    defaultValue: {
-                        type: 'string',
-                        default: '',
-                        description: '默认值'
-                    },
+                    // // 变量类型设置
+                    // type: {
+                    //     type: 'string',
+                    //     enum: ['text', 'number', 'boolean', 'select'],
+                    //     default: 'text',
+                    //     description: '变量类型'
+                    // },
+                    // defaultValue: {
+                    //     type: 'string',
+                    //     default: '',
+                    //     description: '默认值'
+                    // },
 
                     // 标识符设置
                     isIdentifier: {
@@ -186,8 +186,8 @@ export const MODULE_CONFIG_TEMPLATE = {
 
                     // 高级设置
                     compatibleVariableNames: {
-                        type: 'string',
-                        default: '',
+                        type: 'array',
+                        default: [],
                         description: '兼容变量名称别名（逗号分隔）'
                     },
                     isHideCondition: {
@@ -196,27 +196,27 @@ export const MODULE_CONFIG_TEMPLATE = {
                         description: '是否为隐藏条件变量'
                     },
                     hideConditionValues: {
-                        type: 'string',
-                        default: '',
+                        type: 'array',
+                        default: [],
                         description: '隐藏条件值（逗号分隔）'
                     },
-                    required: {
-                        type: 'boolean',
-                        default: false,
-                        description: '是否必填'
-                    },
+                    // required: {
+                    //     type: 'boolean',
+                    //     default: false,
+                    //     description: '是否必填'
+                    // },
                     customStyles: {
                         type: 'string',
                         default: '',
                         description: '变量级自定义CSS/HTML样式，支持多行代码'
                     },
 
-                    // 选择类型特有设置
-                    options: {
-                        type: 'array',
-                        default: [],
-                        description: '选项列表（仅select类型使用）'
-                    }
+                    // // 选择类型特有设置
+                    // options: {
+                    //     type: 'array',
+                    //     default: [],
+                    //     description: '选项列表（仅select类型使用）'
+                    // }
                 }
             ]
         }
@@ -347,28 +347,29 @@ export function normalizeConfig(config) {
             corePrinciples: config.globalSettings?.corePrinciples || '',
             formatDescription: config.globalSettings?.formatDescription || ''
         },
-        modules: []
+        modules: [],
     };
 
     // 规范化每个模块
     if (Array.isArray(config.modules)) {
         normalized.modules = config.modules.map(module => ({
             id: module.id || generateId(),
+            order: module.order !== undefined ? Number(module.order) : 0,
+            enabled: module.enabled !== undefined ? module.enabled : true,
             name: module.name || '',
             displayName: module.displayName || module.name || '',
-            enabled: module.enabled !== undefined ? module.enabled : true,
+            compatibleModuleNames: module.compatibleModuleNames || '',
             prompt: module.prompt || '',
             timingPrompt: module.timingPrompt || '',
             contentPrompt: module.contentPrompt || '',
             positionPrompt: module.positionPrompt || '',
             outputPosition: module.outputPosition || 'after_body',
             outputMode: module.outputMode || 'full',
+            retainLayers: module.retainLayers !== undefined ? Number(module.retainLayers) : -1,
             rangeMode: module.rangeMode || 'specified',
             itemMin: typeof module.itemMin === 'number' ? module.itemMin : 0,
             itemMax: typeof module.itemMax === 'number' ? module.itemMax : 1,
-            compatibleModuleNames: module.compatibleModuleNames || '',
             timeReferenceStandard: module.timeReferenceStandard || false,
-            retainLayers: module.retainLayers !== undefined ? Number(module.retainLayers) : -1,
             containerStyles: module.containerStyles || '',
             customStyles: module.customStyles || '',
             variables: []
@@ -381,17 +382,17 @@ export function normalizeConfig(config) {
                     id: variable.id || generateId(),
                     name: variable.name || '',
                     displayName: variable.displayName || variable.name || '',
+                    compatibleVariableNames: variable.compatibleVariableNames || '',
                     description: variable.description || '',
-                    type: variable.type || 'text',
-                    defaultValue: variable.defaultValue || '',
+                    // type: variable.type || 'text',
+                    // defaultValue: variable.defaultValue || '',
                     isIdentifier: variable.isIdentifier || false,
                     isBackupIdentifier: variable.isBackupIdentifier || false,
-                    compatibleVariableNames: variable.compatibleVariableNames || '',
                     isHideCondition: variable.isHideCondition || false,
                     hideConditionValues: variable.hideConditionValues || '',
-                    required: variable.required || false,
+                    // required: variable.required || false,
                     customStyles: variable.customStyles || '',
-                    options: Array.isArray(variable.options) ? variable.options : []
+                    // options: Array.isArray(variable.options) ? variable.options : []
                 }));
             }
         });

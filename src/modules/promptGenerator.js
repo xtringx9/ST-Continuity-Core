@@ -1,5 +1,5 @@
 // 提示词生成器模块
-import { debugLog, errorLog, infoLog, getModulesData, extension_settings, extensionName, loadModuleConfig } from "../index.js";
+import { configManager, debugLog, errorLog, infoLog, extension_settings, extensionName, loadModuleConfig } from "../index.js";
 import { replaceVariables } from "../utils/variableReplacer.js";
 
 // 默认插入设置
@@ -14,7 +14,7 @@ const DEFAULT_INSERTION_SETTINGS = {
  */
 export function generateFormalPrompt() {
     try {
-        const modules = getModulesData();
+        const modules = configManager.getModules() || [];
         debugLog('开始生成正式提示词，模块数量:', modules.length);
 
         // 过滤掉未启用的模块
@@ -142,7 +142,7 @@ export function generatePromptWithInsertion(insertionSettings = DEFAULT_INSERTIO
  */
 export function generateStructurePreview() {
     try {
-        const modules = getModulesData();
+        const modules = configManager.getModules() || [];
         debugLog('生成模块结构预览，模块数量:', modules.length);
 
         // 过滤掉未启用的模块
