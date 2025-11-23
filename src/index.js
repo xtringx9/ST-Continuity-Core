@@ -180,7 +180,7 @@ export {
     UpdateUI
 } from './core/contextBottomUI.js';
 
-export { checkAndInitializeWorldBook, getTestData, getCurrentCharBooks } from './utils/worldBookUtils.js';
+export { getCurrentCharBooksEnabledEntries, checkAndInitializeWorldBook, getTestData, getCurrentCharBooks } from './utils/worldBookUtils.js';
 export { registerContinuityRegexPattern } from './utils/regexUtils.js';
 
 

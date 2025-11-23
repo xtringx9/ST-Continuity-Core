@@ -1,23 +1,22 @@
 // 模块提取器 - 用于从聊天记录中提取模块数据
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
-import { chat } from "../index.js";
+import { chat, getCurrentCharBooksEnabledEntries } from "../index.js";
 
 export const MODULE_REGEX = /\[(.*?)\|(.*?)\]/g;
 export const MODULE_NAME_REGEX = /^\[(.*?)\|/;
 
 /**
  * 从聊天记录中提取模块数据的帮助函数
- * @param {RegExp} moduleRegex 用于匹配模块数据的正则表达式
- * @param {Array} chatArray 可选的聊天数组，如果未提供则使用全局chat数组
  * @param {number} startIndex 可选的起始索引
  * @param {number} endIndex 可选的结束索引
  * @param {Array} moduleFilters 可选的模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
- * @returns {Array} 解析出的模块数据数组
+ * @returns {Promise<Array>} 解析出的模块数据数组
  */
-export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFilters = null) {
+export async function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFilters = null) {
     const extractedModules = [];
 
     try {
+        debugLog("提取世界书条目:", await getCurrentCharBooksEnabledEntries());
         // 确定要使用的聊天数组
         const targetChat = chat;
 

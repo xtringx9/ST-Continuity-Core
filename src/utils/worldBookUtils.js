@@ -306,3 +306,16 @@ async function getAllBooksData(books) {
     }
     return booksData;
 }
+
+export async function getCurrentCharBooksEnabledEntries() {
+    const booksData = await getCurrentCharBooks();
+    let enabledEntries = [];
+    for (const book of booksData) {
+        // book.entries 是一个对象 { [uid: number]: entry }，需要转换为数组
+        if (book.entries && typeof book.entries === 'object') {
+            const entriesArray = Object.values(book.entries);
+            enabledEntries.push(...entriesArray.filter(entry => !entry.disable));
+        }
+    }
+    return enabledEntries;
+}

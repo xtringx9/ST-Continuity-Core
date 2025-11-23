@@ -16,10 +16,10 @@ import { IdentifierParser } from '../utils/identifierParser.js';
  * @param {number} startIndex 起始索引
  * @param {number} endIndex 结束索引
  * @param {Array} moduleFilters 模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
- * @returns {Array} 提取到的原始模块数组
+ * @returns {Promise<Array>} 提取到的原始模块数组
  */
-function extractModules(startIndex, endIndex, moduleFilters) {
-    return extractModulesFromChat(startIndex, endIndex, moduleFilters);
+async function extractModules(startIndex, endIndex, moduleFilters) {
+    return await extractModulesFromChat(startIndex, endIndex, moduleFilters);
 }
 
 /**
@@ -1451,13 +1451,13 @@ export function processIncrementalModules(modules) {
  * @param {boolean} returnString 是否返回字符串（默认：true），如果为false则返回结构化数据
  * @param {boolean} showModuleNames 是否显示模块名
  * @param {boolean} showProcessInfo 是否显示处理方式说明
- * @returns {Object} 包含处理结果和显示信息的对象
+ * @returns {Promise<Object>} 包含处理结果和显示信息的对象
  *
  * 注意：extractParams.moduleFilters和selectedModuleNames的区别：
  * - moduleFilters: 在提取阶段使用，是一个包含{name, compatibleModuleNames}的数组，用于从聊天记录中过滤出特定类型的模块
  * - selectedModuleNames: 在处理阶段使用，是一个字符串数组，只包含模块名，用于从已提取的模块中选择需要处理的模块
  */
-export function processModuleData(extractParams, processType, selectedModuleNames, returnString = false, showModuleNames = false, showProcessInfo = false) {
+export async function processModuleData(extractParams, processType, selectedModuleNames, returnString = false, showModuleNames = false, showProcessInfo = false) {
     try {
         debugLog(`开始处理模块数据，类型：${processType}`);
 
@@ -1506,7 +1506,7 @@ export function processModuleData(extractParams, processType, selectedModuleName
         }
 
         // 提取模块数据
-        const rawModules = extractModules(startIndex, endIndex, moduleFilters);
+        const rawModules = await extractModules(startIndex, endIndex, moduleFilters);
 
         let resultContent = '';
         let displayTitle = '';
