@@ -353,12 +353,12 @@ export function normalizeConfig(config) {
     // 规范化每个模块
     if (Array.isArray(config.modules)) {
         normalized.modules = config.modules.map(module => ({
-            id: module.id || generateId(),
-            order: module.order !== undefined ? Number(module.order) : 0,
-            enabled: module.enabled !== undefined ? module.enabled : true,
+            // id: module.id || generateId(),
             name: module.name || '',
             displayName: module.displayName || module.name || '',
             compatibleModuleNames: module.compatibleModuleNames || '',
+            order: module.order !== undefined ? Number(module.order) : 0,
+            enabled: module.enabled !== undefined ? module.enabled : true,
             prompt: module.prompt || '',
             timingPrompt: module.timingPrompt || '',
             contentPrompt: module.contentPrompt || '',
@@ -379,7 +379,7 @@ export function normalizeConfig(config) {
         normalized.modules.forEach((module, index) => {
             if (config.modules[index].variables && Array.isArray(config.modules[index].variables)) {
                 module.variables = config.modules[index].variables.map(variable => ({
-                    id: variable.id || generateId(),
+                    // id: variable.id || generateId(),
                     name: variable.name || '',
                     displayName: variable.displayName || variable.name || '',
                     compatibleVariableNames: variable.compatibleVariableNames || '',

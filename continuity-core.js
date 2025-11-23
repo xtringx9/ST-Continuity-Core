@@ -3,13 +3,8 @@
 import {
     loadSettingsPanel,
     createFabMenu,
-    PromptInjector,
     registerMacros,
     infoLog,
-    extension_settings,
-    extensionName,
-    // initContextBottomUI,
-    insertUItoContextBottom
 } from "./src/index.js";
 
 // 导入事件处理器
@@ -25,9 +20,6 @@ jQuery(async function () {
     // 手动加载配置
     configManager.load();
     infoLog("Continuity Core 配置已手动加载");
-
-    // // 初始化设置
-    // const settings = initializeSettings();
 
     // 总是加载设置面板（即使插件禁用，也需要让用户能重新启用）
     await loadSettingsPanel();
