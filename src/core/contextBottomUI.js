@@ -245,8 +245,9 @@ export function insertUItoContextBottom() {
                     debugLog('UI已成功插入/移动到mes_text下方');
 
                     // 调用新方法插入模块数据和样式
-                    insertModulesDataAndStyles(contextBottomUI);
-
+                    (async () => {
+                        await insertModulesDataAndStyles(contextBottomUI);
+                    })();
 
                     isInsertingUI = false;
                 }).catch(error => {
@@ -273,7 +274,7 @@ export function insertUItoContextBottom() {
  * 插入模块数据和样式到模块内容容器
  * @param {HTMLElement} contextBottomUI 上下文底部UI元素
  */
-export function insertModulesDataAndStyles(contextBottomUI) {
+export async function insertModulesDataAndStyles(contextBottomUI) {
     try {
         // 获取所有模块配置
         const allModuleConfigs = getAllModuleConfigs();
@@ -289,7 +290,7 @@ export function insertModulesDataAndStyles(contextBottomUI) {
             };
 
             // 一次性获取所有模块数据
-            const processResult = processModuleData(
+            const processResult = await processModuleData(
                 extractParams,
                 'auto', // 自动处理类型
                 allModuleConfigs.map(config => config.name) // 处理所有模块
@@ -394,7 +395,7 @@ export function removeUIfromContextBottom() {
 export function updateContextBottomUI(content) {
     try {
         // 使用setTimeout确保DOM完全渲染后再更新
-        setTimeout(() => {
+        setTimeout(async () => {
             let container = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
 
             if (!container) {

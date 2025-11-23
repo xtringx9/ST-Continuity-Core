@@ -79,18 +79,18 @@ export class ExtractModuleController {
      * 绑定提取模块按钮事件
      */
     bindExtractModuleButtonEvent() {
-        $('#extract-modules-btn').on('click', () => {
-            this.extractModules();
+        $('#extract-modules-btn').on('click', async () => {
+            await this.extractModules();
         });
 
         // 绑定提取整理后模块按钮事件
-        $('#extract-processed-modules-btn').on('click', () => {
-            this.extractProcessedModules();
+        $('#extract-processed-modules-btn').on('click', async () => {
+            await this.extractProcessedModules();
         });
 
         // 绑定自动处理模块按钮事件（合并增量和全量功能）
-        $('#extract-auto-modules-btn').on('click', () => {
-            this.extractAutoModules();
+        $('#extract-auto-modules-btn').on('click', async () => {
+            await this.extractAutoModules();
         });
     }
 
@@ -282,7 +282,7 @@ export class ExtractModuleController {
     /**
      * 提取模块功能（支持多选）
      */
-    extractModules() {
+    async extractModules() {
         try {
             debugLog('开始提取模块功能（支持多选）');
 
@@ -293,7 +293,7 @@ export class ExtractModuleController {
             const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
-            const processResult = processModuleData(
+            const processResult = await processModuleData(
                 { startIndex, endIndex, moduleFilters },
                 'extract',
                 selectedModuleNames,
@@ -324,7 +324,7 @@ export class ExtractModuleController {
     /**
      * 提取整理后模块功能（支持多选）
      */
-    extractProcessedModules() {
+    async extractProcessedModules() {
         try {
             debugLog('开始提取整理后模块功能（支持多选）');
 
@@ -335,7 +335,7 @@ export class ExtractModuleController {
             const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
-            const processResult = processModuleData(
+            const processResult = await processModuleData(
                 { startIndex, endIndex, moduleFilters },
                 'processed',
                 selectedModuleNames,
@@ -357,7 +357,7 @@ export class ExtractModuleController {
     /**
      * 自动处理模块功能（根据模块配置自动选择增量或全量处理）
      */
-    extractAutoModules() {
+    async extractAutoModules() {
         try {
             debugLog('开始自动处理模块功能（支持多选）');
 
@@ -368,7 +368,7 @@ export class ExtractModuleController {
             const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
-            const processResult = processModuleData(
+            const processResult = await processModuleData(
                 { startIndex, endIndex, moduleFilters },
                 'auto',
                 selectedModuleNames,
