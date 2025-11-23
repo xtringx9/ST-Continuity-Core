@@ -2,6 +2,9 @@
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { chat } from "../index.js";
 
+export const MODULE_REGEX = /\[(.*?)\|(.*?)\]/g;
+export const MODULE_NAME_REGEX = /^\[(.*?)\|/;
+
 /**
  * 从聊天记录中提取模块数据的帮助函数
  * @param {RegExp} moduleRegex 用于匹配模块数据的正则表达式
@@ -11,12 +14,12 @@ import { chat } from "../index.js";
  * @param {Array} moduleFilters 可选的模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
  * @returns {Array} 解析出的模块数据数组
  */
-export function extractModulesFromChatHistory(moduleRegex, chatArray = null, startIndex = 0, endIndex = null, moduleFilters = null) {
+export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFilters = null) {
     const extractedModules = [];
 
     try {
         // 确定要使用的聊天数组
-        const targetChat = chatArray || chat;
+        const targetChat = chat;
 
         // 检查是否有权限访问聊天记录
         if (!targetChat || !Array.isArray(targetChat)) {
@@ -52,7 +55,7 @@ export function extractModulesFromChatHistory(moduleRegex, chatArray = null, sta
                 // 如果有模块过滤条件，检查模块名是否匹配
                 if (moduleFilters && moduleFilters.length > 0) {
                     // 提取模块名
-                    const moduleNameMatch = rawModule.match(/^\[(.*?)\|/);
+                    const moduleNameMatch = rawModule.match(MODULE_NAME_REGEX);
                     if (moduleNameMatch) {
                         const moduleName = moduleNameMatch[1];
                         // 检查模块名是否在任意一个过滤条件中匹配
@@ -123,49 +126,49 @@ function parseNestedModules(content) {
     return modules;
 }
 
-/**
- * 模块提取器类 - 提供从聊天记录中提取模块的功能
- */
-export class ModuleExtractor {
-    constructor() {
-        this.currentEventData = null;
-    }
+// /**
+//  * 模块提取器类 - 提供从聊天记录中提取模块的功能
+//  */
+// export class ModuleExtractor {
+//     constructor() {
+//         this.currentEventData = null;
+//     }
 
-    /**
-     * 设置当前事件数据
-     * @param {Object} eventData 事件数据
-     */
-    setCurrentEventData(eventData) {
-        this.currentEventData = eventData;
-    }
+//     /**
+//      * 设置当前事件数据
+//      * @param {Object} eventData 事件数据
+//      */
+//     setCurrentEventData(eventData) {
+//         this.currentEventData = eventData;
+//     }
 
-    /**
-     * 从聊天记录中提取模块数据
-     * @param {RegExp} moduleRegex 可选的自定义模块匹配正则表达式，默认为匹配[模块名|键A:值A|键B:值B...]格式
-     * @param {number} startIndex 可选的起始索引
-     * @param {number} endIndex 可选的结束索引
-     * @param {Array} moduleFilters 可选的模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
-     * @returns {Array} 提取的模块数据数组
-     */
-    extractModulesFromChat(moduleRegex = /\[.*?\|.*?\]/g, startIndex = 0, endIndex = null, moduleFilters = null) {
-        try {
-            debugLog('开始从聊天记录中提取模块数据');
+// /**
+//  * 从聊天记录中提取模块数据
+//  * @param {RegExp} moduleRegex 可选的自定义模块匹配正则表达式，默认为匹配[模块名|键A:值A|键B:值B...]格式
+//  * @param {number} startIndex 可选的起始索引
+//  * @param {number} endIndex 可选的结束索引
+//  * @param {Array} moduleFilters 可选的模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
+//  * @returns {Array} 提取的模块数据数组
+//  */
+// export function extractModulesFromChat(moduleRegex = /\[.*?\|.*?\]/g, startIndex = 0, endIndex = null, moduleFilters = null) {
+//     try {
+//         debugLog('开始从聊天记录中提取模块数据');
 
-            // 调用帮助函数提取模块
-            const modules = extractModulesFromChatHistory(moduleRegex, null, startIndex, endIndex, moduleFilters);
+//         // 调用帮助函数提取模块
+//         const modules = extractModulesFromChatHistory(moduleRegex, null, startIndex, endIndex, moduleFilters);
 
-            // 也可以从当前的eventData.chat中提取（如果在事件处理上下文中）
-            if (this.currentEventData && this.currentEventData.chat) {
-                debugLog('同时从当前事件数据中提取模块');
-                const eventChatModules = extractModulesFromChatHistory(moduleRegex, this.currentEventData.chat, startIndex, endIndex, moduleFilters);
-                modules.push(...eventChatModules);
-            }
+//         // // 也可以从当前的eventData.chat中提取（如果在事件处理上下文中）
+//         // if (this.currentEventData && this.currentEventData.chat) {
+//         //     debugLog('同时从当前事件数据中提取模块');
+//         //     const eventChatModules = extractModulesFromChatHistory(moduleRegex, this.currentEventData.chat, startIndex, endIndex, moduleFilters);
+//         //     modules.push(...eventChatModules);
+//         // }
 
-            debugLog(`总共提取到${modules.length}个模块`);
-            return modules;
-        } catch (error) {
-            errorLog('提取聊天模块失败:', error);
-            return [];
-        }
-    }
-}
+//         debugLog(`总共提取到${modules.length}个模块`);
+//         return modules;
+//     } catch (error) {
+//         errorLog('提取聊天模块失败:', error);
+//         return [];
+//     }
+// }
+// }

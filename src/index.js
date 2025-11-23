@@ -165,9 +165,8 @@ export {
     initParseModule,
 } from './modules/parseModuleManager.js';
 
-// 导出模块处理器和提取器（用于测试）
-export { ModuleProcessor } from './core/moduleProcessor.js';
-export { ModuleExtractor } from './core/moduleExtractor.js';
+export { processModuleData, htmlEscape } from './core/moduleProcessor.js';
+export { extractModulesFromChat } from './core/moduleExtractor.js';
 
 // 导出上下文底部UI管理模块
 export {

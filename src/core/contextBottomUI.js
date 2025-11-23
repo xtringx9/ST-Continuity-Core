@@ -7,7 +7,7 @@
 import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 import styleCombiner from '../modules/styleCombiner.js';
 import { getCombinedStyles, insertCombinedStylesToDetails, clearStyleCombinerCache, getStyleCombinerStats, getAllModuleConfigs } from '../modules/styleCombiner.js';
-import { ModuleProcessor } from './moduleProcessor.js';
+import { processModuleData } from './moduleProcessor.js';
 import { getContext, configManager } from '../index.js';
 
 // 上下文底部UI容器ID
@@ -281,9 +281,6 @@ export function insertModulesDataAndStyles(contextBottomUI) {
             // 为UI容器添加一个特殊的类名，用于样式应用
             contextBottomUI.classList.add('continuity-context-bottom-ui');
 
-            // 创建模块处理器实例
-            const moduleProcessor = new ModuleProcessor();
-
             // 提取全部聊天记录的所有模块数据（一次性获取）
             const extractParams = {
                 startIndex: 0,
@@ -292,7 +289,7 @@ export function insertModulesDataAndStyles(contextBottomUI) {
             };
 
             // 一次性获取所有模块数据
-            const processResult = moduleProcessor.processModuleData(
+            const processResult = processModuleData(
                 extractParams,
                 'auto', // 自动处理类型
                 allModuleConfigs.map(config => config.name) // 处理所有模块

@@ -1,18 +1,17 @@
 // 提取模块控制器 - 独立管理提取模块功能
 import { chat, configManager, debugLog, errorLog } from '../index.js';
-import { ModuleExtractor } from './moduleExtractor.js';
 import { parseCompatibleNames } from '../modules/moduleParser.js';
 import { parseMultipleModules } from '../modules/parseModuleManager.js';
-import { ModuleProcessor } from './moduleProcessor.js';
+import { processModuleData, htmlEscape } from './moduleProcessor.js';
 
 /**
  * 提取模块控制器类
  */
 export class ExtractModuleController {
-    constructor() {
-        this.moduleExtractor = new ModuleExtractor();
-        this.moduleProcessor = new ModuleProcessor();
-    }
+    // constructor() {
+    //     this.moduleExtractor = new ModuleExtractor();
+    //     this.moduleProcessor = new ModuleProcessor();
+    // }
 
     /**
      * 初始化提取模块功能
@@ -258,7 +257,7 @@ export class ExtractModuleController {
                         <span class="module-index">${processResult.displayTitle}</span>
                     </div>
                     <div class="module-content">
-                        <pre>${this.moduleProcessor.htmlEscape(processResult.contentString)}</pre>
+                        <pre>${htmlEscape(processResult.contentString)}</pre>
                     </div>
                 </div>
             `);
@@ -294,7 +293,7 @@ export class ExtractModuleController {
             const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
-            const processResult = this.moduleProcessor.processModuleData(
+            const processResult = processModuleData(
                 { startIndex, endIndex, moduleFilters },
                 'extract',
                 selectedModuleNames,
@@ -336,7 +335,7 @@ export class ExtractModuleController {
             const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
-            const processResult = this.moduleProcessor.processModuleData(
+            const processResult = processModuleData(
                 { startIndex, endIndex, moduleFilters },
                 'processed',
                 selectedModuleNames,
@@ -369,7 +368,7 @@ export class ExtractModuleController {
             const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
             // 使用统一的模块数据处理方法（包含模块提取逻辑）
-            const processResult = this.moduleProcessor.processModuleData(
+            const processResult = processModuleData(
                 { startIndex, endIndex, moduleFilters },
                 'auto',
                 selectedModuleNames,
