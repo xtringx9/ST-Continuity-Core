@@ -3,8 +3,7 @@
  * 允许用户在提示词中使用 {{CONTINUITY_PROMPT}} 等宏来自动插入模块提示词
  */
 
-import { debugLog, errorLog, infoLog } from '../utils/logger.js';
-import { getModulesData } from '../modules/moduleManager.js';
+import { configManager, debugLog, errorLog, infoLog } from '../index.js';
 import { generateFormalPrompt } from '../modules/promptGenerator.js';
 import { extension_settings, extensionName, loadModuleConfig } from '../index.js';
 import { replaceVariables } from '../utils/variableReplacer.js';
@@ -26,7 +25,7 @@ export function getContinuityPrompt() {
         }
 
         // 获取模块数据
-        const modulesData = getModulesData();
+        const modulesData = configManager.getModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
@@ -64,7 +63,7 @@ export function getContinuityConfig() {
         }
 
         // 获取模块数据
-        const modulesData = getModulesData();
+        const modulesData = configManager.getModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空配置");
@@ -99,7 +98,7 @@ export function getContinuityModules() {
         }
 
         // 获取模块数据
-        const modulesData = getModulesData();
+        const modulesData = configManager.getModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空列表");
@@ -134,7 +133,7 @@ export function getContinuityUsageGuide() {
         }
 
         // 获取模块数据
-        const modulesData = getModulesData();
+        const modulesData = configManager.getModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
@@ -192,7 +191,7 @@ export function getContinuityOrder() {
         }
 
         // 获取模块数据
-        const modulesData = getModulesData();
+        const modulesData = configManager.getModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");

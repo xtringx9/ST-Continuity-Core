@@ -1,6 +1,5 @@
 // 提取模块控制器 - 独立管理提取模块功能
-import { debugLog, errorLog, getModulesData } from '../index.js';
-import { chat } from '../index.js';
+import { chat, configManager, debugLog, errorLog } from '../index.js';
 import { ModuleExtractor } from './moduleExtractor.js';
 import { parseCompatibleNames } from '../modules/moduleParser.js';
 import { parseMultipleModules } from '../modules/parseModuleManager.js';
@@ -45,7 +44,7 @@ export class ExtractModuleController {
             moduleCheckboxContainer.empty();
 
             // 获取所有模块数据
-            const modulesData = getModulesData();
+            const modulesData = configManager.getModules() || [];
 
             if (modulesData && modulesData.length > 0) {
                 modulesData.forEach(module => {
@@ -201,7 +200,7 @@ export class ExtractModuleController {
 
         // 获取模块过滤条件（支持多选）
         let moduleFilters = null;
-        const modulesData = getModulesData();
+        const modulesData = configManager.getModules() || [];
         const selectedModulesSet = new Set();
 
         // 1. 首先添加用户选择的模块

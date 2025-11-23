@@ -19,12 +19,6 @@ import {
 } from '../../../../world-info.js';
 import { getRegexScripts, saveScriptsByType, SCRIPT_TYPES } from '../../../regex/engine.js';
 
-// 导入核心模块
-import { extensionName, defaultSettings } from './core/config.js';
-import { initializeSettings, onEnabledToggle, updateExtensionUIState, isExtensionEnabled } from './core/settingsManager.js';
-import { EventHandler } from './core/eventHandler.js';
-import { PromptInjector } from './core/promptInjector.js';
-
 // 导出外部依赖
 export { getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4, extension_settings, loadExtensionSettings, getContext, getApiUrl, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid };
 export {
@@ -39,22 +33,21 @@ export {
 };
 
 // 导出核心模块
-export { extensionName, extensionFolderPath, defaultSettings } from './core/config.js';
+export { default as configManager, extensionName, extensionFolderPath } from './singleton/configManager.js';
 export { ExtractModuleController } from './core/extractModuleController.js';
+
 
 // 导出设置管理模块
 export {
-    initializeSettings,
     loadSettingsToUI,
     onEnabledToggle,
     onBackendUrlChange,
     onDebugLogsToggle,
     onAutoInjectToggle,
-    onCorePrinciplesChange,
-    onFormatDescriptionChange,
     updateInjectionSettingsVisibility,
     updateExtensionUIState,
-    isExtensionEnabled
+    onCorePrinciplesChange,
+    onFormatDescriptionChange
 } from './core/settingsManager.js';
 
 // 导出UI管理模块
@@ -75,22 +68,10 @@ export {
     renderModulesFromConfig,
     setBindModuleEvents,
     setOnRenderComplete,
-    restoreModuleConfigFromFile,
     getModuleConfigStatsInfo,
     hasModuleConfigData,
     clearModuleConfigData,
 } from './modules/moduleConfigManager.js';
-
-// 导出模块存储管理模块
-export {
-    saveModuleConfigToExtension,
-    loadModuleConfigFromExtension,
-    hasModuleConfig,
-    clearModuleConfig,
-    getModuleConfigStats,
-    backupModuleConfig,
-    restoreModuleConfig,
-} from './modules/moduleStorageManager.js';
 
 // 导出模块管理模块
 export {
@@ -98,7 +79,6 @@ export {
     updateModulePreview,
     updateModuleOrderNumbers,
     bindModuleEvents,
-    getModulesData,
     bindAddModuleButtonEvent,
     bindClearModulesButtonEvent,
     rebindAllModulesEvents,
@@ -144,7 +124,7 @@ export {
 // 导出配置导入导出模块
 export {
     initJsonImportExport,
-    collectModulesForExport,
+    // collectModulesForExport,
     bindSaveButtonEvent,
 } from './utils/configImporterExporter.js';
 
@@ -199,3 +179,5 @@ export {
 
 export { checkAndInitializeWorldBook } from './utils/worldBookUtils.js';
 export { registerContinuityRegexPattern } from './utils/regexUtils.js';
+
+

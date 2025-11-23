@@ -8,7 +8,7 @@ import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 import styleCombiner from '../modules/styleCombiner.js';
 import { getCombinedStyles, insertCombinedStylesToDetails, clearStyleCombinerCache, getStyleCombinerStats, getAllModuleConfigs } from '../modules/styleCombiner.js';
 import { ModuleProcessor } from './moduleProcessor.js';
-import { isExtensionEnabled } from '../index.js';
+import { configManager } from '../index.js';
 
 // 上下文底部UI容器ID
 const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';
@@ -528,7 +528,7 @@ export function initContextBottomUI() {
 }
 
 export function UpdateUI() {
-    if (isExtensionEnabled()) {
+    if (configManager.isExtensionEnabled()) {
         infoLog("[UI EVENTS][CHAT_CHANGED]检测到聊天变更，检查页面状态并插入UI");
         checkPageStateAndInsertUI();
     } else {

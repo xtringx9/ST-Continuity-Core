@@ -1,6 +1,7 @@
 // 变量管理相关功能
 import { debugLog, errorLog, updateModulePreview } from "../index.js";
 import { getEmptyVariableItemTemplate } from "./templateManager.js";
+import configManager from "../singleton/configManager.js";
 
 /**
  * 添加新变量到模块
@@ -36,7 +37,7 @@ export function addVariable(moduleItem) {
 
     // 检查添加后的容器内容
     debugLog('添加后容器内.variable-item数量:', variablesContainer.find('.variable-item').length);
-    debugLog('添加后容器内HTML:', variablesContainer.html());
+    // debugLog('添加后容器内HTML:', variablesContainer.html());
 
     // 使用bindVariableEvents函数绑定所有事件（包括删除变量事件）
     bindVariableEvents(variableItem, moduleItem);
@@ -132,9 +133,7 @@ export function bindVariableEvents(variableItem, moduleItem) {
         checkIdentifierWarning();
 
         // 自动保存配置
-        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
-            autoSaveModuleConfig();
-        });
+        configManager.autoSave();
     });
 
     // 删除变量事件
@@ -153,9 +152,7 @@ export function bindVariableEvents(variableItem, moduleItem) {
         checkIdentifierWarning();
 
         // 自动保存配置
-        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
-            autoSaveModuleConfig();
-        });
+        configManager.autoSave();
     });
 
     // 主标识符按钮事件
@@ -199,9 +196,7 @@ export function bindVariableEvents(variableItem, moduleItem) {
         checkIdentifierWarning();
 
         // 自动保存配置
-        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
-            autoSaveModuleConfig();
-        });
+        configManager.autoSave();
     });
 
     // 备用标识符按钮事件
@@ -228,9 +223,7 @@ export function bindVariableEvents(variableItem, moduleItem) {
         checkIdentifierWarning();
 
         // 自动保存配置
-        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
-            autoSaveModuleConfig();
-        });
+        configManager.autoSave();
     });
 
     // 隐藏条件按钮事件
@@ -265,9 +258,7 @@ export function bindVariableEvents(variableItem, moduleItem) {
 
         updateModulePreview(moduleItem);
         // 自动保存配置
-        import('./moduleManager.js').then(({ autoSaveModuleConfig }) => {
-            autoSaveModuleConfig();
-        });
+        configManager.autoSave();
     });
 
     // 初始化激活状态
@@ -437,7 +428,7 @@ function startVariableDragging(variableItem, moduleItem, e) {
  * 更新变量顺序数字
  * @param {jQuery} variablesContainer 变量容器jQuery对象
  */
-function updateVariableOrderNumbers(variablesContainer) {
+export function updateVariableOrderNumbers(variablesContainer) {
     // 只处理可见的变量项，排除隐藏的模板
     variablesContainer.find('.variable-item').filter(function () {
         return $(this).closest('.variable-template').length === 0;

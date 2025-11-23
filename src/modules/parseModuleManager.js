@@ -1,7 +1,6 @@
 // 模块解析管理器 - 纯基于配置的模块解析处理
-import { debugLog, errorLog, infoLog } from "../index.js";
+import { configManager, debugLog, errorLog, infoLog } from "../index.js";
 import { parseModuleString, validateModuleString } from "./moduleParser.js";
-import { loadModuleConfigFromExtension } from "./moduleStorageManager.js";
 
 /**
  * 初始化模块解析功能
@@ -179,7 +178,7 @@ function findModuleByName(moduleName) {
  */
 function findModuleInConfigByName(moduleName) {
     try {
-        const config = loadModuleConfigFromExtension();
+        const config = configManager.getModuleConfig();
         if (!config || !Array.isArray(config)) return null;
 
         // 检查模块名是否匹配

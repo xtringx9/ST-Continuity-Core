@@ -2,12 +2,8 @@
 import { extensionFolderPath, debugLog, errorLog, infoLog, initParseModule } from "../index.js";
 import { getVariableItemTemplate } from "./templateManager.js";
 import { updateModulePreview, restoreModuleCollapsedState, restoreCustomStylesVisibleState } from "./moduleManager.js";
-import { bindVariableEvents } from "./variableManager.js";
-import configManager from "./configManager.js";
-import {
-    backupModuleConfig,
-    restoreModuleConfig
-} from "./moduleStorageManager.js";
+import { updateVariableOrderNumbers, bindVariableEvents } from "./variableManager.js";
+import configManager from "../singleton/configManager.js";
 
 // 声明外部函数（在uiManager.js中定义）
 let bindModuleEvents = null;
@@ -34,7 +30,7 @@ export function saveModuleConfig(modules, globalSettings = {}) {
         }
 
         // 立即保存
-        const success = configManager.saveNow();
+        const success = configManager.saveModuleConfigNow();
         if (success) {
             infoLog('模块配置已保存');
             return true;
@@ -57,7 +53,7 @@ export function saveModuleConfig(modules, globalSettings = {}) {
 export function loadModuleConfig() {
     try {
         // 使用统一配置管理器
-        const config = configManager.get();
+        const config = configManager.getModuleConfig();
         debugLog('从配置管理器加载模块配置:', config);
         return config;
     } catch (error) {
@@ -68,39 +64,34 @@ export function loadModuleConfig() {
 
 /**
  * 导出模块配置为JSON文件
- * @param {Array} modules 模块配置数组（可选，如果提供则使用当前配置）
  */
-export function exportModuleConfig(modules) {
+export function exportModuleConfig() {
     try {
-        // 确保使用最新的配置
-        if (modules) {
-            // 如果提供了modules，先更新到配置管理器
-            configManager.setModules(modules);
-        }
-
-        // 使用新的备份功能 - 不传递modules参数，让backupModuleConfig使用完整配置
-        const success = backupModuleConfig();
+        // 让backupModuleConfig使用完整配置
+        const success = configManager.backupModuleConfig();
         if (success) {
+            toastr.success('模块配置已导出');
             infoLog('模块配置已导出为JSON文件');
         } else {
             errorLog('导出模块配置失败');
         }
     } catch (error) {
+        toastr.error('模块配置导出失败');
         errorLog('导出模块配置失败:', error);
 
-        // 降级处理：使用旧的导出方式
-        const config = configManager.get();
-        const dataStr = JSON.stringify(config, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+        // // 降级处理：使用旧的导出方式
+        // const config = configManager.getModuleConfig();
+        // const dataStr = JSON.stringify(config, null, 2);
+        // const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
 
-        const exportFileDefaultName = `continuity-modules-${new Date().toISOString().split('T')[0]}.json`;
+        // const exportFileDefaultName = `continuity-modules-${new Date().toISOString().split('T')[0]}.json`;
 
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
+        // const linkElement = document.createElement('a');
+        // linkElement.setAttribute('href', dataUri);
+        // linkElement.setAttribute('download', exportFileDefaultName);
+        // linkElement.click();
 
-        infoLog('模块配置已导出为JSON文件（降级方式）');
+        // infoLog('模块配置已导出为JSON文件（降级方式）');
     }
 }
 
@@ -144,7 +135,7 @@ export function importModuleConfig(file) {
                 }
 
                 // 立即保存
-                if (configManager.saveNow()) {
+                if (configManager.saveModuleConfigNow()) {
                     infoLog('导入的模块配置已保存到SillyTavern扩展设置');
                     resolve(config);
                 } else {
@@ -166,73 +157,12 @@ export function importModuleConfig(file) {
 }
 
 /**
- * 从备份文件恢复模块配置
- * @param {File} file 备份文件
- * @returns {Promise<Object|null>} 恢复的配置对象
- */
-export function restoreModuleConfigFromFile(file) {
-    return new Promise((resolve) => {
-        if (!file) {
-            resolve(null);
-            return;
-        }
-
-        if (file.type && file.type !== 'application/json') {
-            errorLog('文件类型错误，需要JSON文件');
-            toastr.error('文件类型错误，请选择JSON文件');
-            resolve(null);
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const result = e.target.result;
-                if (typeof result !== 'string') {
-                    throw new Error('文件内容不是文本格式');
-                }
-                const config = JSON.parse(result);
-                if (!config.modules || !Array.isArray(config.modules)) {
-                    throw new Error('无效的配置格式，缺少modules数组');
-                }
-
-                debugLog('成功从备份文件恢复模块配置:', config);
-
-                // 保存到配置管理器，包括globalSettings
-                configManager.setModules(config.modules);
-                if (config.globalSettings) {
-                    configManager.setGlobalSettings(config.globalSettings);
-                }
-
-                // 立即保存
-                if (configManager.saveNow()) {
-                    infoLog('备份的模块配置已恢复到SillyTavern扩展设置');
-                    resolve(config);
-                } else {
-                    throw new Error('保存恢复的配置失败');
-                }
-            } catch (error) {
-                errorLog('解析备份文件失败:', error);
-                toastr.error('解析备份文件失败，请检查文件格式');
-                resolve(null);
-            }
-        };
-        reader.onerror = () => {
-            errorLog('读取备份文件失败');
-            toastr.error('读取备份文件失败');
-            resolve(null);
-        };
-        reader.readAsText(file);
-    });
-}
-
-/**
  * 获取模块配置统计信息
  * @returns {Object} 统计信息
  */
 export function getModuleConfigStatsInfo() {
     try {
-        const config = configManager.get();
+        const config = configManager.getModuleConfig();
         const modules = config.modules || [];
 
         const moduleCount = modules.length;
@@ -259,7 +189,7 @@ export function getModuleConfigStatsInfo() {
  */
 export function hasModuleConfigData() {
     try {
-        const config = configManager.get();
+        const config = configManager.getModuleConfig();
         return !!(config && config.modules && config.modules.length > 0);
     } catch (error) {
         errorLog('检查模块配置存在性失败:', error);
@@ -274,8 +204,8 @@ export function hasModuleConfigData() {
 export function clearModuleConfigData() {
     try {
         // 使用配置管理器重置到默认值
-        configManager.resetToDefault();
-        const success = configManager.saveNow();
+        configManager.resetModuleConfigToDefault();
+        const success = configManager.saveModuleConfigNow();
         if (success) {
             infoLog('模块配置已清除');
         } else {
@@ -303,6 +233,10 @@ export function setOnRenderComplete(callback) {
     onRenderCompleteCallback = callback;
 }
 
+/**
+ * 从配置对象渲染模块到UI
+ * @param {Object} config 配置对象
+ */
 export function renderModulesFromConfig(config) {
     if (!config || !config.modules) return;
 

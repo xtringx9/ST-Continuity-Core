@@ -1,5 +1,5 @@
 // 模块数据处理器 - 独立管理模块数据的文本处理方法
-import { debugLog, errorLog, getModulesData } from '../index.js';
+import { configManager, debugLog, errorLog } from '../index.js';
 import { ModuleExtractor } from './moduleExtractor.js';
 import { IdentifierParser } from '../utils/identifierParser.js';
 
@@ -28,7 +28,7 @@ export class ModuleProcessor {
      * @returns {Array} 标准化后的模块数组
      */
     normalizeModules(modules) {
-        const modulesData = getModulesData();
+        const modulesData = configManager.getModules() || [];
         const normalizedModules = [];
 
         // 第一步：标准化所有模块
@@ -56,8 +56,8 @@ export class ModuleProcessor {
                 if (configModule.name === originalModuleName) return true;
                 // 检查兼容模块名是否包含当前模块名
                 if (configModule.compatibleModuleNames) {
-                    const compatibleNames = configModule.compatibleModuleNames.split(',').map(name => name.trim());
-                    return compatibleNames.includes(originalModuleName);
+                    // const compatibleNames = configModule.compatibleModuleNames.split(',').map(name => name.trim());
+                    return configModule.compatibleModuleNames.includes(originalModuleName);
                 }
                 return false;
             });
@@ -167,7 +167,7 @@ export class ModuleProcessor {
             // debugLog(`[TimeCompletion] 策略1：优先查找开启时间参考标准的模块`);
 
             // 获取所有模块配置
-            const modulesData = getModulesData();
+            const modulesData = configManager.getModules() || [];
 
             for (const module of messageModules) {
                 if (module.variables) {
@@ -820,8 +820,8 @@ export class ModuleProcessor {
 
             // 兼容变量名 - 使用新的标识符解析工具处理多值分隔符
             if (variable.compatibleVariableNames) {
-                const compatibleNames = IdentifierParser.parseMultiValues(variable.compatibleVariableNames);
-                compatibleNames.forEach(name => {
+                // const compatibleNames = IdentifierParser.parseMultiValues(variable.compatibleVariableNames);
+                variable.compatibleVariableNames.forEach(name => {
                     variableNameMap[name] = variable.name;
                 });
             }
@@ -1261,9 +1261,9 @@ export class ModuleProcessor {
                         const variableValue = mergedModule.variables[variable.name];
                         if (variableValue) {
                             // 使用新的标识符解析工具分割隐藏条件值（支持中英文逗号、分号分隔）
-                            const hideValues = IdentifierParser.parseMultiValues(variable.hideConditionValues);
+                            // const hideValues = IdentifierParser.parseMultiValues(variable.hideConditionValues);
                             // 修改为包含判断：只要variableValue包含任一条件值即可
-                            if (hideValues.some(hideValue => variableValue.includes(hideValue))) {
+                            if (variable.hideConditionValues.some(hideValue => variableValue.includes(hideValue))) {
                                 shouldHide = true;
                                 break;
                             }
@@ -1318,7 +1318,7 @@ export class ModuleProcessor {
             // 如果moduleFilters为null，则加载全部模块，不需要添加时间标准模块
             if (moduleFilters !== null) {
                 // 添加所有激活了时间参考标准的模块到moduleFilters中
-                const modulesData = getModulesData();
+                const modulesData = configManager.getModules() || [];
                 if (modulesData && Array.isArray(modulesData)) {
                     // 创建一个Set来存储所有需要包含的模块名，避免重复
                     const modulesToInclude = new Set();
@@ -1606,9 +1606,9 @@ export class ModuleProcessor {
                             const variableValue = module.variables[variable.name];
                             if (variableValue) {
                                 // 使用新的标识符解析工具分割隐藏条件值（支持中英文逗号、分号分隔）
-                                const hideValues = IdentifierParser.parseMultiValues(variable.hideConditionValues);
+                                // const hideValues = IdentifierParser.parseMultiValues(variable.hideConditionValues);
                                 // 修改为包含判断：只要variableValue包含任一条件值即可
-                                if (hideValues.some(hideValue => variableValue.includes(hideValue))) {
+                                if (variable.hideConditionValues.some(hideValue => variableValue.includes(hideValue))) {
                                     shouldHide = true;
                                     break;
                                 }

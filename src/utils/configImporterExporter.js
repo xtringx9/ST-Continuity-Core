@@ -1,7 +1,8 @@
 // 配置导入导出相关功能
 import { debugLog, errorLog, importModuleConfig, exportModuleConfig, renderModulesFromConfig, showCustomConfirmDialog, updateModuleOrderNumbers } from "../index.js";
 import { clearAllModules, rebindAllModulesEvents, updateAllModulesPreview, bindModuleEvents, updateModulePreview, bindClearModulesButtonEvent, bindAddModuleButtonEvent } from "../modules/moduleManager.js";
-import { validateConfig, normalizeConfig } from "../modules/moduleConfigTemplate.js";
+import { MODULE_CONFIG_TEMPLATE, validateConfig, normalizeConfig } from "../modules/moduleConfigTemplate.js";
+import configManager from "../singleton/configManager.js";
 
 // 配置模板版本跟踪
 let currentTemplateVersion = '1.0.0';
@@ -43,15 +44,8 @@ export function initJsonImportExport() {
 
     // 导出按钮事件
     $('#export-config-btn').on('click', function () {
-        const modules = collectModulesForExport();
-
-        if (modules.length === 0) {
-            toastr.warning('没有可导出的模块配置');
-            return;
-        }
-
-        exportModuleConfig(modules);
-        toastr.success('模块配置已导出');
+        configManager.saveFromUI(true)
+        exportModuleConfig();
     });
 
     // 清空模块按钮事件 - 使用moduleManager.js中的clearAllModules函数
@@ -60,219 +54,219 @@ export function initJsonImportExport() {
     });
 }
 
-/**
- * 基于配置模板自动收集模块数据
- * @returns {Array} 模块配置数组
- */
-export function collectModulesForExport() {
-    return collectModulesDataFromUI();
-}
+// /**
+//  * 基于配置模板自动收集模块数据
+//  * @returns {Array} 模块配置数组
+//  */
+// export function collectModulesForExport() {
+//     return collectModulesDataFromUI();
+// }
 
-/**
- * 基于配置模板自动收集模块数据
- * @returns {Array} 模块配置数组
- */
-export function collectModulesDataFromUI() {
-    const modules = [];
+// /**
+//  * 基于配置模板自动收集模块数据
+//  * @returns {Array} 模块配置数组
+//  */
+// export function collectModulesDataFromUI() {
+//     const modules = [];
 
-    // 收集所有模块数据
-    $('.module-item').each(function (index) {
-        const moduleData = collectModuleDataFromUI($(this), index);
-        if (moduleData) {
-            modules.push(moduleData);
-        }
-    });
+//     // 收集所有模块数据
+//     $('.module-item').each(function (index) {
+//         const moduleData = collectModuleDataFromUI($(this), index);
+//         if (moduleData) {
+//             modules.push(moduleData);
+//         }
+//     });
 
-    return modules;
-}
+//     return modules;
+// }
 
-/**
- * 基于配置模板自动收集单个模块数据
- * @param {jQuery} moduleElement 模块DOM元素
- * @param {number} index 模块索引
- * @returns {Object|null} 模块配置对象或null
- */
-export function collectModuleDataFromUI(moduleElement, index = 0) {
-    const moduleName = moduleElement.find('.module-name').val();
-    if (!moduleName) return null; // 跳过没有名称的模块
+// /**
+//  * 基于配置模板自动收集单个模块数据
+//  * @param {jQuery} moduleElement 模块DOM元素
+//  * @param {number} index 模块索引
+//  * @returns {Object|null} 模块配置对象或null
+//  */
+// export function collectModuleDataFromUI(moduleElement, index = 0) {
+//     const moduleName = moduleElement.find('.module-name').val();
+//     if (!moduleName) return null; // 跳过没有名称的模块
 
-    // 基于配置模板结构收集数据
-    const moduleData = {
-        name: moduleName,
-        displayName: moduleElement.find('.module-display-name').val() || '',
-        order: index,
-        enabled: moduleElement.find('.module-enabled-toggle').prop('checked') !== false,
-        prompt: moduleElement.find('.module-prompt-input').val() || '',
-        timingPrompt: moduleElement.find('.module-timing-prompt-input').val() || '',
-        contentPrompt: moduleElement.find('.module-content-prompt-input').val() || '',
-        outputPosition: moduleElement.find('.module-output-position').val() || 'after_body',
-        positionPrompt: moduleElement.find('.module-position-prompt').val() || '',
-        outputMode: moduleElement.find('.module-output-mode').val() || 'full',
-        retainLayers: !isNaN(parseInt(moduleElement.find('.module-retain-layers').val())) ? parseInt(moduleElement.find('.module-retain-layers').val()) : -1,
-        compatibleModuleNames: moduleElement.find('.module-compatible-names').val() || '',
-        timeReferenceStandard: moduleElement.find('.module-time-reference-standard').val() === 'true' || false,
-        containerStyles: moduleElement.find('.module-container-styles').val() || '',
-        customStyles: moduleElement.find('.module-custom-styles').val() || '',
-        variables: collectVariablesDataFromUI(moduleElement)
-    };
+//     // 基于配置模板结构收集数据
+//     const moduleData = {
+//         name: moduleName,
+//         displayName: moduleElement.find('.module-display-name').val() || '',
+//         order: index,
+//         enabled: moduleElement.find('.module-enabled-toggle').prop('checked') !== false,
+//         prompt: moduleElement.find('.module-prompt-input').val() || '',
+//         timingPrompt: moduleElement.find('.module-timing-prompt-input').val() || '',
+//         contentPrompt: moduleElement.find('.module-content-prompt-input').val() || '',
+//         outputPosition: moduleElement.find('.module-output-position').val() || 'after_body',
+//         positionPrompt: moduleElement.find('.module-position-prompt').val() || '',
+//         outputMode: moduleElement.find('.module-output-mode').val() || 'full',
+//         retainLayers: !isNaN(parseInt(moduleElement.find('.module-retain-layers').val())) ? parseInt(moduleElement.find('.module-retain-layers').val()) : -1,
+//         compatibleModuleNames: moduleElement.find('.module-compatible-names').val() || '',
+//         timeReferenceStandard: moduleElement.find('.module-time-reference-standard').val() === 'true' || false,
+//         containerStyles: moduleElement.find('.module-container-styles').val() || '',
+//         customStyles: moduleElement.find('.module-custom-styles').val() || '',
+//         variables: collectVariablesDataFromUI(moduleElement)
+//     };
 
-    // 处理数量范围
-    const rangeMode = moduleElement.find('.module-range-mode').val();
-    let itemMin = 0;
-    let itemMax = 0;
+//     // 处理数量范围
+//     const rangeMode = moduleElement.find('.module-range-mode').val();
+//     let itemMin = 0;
+//     let itemMax = 0;
 
-    switch (rangeMode) {
-        case 'unlimited':
-            itemMin = 0;
-            itemMax = 0;
-            break;
-        case 'specified':
-            itemMin = 0;
-            itemMax = parseInt(moduleElement.find('.module-item-specified').val()) || 1;
-            break;
-        case 'range':
-            itemMin = parseInt(moduleElement.find('.module-item-min').val()) || 0;
-            itemMax = parseInt(moduleElement.find('.module-item-specified').val()) || 1;
-            break;
-    }
+//     switch (rangeMode) {
+//         case 'unlimited':
+//             itemMin = 0;
+//             itemMax = 0;
+//             break;
+//         case 'specified':
+//             itemMin = 0;
+//             itemMax = parseInt(moduleElement.find('.module-item-specified').val()) || 1;
+//             break;
+//         case 'range':
+//             itemMin = parseInt(moduleElement.find('.module-item-min').val()) || 0;
+//             itemMax = parseInt(moduleElement.find('.module-item-specified').val()) || 1;
+//             break;
+//     }
 
-    moduleData.itemMin = itemMin;
-    moduleData.itemMax = itemMax;
-    moduleData.rangeMode = rangeMode || 'specified';
+//     moduleData.itemMin = itemMin;
+//     moduleData.itemMax = itemMax;
+//     moduleData.rangeMode = rangeMode || 'specified';
 
-    return moduleData;
-}
+//     return moduleData;
+// }
 
-/**
- * 基于配置模板自动收集变量数据
- * @param {jQuery} moduleElement 模块DOM元素
- * @returns {Array} 变量配置数组
- */
-export function collectVariablesDataFromUI(moduleElement) {
-    const variables = [];
+// /**
+//  * 基于配置模板自动收集变量数据
+//  * @param {jQuery} moduleElement 模块DOM元素
+//  * @returns {Array} 变量配置数组
+//  */
+// export function collectVariablesDataFromUI(moduleElement) {
+//     const variables = [];
 
-    moduleElement.find('.variable-item').each(function () {
-        const varElement = $(this);
-        const varName = varElement.find('.variable-name').val();
-        if (!varName) return;
+//     moduleElement.find('.variable-item').each(function () {
+//         const varElement = $(this);
+//         const varName = varElement.find('.variable-name').val();
+//         if (!varName) return;
 
-        // 基于配置模板结构收集变量数据
-        const variableData = {
-            name: varName,
-            displayName: varElement.find('.variable-display-name').val() || '',
-            description: varElement.find('.variable-desc').val() || '',
-            compatibleVariableNames: varElement.find('.variable-compatible-names').val() || '',
-            isIdentifier: varElement.find('.variable-is-identifier').val() === 'true',
-            isBackupIdentifier: varElement.find('.variable-is-backup-identifier').val() === 'true',
-            isHideCondition: varElement.find('.variable-is-hide-condition').val() === 'true',
-            hideConditionValues: varElement.find('.variable-desc').eq(1).val() || '',
-            customStyles: varElement.find('.variable-custom-styles').val() || ''
-        };
+//         // 基于配置模板结构收集变量数据
+//         const variableData = {
+//             name: varName,
+//             displayName: varElement.find('.variable-display-name').val() || '',
+//             description: varElement.find('.variable-desc').val() || '',
+//             compatibleVariableNames: varElement.find('.variable-compatible-names').val() || '',
+//             isIdentifier: varElement.find('.variable-is-identifier').val() === 'true',
+//             isBackupIdentifier: varElement.find('.variable-is-backup-identifier').val() === 'true',
+//             isHideCondition: varElement.find('.variable-is-hide-condition').val() === 'true',
+//             hideConditionValues: varElement.find('.variable-desc').eq(1).val() || '',
+//             customStyles: varElement.find('.variable-custom-styles').val() || ''
+//         };
 
-        variables.push(variableData);
-    });
+//         variables.push(variableData);
+//     });
 
-    return variables;
-}
+//     return variables;
+// }
 
-/**
- * 检测配置模板是否发生变化
- * @returns {boolean} 是否检测到模板变化
- */
-function detectTemplateChanges() {
-    try {
-        const schema = getUIConfigSchema();
-        const newVersion = schema?.version || '1.0.0';
+// /**
+//  * 检测配置模板是否发生变化
+//  * @returns {boolean} 是否检测到模板变化
+//  */
+// function detectTemplateChanges() {
+//     try {
+//         const schema = MODULE_CONFIG_TEMPLATE;
+//         const newVersion = schema?.version || '1.0.0';
 
-        if (newVersion !== currentTemplateVersion) {
-            console.warn(`📋 检测到配置模板版本变化: ${currentTemplateVersion} -> ${newVersion}`);
-            currentTemplateVersion = newVersion;
-            templateChangeDetected = true;
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.error('模板变化检测失败:', error);
-        return false;
-    }
-}
+//         if (newVersion !== currentTemplateVersion) {
+//             console.warn(`📋 检测到配置模板版本变化: ${currentTemplateVersion} -> ${newVersion}`);
+//             currentTemplateVersion = newVersion;
+//             templateChangeDetected = true;
+//             return true;
+//         }
+//         return false;
+//     } catch (error) {
+//         console.error('模板变化检测失败:', error);
+//         return false;
+//     }
+// }
 
-/**
- * 验证数据收集器与配置模板的同步性
- * 在开发模式下检查数据收集器是否与模板结构一致
- */
-export function validateDataCollectorSync() {
-    // 检测模板变化
-    if (detectTemplateChanges()) {
-        console.warn('⚠️ 检测到配置模板变化，建议更新数据收集器');
-    }
+// /**
+//  * 验证数据收集器与配置模板的同步性
+//  * 在开发模式下检查数据收集器是否与模板结构一致
+//  */
+// export function validateDataCollectorSync() {
+//     // 检测模板变化
+//     if (detectTemplateChanges()) {
+//         console.warn('⚠️ 检测到配置模板变化，建议更新数据收集器');
+//     }
 
-    try {
-        // 获取配置模板结构
-        const templateSchema = getUIConfigSchema();
+//     try {
+//         // 获取配置模板结构
+//         // const templateSchema = getUIConfigSchema();
 
-        // 检查模块级别的字段同步
-        const moduleFields = ['name', 'displayName', 'enabled', 'variables', 'prompt',
-            'timingPrompt', 'contentPrompt', 'outputPosition', 'positionPrompt',
-            'outputMode', 'retainLayers', 'compatibleModuleNames',
-            'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode',
-            'containerStyles', 'customStyles'];
+//         // 检查模块级别的字段同步
+//         const moduleFields = ['name', 'displayName', 'enabled', 'variables', 'prompt',
+//             'timingPrompt', 'contentPrompt', 'outputPosition', 'positionPrompt',
+//             'outputMode', 'retainLayers', 'compatibleModuleNames',
+//             'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode',
+//             'containerStyles', 'customStyles'];
 
-        // 检查变量级别的字段同步
-        const variableFields = ['name', 'displayName', 'description', 'compatibleVariableNames',
-            'isIdentifier', 'isBackupIdentifier', 'isHideCondition', 'hideConditionValues'];
+//         // 检查变量级别的字段同步
+//         const variableFields = ['name', 'displayName', 'description', 'compatibleVariableNames',
+//             'isIdentifier', 'isBackupIdentifier', 'isHideCondition', 'hideConditionValues'];
 
-        console.log('✅ 数据收集器与配置模板同步验证通过');
-        console.log('模块字段:', moduleFields);
-        console.log('变量字段:', variableFields);
+//         console.log('✅ 数据收集器与配置模板同步验证通过');
+//         console.log('模块字段:', moduleFields);
+//         console.log('变量字段:', variableFields);
 
-    } catch (error) {
-        console.error('❌ 数据收集器同步验证失败:', error);
-    }
-}
+//     } catch (error) {
+//         console.error('❌ 数据收集器同步验证失败:', error);
+//     }
+// }
 
-/**
- * 获取当前数据收集器支持的字段列表
- * @returns {Object} 字段映射表
- */
-export function getSupportedFields() {
-    return {
-        moduleFields: [
-            'name', 'displayName', 'enabled', 'variables', 'prompt',
-            'timingPrompt', 'contentPrompt', 'outputPosition', 'positionPrompt',
-            'outputMode', 'retainLayers', 'compatibleModuleNames',
-            'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode',
-            'containerStyles', 'customStyles'
-        ],
-        variableFields: [
-            'name', 'displayName', 'description', 'compatibleVariableNames',
-            'isIdentifier', 'isBackupIdentifier', 'isHideCondition', 'hideConditionValues'
-        ]
-    };
-}
+// /**
+//  * 获取当前数据收集器支持的字段列表
+//  * @returns {Object} 字段映射表
+//  */
+// export function getSupportedFields() {
+//     return {
+//         moduleFields: [
+//             'name', 'displayName', 'enabled', 'variables', 'prompt',
+//             'timingPrompt', 'contentPrompt', 'outputPosition', 'positionPrompt',
+//             'outputMode', 'retainLayers', 'compatibleModuleNames',
+//             'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode',
+//             'containerStyles', 'customStyles'
+//         ],
+//         variableFields: [
+//             'name', 'displayName', 'description', 'compatibleVariableNames',
+//             'isIdentifier', 'isBackupIdentifier', 'isHideCondition', 'hideConditionValues'
+//         ]
+//     };
+// }
 
 /**
  * 绑定确认保存按钮事件
- * @param {Function} onSaveSuccess 保存成功回调
- * @param {Function} onSaveError 保存失败回调
  */
-export function bindSaveButtonEvent(onSaveSuccess, onSaveError) {
+export function bindSaveButtonEvent() {
     // 移除现有的事件监听，避免重复绑定
     $("#module-save-btn").off('click');
 
     $("#module-save-btn").on('click', function () {
-        // 使用统一的数据收集器收集模块数据
-        const modules = collectModulesDataFromUI();
+        try {
+            // 使用统一的配置管理器进行保存
+            const success = configManager.saveFromUI(true); // true表示立即保存
 
-        // 收集全局设置数据
-        const globalSettings = {
-            corePrinciples: $('#core-principles-input').val() || '',
-            formatDescription: $('#format-description-input').val() || ''
-        };
+            // 根据保存结果显示提示信息
+            if (success) {
+                toastr.success('模块配置已保存！');
+            } else {
+                toastr.error('保存模块配置失败');
+            }
 
-        // 调用回调函数，传递modules和globalSettings
-        if (typeof onSaveSuccess === 'function') {
-            onSaveSuccess(modules, globalSettings);
+        } catch (error) {
+            errorLog('保存按钮事件处理失败:', error);
+            toastr.error('保存模块配置失败');
         }
     });
 }
@@ -310,7 +304,7 @@ export function importModuleConfigWithValidation(file) {
 
                 if (!validation.isValid) {
                     // 显示验证错误
-                    const errorMessage = `配置验证失败:\n${validation.errors.join('\n')}`;
+                    let errorMessage = `配置验证失败:\n${validation.errors.join('\n')}`;
                     if (validation.warnings.length > 0) {
                         errorMessage += `\n警告:\n${validation.warnings.join('\n')}`;
                     }

@@ -1,13 +1,6 @@
-// 设置管理模块
+// 设置管理模块 - 已重构为使用configManager单例
 import {
-    extension_settings,
-    loadExtensionSettings,
-    saveSettingsDebounced,
-    extensionName,
-    defaultSettings,
     createFabMenu,
-    EventHandler,
-    PromptInjector,
     infoLog,
     errorLog,
     insertUItoContextBottom,
@@ -15,68 +8,40 @@ import {
     checkPageStateAndInsertUI
 } from "../index.js";
 import { loadModuleConfig, renderModulesFromConfig } from "../modules/moduleConfigManager.js";
-
-// 全局状态管理
-let globalEnabled = false;
-
-/**
- * 初始化扩展设置
- * @returns {Object} 当前设置对象
- */
-export function initializeSettings() {
-    // 如果设置不存在，创建默认设置
-    extension_settings[extensionName] = extension_settings[extensionName] || {};
-    if (Object.keys(extension_settings[extensionName]).length === 0) {
-        Object.assign(extension_settings[extensionName], defaultSettings);
-    }
-
-    // 更新全局enabled状态
-    globalEnabled = Boolean(extension_settings[extensionName].enabled);
-
-    return extension_settings[extensionName];
-}
-
-/**
- * 检查扩展是否启用（全局函数）
- * @returns {boolean} 是否启用
- */
-export function isExtensionEnabled() {
-    return globalEnabled;
-}
+import configManager, { extensionName } from "../singleton/configManager.js";
 
 /**
  * 设置扩展启用状态（全局函数）
  * @param {boolean} enabled 是否启用
  */
 export function setExtensionEnabled(enabled) {
-    globalEnabled = Boolean(enabled);
-    extension_settings[extensionName].enabled = globalEnabled;
-    saveSettingsDebounced();
+    // 使用configManager更新扩展配置
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.enabled = Boolean(enabled);
+    configManager.setExtensionConfig(extensionConfig);
 }
 
 /**
  * 加载设置到UI
  */
 export function loadSettingsToUI() {
-    const settings = initializeSettings();
+    // 使用configManager获取扩展配置
+    const extensionConfig = configManager.getExtensionConfig();
+
     // 更新开关状态（不触发input事件，避免重复初始化）
-    $("#continuity_enabled").prop("checked", settings.enabled);
+    $("#continuity_enabled").prop("checked", extensionConfig.enabled);
     // 更新后端URL输入框
-    $("#continuity_backend_url").val(settings.backendUrl);
+    $("#continuity_backend_url").val(extensionConfig.backendUrl);
     // 更新调试日志开关
-    $("#continuity_debug_logs").prop("checked", settings.debugLogs);
+    $("#continuity_debug_logs").prop("checked", extensionConfig.debugLogs);
     // 更新自动注入开关
-    $("#auto-inject-toggle").prop("checked", settings.autoInject);
-    // 更新核心原则提示词
-    $("#continuity_core_principles").val(settings.corePrinciples || "");
-    // 更新通用格式描述提示词
-    $("#continuity_format_description").val(settings.formatDescription || "");
+    $("#auto-inject-toggle").prop("checked", extensionConfig.autoInject);
 
     // 根据设置启用或禁用扩展UI
-    updateExtensionUIState(settings.enabled);
+    updateExtensionUIState(extensionConfig.enabled);
 
     // 根据自动注入开关状态更新插入设置区域的显示
-    updateInjectionSettingsVisibility(settings.autoInject);
+    updateInjectionSettingsVisibility(extensionConfig.autoInject);
 }
 
 /**
@@ -112,13 +77,6 @@ function enableContinuityCore() {
         // 创建FAB菜单
         createFabMenu();
 
-        // // 直接创建或重新初始化实例
-        // if (!window.continuityPromptInjector) {
-        //     window.continuityPromptInjector = new PromptInjector();
-        // }
-        // window.continuityPromptInjector.initialize();
-        // infoLog("Continuity Core 提示词注入管理器已初始化");
-
         // 自动加载模块配置到DOM（如果配置面板尚未打开）
         if ($('.module-item').length === 0) {
             const config = loadModuleConfig();
@@ -149,13 +107,6 @@ function disableContinuityCore() {
             fabContainer.hide();
         }
 
-        // // 不销毁提示词注入管理器，只停止其功能
-        // // 事件监听器仍然存在，但处理函数内部会检查开关状态
-        // if (window.continuityPromptInjector) {
-        //     window.continuityPromptInjector.destroy();
-        //     infoLog("Continuity Core 提示词注入管理器已停止");
-        // }
-
         // 主动移除已插入的UI
         removeUIfromContextBottom();
         infoLog("已移除上下文底部UI");
@@ -172,8 +123,11 @@ function disableContinuityCore() {
  */
 export function onBackendUrlChange(event) {
     const url = $(event.target).val();
-    extension_settings[extensionName].backendUrl = url;
-    saveSettingsDebounced();
+
+    // 使用configManager更新扩展配置
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.backendUrl = url;
+    configManager.setExtensionConfig(extensionConfig);
 }
 
 /**
@@ -182,25 +136,13 @@ export function onBackendUrlChange(event) {
  */
 export function onDebugLogsToggle(event) {
     const debugLogs = Boolean($(event.target).prop("checked"));
-    extension_settings[extensionName].debugLogs = debugLogs;
-    saveSettingsDebounced();
+
+    // 使用configManager更新扩展配置
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.debugLogs = debugLogs;
+    configManager.setExtensionConfig(extensionConfig);
 
     // toastr.info(debugLogs ? "调试日志已启用" : "调试日志已禁用");
-}
-
-/**
- * 处理自动注入开关变更
- * @param {Event} event 事件对象
- */
-export function onAutoInjectToggle(event) {
-    const autoInject = Boolean($(event.target).prop("checked"));
-    extension_settings[extensionName].autoInject = autoInject;
-    saveSettingsDebounced();
-
-    // 更新插入设置区域的显示
-    updateInjectionSettingsVisibility(autoInject);
-
-    // toastr.info(autoInject ? "自动注入已启用" : "自动注入已禁用");
 }
 
 /**
@@ -208,9 +150,10 @@ export function onAutoInjectToggle(event) {
  * @param {Event} event 事件对象
  */
 export function onCorePrinciplesChange(event) {
+    const moduleConfig = configManager.getGlobalSettings();
     const corePrinciples = $(event.target).val();
-    extension_settings[extensionName].corePrinciples = corePrinciples;
-    saveSettingsDebounced();
+    moduleConfig.corePrinciples = corePrinciples;
+    configManager.setGlobalSettings(moduleConfig);
 }
 
 /**
@@ -219,8 +162,27 @@ export function onCorePrinciplesChange(event) {
  */
 export function onFormatDescriptionChange(event) {
     const formatDescription = $(event.target).val();
-    extension_settings[extensionName].formatDescription = formatDescription;
-    saveSettingsDebounced();
+    const moduleConfig = configManager.getGlobalSettings();
+    moduleConfig.formatDescription = formatDescription;
+    configManager.setGlobalSettings(moduleConfig);
+}
+
+/**
+ * 处理自动注入开关变更
+ * @param {Event} event 事件对象
+ */
+export function onAutoInjectToggle(event) {
+    const autoInject = Boolean($(event.target).prop("checked"));
+
+    // 使用configManager更新扩展配置
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.autoInject = autoInject;
+    configManager.setExtensionConfig(extensionConfig);
+
+    // 更新插入设置区域的显示
+    updateInjectionSettingsVisibility(autoInject);
+
+    // toastr.info(autoInject ? "自动注入已启用" : "自动注入已禁用");
 }
 
 /**

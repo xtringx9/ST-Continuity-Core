@@ -1,8 +1,6 @@
 // 模块配置管理器 - 用于管理模块的添加、编辑、删除等操作
 import { debugLog, errorLog, addVariable, initParseModule, showCustomConfirmDialog, bindVariableEvents } from "../index.js";
-import { saveModuleConfig } from "./moduleConfigManager.js";
-import configManager from "./configManager.js";
-import { collectModulesForExport, collectModulesDataFromUI } from "../utils/configImporterExporter.js";
+import configManager from "../singleton/configManager.js";
 
 /**
  * 添加新模块
@@ -130,13 +128,13 @@ export function bindModuleEvents(moduleElement) {
     moduleItem.find('.module-name').on('input', function () {
         updateModulePreview(moduleItem);
         // 自动保存配置
-        autoSaveModuleConfig();
+        configManager.autoSave();
     });
 
     // 绑定模块提示词输入事件
     moduleItem.find('.module-prompt-input, .module-content-prompt-input').on('input', function () {
         // 自动保存配置
-        autoSaveModuleConfig();
+        configManager.autoSave();
     });
 
     // 绑定范围模式选择事件
@@ -169,7 +167,7 @@ export function bindModuleEvents(moduleElement) {
         }
 
         // 自动保存配置
-        autoSaveModuleConfig();
+        configManager.autoSave();
     });
 
     // 检查模块是否需要显示标识符警告
@@ -214,7 +212,7 @@ export function bindModuleEvents(moduleElement) {
         checkIdentifierWarning();
 
         // 自动保存配置
-        autoSaveModuleConfig();
+        configManager.autoSave();
     });
 
     // 初始状态下根据输出模式设置保留层数输入框的显示/隐藏
@@ -230,7 +228,7 @@ export function bindModuleEvents(moduleElement) {
     // 绑定数量范围输入事件
     moduleItem.find('.module-item-min, .module-item-specified, .module-retain-layers').on('input', function () {
         // 自动保存配置
-        autoSaveModuleConfig();
+        configManager.autoSave();
     });
 
     // 绑定生成位置选择事件
@@ -246,7 +244,7 @@ export function bindModuleEvents(moduleElement) {
         }
 
         // 自动保存配置
-        autoSaveModuleConfig();
+        configManager.autoSave();
     });
 
     // 模块启用/禁用滑块开关事件
@@ -264,7 +262,7 @@ export function bindModuleEvents(moduleElement) {
         updateModulePreview(moduleItem);
         debugLog('模块启用状态改变:', moduleItem.find('.module-name').val(), isEnabled);
         // 自动保存配置
-        autoSaveModuleConfig();
+        configManager.autoSave();
     });
 
     // 时间参考标准按钮点击事件
@@ -290,7 +288,7 @@ export function bindModuleEvents(moduleElement) {
 
         debugLog('时间参考标准状态改变:', moduleItem.find('.module-name').val(), newState);
         // 自动保存配置
-        autoSaveModuleConfig();
+        configManager.autoSave();
     });
 
     // 样式框显示/隐藏按钮点击事件
@@ -414,7 +412,7 @@ export function bindModuleEvents(moduleElement) {
             },
             function () {
                 // 用户取消删除
-                console.log('用户取消了模块删除操作');
+                debugLog('用户取消了模块删除操作');
             }
         );
     });
@@ -489,72 +487,12 @@ export function clearAllModules() {
         },
         function () {
             // 用户取消清空
-            console.log('用户取消了清空模块操作');
+            debugLog('用户取消了清空模块操作');
         }
     );
 }
 
-/**
- * 自动保存模块配置
- */
-function autoSaveModuleConfig() {
-    // 使用防抖机制，避免频繁保存
-    if (window.autoSaveTimeout) {
-        clearTimeout(window.autoSaveTimeout);
-    }
 
-    window.autoSaveTimeout = setTimeout(() => {
-        const modules = getModulesData();
-
-        // 收集全局设置数据
-        const globalSettings = {
-            corePrinciples: $('#core-principles-input').val() || '',
-            formatDescription: $('#format-description-input').val() || ''
-        };
-
-        saveModuleConfig(modules, globalSettings);
-        debugLog('配置已自动保存');
-    }, 1000); // 1秒后保存
-}
-
-/**
- * 获取模块数据
- * @returns {Array} 模块配置数组
- */
-export function getModulesData() {
-    const modules = [];
-
-    // 首先尝试从DOM中获取模块数据（如果配置面板已打开）
-    if ($('.module-item').length > 0) {
-        // 使用统一的数据收集器收集模块数据
-        modules.push(...collectModulesDataFromUI());
-    }
-
-    // 如果DOM中没有模块数据，或者收集到的数据为空，则从配置管理器加载
-    if (modules.length === 0) {
-        try {
-            // 使用配置管理器加载配置
-            const config = configManager.get();
-            if (config && config.modules && Array.isArray(config.modules)) {
-                // 确保每个模块都有启用状态（默认为true）和保留层数（默认为-1）
-                const modulesWithEnabledState = config.modules.map(module => ({
-                    ...module,
-                    enabled: module.enabled !== false, // 如果未定义enabled，默认为true
-                    retainLayers: module.retainLayers !== undefined ? module.retainLayers : -1, // 如果未定义retainLayers，默认为-1
-                    rangeMode: module.rangeMode || 'specified', // 添加rangeMode字段，默认值为specified
-                    outputMode: module.outputMode || 'full', // 添加outputMode字段，默认值为full（全量输出）
-                    timeReferenceStandard: module.timeReferenceStandard || false // 添加时间参考标准字段，默认为false
-                }));
-                modules.push(...modulesWithEnabledState);
-                debugLog('从配置管理器加载模块配置:', modules.length, '个模块');
-            }
-        } catch (error) {
-            errorLog('加载模块配置失败:', error);
-        }
-    }
-
-    return modules;
-}
 
 /**
  * 开始拖拽模块
@@ -657,16 +595,8 @@ function startDragging(moduleContainer, e) {
         // 更新模块顺序
         updateModuleOrderNumbers();
 
-        // 保存模块配置到本地存储
-        const modules = getModulesData();
-
-        // 收集全局设置数据
-        const globalSettings = {
-            corePrinciples: $('#core-principles-input').val() || '',
-            formatDescription: $('#format-description-input').val() || ''
-        };
-
-        saveModuleConfig(modules, globalSettings);
+        // 使用统一的配置管理器立即保存配置
+        configManager.saveImmediately();
 
         // 移除事件监听
         $(document).off('mousemove touchmove', handleDragMove);
@@ -780,7 +710,7 @@ function startVariableDragging(variableItem, variablesContainer, e) {
         updateVariableOrderNumbers(variablesContainer);
 
         // 自动保存配置
-        autoSaveModuleConfig();
+        configManager.autoSave();
 
         // 移除事件监听
         $(document).off('mousemove touchmove', handleDragMove);
