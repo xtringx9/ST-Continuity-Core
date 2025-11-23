@@ -321,17 +321,17 @@ export function deduplicateModules(modules) {
             if (shouldCompare && module.messageIndex < existingModule.messageIndex) {
                 // 两个messageIndex都非负数，且当前模块的messageIndex更小
                 moduleMap.set(moduleKey, module);
-                debugLog('[Deduplication] 替换为更小的messageIndex:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex);
+                debugLog('[Deduplication] 替换为更小的messageIndex:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
             } else if (!shouldCompare && module.messageIndex >= 0 && existingModule.messageIndex < 0) {
                 // 当前模块messageIndex非负数，已存在模块为负数，保留非负数
                 moduleMap.set(moduleKey, module);
-                debugLog('[Deduplication] 替换负数messageIndex为正数:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex);
+                debugLog('[Deduplication] 替换负数messageIndex为正数:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
             } else if (!shouldCompare && module.messageIndex < 0 && existingModule.messageIndex >= 0) {
                 // 当前模块messageIndex为负数，已存在模块为非负数，保留非负数
-                // debugLog('[Deduplication] 保留非负数messageIndex:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex);
+                // debugLog('[Deduplication] 保留非负数messageIndex:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
             } else {
                 // 其他情况（包括两个都为负数，或比较后保留原有模块）
-                // debugLog('[Deduplication] 保留原有模块:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex);
+                // debugLog('[Deduplication] 保留原有模块:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
             }
             duplicateCount++;
         } else {
