@@ -351,7 +351,7 @@ function processLevelVariables(modules, modulesData) {
     modules.forEach(module => {
         if (module.variables.level === undefined || module.variables.level === null || module.variables.level === '') {
             module.variables.level = 0;
-            debugLog('[Level Processor] 为模块设置level值为:', module.variables.level, module);
+            // debugLog('[Level Processor] 为模块设置level值为:', module.variables.level, module);
         }
         // else {
         //     // 确保level是数字类型
@@ -361,8 +361,9 @@ function processLevelVariables(modules, modulesData) {
         module.visibility = true;
     });
 
-    // 找出所有level大于0的压缩模块
-    const compressedModules = modules.filter(module => module.variables.level > 0);
+    // 找出所有level大于0的压缩模块，并按level从高到低排序
+    const compressedModules = modules.filter(module => module.variables.level > 0)
+        .sort((a, b) => b.variables.level - a.variables.level);
     debugLog('[Level Processor] level大于0的模块：', compressedModules);
     // 处理每个压缩模块
     compressedModules.forEach(compressedModule => {
@@ -390,7 +391,9 @@ function processLevelVariables(modules, modulesData) {
     });
 
     // 返回过滤掉visibility为false的模块
-    return modules.filter(module => module.visibility);
+    const visibleModules = sortModules(modules.filter(module => module.visibility));
+    debugLog('[Level Processor] 可见模块:', visibleModules);
+    return visibleModules;
 }
 
 /**
@@ -400,7 +403,7 @@ function processLevelVariables(modules, modulesData) {
  */
 function processTimeBasedCompression(compressedModule, modules) {
     const { timeData } = compressedModule;
-    if (!timeData || !timeData.isValid || !timeData.isComplete) return;
+    if (!timeData || !timeData.isValid || (!timeData.isComplete && !timeData.startTime.hasDate)) return;
 
     // 获取压缩模块的时间范围
     const compressedStart = timeData.startTime.timestamp;
@@ -417,24 +420,28 @@ function processTimeBasedCompression(compressedModule, modules) {
 
         // 检查时间范围
         const moduleTimeData = module.timeData;
-        if (moduleTimeData && moduleTimeData.isValid && moduleTimeData.isComplete) {
+        if (moduleTimeData && moduleTimeData.isValid && (moduleTimeData.isComplete || (!moduleTimeData.isComplete && moduleTimeData.startTime.hasDate))) {
             if (!moduleTimeData.isRange) {
                 const moduleStart = moduleTimeData.startTime.timestamp;
-                debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
                 // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
                 if (moduleStart >= compressedStart && moduleStart <= compressedEnd) {
                     debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
                     module.visibility = false;
                 }
+                else {
+                    debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
+                }
             }
             else {
                 const moduleStart = moduleTimeData.startTime.timestamp;
                 const moduleEnd = moduleTimeData.endTime.timestamp;
-                debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
                 // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
                 if (moduleStart >= compressedStart && moduleEnd <= compressedEnd) {
                     debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, ' ', moduleEnd, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
                     module.visibility = false;
+                }
+                else {
+                    debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
                 }
             }
         }
@@ -634,10 +641,12 @@ export function completeTimeVariables(modules) {
     // 第一步：分组
     modules.forEach(module => {
         const messageIndex = module.messageIndex;
-        if (!messageModulesMap[messageIndex]) {
-            messageModulesMap[messageIndex] = [];
+        if (messageIndex >= 0) {
+            if (!messageModulesMap[messageIndex]) {
+                messageModulesMap[messageIndex] = [];
+            }
+            messageModulesMap[messageIndex].push(module);
         }
-        messageModulesMap[messageIndex].push(module);
     });
 
     // 第二步：为每组message中的模块补全time变量
@@ -1085,7 +1094,7 @@ function getBackupIdentifierInfo(module, moduleConfig, currentIdentifierValue, c
  * @returns {Array} 排序后的模块数组
  */
 export function sortModules(modules) {
-    // debugLog('[SortModules]', '开始排序模块，模块数量:', modules.length);
+    // debugLog('[SortModules]', '开始排序模块，模块:', modules);
     return modules.sort((a, b) => {
         // debugLog('[SortModules]', '比较模块:', a.moduleName, 'vs', b.moduleName, 'messageIndex:', a.messageIndex, 'vs', b.messageIndex);
         // 动态获取所有模块配置
@@ -1101,15 +1110,15 @@ export function sortModules(modules) {
         if (aInfo.hasValidIdentifier && bInfo.hasValidIdentifier &&
             !aInfo.isTimeIdentifier && !bInfo.isTimeIdentifier &&
             !isNumeric(aInfo.identifierValue) && !isNumeric(bInfo.identifierValue)) {
-            // debugLog('[SortModules]', '决策: 双方都有非数值标识符，按messageIndex排序');
+            // debugLog('[SortModules]', '决策: 双方都有非数值标识符，按messageIndex排序', a, b);
             return a.messageIndex - b.messageIndex;
         }
 
         // 处理时间类型的标识符 - 只在同模块内进行时间排序
         if (aInfo.isTimeIdentifier && bInfo.isTimeIdentifier && a.moduleName === b.moduleName) {
             // 检查是否可以使用timeData进行排序
-            const canUseATimeData = a.timeData && a.timeData.isValid && a.timeData.isComplete && a.timeData.timestamp !== undefined;
-            const canUseBTimeData = b.timeData && b.timeData.isValid && b.timeData.isComplete && b.timeData.timestamp !== undefined;
+            const canUseATimeData = a.timeData && a.timeData.isValid && (a.timeData.isComplete || !a.timeData.isComplete && a.timeData.startTime?.hasDate) && a.timeData.startTime?.timestamp !== undefined;
+            const canUseBTimeData = b.timeData && b.timeData.isValid && (b.timeData.isComplete || !b.timeData.isComplete && b.timeData.startTime?.hasDate) && b.timeData.startTime?.timestamp !== undefined;
 
             // 只有当两个模块都可以使用timeData时才进行时间排序
             if (canUseATimeData && canUseBTimeData) {
@@ -1117,22 +1126,22 @@ export function sortModules(modules) {
                 let bTime;
 
                 // 获取模块A的时间戳
-                if (a.timeData.isRange && a.timeData.startTime && a.timeData.endTime) {
+                if (a.timeData.isRange) {
                     // 如果是时间范围，使用开始和结束时间戳中间的中点
-                    aTime = (a.timeData.startTime + a.timeData.endTime) / 2;
+                    aTime = (a.timeData.startTime.timestamp + a.timeData.endTime.timestamp) / 2;
                 } else {
-                    aTime = a.timeData.timestamp;
+                    aTime = a.timeData.startTime.timestamp;
                 }
 
                 // 获取模块B的时间戳
-                if (b.timeData.isRange && b.timeData.startTime && b.timeData.endTime) {
+                if (b.timeData.isRange) {
                     // 如果是时间范围，使用开始和结束时间戳中间的中点
-                    bTime = (b.timeData.startTime + b.timeData.endTime) / 2;
+                    bTime = (b.timeData.startTime.timestamp + b.timeData.endTime.timestamp) / 2;
                 } else {
-                    bTime = b.timeData.timestamp;
+                    bTime = b.timeData.startTime.timestamp;
                 }
 
-                // debugLog('[SortModules]', '决策: 时间类型标识符排序，A时间:', aTime, 'B时间:', bTime, '差值:', aTime - bTime);
+                // debugLog('[SortModules]', '决策: 时间类型标识符排序，A时间:', aTime, 'B时间:', bTime, '差值:', aTime - bTime, a, b);
                 return aTime - bTime;
             }
 
@@ -1144,14 +1153,14 @@ export function sortModules(modules) {
             isNumeric(aInfo.identifierValue) && isNumeric(bInfo.identifierValue)) {
             const aNum = parseFloat(aInfo.identifierValue);
             const bNum = parseFloat(bInfo.identifierValue);
-            // debugLog('[SortModules]', '决策: 数值类型标识符排序，A值:', aNum, 'B值:', bNum, '差值:', aNum - bNum);
+            // debugLog('[SortModules]', '决策: 数值类型标识符排序，A值:', aNum, 'B值:', bNum, '差值:', aNum - bNum, a, b);
             return aNum - bNum;
         }
 
         // 处理普通标识符
         if (aInfo.hasValidIdentifier && bInfo.hasValidIdentifier) {
             const compareResult = aInfo.identifierValue.localeCompare(bInfo.identifierValue);
-            // debugLog('[SortModules]', '决策: 普通标识符排序，A值:', aInfo.identifierValue, 'B值:', bInfo.identifierValue, '比较结果:', compareResult);
+            // debugLog('[SortModules]', '决策: 普通标识符排序，A值:', aInfo.identifierValue, 'B值:', bInfo.identifierValue, '比较结果:', compareResult, a, b);
             return compareResult;
         }
 
