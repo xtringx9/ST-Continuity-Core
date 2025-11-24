@@ -2,6 +2,8 @@
 import { configManager, debugLog, errorLog } from '../index.js';
 import { extractModulesFromChat } from './moduleExtractor.js';
 import { IdentifierParser } from '../utils/identifierParser.js';
+import { parseTimeDetailed, formatTimeDataToStandard } from '../utils/timeParser.js';
+import { removeHyphens } from '../utils/stringUtils.js';
 
 // /**
 //  * 模块数据处理器类
@@ -192,6 +194,7 @@ export function normalizeModules(modules) {
     modules.forEach(module => {
         // 解析模块名和变量
         const [originalModuleName, ...parts] = module.raw.slice(1, -1).split('|');
+        const moduleName = removeHyphens(originalModuleName.trim());
 
         // 解析当前模块的变量
         const originalVariables = {};
@@ -199,7 +202,7 @@ export function normalizeModules(modules) {
             const colonIndex = part.indexOf(':');
             if (colonIndex === -1) return;
 
-            const key = part.substring(0, colonIndex).trim();
+            const key = removeHyphens(part.substring(0, colonIndex).trim());
             const value = part.substring(colonIndex + 1).trim();
 
             if (key) {
@@ -209,12 +212,13 @@ export function normalizeModules(modules) {
 
         // 查找模块配置（支持兼容模块名）
         const moduleConfig = modulesData.find(configModule => {
-            // 检查主模块名是否匹配
-            if (configModule.name === originalModuleName) return true;
+            // 检查主模块名是否匹配（使用去'-'后的模块名）
+            if (configModule.name === moduleName) return true;
             // 检查兼容模块名是否包含当前模块名
             if (configModule.compatibleModuleNames) {
                 // const compatibleNames = configModule.compatibleModuleNames.split(',').map(name => name.trim());
-                return configModule.compatibleModuleNames.includes(originalModuleName);
+                return configModule.compatibleModuleNames.includes(originalModuleName) ||
+                    configModule.compatibleModuleNames.includes(moduleName);
             }
             return false;
         });
@@ -266,11 +270,11 @@ export function normalizeModules(modules) {
 
             normalizedModules.push(normalizedModule);
         } else {
-            // 如果没有找到模块配置，使用原始模块数据
+            // 如果没有找到模块配置，使用原始模块数据（使用去'-'后的模块名）
             normalizedModules.push({
                 ...module,
                 originalModuleName,
-                moduleName: originalModuleName,
+                moduleName: moduleName,
                 variables: originalVariables
                 // 不再存储moduleConfig，需要时从configManager动态获取
             });
@@ -283,13 +287,16 @@ export function normalizeModules(modules) {
     // 第二步：模块内容去重
     const deduplicatedModules = deduplicateModules(normalizedModules);
 
-    // 第三步：智能补全time变量
+    // 第三步：为包含time变量的模块附加结构化时间数据（包含格式化）
+    attachStructuredTimeData(deduplicatedModules);
+
+    // 第五步：智能补全time变量
     completeTimeVariables(deduplicatedModules);
 
-    // 第四步：对模块进行排序
+    // 第六步：对模块进行排序
     const sortedModules = sortModules(deduplicatedModules);
 
-    // 第五步：智能补全id变量
+    // 第七步：智能补全id变量
     completeIdVariables(sortedModules);
 
     debugLog('[Module Processor] 标准化模块完成，模块:', sortedModules);
@@ -301,17 +308,28 @@ export function normalizeModules(modules) {
  * 模块内容去重
  * 如果所有变量的值都一致，则视为重复条目并去除
  * 去重时保留messageIndex最小的模块
+ * 对于增量模块，使用临时messageIndex进行特殊处理
  * @param {Array} modules 标准化后的模块数组
  * @returns {Array} 去重后的模块数组
  */
 export function deduplicateModules(modules) {
     // debugLog('[Deduplication] 开始模块去重，模块数量:', modules.length);
 
+    // 获取所有模块配置
+    const modulesConfig = configManager.getModules() || [];
+
     // 使用Map来存储每个唯一模块的最小messageIndex版本
     const moduleMap = new Map();
+    // 使用Map来存储临时messageIndex信息
+    const tempMessageIndexMap = new Map();
     let duplicateCount = 0;
 
     modules.forEach(module => {
+        // 获取当前模块的配置
+        const moduleConfig = modulesConfig.find(config => config.name === module.moduleName);
+        // 判断是否为增量模块（outputMode === 'incremental'）
+        const isIncrementalModule = moduleConfig && moduleConfig.outputMode === 'incremental';
+
         // 构建模块的唯一标识符：基于所有变量值的组合
         const moduleKey = JSON.stringify({
             moduleName: module.moduleName,
@@ -322,28 +340,61 @@ export function deduplicateModules(modules) {
         if (moduleMap.has(moduleKey)) {
             const existingModule = moduleMap.get(moduleKey);
 
-            // 比较messageIndex，保留较小的那个，但只在messageIndex都非负数时进行比较
-            const shouldCompare = module.messageIndex >= 0 && existingModule.messageIndex >= 0;
+            if (isIncrementalModule) {
+                // 增量模块的特殊处理逻辑
 
-            if (shouldCompare && module.messageIndex < existingModule.messageIndex) {
-                // 两个messageIndex都非负数，且当前模块的messageIndex更小
-                moduleMap.set(moduleKey, module);
-                debugLog('[Deduplication] 替换为更小的messageIndex:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
-            } else if (!shouldCompare && module.messageIndex >= 0 && existingModule.messageIndex < 0) {
-                // 当前模块messageIndex非负数，已存在模块为负数，保留非负数
-                moduleMap.set(moduleKey, module);
-                debugLog('[Deduplication] 替换负数messageIndex为正数:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
-            } else if (!shouldCompare && module.messageIndex < 0 && existingModule.messageIndex >= 0) {
-                // 当前模块messageIndex为负数，已存在模块为非负数，保留非负数
-                // debugLog('[Deduplication] 保留非负数messageIndex:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
+                // 获取或初始化临时messageIndex
+                let tempMessageIndex = tempMessageIndexMap.get(moduleKey) || Math.max(existingModule.messageIndex, module.messageIndex);
+
+                // 比较当前模块的messageIndex与临时messageIndex的差值
+                const currentMessageIndex = module.messageIndex >= 0 ? module.messageIndex : tempMessageIndex;
+                const diff = Math.abs(currentMessageIndex - tempMessageIndex);
+
+                // 如果差值大于2，则保留两个模块（通过创建新的key来实现）
+                if (diff > 2) {
+                    // 创建一个新的唯一key，避免去重
+                    const newModuleKey = `${moduleKey}_${Date.now()}_${Math.random()}`;
+                    moduleMap.set(newModuleKey, module);
+                    // 为新模块设置临时messageIndex
+                    tempMessageIndexMap.set(newModuleKey, currentMessageIndex);
+                    debugLog('[Deduplication] 增量模块差值大于2，保留两个模块:', module.moduleName, '差值:', diff, 'messageIndex1:', tempMessageIndex, 'messageIndex2:', currentMessageIndex);
+                } else {
+                    // 如果差值小于等于2，则保留原有模块，但更新临时messageIndex
+                    tempMessageIndex = Math.max(tempMessageIndex, currentMessageIndex);
+                    tempMessageIndexMap.set(moduleKey, tempMessageIndex);
+                    debugLog('[Deduplication] 增量模块差值小于等于2，保留原有模块并更新临时messageIndex:', module.moduleName, '差值:', diff, '新临时messageIndex:', tempMessageIndex);
+                }
             } else {
-                // 其他情况（包括两个都为负数，或比较后保留原有模块）
-                // debugLog('[Deduplication] 保留原有模块:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
+                // 全量模块使用原有逻辑
+                // 比较messageIndex，保留较小的那个，但只在messageIndex都非负数时进行比较
+                const shouldCompare = module.messageIndex >= 0 && existingModule.messageIndex >= 0;
+
+                if (shouldCompare && module.messageIndex < existingModule.messageIndex) {
+                    // 两个messageIndex都非负数，且当前模块的messageIndex更小
+                    moduleMap.set(moduleKey, module);
+                    debugLog('[Deduplication] 替换为更小的messageIndex:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
+                } else if (!shouldCompare && module.messageIndex >= 0 && existingModule.messageIndex < 0) {
+                    // 当前模块messageIndex非负数，已存在模块为负数，保留非负数
+                    moduleMap.set(moduleKey, module);
+                    debugLog('[Deduplication] 替换负数messageIndex为正数:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
+                } else if (!shouldCompare && module.messageIndex < 0 && existingModule.messageIndex >= 0) {
+                    // 当前模块messageIndex为负数，已存在模块为非负数，保留非负数
+                    debugLog('[Deduplication] 保留非负数messageIndex:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
+                } else {
+                    // 其他情况（包括两个都为负数，或比较后保留原有模块）
+                    debugLog('[Deduplication] 保留原有模块:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
+                }
             }
             duplicateCount++;
         } else {
             // 第一次遇到这个模块，直接存储
             moduleMap.set(moduleKey, module);
+            // 为增量模块初始化临时messageIndex
+            if (isIncrementalModule) {
+                const tempMessageIndex = module.messageIndex >= 0 ? module.messageIndex : 0;
+                tempMessageIndexMap.set(moduleKey, tempMessageIndex);
+                debugLog('[Deduplication] 初始化增量模块临时messageIndex:', module.moduleName, 'tempMessageIndex:', tempMessageIndex);
+            }
         }
     });
 
@@ -1263,12 +1314,12 @@ export function parseSingleVariableInProcess(part, variablesMap, variableNameMap
         // 检查变量名是否在映射表中
         if (variableNameMap.hasOwnProperty(varName)) {
             const currentVarName = variableNameMap[varName];
-            variablesMap[currentVarName] = varValue;
+            variablesMap[currentVarName] = currentVarName !== 'time' ? removeHyphens(varValue) : varValue;
         } else {
             // 处理兼容变量名的精确匹配
             for (const [compatName, currentName] of Object.entries(variableNameMap)) {
                 if (varName === compatName) {
-                    variablesMap[currentName] = varValue;
+                    variablesMap[currentName] = currentName !== 'time' ? removeHyphens(varValue) : varValue;
                     break;
                 }
             }
@@ -1810,7 +1861,55 @@ export function processFullModules(modules) {
 
     return resultItems;
 }
-// }
 
+/**
+ * 为包含time变量的模块附加结构化时间数据
+ * 使用timeParser.js中的parseTimeDetailed函数解析时间并添加结构化数据
+ * @param {Array} modules 标准化后的模块数组
+ */
+export function attachStructuredTimeData(modules) {
+    debugLog('[TimeDataAttachment] 开始为模块附加结构化时间数据，模块数量:', modules.length);
+
+    let attachmentCount = 0;
+    let formattedCount = 0;
+
+    modules.forEach(module => {
+        if (module.variables) {
+            // 遍历所有变量，查找包含time的变量名
+            for (const [variableName, timeVal] of Object.entries(module.variables)) {
+                if (variableName.toLowerCase().includes('time') && timeVal) {
+                    // debugLog(`[TimeDataAttachment] 发现time变量 ${variableName}: ${timeVal}`);
+
+                    try {
+                        // 使用timeParser.js中的parseTimeDetailed函数解析时间
+                        const timeData = parseTimeDetailed(timeVal);
+
+                        if (timeData) {
+                            // 为模块添加结构化时间数据
+                            module.timeData = timeData;
+                            attachmentCount++;
+
+                            // 如果解析成功且有格式化字符串，直接更新变量值
+                            if (timeData.formattedString) {
+                                module.variables[variableName] = timeData.formattedString;
+                                formattedCount++;
+                                debugLog(`[TimeDataAttachment] 格式化时间变量 ${variableName}: ${timeVal} -> ${timeData.formattedString}`);
+                            }
+
+                            // debugLog(`[TimeDataAttachment] 为模块 ${module.moduleName} 附加时间数据成功`);
+                        }
+                    } catch (error) {
+                        debugLog(`[TimeDataAttachment] 解析时间变量失败: ${variableName} = ${timeVal}`, error);
+                    }
+
+                    // 每个模块只处理第一个time变量
+                    break;
+                }
+            }
+        }
+    });
+
+    debugLog('[TimeDataAttachment] 结构化时间数据附加完成，共处理模块数:', attachmentCount, '格式化变量数:', formattedCount);
+}
 
 
