@@ -66,7 +66,7 @@ export function parseTimeDetailed(timeStr, standardTimeData) {
             isRange: false,
             startTime: null,
             endTime: null,
-            formattedString: null
+            formattedString: timeStr
         };
     }
     // if (standardTimeData) {
@@ -487,9 +487,9 @@ export function formatTimeResult(timeResult) {
  * @param {Object} timeData 时间解析结果
  * @returns {string|null} 格式化后的时间字符串，无效时间返回null
  */
-export function formatTimeDataToStandard(timeData) {
+export function formatTimeDataToStandard(timeData, variableDesc) {
     if (!timeData || !timeData.isValid || !timeData.startTime) {
-        return null;
+        return variableDesc;
     }
 
     // 检查是否为不完全时间（只有当时间不完全时才返回原文）
@@ -775,31 +775,31 @@ export function completeTimeDataWithStandard(targetTimeData, standardTimeData) {
     return targetTimeData;
 }
 
-/**
- * 测试函数 - 用于验证各种时间格式的解析
- */
-export function testTimeParser() {
-    const testCases = [
-        '2023年09月25日 周一 17:35~17:40',
-        '2023年09月28日 19:15',
-        '2023-09-25 11:33',
-        '2023-09-25/Sat 11:33',
-        '2023-09-25 Sat 11:33',
-        '2023-09-25/Saturday 11:33',
-        '2023-09-25 Saturday 11:33',
-        '24年4月11日 周四 08:23',
-        '2023年09月30日 21:30',
-        '11:33',
-        '无效时间格式'
-    ];
+// /**
+//  * 测试函数 - 用于验证各种时间格式的解析
+//  */
+// export function testTimeParser() {
+//     const testCases = [
+//         '2023年09月25日 周一 17:35~17:40',
+//         '2023年09月28日 19:15',
+//         '2023-09-25 11:33',
+//         '2023-09-25/Sat 11:33',
+//         '2023-09-25 Sat 11:33',
+//         '2023-09-25/Saturday 11:33',
+//         '2023-09-25 Saturday 11:33',
+//         '24年4月11日 周四 08:23',
+//         '2023年09月30日 21:30',
+//         '11:33',
+//         '无效时间格式'
+//     ];
 
-    console.log('=== 时间解析测试 ===');
-    testCases.forEach(testCase => {
-        const result = parseTimeDetailed(testCase);
-        console.log(`输入: "${testCase}"`);
-        console.log(`结果: ${formatTimeResult(result)}`);
-        console.log(`详细信息:`, result);
-        console.log('---');
-    });
-}
+//     console.log('=== 时间解析测试 ===');
+//     testCases.forEach(testCase => {
+//         const result = parseTimeDetailed(testCase);
+//         console.log(`输入: "${testCase}"`);
+//         console.log(`结果: ${formatTimeResult(result)}`);
+//         console.log(`详细信息:`, result);
+//         console.log('---');
+//     });
+// }
 
