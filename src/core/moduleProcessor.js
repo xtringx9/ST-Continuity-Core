@@ -459,6 +459,7 @@ function processIdBasedCompression(compressedModule, modules, identifierVar) {
     const compressedIdValue = compressedModule.variables[identifierName];
     const compressedLevel = compressedModule.variables.level;
 
+    debugLog('[Level Processor] 压缩模块的ID值:', compressedIdValue, '压缩模块的level:', compressedLevel, compressedModule);
     // 解析压缩模块的ID范围
     const idRange = parseIdRange(compressedIdValue);
     if (!idRange) return;
@@ -500,7 +501,7 @@ function parseIdRange(idValue) {
 
     const start = convertAlphaNumericId(rangeMatch[1].trim());
     const end = convertAlphaNumericId(rangeMatch[2].trim());
-
+    // debugLog('[ID Range] 解析ID范围:', idValue, '转换后的范围:', start, end);
     return { start, end };
 }
 
@@ -1148,13 +1149,34 @@ export function sortModules(modules) {
             // 如果timeData不可用，继续执行下一级判断
         }
 
-        // 处理数值类型的标识符
+        // 处理数值类型和范围类型的标识符
         if (aInfo.hasValidIdentifier && bInfo.hasValidIdentifier &&
-            isNumeric(aInfo.identifierValue) && isNumeric(bInfo.identifierValue)) {
-            const aNum = parseFloat(aInfo.identifierValue);
-            const bNum = parseFloat(bInfo.identifierValue);
-            // debugLog('[SortModules]', '决策: 数值类型标识符排序，A值:', aNum, 'B值:', bNum, '差值:', aNum - bNum, a, b);
-            return aNum - bNum;
+            !aInfo.isTimeIdentifier && !bInfo.isTimeIdentifier) {
+            // 检查A是否是范围ID
+            let aNum;
+            const aRange = parseIdRange(aInfo.identifierValue);
+            if (aRange) {
+                // 使用范围的中点进行排序
+                aNum = (parseFloat(aRange.start) + parseFloat(aRange.end)) / 2;
+            } else if (isNumeric(aInfo.identifierValue)) {
+                aNum = parseFloat(aInfo.identifierValue);
+            }
+
+            // 检查B是否是范围ID
+            let bNum;
+            const bRange = parseIdRange(bInfo.identifierValue);
+            if (bRange) {
+                // 使用范围的中点进行排序
+                bNum = (parseFloat(bRange.start) + parseFloat(bRange.end)) / 2;
+            } else if (isNumeric(bInfo.identifierValue)) {
+                bNum = parseFloat(bInfo.identifierValue);
+            }
+
+            // 如果都是数值（包括范围中点），则进行数值比较
+            if (aNum !== undefined && bNum !== undefined) {
+                // debugLog('[SortModules]', '决策: 数值/范围类型标识符排序，A值:', aNum, 'B值:', bNum, '差值:', aNum - bNum, a, b);
+                return aNum - bNum;
+            }
         }
 
         // 处理普通标识符
