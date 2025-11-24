@@ -2,7 +2,7 @@
 import { configManager, debugLog, errorLog } from '../index.js';
 import { extractModulesFromChat } from './moduleExtractor.js';
 import { IdentifierParser } from '../utils/identifierParser.js';
-import { parseTimeDetailed, formatTimeDataToStandard } from '../utils/timeParser.js';
+import { parseTimeDetailed, formatTimeDataToStandard, completeTimeDataWithStandard } from '../utils/timeParser.js';
 import { removeHyphens } from '../utils/stringUtils.js';
 
 // /**
@@ -197,6 +197,7 @@ export function normalizeModules(modules) {
         const moduleName = removeHyphens(originalModuleName.trim());
 
         // 解析当前模块的变量
+        let isValid = false;
         const originalVariables = {};
         parts.forEach(part => {
             const colonIndex = part.indexOf(':');
@@ -204,80 +205,82 @@ export function normalizeModules(modules) {
 
             const key = removeHyphens(part.substring(0, colonIndex).trim());
             const value = part.substring(colonIndex + 1).trim();
-
+            if (value) isValid = true;
             if (key) {
                 originalVariables[key] = value;
             }
         });
 
-        // 查找模块配置（支持兼容模块名）
-        const moduleConfig = modulesData.find(configModule => {
-            // 检查主模块名是否匹配（使用去'-'后的模块名）
-            if (configModule.name === moduleName) return true;
-            // 检查兼容模块名是否包含当前模块名
-            if (configModule.compatibleModuleNames) {
-                // const compatibleNames = configModule.compatibleModuleNames.split(',').map(name => name.trim());
-                return configModule.compatibleModuleNames.includes(originalModuleName) ||
-                    configModule.compatibleModuleNames.includes(moduleName);
-            }
-            return false;
-        });
-
-        if (moduleConfig) {
-            // 构建变量名映射（兼容变量名 -> 当前变量名）
-            const variableNameMap = buildVariableNameMap(moduleConfig);
-
-            // 标准化变量
-            const normalizedVariables = {};
-            moduleConfig.variables.forEach(variable => {
-                normalizedVariables[variable.name] = '';
-            });
-
-            // 提取模块内容（去掉首尾的[]）
-            const content = module.raw.slice(1, -1);
-
-            // 解析变量字符串
-            let lastPipePos = content.indexOf('|') + 1;
-            let inNestedModule = 0;
-
-            for (let i = lastPipePos; i < content.length; i++) {
-                const char = content[i];
-
-                if (char === '[') {
-                    inNestedModule++;
-                } else if (char === ']') {
-                    inNestedModule--;
-                } else if (char === '|' && inNestedModule === 0) {
-                    // 只在顶级管道符处分割
-                    const varPart = content.substring(lastPipePos, i).trim();
-                    parseSingleVariableInProcess(varPart, normalizedVariables, variableNameMap);
-                    lastPipePos = i + 1;
+        if (isValid) {
+            // 查找模块配置（支持兼容模块名）
+            const moduleConfig = modulesData.find(configModule => {
+                // 检查主模块名是否匹配（使用去'-'后的模块名）
+                if (configModule.name === moduleName) return true;
+                // 检查兼容模块名是否包含当前模块名
+                if (configModule.compatibleModuleNames) {
+                    // const compatibleNames = configModule.compatibleModuleNames.split(',').map(name => name.trim());
+                    return configModule.compatibleModuleNames.includes(originalModuleName) ||
+                        configModule.compatibleModuleNames.includes(moduleName);
                 }
-            }
-
-            // 处理最后一个变量部分
-            const lastPart = content.substring(lastPipePos).trim();
-            parseSingleVariableInProcess(lastPart, normalizedVariables, variableNameMap);
-
-            // 构建标准化模块
-            const normalizedModule = {
-                ...module,
-                originalModuleName,
-                moduleName: moduleConfig.name, // 使用配置中的标准模块名
-                variables: normalizedVariables
-                // 不再存储moduleConfig，需要时从configManager动态获取
-            };
-
-            normalizedModules.push(normalizedModule);
-        } else {
-            // 如果没有找到模块配置，使用原始模块数据（使用去'-'后的模块名）
-            normalizedModules.push({
-                ...module,
-                originalModuleName,
-                moduleName: moduleName,
-                variables: originalVariables
-                // 不再存储moduleConfig，需要时从configManager动态获取
+                return false;
             });
+
+            if (moduleConfig) {
+                // 构建变量名映射（兼容变量名 -> 当前变量名）
+                const variableNameMap = buildVariableNameMap(moduleConfig);
+
+                // 标准化变量
+                const normalizedVariables = {};
+                moduleConfig.variables.forEach(variable => {
+                    normalizedVariables[variable.name] = '';
+                });
+
+                // 提取模块内容（去掉首尾的[]）
+                const content = module.raw.slice(1, -1);
+
+                // 解析变量字符串
+                let lastPipePos = content.indexOf('|') + 1;
+                let inNestedModule = 0;
+
+                for (let i = lastPipePos; i < content.length; i++) {
+                    const char = content[i];
+
+                    if (char === '[') {
+                        inNestedModule++;
+                    } else if (char === ']') {
+                        inNestedModule--;
+                    } else if (char === '|' && inNestedModule === 0) {
+                        // 只在顶级管道符处分割
+                        const varPart = content.substring(lastPipePos, i).trim();
+                        parseSingleVariableInProcess(varPart, normalizedVariables, variableNameMap);
+                        lastPipePos = i + 1;
+                    }
+                }
+
+                // 处理最后一个变量部分
+                const lastPart = content.substring(lastPipePos).trim();
+                parseSingleVariableInProcess(lastPart, normalizedVariables, variableNameMap);
+
+                // 构建标准化模块
+                const normalizedModule = {
+                    ...module,
+                    originalModuleName,
+                    moduleName: moduleConfig.name, // 使用配置中的标准模块名
+                    variables: normalizedVariables
+                    // 不再存储moduleConfig，需要时从configManager动态获取
+                };
+
+                normalizedModules.push(normalizedModule);
+            } else {
+                // 如果没有找到模块配置，使用原始模块数据（使用去'-'后的模块名）
+                normalizedModules.push({
+                    ...module,
+                    originalModuleName,
+                    moduleName: moduleName,
+                    variables: originalVariables
+                    // 不再存储moduleConfig，需要时从configManager动态获取
+                });
+            }
         }
     });
 
@@ -408,7 +411,7 @@ export function deduplicateModules(modules) {
 
 /**
  * 智能补全time变量
- * 对于time变量为空或只有时分的模块，根据同一条message内其他模块的time变量来补足
+ * 利用已附加的timeData属性，为同一message内的模块补全时间数据
  * @param {Array} modules 标准化后的模块数组
  */
 export function completeTimeVariables(modules) {
@@ -426,138 +429,101 @@ export function completeTimeVariables(modules) {
         messageModulesMap[messageIndex].push(module);
     });
 
-    // debugLog('[TimeCompletion] 按messageIndex分组完成，分组数量:', Object.keys(messageModulesMap).length);
-
     // 第二步：为每组message中的模块补全time变量
     Object.values(messageModulesMap).forEach((messageModules, index) => {
-        // debugLog(`[TimeCompletion] 处理第${index + 1}组message，包含${messageModules.length}个模块`);
-
-        // 查找该message中包含完整time信息的模块
-        let referenceTime = null;
-        let referenceTimeStr = '';
-        let referenceModuleName = '';
-
-        // 策略1：优先查找开启了时间参考标准的模块
-        // debugLog(`[TimeCompletion] 策略1：优先查找开启时间参考标准的模块`);
-
         // 获取所有模块配置
         const modulesData = configManager.getModules() || [];
 
+        // 查找该message中包含完整time信息的模块作为标准时间
+        let standardTimeData = null;
+        let standardTimeModuleName = '';
+
+        // 策略1：优先查找开启了时间参考标准且timeData有效且完整的模块
         for (const module of messageModules) {
-            if (module.variables) {
+            if (module.timeData && module.timeData.isValid && module.timeData.isComplete) {
                 // 查找当前模块的配置
                 const moduleConfig = modulesData.find(config => config.name === module.moduleName);
 
-                // 检查模块是否开启了时间参考标准
+                // 如果是时间参考标准模块，直接使用
                 if (moduleConfig && moduleConfig.timeReferenceStandard) {
-                    // debugLog(`[TimeCompletion] 模块 ${module.moduleName} 开启了时间参考标准`);
-
-                    // 遍历所有变量，查找包含time的变量名
-                    for (const [variableName, timeVal] of Object.entries(module.variables)) {
-                        if (variableName.toLowerCase().includes('time') && timeVal) {
-                            // debugLog(`[TimeCompletion] 发现time变量 ${variableName}: ${timeVal}`);
-                            const parsedTime = parseTime(timeVal);
-                            // debugLog(`[TimeCompletion] 解析后的时间戳: ${parsedTime}`);
-
-                            // 检查是否是完整的年月日时间
-                            if (parsedTime > 0) {
-                                const date = new Date(parsedTime);
-                                // debugLog(`[TimeCompletion] 解析后的日期对象: ${date}`);
-                                // 如果时间包含年月日（不是只有时分）
-                                if (date.getFullYear() > 1970 && date.getMonth() >= 0 && date.getDate() > 0) {
-                                    referenceTime = parsedTime;
-                                    referenceTimeStr = timeVal;
-                                    referenceModuleName = module.moduleName;
-                                    // debugLog(`[TimeCompletion] 找到参考时间: ${referenceTimeStr} (来自开启时间参考标准的模块 ${referenceModuleName})`);
-                                    break;
-                                } else {
-                                    // debugLog(`[TimeCompletion] 时间不完整: 年份=${date.getFullYear()}, 月份=${date.getMonth()}, 日期=${date.getDate()}`);
-                                }
-                            } else {
-                                debugLog(`[TimeCompletion] 无法解析时间: ${timeVal}`);
-                            }
-                        }
-                    }
-                    if (referenceTime) break;
+                    standardTimeData = module.timeData;
+                    standardTimeModuleName = module.moduleName;
+                    debugLog(`[TimeCompletion] 找到时间参考标准模块 ${standardTimeModuleName} 的标准时间数据`);
+                    break;
                 }
             }
         }
 
-        // 策略2：如果策略1没找到，查找有完整年月日的time变量（支持所有包含time的变量名）
-        if (!referenceTime) {
-            // debugLog(`[TimeCompletion] 策略1未找到参考时间，尝试策略2：查找有完整年月日的time变量`);
-
+        // 策略2：如果策略1没找到，查找任何timeData有效且完整的模块
+        if (!standardTimeData) {
             for (const module of messageModules) {
-                if (module.variables) {
-                    // debugLog(`[TimeCompletion] 检查模块 ${module.moduleName} 的变量:`, Object.keys(module.variables));
-
-                    // 遍历所有变量，查找包含time的变量名
-                    for (const [variableName, timeVal] of Object.entries(module.variables)) {
-                        if (variableName.toLowerCase().includes('time') && timeVal) {
-                            // debugLog(`[TimeCompletion] 发现time变量 ${variableName}: ${timeVal}`);
-                            const parsedTime = parseTime(timeVal);
-                            // debugLog(`[TimeCompletion] 解析后的时间戳: ${parsedTime}`);
-
-                            // 检查是否是完整的年月日时间
-                            if (parsedTime > 0) {
-                                const date = new Date(parsedTime);
-                                // debugLog(`[TimeCompletion] 解析后的日期对象: ${date}`);
-                                // 如果时间包含年月日（不是只有时分）
-                                if (date.getFullYear() > 1970 && date.getMonth() >= 0 && date.getDate() > 0) {
-                                    referenceTime = parsedTime;
-                                    referenceTimeStr = timeVal;
-                                    referenceModuleName = module.moduleName;
-                                    // debugLog(`[TimeCompletion] 找到参考时间: ${referenceTimeStr} (来自模块 ${referenceModuleName})`);
-                                    break;
-                                } else {
-                                    // debugLog(`[TimeCompletion] 时间不完整: 年份=${date.getFullYear()}, 月份=${date.getMonth()}, 日期=${date.getDate()}`);
-                                }
-                            } else {
-                                debugLog(`[TimeCompletion] 无法解析时间: ${timeVal}`);
-                            }
-                        }
-                    }
-                    if (referenceTime) break;
+                if (module.timeData && module.timeData.isValid && module.timeData.isComplete) {
+                    standardTimeData = module.timeData;
+                    standardTimeModuleName = module.moduleName;
+                    debugLog(`[TimeCompletion] 找到标准时间数据，来自模块 ${standardTimeModuleName}`);
+                    break;
                 }
             }
         }
 
-        if (!referenceTime) {
-            // debugLog(`[TimeCompletion] 第${index + 1}组message中未找到完整的参考时间`);
+        if (!standardTimeData) {
+            // debugLog(`[TimeCompletion] 第${index + 1}组message中未找到完整的标准时间数据`);
+            return;
         }
 
-        // 如果找到了参考时间，为其他模块补全
-        if (referenceTime) {
-            // debugLog(`[TimeCompletion] 使用参考时间 ${referenceTimeStr} 补全其他模块`);
-            let completionCount = 0;
+        // 获取标准时间的年月日信息
+        // 使用standardTimeData直接进行时间补全
 
-            for (const module of messageModules) {
-                if (module.variables) {
-                    // 遍历所有变量，补全包含time的变量
-                    for (const [variableName, timeVal] of Object.entries(module.variables)) {
-                        if (variableName.toLowerCase().includes('time') && timeVal !== undefined) {
-                            // debugLog(`[TimeCompletion] 检查模块 ${module.moduleName} 的time变量 ${variableName}: ${timeVal}`);
+        // 使用标准时间为其他模块补全
+        let completionCount = 0;
 
-                            // 如果time变量为空或只有时分
-                            if (!timeVal || /^\d{1,2}:\d{1,2}$/.test(timeVal)) {
-                                const originalValue = timeVal;
-                                // 使用统一的标识符解析工具处理时间变量
-                                module.variables[variableName] = IdentifierParser.parseTimeVariable(timeVal, referenceTimeStr, new Date(referenceTime));
-                                completionCount++;
-                                // debugLog(`[TimeCompletion] 补全time变量: ${variableName} 从 "${originalValue}" 变为 "${module.variables[variableName]}"`);
-                            } else {
-                                // debugLog(`[TimeCompletion] time变量 ${variableName} 已完整，无需补全: ${timeVal}`);
-                            }
-                        }
+        for (const module of messageModules) {
+            // 跳过标准时间模块本身
+            if (module.timeData === standardTimeData) continue;
+
+            if (!module.timeData || (!module.timeData.isValid && !module.timeData.formattedString)) {
+                module.timeData = standardTimeData;
+                for (const [variableName] of Object.entries(module.variables)) {
+                    if (variableName.toLowerCase().includes('time')) {
+                        module.variables[variableName] = module.timeData.formattedString;
+                        completionCount++;
+                        break;
                     }
                 }
             }
 
-            // debugLog(`[TimeCompletion] 第${index + 1}组message完成补全，共补全${completionCount}个time变量`);
+            if (module.timeData && module.timeData.isValid && !module.timeData.isComplete) {
+                const formattedString = module.timeData.formattedString;
+
+                // 检查是否需要补全日年月日
+                // 使用completeTimeDataWithStandard函数补全时间数据
+                const updatedTimeData = completeTimeDataWithStandard(module.timeData, standardTimeData);
+
+                // 如果时间数据被成功补全
+                if (updatedTimeData !== module.timeData) {
+                    module.timeData = updatedTimeData;
+                }
+
+                // 更新模块的time变量值
+                if (module.variables && module.timeData.isComplete) {
+                    for (const [variableName] of Object.entries(module.variables)) {
+                        if (variableName.toLowerCase().includes('time')) {
+                            module.variables[variableName] = module.timeData.formattedString;
+                            completionCount++;
+                            break;
+                        }
+                    }
+                }
+
+                debugLog(`[TimeCompletion] 补全模块 ${module.moduleName} 的时间数据，添加年月日信息${module.timeData.formattedString}，旧时间：${formattedString}`);
+            }
+        }
+
+        if (completionCount > 0) {
+            debugLog(`[TimeCompletion] 第${index + 1}组message完成时间补全，共补全${completionCount}个模块`);
         }
     });
-
-    // debugLog('[TimeCompletion] 智能补全time变量完成');
+    debugLog('[TimeCompletion] 智能补全time变量完成');
 }
 
 /**
