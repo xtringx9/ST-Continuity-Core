@@ -3,12 +3,62 @@
  * 支持多种时间格式，返回结构化的时间数据
  */
 
+import { debugLog } from "../index.js";
+
 /**
  * 解析时间字符串，返回结构化的时间数据
  * @param {string} timeStr 时间字符串
  * @returns {Object} 结构化的时间数据
  */
-export function parseTimeDetailed(timeStr) {
+/**
+ * 基于standardTimeValue重新计算时间对象的weekday
+ * @param {Object} timeObj 时间对象
+ * @param {Object} standardTimeData 标准时间对象
+ * @returns {string} 重新计算后的weekday
+ */
+function recalculateWeekday(timeObj, standardTimeData) {
+    if (!timeObj || !timeObj.hasDate || !standardTimeData) {
+        return timeObj?.weekday || '';
+    }
+
+    // 创建日期对象
+    const date = new Date(timeObj.year, timeObj.month - 1, timeObj.day);
+
+    // 如果有standardTimeValue，使用其作为标准来计算
+    if (standardTimeData.startTime && standardTimeData.startTime.isValid &&
+        standardTimeData.startTime.year && standardTimeData.startTime.month && standardTimeData.startTime.day &&
+        standardTimeData.startTime.weekday) {
+
+        // 创建标准时间的日期对象
+        const standardDate = new Date(
+            standardTimeData.startTime.year,
+            standardTimeData.startTime.month - 1,
+            standardTimeData.startTime.day
+        );
+
+        // 计算目标日期与标准日期之间的天数差
+        const dayDiff = Math.floor((date - standardDate) / (1000 * 60 * 60 * 24));
+
+        // 获取标准日期的weekday对应的索引
+        const weekdayMap = {
+            '周日': 0, '周一': 1, '周二': 2, '周三': 3,
+            '周四': 4, '周五': 5, '周六': 6
+        };
+        const standardWeekdayIndex = weekdayMap[standardTimeData.startTime.weekday] || 0;
+
+        // 根据天数差计算新的weekday索引
+        const newWeekdayIndex = (standardWeekdayIndex + dayDiff) % 7;
+        const adjustedIndex = newWeekdayIndex >= 0 ? newWeekdayIndex : newWeekdayIndex + 7;
+
+        // 返回对应的weekday
+        return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][adjustedIndex];
+    }
+
+    // 如果没有有效的standardTimeValue，使用默认方式计算
+    return getWeekdayChinese(date);
+}
+
+export function parseTimeDetailed(timeStr, standardTimeData) {
     if (!timeStr || typeof timeStr !== 'string') {
         return {
             isValid: false,
@@ -19,6 +69,9 @@ export function parseTimeDetailed(timeStr) {
             formattedString: null
         };
     }
+    // if (standardTimeData) {
+    //     debugLog(`[TimeDataAttachment WEEKDAY] 标准时间数据: }`, standardTimeData);
+    // }
 
     // 清理字符串
     timeStr = timeStr.trim();
@@ -27,6 +80,32 @@ export function parseTimeDetailed(timeStr) {
     const timeRangeMatch = timeStr.match(/(.*?)\s*[~\-]\s*(.*)/);
     if (timeRangeMatch) {
         const result = parseTimeRange(timeRangeMatch[1].trim(), timeRangeMatch[2].trim());
+
+        // 在调用formatTimeDataToStandard之前，使用standardTimeValue重新计算weekday
+        if (standardTimeData && result.isValid) {
+            // 处理开始时间的weekday
+            if (result.startTime) {
+                const weekday = recalculateWeekday(result.startTime, standardTimeData);
+                // 安全比较字符串，处理null、undefined等情况
+                const currentWeekday = result.startTime.weekday || '';
+                if (currentWeekday !== weekday) {
+                    debugLog(`[TimeDataAttachment WEEKDAY] ${result.startTime.year}-${result.startTime.month}-${result.startTime.day} 重新计算后的weekday: ${weekday} 原weekday: ${result.startTime.weekday}`);
+                    result.startTime.weekday = weekday;
+                }
+            }
+
+            // 处理结束时间的weekday
+            if (result.endTime) {
+                const weekday = recalculateWeekday(result.endTime, standardTimeData);
+                // 安全比较字符串，处理null、undefined等情况
+                const currentWeekday = result.endTime.weekday || '';
+                if (currentWeekday !== weekday) {
+                    debugLog(`[TimeDataAttachment WEEKDAY] ${result.endTime.year}-${result.endTime.month}-${result.endTime.day} 重新计算后的weekday: ${weekday} 原weekday: ${result.endTime.weekday}`);
+                    result.endTime.weekday = weekday;
+                }
+            }
+        }
+
         // 添加格式化字符串字段
         result.formattedString = formatTimeDataToStandard(result);
         return result;
@@ -34,6 +113,18 @@ export function parseTimeDetailed(timeStr) {
 
     // 解析单个时间点
     const result = parseSingleTime(timeStr);
+
+    // 在调用formatTimeDataToStandard之前，使用standardTimeData重新计算weekday
+    if (standardTimeData && result.isValid && result.startTime) {
+        const weekday = recalculateWeekday(result.startTime, standardTimeData);
+        // 安全比较字符串，处理null、undefined等情况
+        const currentWeekday = result.startTime.weekday || '';
+        if (currentWeekday !== weekday) {
+            debugLog(`[TimeDataAttachment WEEKDAY] ${result.startTime.year}-${result.startTime.month}-${result.startTime.day} 重新计算后的weekday: ${weekday} 原weekday: ${result.startTime.weekday}`);
+            result.startTime.weekday = weekday;
+        }
+    }
+
     // 添加格式化字符串字段
     result.formattedString = formatTimeDataToStandard(result);
     return result;
