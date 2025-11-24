@@ -138,7 +138,7 @@ export function parseTimeDetailed(timeStr, standardTimeData) {
  */
 function parseTimeRange(startTimeStr, endTimeStr) {
     const startResult = parseSingleTime(startTimeStr);
-    const endResult = parseSingleTime(endTimeStr);
+    const endResult = parseSingleTime(endTimeStr, true);
 
     // 如果结束时间只有时间部分且开始时间有日期，使用开始时间的日期
     if (endResult.isValid && endResult.startTime && startResult.isValid && startResult.startTime) {
@@ -170,12 +170,12 @@ function parseTimeRange(startTimeStr, endTimeStr) {
             const endDate = new Date(
                 endResult.startTime.year,
                 endResult.startTime.month - 1,
-                endResult.startTime.day,
+                (!endResult.startTime.hasTime) ? endResult.startTime.day + 1 : endResult.startTime.day,
                 endResult.startTime.hour,
                 endResult.startTime.minute,
                 endResult.startTime.second
             );
-            endResult.startTime.timestamp = endDate.getTime();
+            endResult.startTime.timestamp = endDate.getTime() - endResult.startTime.hasTime ? 0 : 1;
 
             // 修复：更新结束时间的isComplete状态
             endResult.isComplete = true;
@@ -201,7 +201,7 @@ function parseTimeRange(startTimeStr, endTimeStr) {
  * @param {string} timeStr 时间字符串
  * @returns {Object} 结构化的时间数据
  */
-function parseSingleTime(timeStr) {
+function parseSingleTime(timeStr, isEnd = false) {
     // 定义时间解析模式（按从具体到通用的顺序）
     const patterns = [
         // 格式1: 2023年09月25日 周一 17:35:30
@@ -365,9 +365,9 @@ function parseSingleTime(timeStr) {
                     weekday = getWeekdayChinese(date);
                 }
 
-                // 计算时间戳（如果有完整日期时间）
-                const timestamp = hasDate && hasTime ?
-                    new Date(result.year, result.month - 1, result.day, result.hour, result.minute, result.second).getTime() : 0;
+                // 计算时间戳（如果有完整日期时间） 不需要判断hasTimes
+                const timestamp = hasDate ?
+                    new Date(result.year, result.month - 1, (!hasTime && isEnd) ? result.day + 1 : result.day, result.hour, result.minute, result.second).getTime() - ((!hasTime && isEnd) ? 1 : 0) : 0;
 
                 return {
                     isValid: true,
@@ -756,12 +756,12 @@ export function completeTimeDataWithStandard(targetTimeData, standardTimeData) {
             const endDate = new Date(
                 targetTimeData.endTime.year,
                 targetTimeData.endTime.month - 1,
-                targetTimeData.endTime.day,
+                (!targetTimeData.endTime.hasTime) ? targetTimeData.endTime.day + 1 : targetTimeData.endTime.day,
                 targetTimeData.endTime.hour || 0,
                 targetTimeData.endTime.minute || 0,
                 targetTimeData.endTime.second || 0
             );
-            targetTimeData.endTime.timestamp = endDate.getTime();
+            targetTimeData.endTime.timestamp = endDate.getTime() - targetTimeData.endTime.hasTime ? 0 : 1;
         }
 
         // 更新isComplete状态
