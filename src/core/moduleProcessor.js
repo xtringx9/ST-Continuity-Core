@@ -1873,6 +1873,36 @@ export function attachStructuredTimeData(modules) {
     let attachmentCount = 0;
     let formattedCount = 0;
 
+    // 动态获取模块配置
+    const modulesData = configManager.getModules() || [];
+    const moduleConfig = modulesData.find(config => config.timeReferenceStandard === true);
+
+    let standardTimeData = null;
+    if (moduleConfig) {
+        // 查找标准时间条目：moduleConfig.timeReferenceStandard为true且time值可被解析且完整
+        for (const standardModule of modules) {
+            if (standardModule.moduleName !== moduleConfig.name) continue;
+            if (standardModule.variables) {
+                for (const [variableName, timeVal] of Object.entries(standardModule.variables)) {
+                    if (variableName.toLowerCase().includes('time') && timeVal) {
+                        try {
+                            // 尝试解析时间值，验证其是否可被解析且完整和有效
+                            const testTimeData = parseTimeDetailed(timeVal);
+                            if (testTimeData && testTimeData.isValid && testTimeData.isComplete) {
+                                standardTimeData = testTimeData;
+                                debugLog(`[TimeDataAttachment WEEKDAY] 找到标准时间参考值: ${timeVal}`);
+                                break;
+                            }
+                        } catch (error) {
+                            // 如果解析失败，继续查找下一个
+                        }
+                    }
+                }
+                if (standardTimeData) break;
+            }
+        }
+    }
+
     modules.forEach(module => {
         if (module.variables) {
             // 遍历所有变量，查找包含time的变量名
@@ -1881,8 +1911,8 @@ export function attachStructuredTimeData(modules) {
                     // debugLog(`[TimeDataAttachment] 发现time变量 ${variableName}: ${timeVal}`);
 
                     try {
-                        // 使用timeParser.js中的parseTimeDetailed函数解析时间
-                        const timeData = parseTimeDetailed(timeVal);
+                        // 使用timeParser.js中的parseTimeDetailed函数解析时间，并传递标准时间数据
+                        const timeData = parseTimeDetailed(timeVal, standardTimeData);
 
                         if (timeData) {
                             // 为模块添加结构化时间数据
