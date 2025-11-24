@@ -484,7 +484,7 @@ export function completeTimeVariables(modules) {
             for (const [variableName] of Object.entries(module.variables)) {
                 if (variableName.toLowerCase().includes('time')) {
                     if (!module.timeData || (!module.timeData.isValid && !module.timeData.originalText)) {
-                        debugLog(`[TimeCompletion] 模块 ${module.moduleName} 的时间数据无效，${module.timeData?.originalText}`, module, module.timeData);
+                        debugLog(`[TimeCompletion] 模块 ${module.moduleName} 的时间数据无效，${module.timeData?.originalText}`, module);
                         module.timeData = standardTimeData;
                         module.variables[variableName] = module.timeData.formattedString;
                         completionCount++;
@@ -492,31 +492,31 @@ export function completeTimeVariables(modules) {
                     }
                 }
             }
+            for (const [variableName] of Object.entries(module.variables)) {
+                if (variableName.toLowerCase().includes('time')) {
+                    if (module.timeData && module.timeData.isValid && !module.timeData.isComplete) {
 
-            if (module.timeData && module.timeData.isValid && !module.timeData.isComplete) {
-                const formattedString = module.timeData.formattedString;
+                        const formattedString = module.timeData.formattedString;
 
-                // 检查是否需要补全日年月日
-                // 使用completeTimeDataWithStandard函数补全时间数据
-                const updatedTimeData = completeTimeDataWithStandard(module.timeData, standardTimeData);
+                        // 检查是否需要补全日年月日
+                        // 使用completeTimeDataWithStandard函数补全时间数据
+                        const updatedTimeData = completeTimeDataWithStandard(module.timeData, standardTimeData);
 
-                // 如果时间数据被成功补全
-                if (updatedTimeData !== module.timeData) {
-                    module.timeData = updatedTimeData;
-                }
+                        // 如果时间数据被成功补全
+                        if (updatedTimeData !== module.timeData) {
+                            module.timeData = updatedTimeData;
+                        }
+                        debugLog(`[TimeCompletion] 补全模块 ${module.moduleName} 的时间数据，添加年月日信息${module.timeData.formattedString}，旧时间：${formattedString}`, module);
 
-                // 更新模块的time变量值
-                if (module.variables && module.timeData.isComplete) {
-                    for (const [variableName] of Object.entries(module.variables)) {
-                        if (variableName.toLowerCase().includes('time')) {
+                        // 更新模块的time变量值
+                        if (module.variables && module.timeData.isComplete) {
+                            debugLog(`[TimeCompletion] 补全模块 ${module.moduleName} 的时间数据，添加年月日信息${module.timeData.formattedString}，旧时间：${formattedString}`, module);
                             module.variables[variableName] = module.timeData.formattedString;
                             completionCount++;
                             break;
                         }
                     }
                 }
-
-                debugLog(`[TimeCompletion] 补全模块 ${module.moduleName} 的时间数据，添加年月日信息${module.timeData.formattedString}，旧时间：${formattedString}`);
             }
         }
 
