@@ -754,7 +754,16 @@ function getModuleIdentifierInfo(module, modulesData) {
                 if (variable.name.toLowerCase().includes('time')) {
                     isTimeIdentifier = true;
                 }
-                return module.variables[variable.name] || '';
+                let value = module.variables[variable.name] || '';
+
+                // 对变量名为"id"的标识符进行特殊处理，支持字母+数字的排序
+                if (variable.name.toLowerCase() === 'id' && typeof value === 'string' && value.trim()) {
+                    // 将带字母的id转换为可排序的格式：字母转为ASCII码值，与数字组合
+                    // 例如：m001 -> 109001, s001 -> 115001, m002 -> 109002
+                    value = convertAlphaNumericId(value);
+                }
+
+                return value;
             });
 
             // 如果主标识符有值，使用它们的组合
@@ -793,6 +802,33 @@ function getModuleIdentifierInfo(module, modulesData) {
  * @param {boolean} currentHasValidIdentifier - 当前是否有有效标识符
  * @returns {Object} 更新后的标识符信息对象
  */
+/**
+ * 将字母数字组合的id转换为可排序的数值格式
+ * @param {string} id - 字母数字组合的id（如m001、s001）
+ * @returns {string|number} 转换后的数值格式
+ */
+function convertAlphaNumericId(id) {
+    // 匹配字母前缀和数字后缀
+    const match = id.match(/^([a-zA-Z]+)(\d+)$/);
+    if (match) {
+        const letters = match[1];
+        const numbers = match[2];
+
+        // 将字母转换为ASCII码值（每个字母占3位以确保唯一性）
+        let lettersAsNumbers = '';
+        for (let i = 0; i < letters.length; i++) {
+            const charCode = letters.charCodeAt(i);
+            // 格式化ASCII码为3位数字，前面补0
+            lettersAsNumbers += String(charCode).padStart(3, '0');
+        }
+
+        // 组合字母ASCII码和数字部分
+        return lettersAsNumbers + numbers;
+    }
+    // 如果不是字母数字组合，返回原值
+    return id;
+}
+
 function getBackupIdentifierInfo(module, moduleConfig, currentIdentifierValue, currentIsTimeIdentifier, currentHasValidIdentifier) {
     // 创建返回对象，初始值为传入的值
     const result = {
@@ -810,7 +846,14 @@ function getBackupIdentifierInfo(module, moduleConfig, currentIdentifierValue, c
             if (variable.name.toLowerCase().includes('time')) {
                 result.isTimeIdentifier = true;
             }
-            return module.variables[variable.name] || '';
+            let value = module.variables[variable.name] || '';
+
+            // 对变量名为"id"的标识符进行特殊处理
+            if (variable.name.toLowerCase() === 'id' && typeof value === 'string' && value.trim()) {
+                value = convertAlphaNumericId(value);
+            }
+
+            return value;
         });
 
         if (backupValues.some(val => val)) {
