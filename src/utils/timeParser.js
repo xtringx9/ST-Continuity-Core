@@ -584,8 +584,7 @@ export function completeTimeDataWithStandard(targetTimeData, standardTimeData) {
         targetTimeData.startTime &&
         targetTimeData.startTime.year &&
         targetTimeData.startTime.month &&
-        targetTimeData.startTime.day &&
-        (targetTimeData.startTime.hour === undefined || targetTimeData.startTime.minute === undefined);
+        targetTimeData.startTime.day;
 
     if (needsDateCompletion || needsTimeCompletion) {
         // 使用标准时间的年、月、日
