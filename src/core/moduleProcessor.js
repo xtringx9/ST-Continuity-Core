@@ -116,18 +116,11 @@ export function processExtractModules(rawModules, selectedModuleNames, returnStr
  * @returns {Object} 包含resultContent和displayTitle的对象
  */
 export function processProcessedModules(rawModules, selectedModuleNames, returnString) {
-    // 标准化模块数据
-    const modules = normalizeModules(rawModules);
+    // 标准化模块数据，直接传入selectedModuleNames参数，normalizeModules会返回按模块名分组的结构
+    const moduleGroups = normalizeModules(rawModules, selectedModuleNames);
 
-    // 过滤出选中的模块（支持多选）
-    const filteredModules = modules.filter(module => {
-        // 如果没有选择任何模块，显示所有模块
-        if (!selectedModuleNames || selectedModuleNames.length === 0) {
-            return true;
-        }
-        // 如果选择了模块，只显示选中的模块
-        return selectedModuleNames.includes(module.moduleName);
-    });
+    // 将分组结构展平为模块数组，保持原有逻辑兼容
+    const filteredModules = Object.values(moduleGroups).flat();
 
     let resultContent = '';
     const displayTitle = '整理后模块结果';
@@ -184,9 +177,10 @@ export function processProcessedModules(rawModules, selectedModuleNames, returnS
 /**
  * 标准化模块数据，处理兼容模块名和兼容变量
  * @param {Array} modules 提取到的原始模块数组
- * @returns {Array} 标准化后的模块数组
+ * @param {Array} selectedModuleNames 选中的模块名称数组（可选）
+ * @returns {Object} 按模块名分组的标准化模块对象
  */
-export function normalizeModules(modules) {
+export function normalizeModules(modules, selectedModuleNames = []) {
     const modulesData = configManager.getModules() || [];
     const normalizedModules = [];
 
@@ -296,15 +290,35 @@ export function normalizeModules(modules) {
     // 第四步：智能补全time变量
     completeTimeVariables(deduplicatedModules);
 
-    // 第五步：对模块进行排序
-    const sortedModules = sortModules(deduplicatedModules);
+    // 第四点五步：按模块名分组，同时根据selectedModuleNames进行过滤
+    const moduleGroups = {};
+    deduplicatedModules.forEach(module => {
+        // 过滤逻辑：如果没有选择任何模块，或者当前模块在选中列表中，则保留
+        if (!selectedModuleNames || selectedModuleNames.length === 0 ||
+            selectedModuleNames.includes(module.moduleName)) {
+            if (!moduleGroups[module.moduleName]) {
+                moduleGroups[module.moduleName] = [];
+            }
+            moduleGroups[module.moduleName].push(module);
+        }
+    });
 
-    // 第六步：智能补全id变量
-    completeIdVariables(sortedModules);
+    // 直接在moduleGroups上处理每个模块组
+    Object.entries(moduleGroups).forEach(([moduleName, moduleGroup]) => {
+        // 在模块组内部进行排序
+        const sortedGroup = sortModules(moduleGroup);
 
-    debugLog('[Module Processor] 标准化模块完成，模块:', sortedModules);
+        // 在模块组内部补全id变量
+        completeIdVariables(sortedGroup);
 
-    return sortedModules;
+        // 在模块组内部处理level变量并更新到原moduleGroups
+        // moduleGroups[moduleName] = processLevelVariables(sortedGroup, modulesData);
+    });
+
+    debugLog('[Module Processor] 标准化模块完成:', moduleGroups);
+
+    // 返回按模块名分组的结构
+    return moduleGroups;
 }
 
 /**
@@ -315,6 +329,179 @@ export function normalizeModules(modules) {
  * @param {Array} modules 标准化后的模块数组
  * @returns {Array} 去重后的模块数组
  */
+/**
+ * 处理level变量，管理压缩层级和可见性
+ * 1. 为level变量为空的模块设置默认值0
+ * 2. 根据最高层级level，隐藏其范围内的低层级条目
+ * @param {Array} modules 排序后的模块数组
+ * @param {Array} modulesData 模块配置数据
+ */
+function processLevelVariables(modules, modulesData) {
+    // 首先，为所有模块设置默认level值为0（如果未定义）
+    modules.forEach(module => {
+        if (module.variables.level === undefined || module.variables.level === null || module.variables.level === '') {
+            module.variables.level = 0;
+        } else {
+            // 确保level是数字类型
+            module.variables.level = parseInt(module.variables.level, 10) || 0;
+        }
+
+        // 初始化visibility属性，默认为可见
+        module.visibility = true;
+    });
+
+    // 找出所有level大于0的压缩模块
+    const compressedModules = modules.filter(module => module.variables.level > 0);
+
+    // 处理每个压缩模块
+    compressedModules.forEach(compressedModule => {
+        // 获取模块配置以确定identifier变量
+        const moduleConfig = modulesData.find(config => config.name === compressedModule.moduleName);
+        if (!moduleConfig) return;
+
+        // 找出有且仅有一个isIdentifier为true的变量
+        const identifierVariables = moduleConfig.variables.filter(variable => variable.isIdentifier);
+        if (identifierVariables.length !== 1) return;
+
+        const identifierVar = identifierVariables[0];
+        const identifierName = identifierVar.name;
+        const identifierValue = compressedModule.variables[identifierName];
+
+        // 根据不同类型的identifier进行处理
+        if (identifierName.toLowerCase().includes('time')) {
+            // 时间类型identifier，使用timeData
+            processTimeBasedCompression(compressedModule, modules);
+        } else if (identifierName.toLowerCase() === 'id') {
+            // ID类型identifier，使用convertAlphaNumericId处理
+            processIdBasedCompression(compressedModule, modules, identifierVar);
+        }
+    });
+
+    // 返回过滤掉visibility为false的模块
+    return modules.filter(module => module.visibility);
+}
+
+/**
+ * 处理基于时间的压缩
+ * @param {Object} compressedModule 压缩模块
+ * @param {Array} modules 所有模块数组
+ */
+function processTimeBasedCompression(compressedModule, modules) {
+    const { timeData } = compressedModule;
+    if (!timeData || !timeData.isValid || !timeData.isComplete) return;
+
+    // 获取压缩模块的时间范围
+    const compressedStart = timeData.startTimestamp;
+    const compressedEnd = timeData.endTimestamp;
+    const compressedLevel = compressedModule.variables.level;
+
+    // 隐藏所有在时间范围内且level小于压缩模块level的模块
+    modules.forEach(module => {
+        // 跳过自身和已隐藏的模块
+        if (module === compressedModule || !module.visibility) return;
+
+        // 跳过level不小于压缩模块level的模块
+        if (module.variables.level >= compressedLevel) return;
+
+        // 检查时间范围
+        const moduleTimeData = module.timeData;
+        if (moduleTimeData && moduleTimeData.isValid && moduleTimeData.isComplete) {
+            const moduleStart = moduleTimeData.startTimestamp;
+            const moduleEnd = moduleTimeData.endTimestamp;
+
+            // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
+            if (moduleStart >= compressedStart && moduleEnd <= compressedEnd) {
+                module.visibility = false;
+            }
+        }
+    });
+}
+
+/**
+ * 处理基于ID的压缩
+ * @param {Object} compressedModule 压缩模块
+ * @param {Array} modules 所有模块数组
+ * @param {Object} identifierVar 标识符变量配置
+ */
+function processIdBasedCompression(compressedModule, modules, identifierVar) {
+    const identifierName = identifierVar.name;
+    const compressedIdValue = compressedModule.variables[identifierName];
+    const compressedLevel = compressedModule.variables.level;
+
+    // 解析压缩模块的ID范围
+    const idRange = parseIdRange(compressedIdValue);
+    if (!idRange) return;
+
+    // 隐藏所有在ID范围内且level小于压缩模块level的模块
+    modules.forEach(module => {
+        // 跳过自身和已隐藏的模块
+        if (module === compressedModule || !module.visibility) return;
+
+        // 跳过level不小于压缩模块level的模块
+        if (module.variables.level >= compressedLevel) return;
+
+        // 检查ID范围
+        const moduleIdValue = module.variables[identifierName];
+        if (moduleIdValue) {
+            // 转换为可排序的格式
+            const convertedModuleId = convertAlphaNumericId(moduleIdValue);
+
+            // 如果模块的ID在压缩模块的ID范围内，则隐藏
+            if (isIdInRange(convertedModuleId, idRange)) {
+                module.visibility = false;
+            }
+        }
+    });
+}
+
+/**
+ * 解析ID范围
+ * 支持格式如：001~004, 001-004
+ * @param {string} idValue ID值
+ * @returns {Object|null} 包含start和end的范围对象
+ */
+function parseIdRange(idValue) {
+    if (typeof idValue !== 'string') return null;
+
+    // 匹配范围格式
+    const rangeMatch = idValue.match(/^(.+)[~-](.+)$/);
+    if (!rangeMatch || rangeMatch.length !== 3) return null;
+
+    const start = convertAlphaNumericId(rangeMatch[1].trim());
+    const end = convertAlphaNumericId(rangeMatch[2].trim());
+
+    return { start, end };
+}
+
+/**
+ * 检查ID是否在范围内
+ * @param {string|number} id 要检查的ID
+ * @param {Object} range 范围对象
+ * @returns {boolean} 是否在范围内
+ */
+function isIdInRange(id, range) {
+    // 将ID转换为数字进行比较
+    const idNum = typeof id === 'string' ? parseInt(id, 10) : id;
+    const startNum = typeof range.start === 'string' ? parseInt(range.start, 10) : range.start;
+    const endNum = typeof range.end === 'string' ? parseInt(range.end, 10) : range.end;
+
+    return !isNaN(idNum) && !isNaN(startNum) && !isNaN(endNum) &&
+        idNum >= startNum && idNum <= endNum;
+}
+
+/**
+ * 获取模块配置
+ * @param {string} moduleName 模块名称
+ * @returns {Object|null} 模块配置对象
+ */
+function getModuleConfigByName(moduleName) {
+    // 从全局获取modulesData
+    // 这里需要确保modulesData在当前作用域可用
+    // 参考getModuleIdentifierInfo函数的实现方式
+    // 注意：在实际使用processLevelVariables时，需要传入modulesData
+    return global.modulesData ? global.modulesData.find(config => config.name === moduleName) : null;
+}
+
 export function deduplicateModules(modules) {
     // debugLog('[Deduplication] 开始模块去重，模块数量:', modules.length);
 
@@ -1318,56 +1505,56 @@ export function htmlEscape(text) {
     return div.innerHTML;
 }
 
-/**
- * 处理提取的模块数据（用于提取楼层范围模块按钮，支持多选）
- * @param {Array} modules 提取到的模块数组
- * @param {Array} selectedModuleNames 选中的模块名数组
- * @returns {string} 处理后的模块字符串
- */
-export function processExtractedModules(modules, selectedModuleNames) {
-    // 标准化模块数据
-    const normalizedModules = normalizeModules(modules);
+// /**
+//  * 处理提取的模块数据（用于提取楼层范围模块按钮，支持多选）
+//  * @param {Array} modules 提取到的模块数组
+//  * @param {Array} selectedModuleNames 选中的模块名数组
+//  * @returns {string} 处理后的模块字符串
+//  */
+// export function processExtractedModules(modules, selectedModuleNames) {
+//     // 标准化模块数据
+//     const normalizedModules = normalizeModules(modules);
 
-    // 过滤出选中的模块（支持多选）
-    const filteredModules = normalizedModules.filter(module => {
-        // 如果没有选择任何模块，显示所有模块
-        if (!selectedModuleNames || selectedModuleNames.length === 0) {
-            return true;
-        }
-        // 如果选择了模块，只显示选中的模块
-        return selectedModuleNames.includes(module.moduleName);
-    });
+//     // 过滤出选中的模块（支持多选）
+//     const filteredModules = normalizedModules.filter(module => {
+//         // 如果没有选择任何模块，显示所有模块
+//         if (!selectedModuleNames || selectedModuleNames.length === 0) {
+//             return true;
+//         }
+//         // 如果选择了模块，只显示选中的模块
+//         return selectedModuleNames.includes(module.moduleName);
+//     });
 
-    // 构建处理后的模块字符串
-    const processedModules = filteredModules.map(module => {
-        // 动态获取模块配置
-        const modulesData = configManager.getModules() || [];
-        const moduleConfig = modulesData.find(config => config.name === module.moduleName);
+//     // 构建处理后的模块字符串
+//     const processedModules = filteredModules.map(module => {
+//         // 动态获取模块配置
+//         const modulesData = configManager.getModules() || [];
+//         const moduleConfig = modulesData.find(config => config.name === module.moduleName);
 
-        if (!moduleConfig) {
-            // 没有找到配置，返回原始内容
-            return module.raw;
-        }
+//         if (!moduleConfig) {
+//             // 没有找到配置，返回原始内容
+//             return module.raw;
+//         }
 
-        // 构建当前模块的字符串
-        let moduleString = `[${module.moduleName}`;
+//         // 构建当前模块的字符串
+//         let moduleString = `[${module.moduleName}`;
 
-        // 按照模块配置中的变量顺序添加变量
-        moduleConfig.variables.forEach(variable => {
-            // 获取变量值
-            let varValue = module.variables[variable.name] || '';
+//         // 按照模块配置中的变量顺序添加变量
+//         moduleConfig.variables.forEach(variable => {
+//             // 获取变量值
+//             let varValue = module.variables[variable.name] || '';
 
-            moduleString += `|${variable.name}:${varValue}`;
-        });
+//             moduleString += `|${variable.name}:${varValue}`;
+//         });
 
-        moduleString += ']';
+//         moduleString += ']';
 
-        return moduleString;
-    });
+//         return moduleString;
+//     });
 
-    // 返回所有处理后的模块，用换行符分隔
-    return processedModules.join('\n');
-}
+//     // 返回所有处理后的模块，用换行符分隔
+//     return processedModules.join('\n');
+// }
 
 /**
  * 自动根据模块配置判断处理方式
@@ -1380,27 +1567,8 @@ export function processExtractedModules(modules, selectedModuleNames) {
 export function processAutoModules(rawModules, selectedModuleNames, showModuleNames = false, showProcessInfo = false) {
     debugLog('开始自动处理模块');
 
-    // 标准化模块数据
-    const modules = normalizeModules(rawModules);
-
-    // 过滤出选中的模块（支持多选）
-    const filteredModules = modules.filter(module => {
-        // 如果没有选择任何模块，显示所有模块
-        if (!selectedModuleNames || selectedModuleNames.length === 0) {
-            return true;
-        }
-        // 如果选择了模块，只显示选中的模块
-        return selectedModuleNames.includes(module.moduleName);
-    });
-
-    // 按模块名分组
-    const moduleGroups = {};
-    filteredModules.forEach(module => {
-        if (!moduleGroups[module.moduleName]) {
-            moduleGroups[module.moduleName] = [];
-        }
-        moduleGroups[module.moduleName].push(module);
-    });
+    // 标准化模块数据，直接传入selectedModuleNames参数，normalizeModules会返回按模块名分组的结构
+    const moduleGroups = normalizeModules(rawModules, selectedModuleNames);
 
     // 处理每个模块组并返回结构化数据
     const structuredResult = {};
