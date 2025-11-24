@@ -308,11 +308,20 @@ export function normalizeModules(modules, selectedModuleNames = []) {
         // 在模块组内部进行排序
         const sortedGroup = sortModules(moduleGroup);
 
-        // 在模块组内部补全id变量
-        completeIdVariables(sortedGroup);
+        // 查找当前模块的配置
+        const moduleConfig = modulesData.find(config => config.name === moduleName);
+        // 只有当模块配置中存在id变量时才补全id变量
+        if (configManager.hasModuleVariable(moduleConfig, 'id')) {
+            completeIdVariables(sortedGroup);
+        }
 
-        // 在模块组内部处理level变量并更新到原moduleGroups
-        // moduleGroups[moduleName] = processLevelVariables(sortedGroup, modulesData);
+        // 只有当模块配置中存在level变量时才处理level变量
+        if (configManager.hasModuleVariable(moduleConfig, 'level')) {
+            moduleGroups[moduleName] = processLevelVariables(sortedGroup, modulesData);
+        } else {
+            // 如果没有level变量，直接使用排序后的模块组
+            moduleGroups[moduleName] = sortedGroup;
+        }
     });
 
     debugLog('[Module Processor] 标准化模块完成:', moduleGroups);
@@ -337,22 +346,24 @@ export function normalizeModules(modules, selectedModuleNames = []) {
  * @param {Array} modulesData 模块配置数据
  */
 function processLevelVariables(modules, modulesData) {
+    debugLog('[Level Processor] 开始处理level变量，模块:', modules);
     // 首先，为所有模块设置默认level值为0（如果未定义）
     modules.forEach(module => {
         if (module.variables.level === undefined || module.variables.level === null || module.variables.level === '') {
             module.variables.level = 0;
-        } else {
-            // 确保level是数字类型
-            module.variables.level = parseInt(module.variables.level, 10) || 0;
+            debugLog('[Level Processor] 为模块设置level值为:', module.variables.level, module);
         }
-
+        // else {
+        //     // 确保level是数字类型
+        //     module.variables.level = parseInt(module.variables.level, 10) || 0;
+        // }
         // 初始化visibility属性，默认为可见
         module.visibility = true;
     });
 
     // 找出所有level大于0的压缩模块
     const compressedModules = modules.filter(module => module.variables.level > 0);
-
+    debugLog('[Level Processor] level大于0的模块：', compressedModules);
     // 处理每个压缩模块
     compressedModules.forEach(compressedModule => {
         // 获取模块配置以确定identifier变量
@@ -366,6 +377,7 @@ function processLevelVariables(modules, modulesData) {
         const identifierVar = identifierVariables[0];
         const identifierName = identifierVar.name;
         const identifierValue = compressedModule.variables[identifierName];
+        debugLog('[Level Processor] 压缩模块的identifier变量:', identifierVar, '名称:', identifierName, '值:', identifierValue, compressedModule);
 
         // 根据不同类型的identifier进行处理
         if (identifierName.toLowerCase().includes('time')) {
@@ -391,8 +403,8 @@ function processTimeBasedCompression(compressedModule, modules) {
     if (!timeData || !timeData.isValid || !timeData.isComplete) return;
 
     // 获取压缩模块的时间范围
-    const compressedStart = timeData.startTimestamp;
-    const compressedEnd = timeData.endTimestamp;
+    const compressedStart = timeData.startTime.timestamp;
+    const compressedEnd = timeData.endTime.timestamp;
     const compressedLevel = compressedModule.variables.level;
 
     // 隐藏所有在时间范围内且level小于压缩模块level的模块
@@ -406,12 +418,24 @@ function processTimeBasedCompression(compressedModule, modules) {
         // 检查时间范围
         const moduleTimeData = module.timeData;
         if (moduleTimeData && moduleTimeData.isValid && moduleTimeData.isComplete) {
-            const moduleStart = moduleTimeData.startTimestamp;
-            const moduleEnd = moduleTimeData.endTimestamp;
-
-            // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
-            if (moduleStart >= compressedStart && moduleEnd <= compressedEnd) {
-                module.visibility = false;
+            if (!moduleTimeData.isRange) {
+                const moduleStart = moduleTimeData.startTime.timestamp;
+                debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
+                // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
+                if (moduleStart >= compressedStart && moduleStart <= compressedEnd) {
+                    debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
+                    module.visibility = false;
+                }
+            }
+            else {
+                const moduleStart = moduleTimeData.startTime.timestamp;
+                const moduleEnd = moduleTimeData.endTime.timestamp;
+                debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
+                // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
+                if (moduleStart >= compressedStart && moduleEnd <= compressedEnd) {
+                    debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, ' ', moduleEnd, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
+                    module.visibility = false;
+                }
             }
         }
     });
@@ -1342,7 +1366,8 @@ export function buildModuleString(moduleData, moduleConfig) {
     // 如果有模块配置，按配置的变量顺序构建
     if (moduleConfig && moduleConfig.variables) {
         moduleConfig.variables.forEach(variable => {
-            const value = moduleData.variables[variable.name] || '';
+            // 转换为字符串以确保数字0能被正确处理，而不是被视为falsy值
+            const value = String(moduleData.variables[variable.name]) || '';
             moduleStr += `|${variable.name}:${value}`;
         });
     } else {

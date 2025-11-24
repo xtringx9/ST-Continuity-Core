@@ -495,6 +495,72 @@ class ConfigManager {
     getUIDataCollector() {
         return this.uiDataCollector;
     }
+
+    /**
+     * 判断模块配置是否包含特定变量
+     * @param {Object} moduleData 单一模块的数据对象
+     * @param {string} variableName 需要判断的变量名
+     * @returns {boolean} 是否包含该变量
+     */
+    hasModuleVariable(moduleData, variableName) {
+        try {
+            // 检查参数有效性
+            if (!moduleData || !variableName) {
+                debugLog('hasModuleVariable: 参数无效');
+                return false;
+            }
+
+            // 检查模块是否包含variables数组
+            if (!moduleData.variables || !Array.isArray(moduleData.variables)) {
+                debugLog('hasModuleVariable: 模块数据中不包含有效的variables数组');
+                return false;
+            }
+
+            // 检查是否存在指定名称的变量
+            const hasVariable = moduleData.variables.some(variable =>
+                variable.name === variableName
+            );
+
+            debugLog(`hasModuleVariable: 模块${moduleData.name || ''}${hasVariable ? '包含' : '不包含'}变量${variableName}`);
+            return hasVariable;
+        } catch (error) {
+            errorLog('hasModuleVariable执行失败:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 根据模块名和变量名判断模块配置是否包含特定变量
+     * @param {string} moduleName 模块名称
+     * @param {string} variableName 需要判断的变量名
+     * @returns {boolean} 是否包含该变量
+     */
+    hasVariableByModuleName(moduleName, variableName) {
+        try {
+            // 检查参数有效性
+            if (!moduleName || !variableName) {
+                debugLog('hasVariableByModuleName: 参数无效');
+                return false;
+            }
+
+            // 获取所有模块配置
+            const modules = this.getModules();
+
+            // 根据模块名查找模块
+            const targetModule = modules.find(module => module.name === moduleName);
+
+            if (!targetModule) {
+                debugLog(`hasVariableByModuleName: 未找到名称为${moduleName}的模块`);
+                return false;
+            }
+
+            // 使用已有的hasModuleVariable方法判断变量是否存在
+            return this.hasModuleVariable(targetModule, variableName);
+        } catch (error) {
+            errorLog('hasVariableByModuleName执行失败:', error);
+            return false;
+        }
+    }
 }
 
 /**
