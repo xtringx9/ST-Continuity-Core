@@ -293,13 +293,13 @@ export function normalizeModules(modules) {
     // 第三步：为包含time变量的模块附加结构化时间数据（包含格式化）
     attachStructuredTimeData(deduplicatedModules);
 
-    // 第五步：智能补全time变量
+    // 第四步：智能补全time变量
     completeTimeVariables(deduplicatedModules);
 
-    // 第六步：对模块进行排序
+    // 第五步：对模块进行排序
     const sortedModules = sortModules(deduplicatedModules);
 
-    // 第七步：智能补全id变量
+    // 第六步：智能补全id变量
     completeIdVariables(sortedModules);
 
     debugLog('[Module Processor] 标准化模块完成，模块:', sortedModules);
