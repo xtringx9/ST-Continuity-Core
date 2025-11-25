@@ -175,7 +175,6 @@ export {
     updateContextBottomUI,
     // initContextBottomUI,
     isInChatPage,
-    hasValidMessageContainer,
     checkPageStateAndInsertUI,
     UpdateUI
 } from './core/contextBottomUI.js';
