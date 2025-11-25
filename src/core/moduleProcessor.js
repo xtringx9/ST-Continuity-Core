@@ -1537,12 +1537,12 @@ export function parseSingleVariableInProcess(part, variablesMap, variableNameMap
         // 检查变量名是否在映射表中
         if (variableNameMap.hasOwnProperty(varName)) {
             const currentVarName = variableNameMap[varName];
-            variablesMap[currentVarName] = currentVarName !== 'time' ? removeHyphens(varValue) : varValue;
+            variablesMap[currentVarName] = (currentVarName !== 'time' && currentVarName !== 'id') ? removeHyphens(varValue) : varValue;
         } else {
             // 处理兼容变量名的精确匹配
             for (const [compatName, currentName] of Object.entries(variableNameMap)) {
                 if (varName === compatName) {
-                    variablesMap[currentName] = currentName !== 'time' ? removeHyphens(varValue) : varValue;
+                    variablesMap[currentName] = (currentName !== 'time' && currentName !== 'id') ? removeHyphens(varValue) : varValue;
                     break;
                 }
             }
