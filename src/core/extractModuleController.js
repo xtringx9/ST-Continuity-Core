@@ -92,6 +92,11 @@ export class ExtractModuleController {
         $('#extract-auto-modules-btn').on('click', async () => {
             await this.extractAutoModules();
         });
+
+        // 绑定渲染模块按钮事件（合并增量和全量功能）
+        $('#extract-ui-modules-btn').on('click', async () => {
+            await this.extractUIModules();
+        });
     }
 
     /**
@@ -382,6 +387,37 @@ export class ExtractModuleController {
         } catch (error) {
             errorLog('自动处理模块失败:', error);
             toastr.error('自动处理模块失败，请查看控制台日志');
+        }
+    }
+
+    /**
+ * 自动处理模块功能（根据模块配置自动选择增量或全量处理）
+ */
+    async extractUIModules() {
+        try {
+            debugLog('开始自动处理模块功能（支持多选）');
+
+            // 提取参数
+            const params = this.extractParameters();
+            if (!params) return;
+
+            const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
+
+            // 使用统一的模块数据处理方法（包含模块提取逻辑）
+            const processResult = await processModuleData(
+                { startIndex, endIndex, moduleFilters },
+                'ui',
+                selectedModuleNames,
+                true,
+                true,
+                true
+            );
+
+            // 显示处理结果
+            this.displayModuleResult(processResult, '渲染模块');
+        } catch (error) {
+            errorLog('渲染模块失败:', error);
+            toastr.error('渲染模块失败，请查看控制台日志');
         }
     }
 
