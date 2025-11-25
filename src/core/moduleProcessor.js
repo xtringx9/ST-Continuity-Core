@@ -1893,7 +1893,12 @@ export async function processModuleData(extractParams, processType, selectedModu
                 // }
                 displayTitle = '自动处理模块结果';
                 break;
+            case 'ui':
+                const renderResult = processUIModules(rawModules, selectedModuleNames, showModuleNames, showProcessInfo);
 
+                resultContent = renderResult;
+                displayTitle = '消息渲染结果';
+                break;
             default:
                 throw new Error(`不支持的处理类型：${processType}`);
         }
@@ -2146,4 +2151,58 @@ export function attachStructuredTimeData(modules) {
     debugLog('[TimeDataAttachment] 结构化时间数据附加完成，共处理模块数:', attachmentCount, '格式化变量数:', formattedCount);
 }
 
+/**
+ * 自动根据模块配置判断处理方式
+ * @param {Array} rawModules 原始模块数组
+ * @param {Array} selectedModuleNames 选中的模块名数组
+ * @param {boolean} showModuleNames 是否显示模块名
+ * @param {boolean} showProcessInfo 是否显示处理方式说明
+ * @returns {Object} 按模块名分组的结构化数据
+ */
+export function processUIModules(rawModules, selectedModuleNames, showModuleNames = false, showProcessInfo = false) {
+    debugLog('开始自动处理模块');
 
+    // 标准化模块数据，直接传入selectedModuleNames参数，normalizeModules会返回按模块名分组的结构
+    const moduleGroups = normalizeModules(rawModules, selectedModuleNames);
+
+    // 处理每个模块组并返回结构化数据
+    const structuredResult = {};
+
+    Object.keys(moduleGroups).forEach(moduleName => {
+        const moduleGroup = moduleGroups[moduleName];
+
+        // 动态获取模块配置
+        const modulesData = configManager.getModules() || [];
+        const moduleConfig = modulesData.find(config => config.name === moduleName);
+
+        let processType = 'full';
+        let resultData;
+
+        if (!moduleConfig) {
+            // 没有模块配置，使用全量处理
+            processType = 'full_without_config';
+            resultData = moduleGroup.map(module => module.raw);
+        } else {
+            // 获取模块的outputMode配置
+            const outputMode = moduleConfig.outputMode || 'full';
+            processType = outputMode;
+
+            // 根据outputMode选择处理方式
+            if (outputMode === 'incremental') {
+                // 增量处理
+                resultData = processIncrementalModules(moduleGroup);
+            } else {
+                // 全量处理（默认）
+                resultData = processFullModules(moduleGroup);
+            }
+        }
+
+        structuredResult[moduleName] = {
+            processType: processType,
+            data: resultData,
+            moduleCount: moduleGroup.length
+        };
+    });
+
+    return structuredResult;
+}

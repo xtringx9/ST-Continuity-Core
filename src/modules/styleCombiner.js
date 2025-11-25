@@ -607,26 +607,28 @@ export function insertCombinedStylesToDetails(selector = '.modules-content-conta
 
         let finalStyles = '';
 
-        // 处理不同格式的模块数据
+        // 统一处理模块数据，将单条目和多条目都转换为标准格式的条目数组
         let moduleEntries = [];
-        let isMultiEntry = false;
 
-        if (moduleData[moduleConfig.name] && moduleData[moduleConfig.name].data && Array.isArray(moduleData[moduleConfig.name].data)) {
-            debugLog('[CUSTOM STYLES] 多条目模块数据:', moduleData[moduleConfig.name].data);
-            isMultiEntry = true;
-            moduleEntries = moduleData[moduleConfig.name].data.map(data => ({
-                moduleName: data.moduleName || moduleConfig.name || moduleConfig.id || 'unknown',
-                moduleConfig: moduleConfig,  // 传递模块配置给每个条目
-                moduleData: data.moduleData || data  // 优先使用条目下的moduleData字段
-            }));
-        } else if (moduleData) {
-            // 如果有单条模块数据，创建一个包含单一条目的数组
-            debugLog('[CUSTOM STYLES] 单条目模块数据:', moduleData);
-            moduleEntries = [{
-                moduleName: moduleConfig.name || moduleConfig.id || 'unknown',
-                moduleConfig: moduleConfig,
-                moduleData: moduleData
-            }];
+        if (moduleData) {
+            if (moduleData[moduleConfig.name] && moduleData[moduleConfig.name].data && Array.isArray(moduleData[moduleConfig.name].data)) {
+                // 多条目数据格式
+                debugLog('[CUSTOM STYLES] 模块数据:', moduleData[moduleConfig.name].data);
+                moduleEntries = moduleData[moduleConfig.name].data.map(data => ({
+                    moduleName: data.moduleName || moduleConfig.name || moduleConfig.id || 'unknown',
+                    moduleConfig: moduleConfig,  // 传递模块配置给每个条目
+                    moduleData: data.moduleData || data  // 优先使用条目下的moduleData字段
+                }));
+            }
+            // else {
+            //     // 单条目数据格式，包装成数组
+            //     debugLog('[CUSTOM STYLES] 单条目模块数据:', moduleData);
+            //     moduleEntries = [{
+            //         moduleName: moduleConfig.name || moduleConfig.id || 'unknown',
+            //         moduleConfig: moduleConfig,
+            //         moduleData: moduleData
+            //     }];
+            // }
         }
 
         // 统一处理：无论是否有模块条目，都调用processContainerStyles
