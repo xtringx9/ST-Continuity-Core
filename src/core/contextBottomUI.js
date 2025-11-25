@@ -456,6 +456,30 @@ export function isInChatPage() {
 export function hasValidMessageContainer() {
     try {
         // 查找合适的消息容器
+        const lastMessageContainer = $('.mes');
+        if (lastMessageContainer.length === 0) {
+            return false;
+        }
+
+        // 检查消息容器是否有内容
+        const messageText = lastMessageContainer.find('.mes_text');
+        if (messageText.length === 0 || messageText.text().trim() === '') {
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        errorLog('检查消息容器状态失败:', error);
+        return false;
+    }
+}
+
+/**
+ * 检查是否有有效的消息容器
+ */
+export function hasValidLastMessageContainer() {
+    try {
+        // 查找合适的消息容器
         const lastMessageContainer = $('.last_mes');
         if (lastMessageContainer.length === 0) {
             return false;
@@ -487,8 +511,8 @@ export function checkPageStateAndInsertUI() {
         }
 
         // 检查是否有有效的消息容器
-        if (!hasValidMessageContainer()) {
-            debugLog('[PAGE_CHECK] 没有有效的消息容器，不插入UI');
+        if (!hasValidLastMessageContainer()) {
+            debugLog('[PAGE_CHECK] 没有有效的最后一条消息容器，不插入UI');
             return false;
         }
 
@@ -507,6 +531,56 @@ export function checkPageStateAndInsertUI() {
         errorLog('检测页面状态并插入UI失败:', error);
         return false;
     }
+}
+
+/**
+ * 检测页面状态并渲染可嵌入模块的UI
+ * 确保只有在合适的页面状态下才插入UI
+ */
+export function checkPageStateAndRenderUI() {
+    try {
+        if (!isInChatPage()) {
+            debugLog('[PAGE_CHECK] 当前不在聊天页面，不渲染可嵌入模块的UI');
+            return false;
+        }
+
+        // 检查是否有有效的消息容器
+        if (!hasValidMessageContainer()) {
+            debugLog('[PAGE_CHECK] 没有有效的消息容器，不渲染可嵌入模块的UI');
+            return false;
+        }
+
+        // 检查UI是否已经存在
+        const existingUI = document.getElementById('CONTEXT_BOTTOM_CONTAINER_ID');
+        if (existingUI) {
+            debugLog('[PAGE_CHECK] UI已存在，无需重新渲染');
+            return true;
+        }
+
+        // 所有检查通过，渲染UI
+        debugLog('[PAGE_CHECK] 页面状态检查通过，渲染可嵌入模块的UI');
+
+        //insertUItoContextBottom();
+
+        return true;
+
+    } catch (error) {
+        errorLog('检测页面状态并渲染可嵌入模块的UI失败:', error);
+        return false;
+    }
+}
+
+export function renderCurrentMessageContext() {
+
+}
+
+export function renderSingleMessageContext(mes) {
+    const mesId = mes.attr('mesid');
+}
+
+export function getCurrentMessageContainer() {
+    // 只获取$('#chat')内的.mes容器元素
+    return jQuery('#chat .mes');
 }
 
 /**
