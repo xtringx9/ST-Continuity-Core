@@ -1661,7 +1661,8 @@ export function processAutoModules(rawModules, selectedModuleNames, showModuleNa
         structuredResult[moduleName] = {
             processType: processType,
             data: resultData,
-            moduleCount: moduleGroup.length
+            moduleCount: moduleGroup.length,
+            moduleConfig: moduleConfig,
         };
     });
 
@@ -1684,7 +1685,8 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
         const { processType, data } = moduleData;
 
         if (showModuleNames) {
-            result += `## ${moduleName}\n`;
+            result += `## ${moduleName} (${moduleData.moduleCount})\n`;
+            // todo 提供当前最大id，以方便使用下一个id而不会让id重复
         }
 
         if (showProcessInfo) {
@@ -1919,7 +1921,7 @@ export async function processModuleData(extractParams, processType, selectedModu
             contentString = buildModulesString(resultContent, showModuleNames, showProcessInfo);
         }
 
-        return {
+        const moduleFinalData = {
             success: true,
             content: resultContent, // 原始内容（可能是结构化数据或字符串）
             contentString: contentString, // 字符串表示
@@ -1927,6 +1929,10 @@ export async function processModuleData(extractParams, processType, selectedModu
             moduleCount: modules.length,
             hasContent: hasContent
         };
+
+        debugLog(`模块处理结果：`, moduleFinalData);
+
+        return moduleFinalData;
 
     } catch (error) {
         errorLog(`处理模块数据失败（类型：${processType}）:`, error);

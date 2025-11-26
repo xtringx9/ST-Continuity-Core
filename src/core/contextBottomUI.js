@@ -5,8 +5,8 @@
  */
 
 import { debugLog, errorLog, infoLog } from '../utils/logger.js';
-import styleCombiner from '../modules/styleCombiner.js';
-import { getCombinedStyles, insertCombinedStylesToDetails, clearStyleCombinerCache, getStyleCombinerStats, getAllModuleConfigs } from '../modules/styleCombiner.js';
+// import styleCombiner from '../modules/styleCombiner.js';
+import { insertCombinedStylesToDetails } from '../modules/styleCombiner.js';
 import { processModuleData } from './moduleProcessor.js';
 import { getContext, configManager } from '../index.js';
 
@@ -277,7 +277,7 @@ export function insertUItoContextBottom() {
 export async function insertModulesDataAndStyles(contextBottomUI) {
     try {
         // 获取所有模块配置
-        const allModuleConfigs = getAllModuleConfigs();
+        const allModuleConfigs = configManager.getModules();
         if (allModuleConfigs && allModuleConfigs.length > 0) {
             // 为UI容器添加一个特殊的类名，用于样式应用
             contextBottomUI.classList.add('continuity-context-bottom-ui');
@@ -296,69 +296,126 @@ export async function insertModulesDataAndStyles(contextBottomUI) {
                 allModuleConfigs.map(config => config.name) // 处理所有模块
             );
             debugLog('[CUSTOM STYLES] 提取结果:', processResult);
-            // 处理每个模块配置
-            allModuleConfigs.forEach(moduleConfig => {
-                if (moduleConfig) {
-                    // 从一次性获取的所有模块数据中获取当前模块的数据
-                    const processedData = processResult.success ?
-                        (typeof processResult.content === 'object' ?
-                            // 如果是结构化数据，查找当前模块的数据
-                            (Array.isArray(processResult.content) ?
-                                // 如果是数组，过滤出当前模块的数据
-                                processResult.content.filter(item => item.moduleName === moduleConfig.name).map(item => item.moduleString || JSON.stringify(item)).join('\n') :
-                                // 如果是对象，直接获取当前模块的数据
-                                processResult.content[moduleConfig.name]?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '') :
-                            // 如果是字符串，直接使用
-                            (processResult.contentString || '').split('\n').filter(line => line.includes(`[${moduleConfig.name}]`) || line.includes(`## ${moduleConfig.name}`)).join('\n')) :
-                        '';
 
-                    if (processedData && processedData.trim() !== '') {
-                        // 获取当前模块的内容数据
-                        let moduleContentData = null;
-                        if (typeof processResult.content === 'object') {
-                            if (Array.isArray(processResult.content)) {
-                                // 如果是数组，过滤出当前模块的数据
-                                moduleContentData = processResult.content.filter(item => item.moduleName === moduleConfig.name);
-                            } else {
-                                // 如果是对象，直接获取当前模块的数据
-                                moduleContentData = processResult.content[moduleConfig.name]?.data || [];
-                            }
-                        }
-                        // 获取处理后的样式字符串
-                        const processedStyles = insertCombinedStylesToDetails('.modules-content-container', moduleConfig, null, {
-                            [moduleConfig.name]: {
-                                data: moduleContentData
-                            }
-                        });
+            // // 遍历processResult.content对象中的所有模块
+            // Object.keys(processResult.content).forEach(moduleName => {
+            //     const moduleData = processResult.content[moduleName];
+            //     debugLog(`[CUSTOM STYLES] 处理模块 ${moduleName}`, moduleData);
 
-                        // 插入模块数据和样式到模块内容容器
-                        const contentContainer = contextBottomUI.querySelector('.modules-content-container');
-                        if (contentContainer) {
-                            // 添加处理后的样式
-                            if (((moduleConfig.customStyles && moduleConfig.customStyles.trim() !== '') || (moduleConfig.containerStyles && moduleConfig.containerStyles.trim() !== ''))) {
-                                contentContainer.innerHTML += `${processedStyles}`;
-                                debugLog(`模块 ${moduleConfig.name} 的样式已插入到模块内容容器`);
-                            }
-                            else {
-                                // 创建模块数据元素
-                                const moduleDataElement = document.createElement('div');
-                                moduleDataElement.className = 'module-data-container';
-                                let moduleContent = '';
-                                // 添加处理后的模块数据
-                                if (processedData && processedData.trim() !== '') {
-                                    moduleContent += `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleContentData.length})</summary>${processedData}</details>`;
-                                }
-                                // 如果有模块内容，插入到容器中
-                                if (moduleContent) {
-                                    moduleDataElement.innerHTML = moduleContent;
-                                    contentContainer.appendChild(moduleDataElement);
-                                    debugLog(`模块 ${moduleConfig.name} 的数据已插入到模块内容容器`);
-                                }
-                            }
-                        }
+            //     // 如果模块数据包含data数组，可以进一步遍历每个数据项
+            //     if (moduleData.data && Array.isArray(moduleData.data)) {
+            //         moduleData.data.forEach((item, index) => {
+            //             debugLog(`[CUSTOM STYLES] 模块 ${moduleName} 的数据项 ${index}:`, item);
+
+            //             // 如果数据项中包含moduleData.variables对象，则遍历打印每个变量和值
+            //             if (item.moduleData && item.moduleData.variables && typeof item.moduleData.variables === 'object') {
+            //                 debugLog(`[CUSTOM STYLES] 模块 ${moduleName} 数据项 ${index} 的变量列表:`);
+            //                 Object.entries(item.moduleData.variables).forEach(([varName, varValue]) => {
+            //                     debugLog(`[CUSTOM STYLES]  - ${varName}: ${varValue}`);
+            //                 });
+            //             }
+            //         });
+            //     }
+            // });
+
+            const contentContainer = contextBottomUI.querySelector('.modules-content-container');
+
+            Object.keys(processResult.content).forEach(moduleName => {
+                const moduleData = processResult.content[moduleName];
+                const moduleConfig = moduleData.moduleConfig;
+                if (!moduleConfig) {
+                    debugLog(`[CUSTOM STYLES] 模块 ${moduleName} 没有配置`);
+                    return;
+                }
+                debugLog(`[CUSTOM STYLES] 处理模块 ${moduleName}`, moduleData);
+
+                // 获取处理后的样式字符串
+                insertCombinedStylesToDetails(moduleData);
+
+                // 插入模块数据和样式到模块内容容器
+                if (contentContainer) {
+                    if (moduleData.containerStyles) {
+                        contentContainer.innerHTML += `${moduleData.containerStyles}`;
+                        debugLog(`模块 ${moduleName} 的样式已插入到模块内容容器`);
+                    }
+                    else {
+                        // 创建模块数据元素
+                        const moduleDataElement = document.createElement('div');
+                        moduleDataElement.className = 'module-data-container';
+                        let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
+                        // 添加处理后的模块数据
+                        const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.moduleCount})</summary>${moduleStrings}</details>`;
+                        moduleDataElement.innerHTML = moduleContent;
+                        contentContainer.appendChild(moduleDataElement);
+                        debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);
+
                     }
                 }
             });
+
+            // // 处理每个模块配置
+            // allModuleConfigs.forEach(moduleConfig => {
+            //     if (moduleConfig) {
+            //         // 从一次性获取的所有模块数据中获取当前模块的数据
+            //         const processedData = processResult.success ?
+            //             (typeof processResult.content === 'object' ?
+            //                 // 如果是结构化数据，查找当前模块的数据
+            //                 (Array.isArray(processResult.content) ?
+            //                     // 如果是数组，过滤出当前模块的数据
+            //                     processResult.content.filter(item => item.moduleName === moduleConfig.name).map(item => item.moduleString || JSON.stringify(item)).join('\n') :
+            //                     // 如果是对象，直接获取当前模块的数据
+            //                     processResult.content[moduleConfig.name]?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '') :
+            //                 // 如果是字符串，直接使用
+            //                 (processResult.contentString || '').split('\n').filter(line => line.includes(`[${moduleConfig.name}]`) || line.includes(`## ${moduleConfig.name}`)).join('\n')) :
+            //             '';
+
+            //         if (processedData && processedData.trim() !== '') {
+            //             // 获取当前模块的内容数据
+            //             let moduleContentData = null;
+            //             if (typeof processResult.content === 'object') {
+            //                 if (Array.isArray(processResult.content)) {
+            //                     // 如果是数组，过滤出当前模块的数据
+            //                     moduleContentData = processResult.content.filter(item => item.moduleName === moduleConfig.name);
+            //                 } else {
+            //                     // 如果是对象，直接获取当前模块的数据
+            //                     moduleContentData = processResult.content[moduleConfig.name]?.data || [];
+            //                 }
+            //             }
+            //             // 获取处理后的样式字符串
+            //             const processedStyles = insertCombinedStylesToDetails(moduleConfig, null, {
+            //                 [moduleConfig.name]: {
+            //                     data: moduleContentData
+            //                 }
+            //             });
+
+            //             // 插入模块数据和样式到模块内容容器
+            //             const contentContainer = contextBottomUI.querySelector('.modules-content-container');
+            //             if (contentContainer) {
+            //                 // 添加处理后的样式
+            //                 if (((moduleConfig.customStyles && moduleConfig.customStyles.trim() !== '') || (moduleConfig.containerStyles && moduleConfig.containerStyles.trim() !== ''))) {
+            //                     contentContainer.innerHTML += `${processedStyles}`;
+            //                     debugLog(`模块 ${moduleConfig.name} 的样式已插入到模块内容容器`);
+            //                 }
+            //                 else {
+            //                     // 创建模块数据元素
+            //                     const moduleDataElement = document.createElement('div');
+            //                     moduleDataElement.className = 'module-data-container';
+            //                     let moduleContent = '';
+            //                     // 添加处理后的模块数据
+            //                     if (processedData && processedData.trim() !== '') {
+            //                         moduleContent += `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleContentData.length})</summary>${processedData}</details>`;
+            //                     }
+            //                     // 如果有模块内容，插入到容器中
+            //                     if (moduleContent) {
+            //                         moduleDataElement.innerHTML = moduleContent;
+            //                         contentContainer.appendChild(moduleDataElement);
+            //                         debugLog(`模块 ${moduleConfig.name} 的数据已插入到模块内容容器`);
+            //                     }
+            //                 }
+            //             }
+            //         }
+            //     }
+            // });
             debugLog('模块数据和样式已插入到模块内容容器');
         } else {
             debugLog('没有找到模块配置，跳过模块数据和样式插入');
