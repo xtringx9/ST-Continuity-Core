@@ -2,8 +2,8 @@
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { chat, getCurrentCharBooksModuleEntries } from "../index.js";
 
-export const MODULE_REGEX = /\[(.*?)\|(.*?)\]/g;
-export const MODULE_NAME_REGEX = /^\[(.*?)\|/;
+export const MODULE_REGEX = /\[([^:|]+?)\|(.*?)\]/g;
+export const MODULE_NAME_REGEX = /^\[([^:|]+?)\|/;
 
 /**
  * 从聊天记录中提取模块数据的帮助函数
@@ -167,9 +167,16 @@ function parseNestedModules(content) {
             // 检查这个[ ]对是否包含|字符，并且确保|在当前的[和]之间
             const substringBetweenBrackets = content.substring(start + 1, i);
             if (substringBetweenBrackets.includes('|')) {
-                // 这是一个有效的模块
-                const module = content.substring(start, i + 1);
-                modules.push(module);
+                // 进一步验证模块名格式：模块名不能包含冒号或竖线
+                const firstPipeIndex = substringBetweenBrackets.indexOf('|');
+                const moduleName = substringBetweenBrackets.substring(0, firstPipeIndex);
+
+                // 检查模块名是否包含冒号或竖线
+                if (!moduleName.includes(':') && !moduleName.includes('|')) {
+                    // 这是一个有效的模块
+                    const module = content.substring(start, i + 1);
+                    modules.push(module);
+                }
             }
         }
     }

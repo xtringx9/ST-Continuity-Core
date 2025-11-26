@@ -1,6 +1,6 @@
 // 事件处理器 - 处理SillyTavern扩展事件
 import { getTestData, registerContinuityRegexPattern, checkAndInitializeWorldBook, getCurrentCharBooks } from "../index.js";
-import { eventSource, event_types, insertUItoContextBottom, UpdateUI, removeUIfromContextBottom } from "../index.js";
+import { eventSource, event_types, UpdateUI, removeUIfromContextBottom } from "../index.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 /**
  * 事件处理器类
@@ -23,7 +23,7 @@ export class EventHandler {
             }
 
             // 注册测试事件处理器（用于调试）
-            // this.registerTestEvents();
+            this.registerTestEvents();
 
             // 注册事件处理器
             this.registerUIEvents();
@@ -48,15 +48,19 @@ export class EventHandler {
             // 注册聊天变更事件
             this.registerEvent(event_types.CHAT_CHANGED, UpdateUI);
             // 注册消息接收事件
-            this.registerEvent(event_types.MESSAGE_RECEIVED, UpdateUI);
+            // this.registerEvent(event_types.MESSAGE_RECEIVED, UpdateUI);
             // 注册角色消息渲染完成事件
             this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, UpdateUI);
             // 注册消息编辑事件
             this.registerEvent(event_types.MESSAGE_EDITED, UpdateUI);
             // 注册消息删除事件
-            this.registerEvent(event_types.MESSAGE_DELETED, UpdateUI);
+            // this.registerEvent(event_types.MESSAGE_DELETED, UpdateUI);
             // 注册消息滑动事件
             this.registerEvent(event_types.MESSAGE_SWIPED, UpdateUI);
+            // 注册角色消息渲染完成事件
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, UpdateUI);
+            // 注册用户消息渲染完成事件
+            this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, UpdateUI);
             infoLog('[EVENTS]UI相关事件处理器注册成功');
         } catch (error) {
             errorLog('[EVENTS]注册UI相关事件处理器失败:', error);

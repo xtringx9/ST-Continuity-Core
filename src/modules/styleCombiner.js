@@ -238,7 +238,7 @@ export function generateStylesForModuleEntries(moduleData) {
 
         // 为每个模块条目生成样式
         moduleData.data.forEach((entry, index) => {
-            debugLog(`[CUSTOM STYLES] 处理模块条目 ${index + 1}/${moduleData.moduleCount}`, entry);
+            debugLog(`[CUSTOM STYLES] 处理模块条目 ${index + 1}/${moduleData.data.length}`, entry);
 
             // 生成当前模块条目的样式
             getCombinedCustomStyles(moduleData.moduleConfig, entry);
@@ -363,8 +363,8 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
 
     // 计算模块条目数量（用于${count}和${length}变量）
     let entryCount = 0;
-    if (moduleData && moduleData.moduleCount !== undefined) {
-        entryCount = moduleData.moduleCount;
+    if (moduleData && moduleData.data !== undefined) {
+        entryCount = moduleData.data.length;
     }
 
     // // 检查moduleData中是否有模块条目信息

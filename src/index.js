@@ -170,12 +170,9 @@ export { extractModulesFromChat } from './core/moduleExtractor.js';
 
 // 导出上下文底部UI管理模块
 export {
-    insertUItoContextBottom,
     removeUIfromContextBottom,
-    updateContextBottomUI,
-    // initContextBottomUI,
     isInChatPage,
-    checkPageStateAndInsertUI,
+    checkPageStateAndUpdateUI,
     UpdateUI
 } from './core/contextBottomUI.js';
 

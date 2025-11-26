@@ -4,9 +4,7 @@ import {
     createFabMenu,
     infoLog,
     errorLog,
-    insertUItoContextBottom,
     removeUIfromContextBottom,
-    checkPageStateAndInsertUI
 } from "../index.js";
 
 /**
@@ -84,9 +82,6 @@ function enableContinuityCore() {
                 infoLog("已自动加载模块配置到DOM，共" + config.modules.length + "个模块");
             }
         }
-
-        // 主动检查页面状态并插入UI
-        checkPageStateAndInsertUI();
 
         infoLog("♥️ Continuity Core 已启用，功能已激活");
     } catch (error) {

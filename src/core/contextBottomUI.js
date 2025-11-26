@@ -12,11 +12,13 @@ import { getContext, configManager } from '../index.js';
 
 // 上下文底部UI容器ID
 const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';
+// 消息底部容器ID
+const CONTEXT_MSG_CONTAINER_ID = 'CONTEXT_MSG_CONTAINER_ID';
 
 /**
  * 加载外部CSS样式文件
  */
-function loadContextBottomUICSS() {
+function loadContextUICSS() {
     // 检查样式是否已加载
     if (document.getElementById('continuity-context-bottom-css')) {
         return;
@@ -38,7 +40,7 @@ function loadContextBottomUICSS() {
  * 使用fetch从外部文件加载HTML模板
  * @returns {Promise<string>} HTML模板字符串
  */
-async function loadContextBottomUITemplate() {
+async function loadContextBottomUITemplate(containerId = CONTEXT_BOTTOM_CONTAINER_ID) {
     try {
         const response = await fetch('./scripts/extensions/third-party/ST-Continuity-Core/assets/html/context-bottom-ui.html');
         if (!response.ok) {
@@ -59,23 +61,26 @@ async function loadContextBottomUITemplate() {
  * 使用外部HTML模板和CSS样式
  * @returns {Promise<HTMLElement>} 创建的容器元素
  */
-async function createContextBottomContainer() {
+async function createContextContainer(containerId = CONTEXT_BOTTOM_CONTAINER_ID) {
     // 检查容器是否已存在
-    if (document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID)) {
+    if (document.getElementById(containerId)) {
         debugLog('上下文底部UI容器已存在');
-        return document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
+        return document.getElementById(containerId);
     }
 
     // 加载CSS样式
-    loadContextBottomUICSS();
+    loadContextUICSS();
 
     // 加载HTML模板
     const template = await loadContextBottomUITemplate();
 
     // 创建容器元素
     const container = document.createElement('div');
-    container.id = CONTEXT_BOTTOM_CONTAINER_ID;
+    container.id = containerId;
     container.innerHTML = template;
+
+    // 为UI容器添加一个特殊的类名，用于样式应用
+    container.classList.add('continuity-context-bottom-ui');
 
     return container;
 }
@@ -84,13 +89,17 @@ async function createContextBottomContainer() {
  * 查找合适的消息容器用于插入UI
  * 优先使用last_mes，如果是用户消息则向上查找AI消息
  */
-function findSuitableMessageContainer() {
+function findSuitableMessageContainer(excludeUserMes = false) {
     // 使用选择器定位最后一个消息容器
     const lastMessageContainer = $('.last_mes');
 
     if (lastMessageContainer.length === 0) {
         debugLog('当前没有last_mes容器');
         return null;
+    }
+
+    if (!excludeUserMes) {
+        return lastMessageContainer;
     }
 
     // 检查last_mes是否为用户消息
@@ -123,23 +132,25 @@ function findSuitableMessageContainer() {
     return suitableContainer;
 }
 
+let isUpdatingMsgUI = false;
+
 /**
  * 将UI插入到上下文底部
  * 修改为插入到mes_text下方，确保折叠功能正常工作
  */
-export function insertUItoMsgBottom() {
+export function updateUItoMsgBottom() {
     try {
         // 防止重复插入
-        if (isInsertingUI) {
+        if (isUpdatingMsgUI) {
             debugLog('UI插入操作正在进行中，跳过重复调用');
             return false;
         }
 
         // 检查UI是否已经存在且位置正确
-        const existingUI = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
+        const existingUI = document.getElementById(CONTEXT_MSG_CONTAINER_ID);
         if (existingUI) {
             // 检查UI是否在正确的容器中
-            const messageContainer = findSuitableMessageContainer();
+            const messageContainer = findSuitableMessageContainer(true);
             if (messageContainer) {
                 const mesBlock = messageContainer.find('.mes_block');
                 const messageText = messageContainer.find('.mes_text');
@@ -161,7 +172,7 @@ export function insertUItoMsgBottom() {
         }
 
         // 设置插入标记
-        isInsertingUI = true;
+        isUpdatingMsgUI = true;
 
         // 使用setTimeout确保DOM完全渲染后再插入
         setTimeout(() => {
@@ -169,16 +180,16 @@ export function insertUItoMsgBottom() {
                 // 检查jQuery是否可用
                 if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
                     errorLog('jQuery未加载，无法使用选择器');
-                    isInsertingUI = false;
+                    isUpdatingMsgUI = false;
                     return false;
                 }
 
                 // 查找合适的消息容器
-                const messageContainer = findSuitableMessageContainer();
+                const messageContainer = findSuitableMessageContainer(true);
 
                 if (!messageContainer) {
                     debugLog('没有找到合适的消息容器，等待下次事件触发');
-                    isInsertingUI = false;
+                    isUpdatingMsgUI = false;
                     return false;
                 }
 
@@ -186,7 +197,7 @@ export function insertUItoMsgBottom() {
                 const messageText = messageContainer.find('.mes_text');
                 if (messageText.length === 0 || messageText.text().trim() === '') {
                     debugLog('消息容器中没有消息内容，等待下次事件触发');
-                    isInsertingUI = false;
+                    isUpdatingMsgUI = false;
                     return false;
                 }
 
@@ -195,38 +206,38 @@ export function insertUItoMsgBottom() {
                 if (mesBlock.length === 0) {
                     debugLog('消息容器中没有找到mes_block，使用默认插入位置');
                     // 如果没有mes_block，回退到消息容器底部
-                    const existingUI = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
+                    const existingUI = document.getElementById(CONTEXT_MSG_CONTAINER_ID);
                     if (existingUI) {
                         const currentParent = $(existingUI).parent();
                         if (currentParent.is(messageContainer)) {
                             debugLog('UI已在正确的消息容器中，无需移动');
-                            isInsertingUI = false;
+                            isUpdatingMsgUI = false;
                             return true;
                         } else {
                             debugLog('UI在错误的容器中，移动到新的消息容器');
                             existingUI.remove();
                         }
                     }
-                    createContextBottomContainer().then(contextBottomUI => {
+                    createContextContainer().then(contextBottomUI => {
                         messageContainer.append(contextBottomUI);
-                        isInsertingUI = false;
+                        isUpdatingMsgUI = false;
                     }).catch(error => {
                         errorLog('创建UI容器失败:', error);
-                        isInsertingUI = false;
+                        isUpdatingMsgUI = false;
                     });
                     debugLog('UI已成功插入到消息容器内部底部');
                     return true;
                 }
 
                 // 检查UI是否已经存在
-                const existingUI = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
+                const existingUI = document.getElementById(CONTEXT_MSG_CONTAINER_ID);
 
                 if (existingUI) {
                     // UI已存在，检查是否在正确的容器中
                     const currentParent = $(existingUI).parent();
                     if (currentParent.is(mesBlock) && currentParent.find('.mes_text').next().is(existingUI)) {
                         debugLog('UI已在正确的mes_text下方位置，无需移动');
-                        isInsertingUI = false;
+                        isUpdatingMsgUI = false;
                         return true;
                     } else {
                         // UI在错误的容器中，需要移动到新的容器
@@ -236,268 +247,240 @@ export function insertUItoMsgBottom() {
                 }
 
                 // 创建或重新插入上下文底部UI
-                createContextBottomContainer().then(contextBottomUI => {
+                createContextContainer(CONTEXT_MSG_CONTAINER_ID).then(contextBottomUI => {
                     // 插入到mes_text下方
                     messageText.after(contextBottomUI);
                     debugLog('UI已成功插入/移动到mes_text下方');
 
                     // 调用新方法插入模块数据和样式
                     (async () => {
-                        await insertModulesDataAndStyles(contextBottomUI);
+                        await updateModulesDataAndStyles(contextBottomUI);
                     })();
 
-                    isInsertingUI = false;
+                    isUpdatingMsgUI = false;
                 }).catch(error => {
                     errorLog('创建UI容器失败:', error);
-                    isInsertingUI = false;
+                    isUpdatingMsgUI = false;
                 });
 
                 debugLog('UI已成功插入/移动到mes_text下方');
                 return true;
             } catch (error) {
                 errorLog('插入UI到mes_text下方失败:', error);
-                isInsertingUI = false;
+                isUpdatingMsgUI = false;
                 return false;
             }
         }, 0);
     } catch (error) {
         errorLog('插入UI到mes_text下方失败:', error);
-        isInsertingUI = false;
+        isUpdatingMsgUI = false;
         return false;
     }
 }
 
 // 防止重复插入的标记
-let isInsertingUI = false;
+let isUpdatingContextBottomUI = false;
 
 /**
  * 将UI插入到上下文底部
  * 修改为插入到mes_text下方，确保折叠功能正常工作
  */
-export function insertUItoContextBottom() {
+export async function updateUItoContextBottom() {
     try {
         // 防止重复插入
-        if (isInsertingUI) {
-            debugLog('UI插入操作正在进行中，跳过重复调用');
+        if (isUpdatingContextBottomUI) {
+            debugLog('上下文底部UI插入操作正在进行中，跳过重复调用');
+            return false;
+        }
+        // 设置插入标记
+        isUpdatingContextBottomUI = true;
+
+        // 检查jQuery是否可用
+        if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
+            errorLog('jQuery未加载，无法使用选择器');
+            isUpdatingContextBottomUI = false;
             return false;
         }
 
         // 检查UI是否已经存在且位置正确
-        let existingUI = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
+        let container = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
         const chatContainer = $('#chat');
+        const lastMessageContainer = findSuitableMessageContainer();
 
-        if (existingUI) {
+
+        // 提取全部聊天记录的所有模块数据（一次性获取）
+        const extractParams = {
+            startIndex: 0,
+            endIndex: null, // null表示提取到最新楼层
+            moduleFilters: getContextBottomUIFilteredModuleConfigs() // 只提取符合条件的模块
+        };
+
+        if (!container) {
+            container = await createContextContainer(CONTEXT_BOTTOM_CONTAINER_ID);
+            lastMessageContainer.after(container);
+        }
+
+        if (container) {
             // 检查UI是否在正确的容器中
             if (chatContainer) {
-                const currentParent = $(existingUI).parent();
+                const currentParent = $(container).parent();
                 if (currentParent.is(chatContainer)) {
-                    debugLog('UI已在正确的chat容器中，无需移动');
-                    return true;
+                    // 进一步检查是否在lastMessageContainer后面
+                    const isAfterLastMessage = $(container).prev().is(lastMessageContainer);
+                    if (isAfterLastMessage) {
+                        debugLog('UI已在正确的chat容器中且在last mes后面，无需移动');
+                    } else {
+                        debugLog('UI在chat容器中但不在last mes后面，移动到last mes后面');
+                        lastMessageContainer.after(container);
+                        debugLog('UI已成功移动到last mes后面');
+                    }
                 } else {
-                    debugLog('UI在错误的容器中，移动到新的chat容器');
-                    existingUI.remove();
+                    debugLog('UI在错误的容器中，移动到新的chat容器中的last mes后面');
+                    lastMessageContainer.after(container);
+                    debugLog('UI已成功移动到last mes后面');
                 }
             }
         }
 
-        // 设置插入标记
-        isInsertingUI = true;
+        await updateModulesDataAndStyles(container, extractParams);
+        isUpdatingContextBottomUI = false;
+        return true;
 
-        // 使用setTimeout确保DOM完全渲染后再插入
-        setTimeout(() => {
-            try {
-                // 检查jQuery是否可用
-                if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
-                    errorLog('jQuery未加载，无法使用选择器');
-                    isInsertingUI = false;
-                    return false;
-                }
-
-                if (!existingUI) {
-                    createContextBottomContainer().then(contextBottomUI => {
-                        const lastMessageContainer = $('.last_mes');
-                        lastMessageContainer.after(contextBottomUI);
-                        debugLog('UI已成功插入/移动到last mes下方');
-
-                        // 调用新方法插入模块数据和样式
-                        (async () => {
-                            await insertModulesDataAndStyles(contextBottomUI);
-                        })();
-
-                        isInsertingUI = false;
-                    }).catch(error => {
-                        errorLog('创建UI容器失败:', error);
-                        isInsertingUI = false;
-                    });
-                }
-
-                debugLog('UI已成功插入到chat下方');
-                return true;
-            } catch (error) {
-                errorLog('插入UI到chat下方失败:', error);
-                isInsertingUI = false;
-                return false;
-            }
-        }, 0);
     } catch (error) {
-        errorLog('插入UI到chat下方失败:', error);
-        isInsertingUI = false;
+        errorLog('更新上下文底部UI失败:', error);
+        isUpdatingContextBottomUI = false;
         return false;
     }
 }
 
 /**
- * 插入模块数据和样式到模块内容容器
- * @param {HTMLElement} contextBottomUI 上下文底部UI元素
+ * 获取上下文底部UI需要显示的模块配置
+ * @returns {Array} 符合条件的模块配置数组
  */
-export async function insertModulesDataAndStyles(contextBottomUI) {
-    debugLog('[CUSTOM STYLES] 开始插入模块数据和样式', contextBottomUI);
+function getContextBottomUIFilteredModuleConfigs() {
+    // 获取所有模块配置
+    const allModuleConfigs = configManager.getModules();
+    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
+    const filteredModuleConfigs = allModuleConfigs.filter(config => {
+        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full' && config.retainLayers != 0) ||
+            config.outputMode === 'incremental';
+        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
+        return result;
+    });
+    debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
+    debugLog(`[CUSTOM STYLES] 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
+    // 构建模块过滤条件数组
+    const moduleFilters = filteredModuleConfigs.map(config => ({
+        name: config.name,
+        compatibleModuleNames: config.compatibleModuleNames || []
+    }));
+    return moduleFilters;
+}
 
+/**
+ * 获取消息底部UI需要显示的模块配置
+ * @returns {Array} 符合条件的模块配置数组
+ */
+function getMsgUIFilteredModuleConfigs() {
+    // 获取所有模块配置
+    const allModuleConfigs = configManager.getModules();
+    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
+    const filteredModuleConfigs = allModuleConfigs.filter(config => {
+        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full') ||
+            config.outputMode === 'incremental';
+        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
+        return result;
+    });
+    debugLog(`[CUSTOM STYLES] Msg 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
+    debugLog(`[CUSTOM STYLES] Msg 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
+    // 构建模块过滤条件数组
+    const moduleFilters = filteredModuleConfigs.map(config => ({
+        name: config.name,
+        compatibleModuleNames: config.compatibleModuleNames || []
+    }));
+    return moduleFilters;
+}
+
+/**
+ * 获取消息内部渲染UI需要显示的模块配置
+ * @returns {Array} 符合条件的模块配置数组
+ */
+function getRenderUIFilteredModuleConfigs() {
+    // 获取所有模块配置
+    const allModuleConfigs = configManager.getModules();
+    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
+    const filteredModuleConfigs = allModuleConfigs.filter(config => {
+        const result = config.outputPosition !== 'after_body';
+        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
+        return result;
+    });
+    debugLog(`[CUSTOM STYLES] 渲染 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
+    debugLog(`[CUSTOM STYLES] 渲染 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
+    // 构建模块过滤条件数组
+    const moduleFilters = filteredModuleConfigs.map(config => ({
+        name: config.name,
+        compatibleModuleNames: config.compatibleModuleNames || []
+    }));
+    return moduleFilters;
+}
+
+/**
+ * 插入模块数据和样式到模块内容容器
+ * @param {HTMLElement} container 上下文底部UI元素
+ */
+export async function updateModulesDataAndStyles(container, extractParams) {
     try {
-        // 获取所有模块配置
-        const allModuleConfigs = configManager.getModules();
-        if (allModuleConfigs && allModuleConfigs.length > 0) {
-            // 为UI容器添加一个特殊的类名，用于样式应用
-            contextBottomUI.classList.add('continuity-context-bottom-ui');
+        debugLog('[CUSTOM STYLES] 开始更新模块数据和样式', container);
 
-            // 提取全部聊天记录的所有模块数据（一次性获取）
-            const extractParams = {
-                startIndex: 0,
-                endIndex: null, // null表示提取到最新
-                moduleFilters: null // null表示提取所有模块
-            };
+        // 一次性获取所有模块数据
+        const processResult = await processModuleData(
+            extractParams,
+            'auto' // 自动处理类型
+        );
+        debugLog('[CUSTOM STYLES] 提取结果:', processResult);
 
-            // 一次性获取所有模块数据
-            const processResult = await processModuleData(
-                extractParams,
-                'auto', // 自动处理类型
-                allModuleConfigs.map(config => config.name) // 处理所有模块
-            );
-            debugLog('[CUSTOM STYLES] 提取结果:', processResult);
+        const contentContainer = container.querySelector('.modules-content-container');
 
-            // // 遍历processResult.content对象中的所有模块
-            // Object.keys(processResult.content).forEach(moduleName => {
-            //     const moduleData = processResult.content[moduleName];
-            //     debugLog(`[CUSTOM STYLES] 处理模块 ${moduleName}`, moduleData);
-
-            //     // 如果模块数据包含data数组，可以进一步遍历每个数据项
-            //     if (moduleData.data && Array.isArray(moduleData.data)) {
-            //         moduleData.data.forEach((item, index) => {
-            //             debugLog(`[CUSTOM STYLES] 模块 ${moduleName} 的数据项 ${index}:`, item);
-
-            //             // 如果数据项中包含moduleData.variables对象，则遍历打印每个变量和值
-            //             if (item.moduleData && item.moduleData.variables && typeof item.moduleData.variables === 'object') {
-            //                 debugLog(`[CUSTOM STYLES] 模块 ${moduleName} 数据项 ${index} 的变量列表:`);
-            //                 Object.entries(item.moduleData.variables).forEach(([varName, varValue]) => {
-            //                     debugLog(`[CUSTOM STYLES]  - ${varName}: ${varValue}`);
-            //                 });
-            //             }
-            //         });
-            //     }
-            // });
-
-            const contentContainer = contextBottomUI.querySelector('.modules-content-container');
-
-            Object.keys(processResult.content).forEach(moduleName => {
-                const moduleData = processResult.content[moduleName];
-                const moduleConfig = moduleData.moduleConfig;
-                if (!moduleConfig) {
-                    debugLog(`[CUSTOM STYLES] 模块 ${moduleName} 没有配置`);
-                    return;
-                }
-                debugLog(`[CUSTOM STYLES] 处理模块 ${moduleName}`, moduleData);
-
-                // 获取处理后的样式字符串
-                insertCombinedStylesToDetails(moduleData);
-
-                // 插入模块数据和样式到模块内容容器
-                if (contentContainer) {
-                    if (moduleData.containerStyles) {
-                        contentContainer.innerHTML += `${moduleData.containerStyles}`;
-                        debugLog(`模块 ${moduleName} 的样式已插入到模块内容容器`);
-                    }
-                    else {
-                        // 创建模块数据元素
-                        const moduleDataElement = document.createElement('div');
-                        moduleDataElement.className = 'module-data-container';
-                        let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
-                        // 添加处理后的模块数据
-                        const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.moduleCount})</summary>${moduleStrings}</details>`;
-                        moduleDataElement.innerHTML = moduleContent;
-                        contentContainer.appendChild(moduleDataElement);
-                        debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);
-
-                    }
-                }
-            });
-
-            // // 处理每个模块配置
-            // allModuleConfigs.forEach(moduleConfig => {
-            //     if (moduleConfig) {
-            //         // 从一次性获取的所有模块数据中获取当前模块的数据
-            //         const processedData = processResult.success ?
-            //             (typeof processResult.content === 'object' ?
-            //                 // 如果是结构化数据，查找当前模块的数据
-            //                 (Array.isArray(processResult.content) ?
-            //                     // 如果是数组，过滤出当前模块的数据
-            //                     processResult.content.filter(item => item.moduleName === moduleConfig.name).map(item => item.moduleString || JSON.stringify(item)).join('\n') :
-            //                     // 如果是对象，直接获取当前模块的数据
-            //                     processResult.content[moduleConfig.name]?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '') :
-            //                 // 如果是字符串，直接使用
-            //                 (processResult.contentString || '').split('\n').filter(line => line.includes(`[${moduleConfig.name}]`) || line.includes(`## ${moduleConfig.name}`)).join('\n')) :
-            //             '';
-
-            //         if (processedData && processedData.trim() !== '') {
-            //             // 获取当前模块的内容数据
-            //             let moduleContentData = null;
-            //             if (typeof processResult.content === 'object') {
-            //                 if (Array.isArray(processResult.content)) {
-            //                     // 如果是数组，过滤出当前模块的数据
-            //                     moduleContentData = processResult.content.filter(item => item.moduleName === moduleConfig.name);
-            //                 } else {
-            //                     // 如果是对象，直接获取当前模块的数据
-            //                     moduleContentData = processResult.content[moduleConfig.name]?.data || [];
-            //                 }
-            //             }
-            //             // 获取处理后的样式字符串
-            //             const processedStyles = insertCombinedStylesToDetails(moduleConfig, null, {
-            //                 [moduleConfig.name]: {
-            //                     data: moduleContentData
-            //                 }
-            //             });
-
-            //             // 插入模块数据和样式到模块内容容器
-            //             const contentContainer = contextBottomUI.querySelector('.modules-content-container');
-            //             if (contentContainer) {
-            //                 // 添加处理后的样式
-            //                 if (((moduleConfig.customStyles && moduleConfig.customStyles.trim() !== '') || (moduleConfig.containerStyles && moduleConfig.containerStyles.trim() !== ''))) {
-            //                     contentContainer.innerHTML += `${processedStyles}`;
-            //                     debugLog(`模块 ${moduleConfig.name} 的样式已插入到模块内容容器`);
-            //                 }
-            //                 else {
-            //                     // 创建模块数据元素
-            //                     const moduleDataElement = document.createElement('div');
-            //                     moduleDataElement.className = 'module-data-container';
-            //                     let moduleContent = '';
-            //                     // 添加处理后的模块数据
-            //                     if (processedData && processedData.trim() !== '') {
-            //                         moduleContent += `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleContentData.length})</summary>${processedData}</details>`;
-            //                     }
-            //                     // 如果有模块内容，插入到容器中
-            //                     if (moduleContent) {
-            //                         moduleDataElement.innerHTML = moduleContent;
-            //                         contentContainer.appendChild(moduleDataElement);
-            //                         debugLog(`模块 ${moduleConfig.name} 的数据已插入到模块内容容器`);
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
-            // });
-            debugLog('模块数据和样式已插入到模块内容容器');
-        } else {
-            debugLog('没有找到模块配置，跳过模块数据和样式插入');
+        // 清空容器内的所有内容
+        if (contentContainer) {
+            contentContainer.innerHTML = '';
+            debugLog('[CUSTOM STYLES] 已清空模块内容容器');
         }
+
+        Object.keys(processResult.content).forEach(moduleName => {
+            const moduleData = processResult.content[moduleName];
+            const moduleConfig = moduleData.moduleConfig;
+            if (!moduleConfig) {
+                debugLog(`[CUSTOM STYLES] 模块 ${moduleName} 没有配置`);
+                return;
+            }
+            debugLog(`[CUSTOM STYLES] 处理模块 ${moduleName}`, moduleData);
+
+            // 获取处理后的样式字符串
+            insertCombinedStylesToDetails(moduleData);
+
+            // 插入模块数据和样式到模块内容容器
+            if (contentContainer) {
+                if (moduleData.containerStyles) {
+                    contentContainer.innerHTML += `${moduleData.containerStyles}`;
+                    debugLog(`模块 ${moduleName} 的样式已插入到模块内容容器`);
+                }
+                else {
+                    // 创建模块数据元素
+                    const moduleDataElement = document.createElement('div');
+                    moduleDataElement.className = 'module-data-container';
+                    let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
+                    // 添加处理后的模块数据
+                    const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.data.length})</summary>${moduleStrings}</details>`;
+                    moduleDataElement.innerHTML = moduleContent;
+                    contentContainer.appendChild(moduleDataElement);
+                    debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);
+
+                }
+            }
+        });
+
+        debugLog('模块数据和样式已插入到模块内容容器');
     } catch (error) {
         errorLog('插入模块数据和样式到模块内容容器失败:', error);
     }
@@ -509,50 +492,17 @@ export async function insertModulesDataAndStyles(contextBottomUI) {
 export function removeUIfromContextBottom() {
     try {
         const container = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
+        const msgContainer = document.getElementById(CONTEXT_MSG_CONTAINER_ID);
         if (container) {
             container.remove();
             debugLog('UI已从上下文底部移除');
-            return true;
         }
-        return false;
+        if (msgContainer) {
+            msgContainer.remove();
+            debugLog('消息底部UI已从上下文底部移除');
+        }
     } catch (error) {
         errorLog('从上下文底部移除UI失败:', error);
-        return false;
-    }
-}
-
-
-
-/**
- * 更新上下文底部UI内容
- * @param {string} content 要显示的内容
- */
-export function updateContextBottomUI(content) {
-    try {
-        // 使用setTimeout确保DOM完全渲染后再更新
-        setTimeout(async () => {
-            let container = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
-
-            if (!container) {
-                // 如果容器不存在，先创建
-                insertUItoContextBottom();
-                container = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
-            }
-
-            if (container) {
-                const contentArea = container.querySelector('.continuity-context-info');
-                if (contentArea) {
-                    contentArea.innerHTML = content;
-                    debugLog('上下文底部UI内容已更新');
-                    return true;
-                }
-            }
-
-            return false;
-        }, 0);
-    } catch (error) {
-        errorLog('更新上下文底部UI内容失败:', error);
-        return false;
     }
 }
 
@@ -588,7 +538,7 @@ export function isInChatPage() {
 /**
  * 检查是否有有效的消息容器
  */
-export function hasValidMessageContainer() {
+export function hasValidMessageContainer(needMesText = false) {
     try {
         // 查找合适的消息容器
         const lastMessageContainer = $('.mes');
@@ -596,10 +546,12 @@ export function hasValidMessageContainer() {
             return false;
         }
 
-        // 检查消息容器是否有内容
-        const messageText = lastMessageContainer.find('.mes_text');
-        if (messageText.length === 0 || messageText.text().trim() === '') {
-            return false;
+        if (needMesText) {
+            // 检查消息容器是否有内容
+            const messageText = lastMessageContainer.find('.mes_text');
+            if (messageText.length === 0 || messageText.text().trim() === '') {
+                return false;
+            }
         }
 
         return true;
@@ -612,7 +564,7 @@ export function hasValidMessageContainer() {
 /**
  * 检查是否有有效的消息容器
  */
-export function hasValidLastMessageContainer() {
+export function hasValidLastMessageContainer(needMesText = false) {
     try {
         // 查找合适的消息容器
         const lastMessageContainer = $('.last_mes');
@@ -620,10 +572,12 @@ export function hasValidLastMessageContainer() {
             return false;
         }
 
-        // 检查消息容器是否有内容
-        const messageText = lastMessageContainer.find('.mes_text');
-        if (messageText.length === 0 || messageText.text().trim() === '') {
-            return false;
+        if (needMesText) {
+            // 检查消息容器是否有内容
+            const messageText = lastMessageContainer.find('.mes_text');
+            if (messageText.length === 0 || messageText.text().trim() === '') {
+                return false;
+            }
         }
 
         return true;
@@ -637,7 +591,7 @@ export function hasValidLastMessageContainer() {
  * 检测页面状态并插入UI
  * 确保只有在合适的页面状态下才插入UI
  */
-export function checkPageStateAndInsertUI() {
+export function checkPageStateAndUpdateUI() {
     try {
         // 检查是否在聊天页面
         if (!isInChatPage()) {
@@ -645,63 +599,19 @@ export function checkPageStateAndInsertUI() {
             return false;
         }
 
-        // 检查是否有有效的消息容器
-        if (!hasValidLastMessageContainer()) {
-            debugLog('[PAGE_CHECK] 没有有效的最后一条消息容器，不插入UI');
-            return false;
-        }
+        // 处理底部UI（统合的模块内容）
+        (async () => {
+            await updateUItoContextBottom();
+        })();
 
-        // 检查UI是否已经存在
-        const existingUI = document.getElementById('CONTEXT_BOTTOM_CONTAINER_ID');
-        if (existingUI) {
-            debugLog('[PAGE_CHECK] UI已存在，无需重新插入');
-            return true;
-        }
+        // 处理消息中UI（每层的模块内容）
+        // updateUItoMsgBottom();
 
-        // 所有检查通过，插入UI
-        debugLog('[PAGE_CHECK] 页面状态检查通过，插入UI');
-        insertUItoContextBottom();
-        return true;
-    } catch (error) {
-        errorLog('检测页面状态并插入UI失败:', error);
-        return false;
-    }
-}
-
-/**
- * 检测页面状态并渲染可嵌入模块的UI
- * 确保只有在合适的页面状态下才插入UI
- */
-export function checkPageStateAndRenderUI() {
-    try {
-        if (!isInChatPage()) {
-            debugLog('[PAGE_CHECK] 当前不在聊天页面，不渲染可嵌入模块的UI');
-            return false;
-        }
-
-        // 检查是否有有效的消息容器
-        if (!hasValidMessageContainer()) {
-            debugLog('[PAGE_CHECK] 没有有效的消息容器，不渲染可嵌入模块的UI');
-            return false;
-        }
-
-        // 检查UI是否已经存在
-        const existingUI = document.getElementById('CONTEXT_BOTTOM_CONTAINER_ID');
-        if (existingUI) {
-            debugLog('[PAGE_CHECK] UI已存在，无需重新渲染');
-            return true;
-        }
-
-        // 所有检查通过，渲染UI
-        debugLog('[PAGE_CHECK] 页面状态检查通过，渲染可嵌入模块的UI');
-
-        //insertUItoContextBottom();
-
-        return true;
+        // 渲染消息内UI（每层的模块内容）
+        renderCurrentMessageContext();
 
     } catch (error) {
-        errorLog('检测页面状态并渲染可嵌入模块的UI失败:', error);
-        return false;
+        errorLog('[PAGE_CHECK] 检测页面状态并插入UI失败:', error);
     }
 }
 
@@ -718,26 +628,10 @@ export function getCurrentMessageContainer() {
     return jQuery('#chat .mes');
 }
 
-/**
- * 初始化上下文底部UI
- * 使用jQuery确保DOM就绪后插入UI
- */
-export function initContextBottomUI() {
-    debugLog('初始化上下文底部UI');
-
-    // 使用jQuery确保DOM完全加载后再插入UI
-    jQuery(() => {
-        // 延迟插入，确保其他扩展和主程序UI已完全加载
-        setTimeout(() => {
-            insertUItoContextBottom();
-        }, 100);
-    });
-}
-
 export function UpdateUI() {
     if (configManager.isExtensionEnabled()) {
         debugLog("[UI EVENTS][CHAT_CHANGED]检测到聊天变更，检查页面状态并插入UI");
-        checkPageStateAndInsertUI();
+        checkPageStateAndUpdateUI();
     } else {
         debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
         removeUIfromContextBottom();
