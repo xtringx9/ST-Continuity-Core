@@ -123,14 +123,11 @@ function findSuitableMessageContainer() {
     return suitableContainer;
 }
 
-// 防止重复插入的标记
-let isInsertingUI = false;
-
 /**
  * 将UI插入到上下文底部
  * 修改为插入到mes_text下方，确保折叠功能正常工作
  */
-export function insertUItoContextBottom() {
+export function insertUItoMsgBottom() {
     try {
         // 防止重复插入
         if (isInsertingUI) {
@@ -270,11 +267,92 @@ export function insertUItoContextBottom() {
     }
 }
 
+// 防止重复插入的标记
+let isInsertingUI = false;
+
+/**
+ * 将UI插入到上下文底部
+ * 修改为插入到mes_text下方，确保折叠功能正常工作
+ */
+export function insertUItoContextBottom() {
+    try {
+        // 防止重复插入
+        if (isInsertingUI) {
+            debugLog('UI插入操作正在进行中，跳过重复调用');
+            return false;
+        }
+
+        // 检查UI是否已经存在且位置正确
+        let existingUI = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
+        const chatContainer = $('#chat');
+
+        if (existingUI) {
+            // 检查UI是否在正确的容器中
+            if (chatContainer) {
+                const currentParent = $(existingUI).parent();
+                if (currentParent.is(chatContainer)) {
+                    debugLog('UI已在正确的chat容器中，无需移动');
+                    return true;
+                } else {
+                    debugLog('UI在错误的容器中，移动到新的chat容器');
+                    existingUI.remove();
+                }
+            }
+        }
+
+        // 设置插入标记
+        isInsertingUI = true;
+
+        // 使用setTimeout确保DOM完全渲染后再插入
+        setTimeout(() => {
+            try {
+                // 检查jQuery是否可用
+                if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
+                    errorLog('jQuery未加载，无法使用选择器');
+                    isInsertingUI = false;
+                    return false;
+                }
+
+                if (!existingUI) {
+                    createContextBottomContainer().then(contextBottomUI => {
+                        const lastMessageContainer = $('.last_mes');
+                        lastMessageContainer.after(contextBottomUI);
+                        debugLog('UI已成功插入/移动到last mes下方');
+
+                        // 调用新方法插入模块数据和样式
+                        (async () => {
+                            await insertModulesDataAndStyles(contextBottomUI);
+                        })();
+
+                        isInsertingUI = false;
+                    }).catch(error => {
+                        errorLog('创建UI容器失败:', error);
+                        isInsertingUI = false;
+                    });
+                }
+
+                debugLog('UI已成功插入到chat下方');
+                return true;
+            } catch (error) {
+                errorLog('插入UI到chat下方失败:', error);
+                isInsertingUI = false;
+                return false;
+            }
+        }, 0);
+    } catch (error) {
+        errorLog('插入UI到chat下方失败:', error);
+        isInsertingUI = false;
+        return false;
+    }
+}
+
 /**
  * 插入模块数据和样式到模块内容容器
  * @param {HTMLElement} contextBottomUI 上下文底部UI元素
  */
 export async function insertModulesDataAndStyles(contextBottomUI) {
+    debugLog('[CUSTOM STYLES] 开始插入模块数据和样式', contextBottomUI);
+
     try {
         // 获取所有模块配置
         const allModuleConfigs = configManager.getModules();
