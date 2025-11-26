@@ -291,7 +291,7 @@ export function normalizeModules(modules, selectedModuleNames = []) {
     completeTimeVariables(deduplicatedModules);
 
     // 第四点五步：按模块名分组，同时根据selectedModuleNames进行过滤
-    const moduleGroups = {};
+    let moduleGroups = {};
     deduplicatedModules.forEach(module => {
         // 过滤逻辑：如果没有选择任何模块，或者当前模块在选中列表中，则保留
         if (!selectedModuleNames || selectedModuleNames.length === 0 ||
@@ -302,6 +302,28 @@ export function normalizeModules(modules, selectedModuleNames = []) {
             moduleGroups[module.moduleName].push(module);
         }
     });
+
+    // 按照modulesData中模块配置的order属性对moduleGroups进行排序
+    debugLog('[Module Processor] 开始对moduleGroups按order排序，原始moduleGroups:', Object.keys(moduleGroups));
+    const sortedModuleGroups = {};
+    const moduleOrderInfo = Object.keys(moduleGroups)
+        .map(moduleName => {
+            const moduleConfig = modulesData.find(config => config.name === moduleName);
+            const order = moduleConfig?.order !== undefined ? moduleConfig.order : 0;
+            debugLog('[Module Processor] 模块排序信息:', moduleName, 'order:', order);
+            return { moduleName, order };
+        })
+        .sort((a, b) => a.order - b.order);
+
+    debugLog('[Module Processor] 排序后的模块顺序:', moduleOrderInfo.map(item => `${item.moduleName} (order: ${item.order})`));
+
+    moduleOrderInfo.forEach(item => {
+        sortedModuleGroups[item.moduleName] = moduleGroups[item.moduleName];
+    });
+
+    // 使用排序后的moduleGroups
+    moduleGroups = sortedModuleGroups;
+    debugLog('[Module Processor] 排序后的moduleGroups:', Object.keys(moduleGroups));
 
     // 直接在moduleGroups上处理每个模块组
     Object.entries(moduleGroups).forEach(([moduleName, moduleGroup]) => {
@@ -1661,7 +1683,7 @@ export function processAutoModules(rawModules, selectedModuleNames, showModuleNa
         structuredResult[moduleName] = {
             processType: processType,
             data: resultData,
-            moduleCount: moduleGroup.length,
+            moduleCount: resultData.length,
             moduleConfig: moduleConfig,
         };
     });
@@ -1812,7 +1834,7 @@ export function processIncrementalModules(modules) {
  * - moduleFilters: 在提取阶段使用，是一个包含{name, compatibleModuleNames}的数组，用于从聊天记录中过滤出特定类型的模块
  * - selectedModuleNames: 在处理阶段使用，是一个字符串数组，只包含模块名，用于从已提取的模块中选择需要处理的模块
  */
-export async function processModuleData(extractParams, processType, selectedModuleNames, returnString = false, showModuleNames = false, showProcessInfo = false) {
+export async function processModuleData(extractParams, processType, selectedModuleNames = undefined, returnString = false, showModuleNames = false, showProcessInfo = false) {
     try {
         debugLog(`开始处理模块数据，类型：${processType}`);
 
@@ -1863,9 +1885,18 @@ export async function processModuleData(extractParams, processType, selectedModu
         // 提取模块数据
         const rawModules = await extractModules(startIndex, endIndex, moduleFilters);
 
+        // if (!selectedModuleNames || selectedModuleNames.length === 0) {
+        //     if (moduleFilters && moduleFilters.length > 0) {
+        //         selectedModuleNames = moduleFilters.map(config => config.name);
+        //     }
+        //     else {
+        //         selectedModuleNames = configManager.getModules().map(module => module.moduleName);
+        //     }
+        // }
+
         let resultContent = '';
         let displayTitle = '';
-        let modules = [];
+        // let modules = [];
 
         // 根据处理类型选择不同的处理逻辑
         switch (processType) {
@@ -1907,12 +1938,15 @@ export async function processModuleData(extractParams, processType, selectedModu
 
         // 判断是否有内容
         let hasContent = false;
+        let count = 0;
         if (typeof resultContent === 'string') {
             hasContent = resultContent.trim().length > 0;
         } else if (Array.isArray(resultContent)) {
-            hasContent = resultContent.length > 0;
+            count = resultContent.length;
+            hasContent = count > 0;
         } else if (resultContent && typeof resultContent === 'object') {
-            hasContent = Object.keys(resultContent).length > 0;
+            count = Object.keys(resultContent).length;
+            hasContent = count > 0;
         }
 
         // 构建字符串表示
@@ -1926,7 +1960,7 @@ export async function processModuleData(extractParams, processType, selectedModu
             content: resultContent, // 原始内容（可能是结构化数据或字符串）
             contentString: contentString, // 字符串表示
             displayTitle: displayTitle,
-            moduleCount: modules.length,
+            moduleCount: count,
             hasContent: hasContent
         };
 
@@ -2206,7 +2240,7 @@ export function processUIModules(rawModules, selectedModuleNames, showModuleName
         structuredResult[moduleName] = {
             processType: processType,
             data: resultData,
-            moduleCount: moduleGroup.length
+            moduleCount: resultData.length
         };
     });
 
