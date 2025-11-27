@@ -481,6 +481,10 @@
 }
 
 /* 模块兼容输入框样式 */
+#continuity-module-config-window .module-tags,
+#continuity-module-config-window .module-compatible-tags,
+#continuity-module-config-window .content-tags,
+#continuity-module-config-window .content-layers,
 #continuity-module-config-window .module-compatible-names {
     width: 120px;
     padding: 4px 6px;

@@ -14,6 +14,26 @@ export const MODULE_CONFIG_TEMPLATE = {
 
     // 全局设置
     globalSettings: {
+        moduleTag: {
+            type: 'string',
+            default: 'module',
+            description: '模块标签'
+        },
+        compatibleModuleTags: {
+            type: 'array',
+            default: ['module', 'modules'],
+            description: '兼容模块标签，从左到右'
+        },
+        contentTag: {
+            type: 'array',
+            default: ['content', 'game'],
+            description: '正文标签，从左到右'
+        },
+        contentRemainLayers: {
+            type: 'number',
+            default: 6,
+            description: '正文保留层数'
+        },
         // 核心原则提示词
         corePrinciples: {
             type: 'string',
@@ -25,7 +45,7 @@ export const MODULE_CONFIG_TEMPLATE = {
             type: 'string',
             default: '',
             description: '通用格式描述提示词，用于定义输出格式'
-        }
+        },
     },
 
     // 模块数组
@@ -344,6 +364,10 @@ export function normalizeConfig(config) {
         version: config.version || DEFAULT_CONFIG_VALUES.version,
         lastUpdated: config.lastUpdated || new Date().toISOString(),
         globalSettings: {
+            moduleTag: config.globalSettings?.moduleTag || 'module',
+            compatibleModuleTags: config.globalSettings?.compatibleModuleTags || ['module', 'modules'],
+            contentTag: config.globalSettings?.contentTag || ['content', 'game'],
+            contentRemainLayers: config.globalSettings?.contentRemainLayers || 6,
             corePrinciples: config.globalSettings?.corePrinciples || '',
             formatDescription: config.globalSettings?.formatDescription || ''
         },

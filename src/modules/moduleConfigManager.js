@@ -242,6 +242,24 @@ export function renderModulesFromConfig(config) {
 
     // 更新全局设置输入框
     if (config.globalSettings) {
+
+        // 更新模块标签输入框
+        if (config.globalSettings.moduleTag) {
+            $('#module-tags').val(config.globalSettings.moduleTag);
+        }
+        // 更新兼容模块标签输入框
+        if (config.globalSettings.compatibleModuleTags && config.globalSettings.compatibleModuleTags.length > 0) {
+            $('#module-compatible-tags').val(config.globalSettings.compatibleModuleTags.join(','));
+        }
+        // 更新内容标签输入框
+        if (config.globalSettings.contentTag && config.globalSettings.contentTag.length > 0) {
+            $('#content-tags').val(config.globalSettings.contentTag.join(','));
+        }
+        // 更新内容保留层数输入框
+        if (config.globalSettings.contentRemainLayers) {
+            $('#content-layers').val(config.globalSettings.contentRemainLayers);
+        }
+
         if (config.globalSettings.corePrinciples) {
             $('#core-principles-input').val(config.globalSettings.corePrinciples);
         }
