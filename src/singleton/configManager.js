@@ -801,6 +801,10 @@ class UIDataCollector {
      */
     collectGlobalSettingsFromUI() {
         return {
+            moduleTag: $('#module-tags').val() || '',
+            compatibleModuleTags: IdentifierParser.parseMultiValues($('#module-compatible-tags').val() || ''),
+            contentTag: IdentifierParser.parseMultiValues($('#content-tags').val() || ''),
+            contentRemainLayers: parseInt($('#content-layers').val()) || 0,
             corePrinciples: $('#core-principles-input').val() || '',
             formatDescription: $('#format-description-input').val() || ''
         };

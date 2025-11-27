@@ -287,12 +287,14 @@ export function getContinuityOrder() {
             orderPrompt += "\n\n";
         }
 
+        const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
+
         // 正文后模块（按序号排序）
         if (afterBodyModules.length > 0) {
             afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "正文后的模块（位于正文结束标签后，被<module></module>包裹）：\n";
+            orderPrompt += `正文后的模块（位于正文结束标签后，被<${moduleTag}></${moduleTag}>包裹）：\n`;
             orderPrompt += "</某正文标签>\n";
-            orderPrompt += "<module>\n";
+            orderPrompt += `<${moduleTag}>\n`;
             afterBodyModules.forEach(module => {
                 const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
                 const rangePrompt = getRangePrompt(module);
@@ -301,7 +303,7 @@ export function getContinuityOrder() {
                 orderPrompt += "\n";
             });
         }
-        orderPrompt += "</module>\n\n";
+        orderPrompt += `</${moduleTag}>\n\n`;
         orderPrompt += "</module_order>\n";
 
         // 替换提示词中的变量

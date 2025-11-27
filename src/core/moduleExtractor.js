@@ -1,6 +1,6 @@
 // 模块提取器 - 用于从聊天记录中提取模块数据
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
-import { chat, getCurrentCharBooksModuleEntries } from "../index.js";
+import { chat, getCurrentCharBooksModuleEntries, configManager } from "../index.js";
 
 export const MODULE_REGEX = /\[([^:|]+?)\|(.*?)\]/g;
 export const MODULE_NAME_REGEX = /^\[([^:|]+?)\|/;
@@ -39,7 +39,10 @@ export async function extractModulesFromChat(startIndex = 0, endIndex = null, mo
                 }
 
                 // 支持两种消息格式：SillyTavern原生格式(mes)和标准格式(content)
-                const messageContent = message.mes !== undefined ? message.mes : message.content;
+                const rawMessageContent = message.mes !== undefined ? message.mes : message.content;
+
+                // 使用新方法处理消息内容，根据正文标签提取内容
+                const messageContent = processMessageWithContentTags(rawMessageContent);
                 const isUserMessage = message.is_user || message.role === 'user';
                 const speakerName = message.name || (isUserMessage ? 'user' : 'assistant');
 
@@ -230,3 +233,56 @@ function parseNestedModules(content) {
 //     }
 // }
 // }
+
+/**
+ * 根据正文标签处理消息内容
+ * 从全局设置获取contentTag，默认值为["content", "game"]
+ * 从上到下判断消息中使用的正文标签（需要加上'<>'符号），找到最后一个匹配的标签
+ * 保留该标签后的内容
+ * @param {string} messageContent 原始消息内容
+ * @returns {string} 处理后的消息内容
+ */
+function processMessageWithContentTags(messageContent) {
+    try {
+        // 获取全局设置中的contentTag，如果没有则使用默认值
+        const globalSettings = configManager.getGlobalSettings();
+        const contentTags = globalSettings.contentTag || ["content", "game"];
+
+        debugLog(`[CONTENT TAG PROCESSOR] 使用的正文标签: ${JSON.stringify(contentTags)}`);
+
+        // 如果消息内容为空，直接返回
+        if (!messageContent || messageContent.trim() === '') {
+            return messageContent;
+        }
+
+        let lastContentTagIndex = -1;
+        let foundTag = null;
+
+        // 从上到下遍历标签数组，寻找最后一个匹配的标签
+        for (const tag of contentTags) {
+            const fullTag = `<${tag}>`;
+            const tagIndex = messageContent.lastIndexOf(fullTag);
+
+            if (tagIndex !== -1 && tagIndex > lastContentTagIndex) {
+                lastContentTagIndex = tagIndex;
+                foundTag = fullTag;
+            }
+        }
+
+        // 如果找到了匹配的标签，保留该标签后的内容
+        if (lastContentTagIndex !== -1 && foundTag) {
+            const processedContent = messageContent.substring(lastContentTagIndex + foundTag.length);
+            debugLog(`[CONTENT TAG PROCESSOR] 找到标签 ${foundTag}，保留标签后的内容`);
+            return processedContent;
+        }
+
+        // 如果没有找到任何匹配的标签，返回原始内容
+        debugLog(`[CONTENT TAG PROCESSOR] 未找到匹配的正文标签，返回原始内容`);
+        return messageContent;
+
+    } catch (error) {
+        errorLog('[CONTENT TAG PROCESSOR] 处理消息内容失败:', error);
+        // 出错时返回原始内容
+        return messageContent;
+    }
+}
