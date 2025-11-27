@@ -428,18 +428,21 @@ function getRenderUIFilteredModuleConfigs() {
  * 插入模块数据和样式到模块内容容器
  * @param {HTMLElement} container 上下文底部UI元素
  */
-export async function updateModulesDataAndStyles(container, extractParams) {
+export async function updateModulesDataAndStyles(container, extractParams, isUseContainer = true) {
     try {
         debugLog('[CUSTOM STYLES] 开始更新模块数据和样式', container);
+
+        const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
 
         // 一次性获取所有模块数据
         const processResult = await processModuleData(
             extractParams,
-            'auto' // 自动处理类型
+            'auto', // 自动处理类型
+            selectedModuleNames
         );
         debugLog('[CUSTOM STYLES] 提取结果:', processResult);
 
-        const contentContainer = container.querySelector('.modules-content-container');
+        const contentContainer = container?.querySelector('.modules-content-container');
 
         // 清空容器内的所有内容
         if (contentContainer) {
@@ -459,30 +462,32 @@ export async function updateModulesDataAndStyles(container, extractParams) {
             // 获取处理后的样式字符串
             insertCombinedStylesToDetails(moduleData);
 
-            // 插入模块数据和样式到模块内容容器
-            if (contentContainer) {
-                if (moduleData.containerStyles) {
-                    contentContainer.innerHTML += `${moduleData.containerStyles}`;
-                    debugLog(`模块 ${moduleName} 的样式已插入到模块内容容器`);
+            if (isUseContainer) {
+                // 插入模块数据和样式到模块内容容器
+                if (contentContainer) {
+                    if (moduleData.containerStyles) {
+                        contentContainer.innerHTML += `${moduleData.containerStyles}`;
+                        debugLog(`模块 ${moduleName} 的样式已插入到模块内容容器`);
+                    }
+                    else {
+                        // 创建模块数据元素
+                        const moduleDataElement = document.createElement('div');
+                        moduleDataElement.className = 'module-data-container';
+                        let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
+                        // 添加处理后的模块数据
+                        const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.data.length})</summary>${moduleStrings}</details>`;
+                        moduleDataElement.innerHTML = moduleContent;
+                        contentContainer.appendChild(moduleDataElement);
+                        debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);
+                    }
                 }
-                else {
-                    // 创建模块数据元素
-                    const moduleDataElement = document.createElement('div');
-                    moduleDataElement.className = 'module-data-container';
-                    let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
-                    // 添加处理后的模块数据
-                    const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.data.length})</summary>${moduleStrings}</details>`;
-                    moduleDataElement.innerHTML = moduleContent;
-                    contentContainer.appendChild(moduleDataElement);
-                    debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);
-
-                }
+                debugLog('模块数据和样式已插入到模块内容容器');
             }
         });
-
-        debugLog('模块数据和样式已插入到模块内容容器');
+        return processResult;
     } catch (error) {
-        errorLog('插入模块数据和样式到模块内容容器失败:', error);
+        errorLog('插入/更新模块数据和样式到模块内容容器失败:', error);
+        return null;
     }
 }
 
@@ -608,19 +613,133 @@ export function checkPageStateAndUpdateUI() {
         // updateUItoMsgBottom();
 
         // 渲染消息内UI（每层的模块内容）
-        renderCurrentMessageContext();
+        (async () => {
+            await renderCurrentMessageContext();
+        })();
 
     } catch (error) {
         errorLog('[PAGE_CHECK] 检测页面状态并插入UI失败:', error);
     }
 }
 
-export function renderCurrentMessageContext() {
+let isUpdatingRenderUI = false;
 
+export async function renderCurrentMessageContext() {
+    try {
+        // 防止重复插入
+        if (isUpdatingRenderUI) {
+            debugLog('渲染消息内部UI操作正在进行中，跳过重复调用');
+            return false;
+        }
+        // 设置插入标记
+        isUpdatingRenderUI = true;
+
+        // 检查jQuery是否可用
+        if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
+            errorLog('jQuery未加载，无法使用选择器');
+            isUpdatingRenderUI = false;
+            return false;
+        }
+
+        const containers = getCurrentMessageContainer();
+
+        // 提取全部聊天记录的所有模块数据（一次性获取）
+        const extractParams = {
+            startIndex: $(containers[0]).attr('mesid'),
+            endIndex: $(containers[containers.length - 1]).attr('mesid'), // null表示提取到最新楼层
+            moduleFilters: getRenderUIFilteredModuleConfigs() // 只提取符合条件的模块
+        };
+
+        const processResult = await updateModulesDataAndStyles(null, extractParams, false);
+        if (!processResult) {
+            errorLog('更新上下文底部UI失败');
+            isUpdatingRenderUI = false;
+            return false;
+        }
+        // debugLog('按messageIndex分组前的模块数据:', processResult);
+        // 按messageIndex分组处理模块数据
+        const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
+        debugLog('按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
+
+        for (let i = containers.length - 1; i >= 0; i--) {
+            const message = $(containers[i]);
+            const messageText = message.find('.mes_text');
+
+            // 从分组数据中获取当前消息的模块数据
+            const messageIndex = message.attr('mesid');
+            const modulesForThisMessage = groupedByMessageIndex[messageIndex] || [];
+
+            debugLog(messageIndex, `当前消息的模块数据:`, modulesForThisMessage);
+
+            renderSingleMessageContext(modulesForThisMessage, messageText, message)
+        }
+
+        isUpdatingRenderUI = false;
+        return true;
+
+    } catch (error) {
+        errorLog('更新上下文底部UI失败:', error);
+        isUpdatingRenderUI = false;
+        return false;
+    }
 }
 
-export function renderSingleMessageContext(mes) {
-    const mesId = mes.attr('mesid');
+export function renderSingleMessageContext(messages, container, mes) {
+    try {
+        // 检查参数有效性
+        if (!messages || !container || container.length === 0) {
+            debugLog('renderSingleMessageContext: 参数无效，跳过渲染');
+            return;
+        }
+
+        const swipeId = mes.attr('swipeid');
+        const renderSwipe = mes.attr('renderSwipe');
+        // 检查是否已渲染过
+        if (renderSwipe === swipeId) {
+            debugLog('renderSingleMessageContext: 消息已渲染过，跳过重复渲染');
+            return;
+        }
+
+        // 获取mes_text div内部的原文内容
+        const originalText = container.html();
+        let newHtml = originalText;
+
+        if (messages.length > 0) {
+            messages.forEach((entry) => {
+                // 检查是否有moduleData.raw内容用于匹配
+                if (!entry.moduleData || !entry.moduleData.raw || typeof entry.moduleData.raw !== 'string' || entry.moduleData.raw.trim() === '') {
+                    debugLog('renderSingleMessageContext: entry.moduleData.raw为空或无效，无法匹配原文');
+                }
+                // 检查是否有customStyles内容用于替换
+                else if (!entry.customStyles || typeof entry.customStyles !== 'string' || entry.customStyles.trim() === '') {
+                    debugLog('renderSingleMessageContext: entry.customStyles为空或无效，无法替换');
+                }
+                // 使用entry.moduleData.raw来匹配mes_text div内部的原文，包括后面的<br>标签
+                else {
+                    // 构建匹配模式：entry.moduleData.raw后面可能跟着0个或多个<br>标签
+                    const rawPattern = new RegExp(entry.moduleData.raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:<br>)*', 'g');
+
+                    // if (rawPattern.test(newHtml)) {
+                    const matchResult = rawPattern.exec(newHtml);
+                    if (matchResult) {
+                        const matchedText = matchResult[0].replace(entry.moduleData.raw + '<br>', entry.moduleData.raw);
+                        // 如果匹配上了，用customStyles替换匹配到的内容（包括后面的<br>标签）
+                        newHtml = newHtml.replace(matchedText, entry.customStyles);
+                        debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText);
+                        // }
+                    } else {
+                        debugLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', entry);
+                    }
+                }
+            });
+            container.html(newHtml);
+            // 渲染成功后设置renderSwipe属性
+            mes.attr('renderSwipe', swipeId);
+        }
+    } catch (error) {
+        errorLog('renderSingleMessageContext: 渲染单个消息上下文失败:', error);
+        mes.attr('renderSwipe', '');
+    }
 }
 
 export function getCurrentMessageContainer() {
@@ -635,5 +754,61 @@ export function UpdateUI() {
     } else {
         debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
         removeUIfromContextBottom();
+    }
+}
+
+/**
+ * 按messageIndex分组处理processResult数据
+ * @param {Object} processResult 处理结果对象，包含content属性
+ * @returns {Object} 按messageIndex分组的条目数据
+ */
+export function groupProcessResultByMessageIndex(processResult) {
+    try {
+        if (!processResult || !processResult.content || typeof processResult.content !== 'object') {
+            errorLog('groupProcessResultByMessageIndex: processResult格式无效');
+            return {};
+        }
+
+        const groupedResult = {};
+
+        // 遍历所有模块
+        Object.keys(processResult.content).forEach(moduleName => {
+            const moduleData = processResult.content[moduleName];
+
+            if (!moduleData || !moduleData.data || !Array.isArray(moduleData.data)) {
+                debugLog(`模块 ${moduleName} 没有有效的数据数组`);
+                return;
+            }
+
+            // 遍历模块的每个条目
+            moduleData.data.forEach(entry => {
+                if (!entry || !entry.moduleData) {
+                    debugLog(`模块 ${moduleName} 的条目缺少moduleData`);
+                    return;
+                }
+
+                const messageIndex = entry.moduleData.messageIndex;
+
+                if (messageIndex === undefined || messageIndex === null) {
+                    debugLog(`模块 ${moduleName} 的条目缺少messageIndex`);
+                    return;
+                }
+
+                // 初始化该messageIndex的分组
+                if (!groupedResult[messageIndex]) {
+                    groupedResult[messageIndex] = [];
+                }
+
+                // 直接将条目添加到对应的messageIndex分组中
+                groupedResult[messageIndex].push(entry);
+            });
+        });
+
+        debugLog(`按messageIndex分组完成，共 ${Object.keys(groupedResult).length} 个不同的messageIndex`);
+        return groupedResult;
+
+    } catch (error) {
+        errorLog('按messageIndex分组处理失败:', error);
+        return {};
     }
 }
