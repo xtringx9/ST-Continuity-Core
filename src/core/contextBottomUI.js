@@ -758,7 +758,7 @@ export function UpdateUI() {
 }
 
 /**
- * 按messageIndex分组处理processResult数据
+ * 按messageIndex和messageIndexHistory分组处理processResult数据
  * @param {Object} processResult 处理结果对象，包含content属性
  * @returns {Object} 按messageIndex分组的条目数据
  */
@@ -787,28 +787,38 @@ export function groupProcessResultByMessageIndex(processResult) {
                     return;
                 }
 
-                const messageIndex = entry.moduleData.messageIndex;
+                const messageIndexHistory = entry.moduleData.messageIndexHistory;
 
-                if (messageIndex === undefined || messageIndex === null) {
-                    debugLog(`模块 ${moduleName} 的条目缺少messageIndex`);
+                if (!entry.moduleData.messageIndexHistory || !Array.isArray(entry.moduleData.messageIndexHistory)) {
+                    debugLog(`模块 ${moduleName} 的条目 ${entry.moduleData.moduleName} 缺少有效的messageIndexHistory数组`);
+                    // 初始化该messageIndex的分组
+                    if (!groupedResult[entry.moduleData.messageIndex]) {
+                        groupedResult[entry.moduleData.messageIndex] = [];
+                    }
+
+                    // 将条目添加到对应的messageIndex分组中
+                    groupedResult[entry.moduleData.messageIndex].push(entry);
                     return;
                 }
 
-                // 初始化该messageIndex的分组
-                if (!groupedResult[messageIndex]) {
-                    groupedResult[messageIndex] = [];
-                }
+                // 为每个messageIndex创建分组并添加条目
+                messageIndexHistory.forEach(index => {
+                    // 初始化该messageIndex的分组
+                    if (!groupedResult[index]) {
+                        groupedResult[index] = [];
+                    }
 
-                // 直接将条目添加到对应的messageIndex分组中
-                groupedResult[messageIndex].push(entry);
+                    // 将条目添加到对应的messageIndex分组中
+                    groupedResult[index].push(entry);
+                });
             });
         });
 
-        debugLog(`按messageIndex分组完成，共 ${Object.keys(groupedResult).length} 个不同的messageIndex`);
+        debugLog(`按messageIndex和messageIndexHistory分组完成，共 ${Object.keys(groupedResult).length} 个不同的messageIndex`);
         return groupedResult;
 
     } catch (error) {
-        errorLog('按messageIndex分组处理失败:', error);
+        errorLog('按messageIndex和messageIndexHistory分组处理失败:', error);
         return {};
     }
 }
