@@ -1413,44 +1413,56 @@ export function buildVariableNameMap(moduleConfig) {
 /**
  * 按顺序合并模块
  * @param {Array} modules 模块数组
- * @param {Object} moduleConfig 模块配置
+//  * @param {Object} moduleConfig 模块配置
  * @returns {Object} 合并后的模块数据
  */
-export function mergeModulesByOrder(modules, moduleConfig) {
-    // 初始化合并结果
-    const merged = {
-        moduleName: modules[0].moduleName,
-        variables: {}
-    };
-
-    // 构建变量名映射表
-    const variableNameMap = buildVariableNameMap(moduleConfig);
-
-    // 首先用第一个模块的所有变量初始化合并结果
-    if (modules.length > 0) {
-        const firstModule = modules[0];
-        Object.keys(firstModule.variables).forEach(key => {
-            merged.variables[key] = firstModule.variables[key] || '';
-        });
+export function mergeModulesByOrder(modules) {
+    if (modules.length === 0) {
+        return null;
     }
 
-    // 然后依次处理后续模块，只更新非空值
-    modules.slice(1).forEach(module => {
-        // 使用标准化后的模块数据
-        merged.moduleName = module.moduleName;
+    // 使用最后一个模块的数据作为基础结构
+    const lastModule = modules[modules.length - 1];
+    const merged = {
+        ...lastModule, // 保留原始结构
+        variables: {}, // 初始化空的variables，后续会合并所有变量
+        timeline: [] // 记录历史状态的时间线
+    };
 
-        // 处理每个变量，只更新非空值
+    // 构建累积的变量状态
+    let cumulativeVariables = {};
+
+    modules.forEach((module, index) => {
+        const currentVariables = { ...cumulativeVariables };
+        const changedVars = [];
+
+        // 更新当前变量状态
         Object.keys(module.variables).forEach(key => {
             const value = module.variables[key];
 
             // 只有当值不为空或undefined时才更新
             if (value !== '' && value !== undefined) {
-                merged.variables[key] = value;
+                // 检查变量是否发生变化
+                if (currentVariables[key] !== value) {
+                    changedVars.push(key);
+                }
+                currentVariables[key] = value;
+                cumulativeVariables[key] = value;
             }
-            // 空值不覆盖之前的非空值
+        });
+
+        // 记录时间点状态
+        merged.timeline.push({
+            messageIndex: module.messageIndex || 0,
+            variables: { ...currentVariables }, // 该messageIndex时的完整变量数据
+            changedVars: changedVars // 该条messageIndex中发生变化的变量
         });
     });
 
+    // 最终variables使用累积后的完整状态
+    merged.variables = cumulativeVariables;
+
+    debugLog('[ModuleMerge] 合并后的模块数据:', merged);
     return merged;
 }
 
@@ -1466,14 +1478,14 @@ export function buildModuleString(moduleData, moduleConfig) {
     // 如果有模块配置，按配置的变量顺序构建
     if (moduleConfig && moduleConfig.variables) {
         moduleConfig.variables.forEach(variable => {
-            // 转换为字符串以确保数字0能被正确处理，而不是被视为falsy值
-            const value = String(moduleData.variables[variable.name]) || '';
+            // 转换为字符串以确保数字0能被正确处理，而不是被视为false值
+            const value = String(moduleData.variables[variable.name] !== undefined ? moduleData.variables[variable.name] : '') || '';
             moduleStr += `|${variable.name}:${value}`;
         });
     } else {
         // 没有配置时，按变量名顺序构建
         Object.keys(moduleData.variables).sort().forEach(key => {
-            const value = moduleData.variables[key] || '';
+            const value = String(moduleData.variables[key] !== undefined ? moduleData.variables[key] : '') || '';
             moduleStr += `|${key}:${value}`;
         });
     }
@@ -1836,6 +1848,8 @@ export function processIncrementalModules(modules) {
         return moduleA.messageIndex - moduleB.messageIndex;
     });
 
+    debugLog('处理增量更新模块', moduleGroupsArray);
+
     // 处理每个排序后的模块组
     for (const [moduleKey, moduleList] of moduleGroupsArray) {
         // 解析模块名和标识符（使用特殊分隔符）
@@ -1849,6 +1863,8 @@ export function processIncrementalModules(modules) {
 
         // 只处理outputMode为"incremental"的模块
         if (moduleConfig && moduleConfig.outputMode === 'incremental') {
+            debugLog('处理增量更新模块', moduleName + ':' + identifier, '合并模块按顺序', moduleList);
+
             // 统合处理模块
             const mergedModule = mergeModulesByOrder(moduleList, moduleConfig);
 

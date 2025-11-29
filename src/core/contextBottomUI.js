@@ -649,6 +649,7 @@ export async function renderCurrentMessageContext() {
             endIndex: $(containers[containers.length - 1]).attr('mesid'), // null表示提取到最新楼层
             moduleFilters: getRenderUIFilteredModuleConfigs() // 只提取符合条件的模块
         };
+        // todo 可以获取的时候获取所有index，然后下面按messageIndex分组的时候过滤掉显示范围外的条目
 
         const processResult = await updateModulesDataAndStyles(null, extractParams, false);
         if (!processResult) {
