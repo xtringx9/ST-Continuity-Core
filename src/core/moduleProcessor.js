@@ -1434,7 +1434,7 @@ export function mergeModulesByOrder(modules) {
 
     modules.forEach((module, index) => {
         const currentVariables = { ...cumulativeVariables };
-        const changedVars = [];
+        const changedKeys = [];
 
         // 更新当前变量状态
         Object.keys(module.variables).forEach(key => {
@@ -1444,7 +1444,7 @@ export function mergeModulesByOrder(modules) {
             if (value !== '' && value !== undefined) {
                 // 检查变量是否发生变化
                 if (currentVariables[key] !== value) {
-                    changedVars.push(key);
+                    changedKeys.push(key);
                 }
                 currentVariables[key] = value;
                 cumulativeVariables[key] = value;
@@ -1453,9 +1453,10 @@ export function mergeModulesByOrder(modules) {
 
         // 记录时间点状态
         merged.timeline.push({
+            moduleName: module.moduleName,
             messageIndex: module.messageIndex || 0,
             variables: { ...currentVariables }, // 该messageIndex时的完整变量数据
-            changedVars: changedVars // 该条messageIndex中发生变化的变量
+            changedKeys: changedKeys // 该条messageIndex中发生变化的变量
         });
     });
 
@@ -1472,16 +1473,50 @@ export function mergeModulesByOrder(modules) {
  * @param {Object} moduleConfig 模块配置
  * @returns {string} 模块字符串
  */
-export function buildModuleString(moduleData, moduleConfig) {
+export function buildModuleString(moduleData, moduleConfig, isIncremental = false) {
     let moduleStr = `[${moduleData.moduleName}`;
 
     // 如果有模块配置，按配置的变量顺序构建
     if (moduleConfig && moduleConfig.variables) {
-        moduleConfig.variables.forEach(variable => {
-            // 转换为字符串以确保数字0能被正确处理，而不是被视为false值
-            const value = String(moduleData.variables[variable.name] !== undefined ? moduleData.variables[variable.name] : '') || '';
-            moduleStr += `|${variable.name}:${value}`;
-        });
+        // 如果是增量模式，只包含特定变量
+        if (isIncremental) {
+            // 获取标识符变量
+            const identifierVariables = moduleConfig.variables.filter(variable => variable.isIdentifier);
+            // 如果没有标识符变量，使用备用标识符变量
+            const variablesToInclude = identifierVariables.length > 0 ? identifierVariables :
+                moduleConfig.variables.filter(variable => variable.isBackupIdentifier);
+
+            // 获取changedKeys（直接从moduleData中获取）
+            const changedKeys = moduleData.changedKeys || [];
+
+            // 构建要包含的变量集合
+            const includedVariables = new Set();
+
+            // 添加标识符变量
+            variablesToInclude.forEach(variable => {
+                includedVariables.add(variable.name);
+            });
+
+            // 添加changedKeys中的变量
+            changedKeys.forEach(key => {
+                includedVariables.add(key);
+            });
+
+            // 只包含选定的变量
+            moduleConfig.variables.forEach(variable => {
+                if (includedVariables.has(variable.name)) {
+                    const value = String(moduleData.variables[variable.name] !== undefined ? moduleData.variables[variable.name] : '') || '';
+                    moduleStr += `|${variable.name}:${value}`;
+                }
+            });
+        } else {
+            // 非增量模式，包含所有变量
+            moduleConfig.variables.forEach(variable => {
+                // 转换为字符串以确保数字0能被正确处理，而不是被视为false值
+                const value = String(moduleData.variables[variable.name] !== undefined ? moduleData.variables[variable.name] : '') || '';
+                moduleStr += `|${variable.name}:${value}`;
+            });
+        }
     } else {
         // 没有配置时，按变量名顺序构建
         Object.keys(moduleData.variables).sort().forEach(key => {
@@ -1867,6 +1902,7 @@ export function processIncrementalModules(modules) {
 
             // 统合处理模块
             const mergedModule = mergeModulesByOrder(moduleList, moduleConfig);
+            mergedModule.isIncremental = true;
 
             // 检查是否需要隐藏该模块条目
             let shouldHide = false;
@@ -1889,6 +1925,11 @@ export function processIncrementalModules(modules) {
             if (!shouldHide) {
                 // 构建统合后的模块字符串
                 const moduleString = buildModuleString(mergedModule, moduleConfig);
+                mergedModule.moduleString = moduleString;
+
+                mergedModule.timeline.forEach(module => {
+                    module.moduleString = buildModuleString(module, moduleConfig, true);
+                });
 
                 // 添加结构化条目到结果数组
                 resultItems.push({
@@ -2179,6 +2220,7 @@ export function processFullModules(modules) {
                 if (!shouldHide) {
                     // 构建模块字符串
                     const moduleString = buildModuleString(module, moduleConfig);
+                    module.moduleString = moduleString;
 
                     // 添加结构化条目到结果数组
                     resultItems.push({
