@@ -214,7 +214,21 @@ export function getCombinedCustomStyles(moduleConfig, moduleData) {
             moduleData.customStyles = resolveNestedCustomStyles(moduleData.customStyles, moduleConfig);
 
             // 再处理其他变量替换
-            moduleData.customStyles = replaceVariablesInStyles(moduleData.customStyles, moduleConfig, moduleData.moduleData);
+            moduleData.customStyles = replaceVariablesInStyles(moduleData.customStyles, moduleConfig, moduleData.moduleData, false, moduleData.moduleData.isIncremental);
+        }
+
+        if (moduleData.moduleData.isIncremental) {
+            moduleData.moduleData.timeline.forEach((entry) => {
+                entry.customStyles = moduleConfig.customStyles || '';
+                // 如果有模块数据，进行变量替换
+                if (entry.customStyles && (moduleConfig || moduleData)) {
+                    // 先处理嵌套的customStyles引用（优先替换${某变量.customStyles}）
+                    entry.customStyles = resolveNestedCustomStyles(entry.customStyles, moduleConfig);
+
+                    // 再处理其他变量替换
+                    entry.customStyles = replaceVariablesInStyles(entry.customStyles, moduleConfig, entry, false, true);
+                }
+            })
         }
         // moduleData.customStyles = rawStyles;
         // debugLog('[CUSTOM STYLES] 处理后的自定义样式:', rawStyles);
@@ -357,7 +371,7 @@ function resolveNestedCustomStyles(styles, moduleConfig) {
  * @param {Object} moduleData 模块数据对象
  * @returns {string} 替换后的样式字符串
  */
-function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessingContainer = false) {
+function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessingContainer = false, isTimeline = false) {
     // 查找${variablePath}格式的变量引用
     const variableRegex = /\$\{([^}]+)\}/g;
 
@@ -367,18 +381,6 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
         entryCount = moduleData.data.length;
     }
 
-    // // 检查moduleData中是否有模块条目信息
-    // if (moduleData && moduleConfig && moduleData[moduleConfig.name] && moduleData[moduleConfig.name].data && Array.isArray(moduleData[moduleConfig.name].data)) {
-    //     entryCount = moduleData[moduleConfig.name].data.length;
-    // }
-    // // 检查moduleConfig中是否已经包含count或length（从processContainerStyles传递）
-    // else if (moduleConfig && (moduleConfig.count !== undefined || moduleConfig.length !== undefined)) {
-    //     entryCount = moduleConfig.count || moduleConfig.length || 0;
-    // }
-    // // 检查moduleData是否直接是数组（用于直接传递模块条目的情况）
-    // else if (Array.isArray(moduleData)) {
-    //     entryCount = moduleData.length;
-    // }
 
     return styles.replace(variableRegex, (match, variablePath) => {
         // 特殊处理${customStyles}
@@ -421,8 +423,15 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
                     }
                     // 首先尝试从moduleData.variables获取（支持标准模块数据结构）
                     else if (moduleData.variables && moduleData.variables[varName] !== undefined) {
-                        return String(moduleData.variables[varName]);
+                        let resultString = String(moduleData.variables[varName]);
+                        if (isTimeline) {
+                            if (moduleData.changedKeys != undefined && moduleData.changedKeys.includes(varName)) {
+                                resultString = '*' + resultString + '*';
+                            }
+                        }
+                        return resultString;
                     }
+                    else return `暂无${targetVariable.displayName || varName}`;
                 }
                 // 处理其他属性，如${id.name}
                 else if (targetVariable[propName] !== undefined) {
