@@ -39,6 +39,7 @@ export {
 // 导出核心模块
 export { default as configManager, extensionName, extensionFolderPath, CONTINUITY_CORE_IDENTIFIER } from './singleton/configManager.js';
 export { ExtractModuleController } from './core/extractModuleController.js';
+export { default as moduleCacheManager } from './singleton/moduleCacheManager.js';
 
 
 // 导出设置管理模块

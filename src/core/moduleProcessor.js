@@ -1456,6 +1456,7 @@ export function mergeModulesByOrder(modules) {
             moduleName: module.moduleName,
             messageIndex: module.messageIndex || 0,
             messageIndexHistory: module.messageIndexHistory || [module.messageIndex],
+            raw: module.raw || '',
             variables: { ...currentVariables }, // 该messageIndex时的完整变量数据
             changedKeys: changedKeys // 该条messageIndex中发生变化的变量
         });
