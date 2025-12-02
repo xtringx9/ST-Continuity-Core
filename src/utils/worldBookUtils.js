@@ -24,6 +24,7 @@ import {
     this_chid,
     METADATA_KEY,
     CONTINUITY_CORE_IDENTIFIER,
+    configManager
 } from '../index.js';
 
 // 世界书相关常量定义
@@ -126,6 +127,16 @@ export async function checkAndInitializeWorldBook() {
         const worldBookData = await getWorldBook(worldBookName);
 
         await createEntry(worldBookName, worldBookData);
+
+        if (configManager.isLoaded) {
+            await createConfigEntry(worldBookName, worldBookData);
+        }
+        else {
+            configManager.registerLoadCallback(async () => {
+                await createConfigEntry(worldBookName, worldBookData);
+                await updateWorldInfoList();
+            });
+        }
 
         await updateWorldInfoList();
     } catch (error) {
@@ -259,6 +270,68 @@ async function createEntry(worldBookName, worldBookData) {
         return createdEntries;
     } catch (error) {
         errorLog('[WORLD BOOK]创建条目失败:', error);
+        return null;
+    }
+}
+
+async function createConfigEntry(worldBookName, worldBookData) {
+    try {
+        const createdEntries = [];
+
+        const entryCount = configManager.getGlobalSettings().contentRemainLayers || 9;
+
+        for (let i = 0; i < entryCount; i++) {
+            // 只在奇数索引时判断条目是否存在
+            if (i % 2 === 1) {
+                let tempEntry = { comment: `CHAT_MODULE_${i}` };
+                if (entryExists(worldBookData, tempEntry)) {
+                    debugLog(`[WORLD BOOK]条目"${tempEntry.comment}"已存在，跳过创建`);
+                    continue;
+                }
+                else {
+                    const entry = createWorldInfoEntry(worldBookName, worldBookData);
+                    Object.assign(entry, {
+                        key: [], // 键值必须是数组
+                        keysecondary: [], // 次要键值数组
+                        comment: tempEntry.comment,
+                        content: `{{CONTINUITY_CHAT_MODULE_${i}}}`,
+                        constant: true, // 蓝灯
+                        selective: false,
+                        selectiveLogic: 0,
+                        addMemo: true,
+                        order: 0,
+                        position: 4, // 0 = before_char
+                        role: 2,// assistant
+                        disable: false,
+                        excludeRecursion: false,
+                        preventRecursion: false,
+                        probability: 100,
+                        useProbability: true,
+                        depth: i,
+                        group: '',
+                        groupOverride: false,
+                        groupWeight: 100,
+                        use_regex: false,
+                        characterFilter: {
+                            isExclude: false,
+                            names: [],
+                            tags: []
+                        }
+                    });
+
+                    createdEntries.push(entry);
+                    debugLog(`[WORLD BOOK]条目"${entry.comment}"创建成功`);
+                }
+            }
+        }
+
+        // 保存世界书
+        await saveWorldInfo(worldBookName, worldBookData, true);
+
+        debugLog(`[WORLD BOOK]所有配置条目创建成功，共创建了 ${createdEntries.length} 个条目`);
+        return createdEntries;
+    } catch (error) {
+        errorLog('[WORLD BOOK]创建配置条目失败:', error);
         return null;
     }
 }
