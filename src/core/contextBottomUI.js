@@ -655,11 +655,13 @@ export async function renderCurrentMessageContext() {
         }
 
         const containers = getCurrentMessageContainer();
+        const startIndex = $(containers[0]).attr('mesid');
+        const endIndex = $(containers[containers.length - 1]).attr('mesid');
 
         // 提取全部聊天记录的所有模块数据（一次性获取）
         const extractParams = {
-            startIndex: $(containers[0]).attr('mesid'),
-            endIndex: $(containers[containers.length - 1]).attr('mesid'), // null表示提取到最新楼层
+            startIndex: 0,
+            endIndex: null, // null表示提取到最新楼层
             moduleFilters: getRenderUIFilteredModuleConfigs() // 只提取符合条件的模块
         };
         // todo 可以获取的时候获取所有index，然后下面按messageIndex分组的时候过滤掉显示范围外的条目

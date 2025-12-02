@@ -1484,9 +1484,10 @@ export function buildModuleString(moduleData, moduleConfig, isIncremental = fals
         if (isIncremental) {
             // 获取标识符变量
             const identifierVariables = moduleConfig.variables.filter(variable => variable.isIdentifier);
-            // 如果没有标识符变量，使用备用标识符变量
-            const variablesToInclude = identifierVariables.length > 0 ? identifierVariables :
-                moduleConfig.variables.filter(variable => variable.isBackupIdentifier);
+            // 获取备用标识符变量
+            const backupIdentifierVariables = moduleConfig.variables.filter(variable => variable.isBackupIdentifier);
+            // 包含标识符变量和备用标识符变量
+            const variablesToInclude = [...identifierVariables, ...backupIdentifierVariables];
 
             // 获取changedKeys（直接从moduleData中获取）
             const changedKeys = moduleData.changedKeys || [];
@@ -2413,35 +2414,44 @@ export function groupProcessResultByMessageIndex(processResult) {
                             moduleData: { raw: timelineEntry.raw }
                         }
 
-                        const messageIndexHistory = timelineEntry.messageIndexHistory;
-
-                        if (!timelineEntry.messageIndexHistory || !Array.isArray(timelineEntry.messageIndexHistory)) {
-                            debugLog(`[Module Processor]模块 ${moduleName} 的条目 ${timelineEntry.moduleName} 缺少有效的messageIndexHistory数组`);
-                            // 初始化该messageIndex的分组
-                            if (!groupedResult[timelineEntry.messageIndex]) {
-                                groupedResult[timelineEntry.messageIndex] = [];
-                            }
-
-                            if (!groupedResult[timelineEntry.messageIndex].includes(timelineData)) {
-                                // 将条目添加到对应的messageIndex分组中
-                                groupedResult[timelineEntry.messageIndex].push(timelineData);
-                            }
-
-                            return;
+                        if (!groupedResult[timelineEntry.messageIndex]) {
+                            groupedResult[timelineEntry.messageIndex] = [];
                         }
 
-                        // 为每个messageIndex创建分组并添加条目
-                        messageIndexHistory.forEach(index => {
-                            // 初始化该messageIndex的分组
-                            if (!groupedResult[index]) {
-                                groupedResult[index] = [];
-                            }
+                        if (!groupedResult[timelineEntry.messageIndex].includes(timelineData)) {
+                            // 将条目添加到对应的messageIndex分组中
+                            groupedResult[timelineEntry.messageIndex].push(timelineData);
+                        }
 
-                            if (!groupedResult[index].includes(timelineData)) {
-                                // 将条目添加到对应的messageIndex分组中
-                                groupedResult[index].push(timelineData);
-                            }
-                        });
+                        // const messageIndexHistory = timelineEntry.messageIndexHistory;
+
+                        // if (!timelineEntry.messageIndexHistory || !Array.isArray(timelineEntry.messageIndexHistory)) {
+                        //     debugLog(`[Module Processor]模块 ${moduleName} 的条目 ${timelineEntry.moduleName} 缺少有效的messageIndexHistory数组`);
+                        //     // 初始化该messageIndex的分组
+                        //     if (!groupedResult[timelineEntry.messageIndex]) {
+                        //         groupedResult[timelineEntry.messageIndex] = [];
+                        //     }
+
+                        //     if (!groupedResult[timelineEntry.messageIndex].includes(timelineData)) {
+                        //         // 将条目添加到对应的messageIndex分组中
+                        //         groupedResult[timelineEntry.messageIndex].push(timelineData);
+                        //     }
+
+                        //     return;
+                        // }
+
+                        // // 为每个messageIndex创建分组并添加条目
+                        // messageIndexHistory.forEach(index => {
+                        //     // 初始化该messageIndex的分组
+                        //     if (!groupedResult[index]) {
+                        //         groupedResult[index] = [];
+                        //     }
+
+                        //     if (!groupedResult[index].includes(timelineData)) {
+                        //         // 将条目添加到对应的messageIndex分组中
+                        //         groupedResult[index].push(timelineData);
+                        //     }
+                        // });
                     });
                 }
                 else {
@@ -2476,6 +2486,27 @@ export function groupProcessResultByMessageIndex(processResult) {
                 }
 
             });
+        });
+
+        // 对每个messageIndex内的条目按模块order排序
+        Object.keys(groupedResult).forEach(messageIndex => {
+            const entries = groupedResult[messageIndex];
+
+            // 获取模块配置数据
+            const modulesData = configManager.getModules() || [];
+
+            // 按模块order排序
+            entries.sort((a, b) => {
+                const aModuleConfig = modulesData.find(config => config.name === a.moduleName);
+                const bModuleConfig = modulesData.find(config => config.name === b.moduleName);
+
+                const aOrder = aModuleConfig?.order !== undefined ? aModuleConfig.order : 0;
+                const bOrder = bModuleConfig?.order !== undefined ? bModuleConfig.order : 0;
+
+                return aOrder - bOrder;
+            });
+
+            groupedResult[messageIndex] = entries;
         });
 
         debugLog(`[Module Processor]按messageIndex和messageIndexHistory分组完成，共 ${Object.keys(groupedResult).length} 个不同的messageIndex，前后数据：`, processResult, groupedResult);
