@@ -8,7 +8,7 @@ import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 // import styleCombiner from '../modules/styleCombiner.js';
 import { insertCombinedStylesToDetails } from '../modules/styleCombiner.js';
 import { processModuleData } from './moduleProcessor.js';
-import { chat_metadata, getContext, configManager } from '../index.js';
+import { groupProcessResultByMessageIndex, chat_metadata, getContext, configManager } from '../index.js';
 
 // 上下文底部UI容器ID
 const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';
@@ -673,7 +673,7 @@ export async function renderCurrentMessageContext() {
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
-        debugLog('按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
+        // debugLog('按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         for (let i = containers.length - 1; i >= 0; i--) {
             const message = $(containers[i]);
@@ -768,71 +768,5 @@ export function UpdateUI() {
     } else {
         debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
         removeUIfromContextBottom();
-    }
-}
-
-/**
- * 按messageIndex和messageIndexHistory分组处理processResult数据
- * @param {Object} processResult 处理结果对象，包含content属性
- * @returns {Object} 按messageIndex分组的条目数据
- */
-export function groupProcessResultByMessageIndex(processResult) {
-    try {
-        if (!processResult || !processResult.content || typeof processResult.content !== 'object') {
-            errorLog('groupProcessResultByMessageIndex: processResult格式无效');
-            return {};
-        }
-
-        const groupedResult = {};
-
-        // 遍历所有模块
-        Object.keys(processResult.content).forEach(moduleName => {
-            const moduleData = processResult.content[moduleName];
-
-            if (!moduleData || !moduleData.data || !Array.isArray(moduleData.data)) {
-                debugLog(`模块 ${moduleName} 没有有效的数据数组`);
-                return;
-            }
-
-            // 遍历模块的每个条目
-            moduleData.data.forEach(entry => {
-                if (!entry || !entry.moduleData) {
-                    debugLog(`模块 ${moduleName} 的条目缺少moduleData`);
-                    return;
-                }
-
-                const messageIndexHistory = entry.moduleData.messageIndexHistory;
-
-                if (!entry.moduleData.messageIndexHistory || !Array.isArray(entry.moduleData.messageIndexHistory)) {
-                    debugLog(`模块 ${moduleName} 的条目 ${entry.moduleData.moduleName} 缺少有效的messageIndexHistory数组`);
-                    // 初始化该messageIndex的分组
-                    if (!groupedResult[entry.moduleData.messageIndex]) {
-                        groupedResult[entry.moduleData.messageIndex] = [];
-                    }
-
-                    // 将条目添加到对应的messageIndex分组中
-                    groupedResult[entry.moduleData.messageIndex].push(entry);
-                    return;
-                }
-
-                // 为每个messageIndex创建分组并添加条目
-                messageIndexHistory.forEach(index => {
-                    // 初始化该messageIndex的分组
-                    if (!groupedResult[index]) {
-                        groupedResult[index] = [];
-                    }
-
-                    // 将条目添加到对应的messageIndex分组中
-                    groupedResult[index].push(entry);
-                });
-            });
-        });
-
-        debugLog(`按messageIndex和messageIndexHistory分组完成，共 ${Object.keys(groupedResult).length} 个不同的messageIndex`);
-        return groupedResult;
-
-    } catch (error) {
-        errorLog('按messageIndex和messageIndexHistory分组处理失败:', error);
-        return {};
     }
 }
