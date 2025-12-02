@@ -217,7 +217,7 @@ async function createEntry(worldBookName, worldBookData) {
         for (const entryConfig of WORLD_BOOK_ENTRIES.entries) {
             // 检查条目是否已存在
             if (entryExists(worldBookData, entryConfig)) {
-                debugLog(`[WORLD BOOK]条目"${entryConfig.comment}"已存在，跳过创建`);
+                debugLog(`[WORLD BOOK]默认条目"${entryConfig.comment}"已存在，跳过创建`);
                 continue;
             }
 
@@ -226,7 +226,7 @@ async function createEntry(worldBookName, worldBookData) {
             const entry = createWorldInfoEntry(worldBookName, worldBookData);
 
             if (!entry) {
-                errorLog(`[WORLD BOOK]创建条目失败: ${entryConfig.comment}`, entryConfig);
+                errorLog(`[WORLD BOOK]创建默认条目失败: ${entryConfig.comment}`, entryConfig);
                 continue;
             }
 
@@ -266,10 +266,10 @@ async function createEntry(worldBookName, worldBookData) {
         // 保存世界书
         await saveWorldInfo(worldBookName, worldBookData, true);
 
-        debugLog(`[WORLD BOOK]所有条目创建成功，共创建了 ${createdEntries.length} 个条目`);
+        debugLog(`[WORLD BOOK]所有默认条目创建成功，共创建了 ${createdEntries.length} 个条目`);
         return createdEntries;
     } catch (error) {
-        errorLog('[WORLD BOOK]创建条目失败:', error);
+        errorLog('[WORLD BOOK]创建默认条目失败:', error);
         return null;
     }
 }
@@ -285,7 +285,7 @@ async function createConfigEntry(worldBookName, worldBookData) {
             if (i % 2 === 1) {
                 let tempEntry = { comment: `CHAT_MODULE_${i}` };
                 if (entryExists(worldBookData, tempEntry)) {
-                    debugLog(`[WORLD BOOK]条目"${tempEntry.comment}"已存在，跳过创建`);
+                    debugLog(`[WORLD BOOK]配置条目"${tempEntry.comment}"已存在，跳过创建`);
                     continue;
                 }
                 else {
@@ -320,7 +320,7 @@ async function createConfigEntry(worldBookName, worldBookData) {
                     });
 
                     createdEntries.push(entry);
-                    debugLog(`[WORLD BOOK]条目"${entry.comment}"创建成功`);
+                    debugLog(`[WORLD BOOK]配置条目"${entry.comment}"创建成功`);
                 }
             }
         }
