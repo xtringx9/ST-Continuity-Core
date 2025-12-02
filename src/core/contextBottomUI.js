@@ -8,7 +8,7 @@ import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 // import styleCombiner from '../modules/styleCombiner.js';
 import { insertCombinedStylesToDetails } from '../modules/styleCombiner.js';
 import { processModuleData } from './moduleProcessor.js';
-import { getContext, configManager } from '../index.js';
+import { chat_metadata, getContext, configManager } from '../index.js';
 
 // 上下文底部UI容器ID
 const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';
@@ -288,10 +288,10 @@ let isUpdatingContextBottomUI = false;
 export async function updateUItoContextBottom() {
     try {
         // 防止重复插入
-        if (isUpdatingContextBottomUI) {
-            debugLog('上下文底部UI插入操作正在进行中，跳过重复调用');
-            return false;
-        }
+        // if (isUpdatingContextBottomUI) {
+        //     debugLog('上下文底部UI插入操作正在进行中，跳过重复调用');
+        //     return false;
+        // }
         // 设置插入标记
         isUpdatingContextBottomUI = true;
 
@@ -604,18 +604,31 @@ export function checkPageStateAndUpdateUI() {
             return false;
         }
 
-        // 处理底部UI（统合的模块内容）
-        (async () => {
-            await updateUItoContextBottom();
-        })();
+        if (!isUpdatingContextBottomUI) {
+            isUpdatingContextBottomUI = true;
+            // 处理底部UI（统合的模块内容）
+            (async () => {
+                await updateUItoContextBottom();
+            })();
+        }
+        else {
+            debugLog('上下文底部UI插入操作正在进行中，跳过重复调用');
+        }
 
         // 处理消息中UI（每层的模块内容）
         // updateUItoMsgBottom();
 
-        // 渲染消息内UI（每层的模块内容）
-        (async () => {
-            await renderCurrentMessageContext();
-        })();
+
+        if (!isUpdatingRenderUI) {
+            isUpdatingRenderUI = true;
+            // 渲染消息内UI（每层的模块内容）
+            (async () => {
+                await renderCurrentMessageContext();
+            })();
+        }
+        else {
+            debugLog('渲染消息内部UI操作正在进行中，跳过重复调用');
+        }
 
     } catch (error) {
         errorLog('[PAGE_CHECK] 检测页面状态并插入UI失败:', error);
@@ -627,10 +640,10 @@ let isUpdatingRenderUI = false;
 export async function renderCurrentMessageContext() {
     try {
         // 防止重复插入
-        if (isUpdatingRenderUI) {
-            debugLog('渲染消息内部UI操作正在进行中，跳过重复调用');
-            return false;
-        }
+        // if (isUpdatingRenderUI) {
+        //     debugLog('渲染消息内部UI操作正在进行中，跳过重复调用');
+        //     return false;
+        // }
         // 设置插入标记
         isUpdatingRenderUI = true;
 

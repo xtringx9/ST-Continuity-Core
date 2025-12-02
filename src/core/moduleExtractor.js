@@ -248,7 +248,7 @@ function processMessageWithContentTags(messageContent) {
         const globalSettings = configManager.getGlobalSettings();
         const contentTags = globalSettings.contentTag || ["content", "game"];
 
-        debugLog(`[CONTENT TAG PROCESSOR] 使用的正文标签: ${JSON.stringify(contentTags)}`);
+        // debugLog(`[CONTENT TAG PROCESSOR] 使用的正文标签: ${JSON.stringify(contentTags)}`);
 
         // 如果消息内容为空，直接返回
         if (!messageContent || messageContent.trim() === '') {
@@ -272,12 +272,12 @@ function processMessageWithContentTags(messageContent) {
         // 如果找到了匹配的标签，保留该标签后的内容
         if (lastContentTagIndex !== -1 && foundTag) {
             const processedContent = messageContent.substring(lastContentTagIndex + foundTag.length);
-            debugLog(`[CONTENT TAG PROCESSOR] 找到标签 ${foundTag}，保留标签后的内容`);
+            // debugLog(`[CONTENT TAG PROCESSOR] 找到标签 ${foundTag}，保留标签后的内容`);
             return processedContent;
         }
 
         // 如果没有找到任何匹配的标签，返回原始内容
-        debugLog(`[CONTENT TAG PROCESSOR] 未找到匹配的正文标签，返回原始内容`);
+        // debugLog(`[CONTENT TAG PROCESSOR] 未找到匹配的正文标签，返回原始内容`);
         return messageContent;
 
     } catch (error) {
