@@ -24,7 +24,8 @@ import {
     this_chid,
     METADATA_KEY,
     CONTINUITY_CORE_IDENTIFIER,
-    configManager
+    configManager,
+    moduleCacheManager
 } from '../index.js';
 
 // 世界书相关常量定义
@@ -100,14 +101,28 @@ export const WORLD_BOOK_ENTRIES = {
             comment: 'USAGE_GUIDE',
             content: '{{CONTINUITY_USAGE_GUIDE}}',
             constant: true,
-            order: 9998,
+            order: 0,
             position: 4,
             disable: false,
             excludeRecursion: true,
             preventRecursion: true,
             probability: 100,
             useProbability: true,
-            depth: 1,
+            depth: 9999,
+        },
+        {
+            key: [],
+            comment: 'MODULE_DATA',
+            content: '{{CONTINUITY_MODULE_DATA}}',
+            constant: true,
+            order: 1,
+            position: 4,
+            disable: false,
+            excludeRecursion: true,
+            preventRecursion: true,
+            probability: 100,
+            useProbability: true,
+            depth: 9999,
         }
     ]
 }
@@ -142,6 +157,16 @@ export async function checkAndInitializeWorldBook() {
     } catch (error) {
         errorLog('检查并初始化世界书失败:', error);
     }
+}
+
+export async function updateCurrentCharWorldBookCache() {
+    const currentCharBooks = await getCurrentCharBooks();
+    moduleCacheManager.charWorldBookCache.set(this_chid, currentCharBooks);
+    debugLog('[WORLD BOOK]更新当前角色世界书缓存', moduleCacheManager.charWorldBookCache);
+}
+
+function getCurrentCharWorldBookCache() {
+    return moduleCacheManager.charWorldBookCache.get(this_chid);
 }
 
 /**
@@ -286,6 +311,7 @@ async function createConfigEntry(worldBookName, worldBookData) {
                 let tempEntry = { comment: `CHAT_MODULE_${i}` };
                 if (entryExists(worldBookData, tempEntry)) {
                     debugLog(`[WORLD BOOK]配置条目"${tempEntry.comment}"已存在，跳过创建`);
+                    // todo 后续需要判断是否需要更新
                     continue;
                 }
                 else {
@@ -342,7 +368,7 @@ export function getTestData() {
 }
 
 export async function getCurrentCharBooks() {
-    const context = getContext();
+    // const context = getContext();
     let books = [];
     if (this_chid) {
         const character = characters[this_chid];
@@ -381,8 +407,8 @@ async function getAllBooksData(books) {
     return booksData;
 }
 
-export async function getCurrentCharBooksEnabledEntries() {
-    const booksData = await getCurrentCharBooks();
+export function getCurrentCharBooksEnabledEntries() {
+    const booksData = getCurrentCharWorldBookCache();
     let enabledEntries = [];
     for (const book of booksData) {
         // book.entries 是一个对象 { [uid: number]: entry }，需要转换为数组
@@ -394,8 +420,8 @@ export async function getCurrentCharBooksEnabledEntries() {
     return enabledEntries;
 }
 
-export async function getCurrentCharBooksModuleEntries() {
-    const booksData = await getCurrentCharBooks();
+export function getCurrentCharBooksModuleEntries() {
+    const booksData = getCurrentCharWorldBookCache();
     let enabledEntries = [];
     for (const book of booksData) {
         // book.entries 是一个对象 { [uid: number]: entry }，需要转换为数组

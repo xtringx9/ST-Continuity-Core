@@ -5,6 +5,7 @@ class ModuleCacheManager {
         // 第一层：chat_id_hash -> Map
         // 第二层：messageIndex范围 -> 缓存数据
         this.cache = new Map();
+        this.charWorldBookCache = new Map();
 
         debugLog("ModuleCacheManager 初始化完成");
     }

@@ -1,5 +1,5 @@
 // 事件处理器 - 处理SillyTavern扩展事件
-import { getTestData, registerContinuityRegexPattern, checkAndInitializeWorldBook, getCurrentCharBooks } from "../index.js";
+import { getTestData, registerContinuityRegexPattern, updateCurrentCharWorldBookCache, checkAndInitializeWorldBook, getCurrentCharBooks } from "../index.js";
 import { eventSource, event_types, UpdateUI, removeUIfromContextBottom } from "../index.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 /**
@@ -22,16 +22,16 @@ export class EventHandler {
                 return;
             }
 
+            // 初始化Regex扩展集成
+            this.initializeRegexIntegration();
+            // 初始化世界书集成
+            this.initializeWorldBookIntegration();
+
             // 注册测试事件处理器（用于调试）
             this.registerTestEvents();
 
             // 注册事件处理器
             this.registerUIEvents();
-
-            // 初始化Regex扩展集成
-            this.initializeRegexIntegration();
-            // 初始化世界书集成
-            this.initializeWorldBookIntegration();
 
             this.isInitialized = true;
             infoLog('[EVENTS]事件处理器初始化完成');
@@ -178,6 +178,9 @@ export class EventHandler {
      */
     initializeWorldBookIntegration() {
         this.registerEvent(event_types.EXTENSION_SETTINGS_LOADED, checkAndInitializeWorldBook);
+        this.registerEvent(event_types.WORLDINFO_SETTINGS_UPDATED, updateCurrentCharWorldBookCache);
+        this.registerEvent(event_types.WORLDINFO_UPDATED, updateCurrentCharWorldBookCache);
+        this.registerEvent(event_types.CHARACTER_EDITOR_OPENED, updateCurrentCharWorldBookCache);
     }
 }
 
