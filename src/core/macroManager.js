@@ -365,10 +365,12 @@ function getOutputModePrompt(module) {
 }
 
 function getContinuityModuleData() {
+    const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
+    const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
     // 提取全部聊天记录的所有模块数据（一次性获取）
     const extractParams = {
         startIndex: 0,
-        endIndex: null, // null表示提取到最新楼层
+        endIndex: endIndex, // null表示提取到最新楼层
         moduleFilters: getContextBottomFilteredModuleConfigs() // 只提取符合条件的模块
     };
     const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
@@ -407,10 +409,13 @@ function getContextBottomFilteredModuleConfigs() {
 function getContinuityChatModule(index) {
     debugLog('[MACRO] 模块内容索引:', index);
 
+    const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
+    const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
+
     // 提取全部聊天记录的所有模块数据（一次性获取）
     const extractParams = {
         startIndex: 0,
-        endIndex: null, // null表示提取到最新楼层
+        endIndex: endIndex, // null表示提取到最新楼层
         moduleFilters: getChatFilteredModuleConfigs()
     };
 
@@ -425,7 +430,9 @@ function getContinuityChatModule(index) {
     );
     // debugLog('[MACRO] 模块提取结果:', processResult);
 
-    const curIndex = chat.length - 1 - index;
+
+
+    const curIndex = chat.length - 1 - (isUserMessage ? index : index + 1);
     const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
     const modulesForThisMessage = groupedByMessageIndex[curIndex] || [];
     debugLog(`[MACRO] 当前聊天索引为${curIndex}模块index分组结果:`, groupedByMessageIndex);
