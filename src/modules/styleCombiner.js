@@ -426,7 +426,8 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
                         let resultString = String(moduleData.variables[varName]);
                         if (isTimeline) {
                             if (moduleData.changedKeys != undefined && moduleData.changedKeys.includes(varName)) {
-                                resultString = '*' + resultString + '*';
+                                // 为时间线中发生变化的变量添加简洁样式
+                                resultString = `<span style="color: #ff4444; font-weight: bold;">${resultString}</span>`;
                             }
                         }
                         return resultString;

@@ -166,7 +166,7 @@ export {
     initParseModule,
 } from './modules/parseModuleManager.js';
 
-export { processModuleData, htmlEscape } from './core/moduleProcessor.js';
+export { groupProcessResultByMessageIndex, processModuleData, htmlEscape } from './core/moduleProcessor.js';
 export { extractModulesFromChat } from './core/moduleExtractor.js';
 
 // 导出上下文底部UI管理模块
