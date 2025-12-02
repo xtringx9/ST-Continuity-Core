@@ -1,5 +1,5 @@
 // 模块数据处理器 - 独立管理模块数据的文本处理方法
-import { configManager, debugLog, errorLog } from '../index.js';
+import { chat, moduleCacheManager, configManager, debugLog, errorLog } from '../index.js';
 import { extractModulesFromChat } from './moduleExtractor.js';
 import { IdentifierParser } from '../utils/identifierParser.js';
 import { parseTimeDetailed, formatTimeDataToStandard, completeTimeDataWithStandard } from '../utils/timeParser.js';
@@ -1963,7 +1963,7 @@ export function processIncrementalModules(modules) {
  */
 export async function processModuleData(extractParams, processType, selectedModuleNames = undefined, returnString = false, showModuleNames = false, showProcessInfo = false) {
     try {
-        debugLog(`开始处理模块数据，类型：${processType}`);
+        debugLog(`[EVENTS]开始处理模块数据，类型：${processType}`);
 
         // 提取参数验证
         if (!extractParams || typeof extractParams !== 'object') {
@@ -1971,6 +1971,21 @@ export async function processModuleData(extractParams, processType, selectedModu
         }
 
         let { startIndex, endIndex, moduleFilters } = extractParams;
+
+        // const isAllModule = moduleFilters === null;
+
+        // if (endIndex === null) {
+        //     endIndex = chat?.length - 1;
+        // }
+
+        // todo 需要通过moduleCacheManager来判断是否有缓存数据，有的话获取缓存数据并返回。没有的话就存入缓存
+
+        // if (processType === 'auto' && moduleCacheManager.hasCurrentChatData(startIndex, endIndex)) {
+        //     // 从缓存中获取数据
+        //     const cachedData = moduleCacheManager.getCurrentChatData(startIndex, endIndex);
+        //     debugLog(`从缓存中获取模块数据，范围：${startIndex} - ${endIndex}`, cachedData);
+        //     return cachedData;
+        // }
 
         // 如果moduleFilters为null，则加载全部模块，不需要添加时间标准模块
         if (moduleFilters !== null) {
@@ -2053,12 +2068,6 @@ export async function processModuleData(extractParams, processType, selectedModu
                 // }
                 displayTitle = '自动处理模块结果';
                 break;
-            case 'ui':
-                const renderResult = processUIModules(rawModules, selectedModuleNames, showModuleNames, showProcessInfo);
-
-                resultContent = renderResult;
-                displayTitle = '消息渲染结果';
-                break;
             default:
                 throw new Error(`不支持的处理类型：${processType}`);
         }
@@ -2092,6 +2101,11 @@ export async function processModuleData(extractParams, processType, selectedModu
         };
 
         debugLog(`模块处理结果：`, moduleFinalData);
+        // if (processType === 'auto' && isAllModule) {
+        //     // 缓存提取结果
+        //     moduleCacheManager.setCurrentChatData(startIndex, endIndex, moduleFinalData);
+        //     debugLog(`缓存模块数据，范围：${startIndex} - ${endIndex}`, moduleFinalData);
+        // }
 
         return moduleFinalData;
 
@@ -2317,60 +2331,4 @@ export function attachStructuredTimeData(modules) {
     });
 
     debugLog('[TimeDataAttachment] 结构化时间数据附加完成，共处理模块数:', attachmentCount, '格式化变量数:', formattedCount);
-}
-
-/**
- * 自动根据模块配置判断处理方式
- * @param {Array} rawModules 原始模块数组
- * @param {Array} selectedModuleNames 选中的模块名数组
- * @param {boolean} showModuleNames 是否显示模块名
- * @param {boolean} showProcessInfo 是否显示处理方式说明
- * @returns {Object} 按模块名分组的结构化数据
- */
-export function processUIModules(rawModules, selectedModuleNames, showModuleNames = false, showProcessInfo = false) {
-    debugLog('开始自动处理模块');
-
-    // 标准化模块数据，直接传入selectedModuleNames参数，normalizeModules会返回按模块名分组的结构
-    const moduleGroups = normalizeModules(rawModules, selectedModuleNames);
-
-    // 处理每个模块组并返回结构化数据
-    const structuredResult = {};
-
-    Object.keys(moduleGroups).forEach(moduleName => {
-        const moduleGroup = moduleGroups[moduleName];
-
-        // 动态获取模块配置
-        const modulesData = configManager.getModules() || [];
-        const moduleConfig = modulesData.find(config => config.name === moduleName);
-
-        let processType = 'full';
-        let resultData;
-
-        if (!moduleConfig) {
-            // 没有模块配置，使用全量处理
-            processType = 'full_without_config';
-            resultData = moduleGroup.map(module => module.raw);
-        } else {
-            // 获取模块的outputMode配置
-            const outputMode = moduleConfig.outputMode || 'full';
-            processType = outputMode;
-
-            // 根据outputMode选择处理方式
-            if (outputMode === 'incremental') {
-                // 增量处理
-                resultData = processIncrementalModules(moduleGroup);
-            } else {
-                // 全量处理（默认）
-                resultData = processFullModules(moduleGroup);
-            }
-        }
-
-        structuredResult[moduleName] = {
-            processType: processType,
-            data: resultData,
-            moduleCount: resultData.length
-        };
-    });
-
-    return structuredResult;
 }
