@@ -12,7 +12,7 @@ export const MODULE_NAME_REGEX = /^\[([^:|]+?)\|/;
  * @param {Array} moduleFilters 可选的模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
  * @returns {Promise<Array>} 解析出的模块数据数组
  */
-export async function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFilters = null) {
+export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFilters = null) {
     const extractedModules = [];
 
     try {
@@ -88,7 +88,7 @@ export async function extractModulesFromChat(startIndex = 0, endIndex = null, mo
         // 2. 从世界书条目中提取模块
         debugLog('[MODULE EXTRACTOR]开始从世界书条目中提取模块数据');
         try {
-            const worldBookEntries = await getCurrentCharBooksModuleEntries();
+            const worldBookEntries = getCurrentCharBooksModuleEntries();
             debugLog(`[MODULE EXTRACTOR]获取到${worldBookEntries.length}个世界书条目`);
 
             for (const entry of worldBookEntries) {

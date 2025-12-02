@@ -838,7 +838,7 @@ class UIDataCollector {
                 case 'displayName':
                     return variableElement.find('.variable-display-name').val() || '';
                 case 'description':
-                    return variableElement.find('.variable-description').val() || '';
+                    return variableElement.find('.variable-desc').val() || '';
                 case 'isIdentifier':
                     return variableElement.find('.variable-is-identifier').val() === 'true';
                 case 'isBackupIdentifier':

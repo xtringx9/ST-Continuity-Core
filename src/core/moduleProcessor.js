@@ -20,8 +20,8 @@ import { removeHyphens } from '../utils/stringUtils.js';
  * @param {Array} moduleFilters 模块过滤条件数组，每个过滤条件包含name和compatibleModuleNames
  * @returns {Promise<Array>} 提取到的原始模块数组
  */
-async function extractModules(startIndex, endIndex, moduleFilters) {
-    return await extractModulesFromChat(startIndex, endIndex, moduleFilters);
+function extractModules(startIndex, endIndex, moduleFilters) {
+    return extractModulesFromChat(startIndex, endIndex, moduleFilters);
 }
 
 /**
@@ -1738,7 +1738,7 @@ export function htmlEscape(text) {
  * @param {boolean} showProcessInfo 是否显示处理方式说明
  * @returns {Object} 按模块名分组的结构化数据
  */
-export function processAutoModules(rawModules, selectedModuleNames, showModuleNames = false, showProcessInfo = false) {
+export function processAutoModules(rawModules, selectedModuleNames, showModuleNames = false, showProcessInfo = false, needOutputformat = false) {
     debugLog('开始自动处理模块');
 
     // 标准化模块数据，直接传入selectedModuleNames参数，normalizeModules会返回按模块名分组的结构
@@ -1776,11 +1776,23 @@ export function processAutoModules(rawModules, selectedModuleNames, showModuleNa
             }
         }
 
+        // 计算包含隐藏模块的最大ID值
+        let maxId = null;
+        if (processType === 'incremental' && Array.isArray(resultData) && resultData.length > 0) {
+            // 从增量处理结果中提取最大ID值
+            const maxIds = resultData.map(item => item.maxId).filter(id => id !== null);
+            if (maxIds.length > 0) {
+                maxId = Math.max(...maxIds);
+            }
+        }
+
         structuredResult[moduleName] = {
             processType: processType,
             data: resultData,
             moduleCount: resultData.length,
             moduleConfig: moduleConfig,
+            isIncremental: processType === 'incremental',
+            maxId: maxId, // 存储最大ID值
         };
     });
 
@@ -1815,33 +1827,43 @@ export function getMaxMessageIndexFromHistory(module, currentMessageIndex) {
  * @param {boolean} showProcessInfo 是否显示处理信息
  * @returns {string} 转换后的模块字符串
  */
-export function buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false) {
+export function buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false, needOutputformat = false) {
     let result = '';
 
     // 处理每个模块组
     Object.keys(structuredModules).forEach(moduleName => {
         const moduleData = structuredModules[moduleName];
+        const moduleConfig = moduleData.moduleConfig;
         const { processType, data } = moduleData;
 
+        if (needOutputformat) {
+            result += `## ${moduleName}`;
+        }
+
         if (showModuleNames) {
-            result += `## ${moduleName} (${moduleData.moduleCount})\n`;
-            // todo 提供当前最大id，以方便使用下一个id而不会让id重复
+            result += `【${moduleConfig.name} (${moduleConfig.displayName})】 (当前数量:${moduleData.moduleCount}`;
+            if (moduleData.isIncremental && moduleData.maxId !== undefined) {
+                result += `, 下一可用id:${moduleData.maxId + 1}`;
+            }
+            result += `)`;
         }
 
         if (showProcessInfo) {
             let processInfo = '';
             switch (processType) {
                 case 'incremental':
-                    processInfo = '(增量处理)';
+                    processInfo = ' (增量处理)';
                     break;
                 case 'full_without_config':
-                    processInfo = '(全量处理 - 无配置)';
+                    processInfo = ' (全量处理 - 无配置)';
                     break;
                 default:
-                    processInfo = '(全量处理)';
+                    processInfo = ' (全量处理)';
             }
-            result += `${processInfo}\n`;
+            result += `${processInfo}`;
         }
+        result += `\n`;
+
 
         // 根据数据类型处理
         if (Array.isArray(data)) {
@@ -1923,6 +1945,24 @@ export function processIncrementalModules(modules) {
                 }
             }
 
+            // 计算包含隐藏模块的最大ID值
+            let maxId = 0;
+            const hasIdVariable = moduleConfig.variables.some(variable => variable.name === 'id');
+
+            if (hasIdVariable) {
+                // 遍历所有模块（包括隐藏的）来找到最大ID
+                for (const module of moduleList) {
+                    const idValue = module.variables.id;
+                    if (idValue) {
+                        // 解析ID值（支持数字和三位数格式）
+                        const idNum = parseInt(idValue, 10);
+                        if (!isNaN(idNum) && idNum > maxId) {
+                            maxId = idNum;
+                        }
+                    }
+                }
+            }
+
             // 如果不需要隐藏，则构建模块条目
             if (!shouldHide) {
                 // 构建统合后的模块字符串
@@ -1938,7 +1978,8 @@ export function processIncrementalModules(modules) {
                     moduleName,
                     identifier,
                     moduleData: mergedModule,
-                    moduleString
+                    moduleString,
+                    maxId: maxId > 0 ? maxId : null, // 存储最大ID值
                 });
             }
         }
@@ -1961,7 +2002,7 @@ export function processIncrementalModules(modules) {
  * - moduleFilters: 在提取阶段使用，是一个包含{name, compatibleModuleNames}的数组，用于从聊天记录中过滤出特定类型的模块
  * - selectedModuleNames: 在处理阶段使用，是一个字符串数组，只包含模块名，用于从已提取的模块中选择需要处理的模块
  */
-export async function processModuleData(extractParams, processType, selectedModuleNames = undefined, returnString = false, showModuleNames = false, showProcessInfo = false) {
+export function processModuleData(extractParams, processType, selectedModuleNames = undefined, returnString = false, showModuleNames = false, showProcessInfo = false, needOutputformat = false) {
     try {
         debugLog(`[EVENTS]开始处理模块数据，类型：${processType}`);
 
@@ -2025,7 +2066,7 @@ export async function processModuleData(extractParams, processType, selectedModu
         }
 
         // 提取模块数据
-        const rawModules = await extractModules(startIndex, endIndex, moduleFilters);
+        const rawModules = extractModules(startIndex, endIndex, moduleFilters);
 
         // if (!selectedModuleNames || selectedModuleNames.length === 0) {
         //     if (moduleFilters && moduleFilters.length > 0) {
@@ -2058,7 +2099,7 @@ export async function processModuleData(extractParams, processType, selectedModu
 
             case 'auto':
                 // 自动根据模块配置判断处理方式
-                const structuredResult = processAutoModules(rawModules, selectedModuleNames, showModuleNames, showProcessInfo);
+                const structuredResult = processAutoModules(rawModules, selectedModuleNames, showModuleNames, showProcessInfo, needOutputformat);
 
                 // 如果需要返回字符串，则转换结构化数据
                 // if (returnString) {
@@ -2088,7 +2129,7 @@ export async function processModuleData(extractParams, processType, selectedModu
         // 构建字符串表示
         let contentString = resultContent;
         if (typeof resultContent !== 'string') {
-            contentString = buildModulesString(resultContent, showModuleNames, showProcessInfo);
+            contentString = buildModulesString(resultContent, showModuleNames, showProcessInfo, needOutputformat);
         }
 
         const moduleFinalData = {

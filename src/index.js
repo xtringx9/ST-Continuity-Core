@@ -177,7 +177,7 @@ export {
     UpdateUI
 } from './core/contextBottomUI.js';
 
-export { getCurrentCharBooksModuleEntries, getCurrentCharBooksEnabledEntries, checkAndInitializeWorldBook, getTestData, getCurrentCharBooks } from './utils/worldBookUtils.js';
+export { updateCurrentCharWorldBookCache, getCurrentCharBooksModuleEntries, getCurrentCharBooksEnabledEntries, checkAndInitializeWorldBook, getTestData, getCurrentCharBooks } from './utils/worldBookUtils.js';
 export { registerContinuityRegexPattern } from './utils/regexUtils.js';
 
 
