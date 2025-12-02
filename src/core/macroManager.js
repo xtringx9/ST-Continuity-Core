@@ -364,6 +364,10 @@ function getOutputModePrompt(module) {
     }
 }
 
+function getContinuityChatModule(index) {
+    return `${index}`;
+}
+
 import { getContext } from '../../../../../extensions.js';
 
 /**
@@ -393,6 +397,17 @@ export function registerMacros() {
 
             context.registerMacro('CONTINUITY_USAGE_GUIDE', getContinuityUsageGuide);
             debugLog("[Macro]宏管理器: 注册 {{CONTINUITY_USAGE_GUIDE}} 宏");
+
+            const entryCount = configManager.getGlobalSettings().contentRemainLayers || 9;
+            for (let i = 0; i < entryCount; i++) {
+                // 只在奇数索引时生成
+                if (i % 2 === 1) {
+                    // 创建包装函数来传递索引值
+                    const getContinuityChatModuleWithIndex = () => getContinuityChatModule(i);
+                    context.registerMacro(`CONTINUITY_CHAT_MODULE_${i}`, getContinuityChatModuleWithIndex);
+                    debugLog(`[Macro]宏管理器: 注册 {{CONTINUITY_CHAT_MODULE_${i}}} 宏，索引值: ${i}`);
+                }
+            }
 
             infoLog("[Macro]宏管理器: 成功注册所有宏");
             return true;

@@ -34,6 +34,7 @@ const DEFAULT_MODULE_CONFIG = {
 
 class ConfigManager {
     constructor() {
+        this.isLoaded = false;
         this.extensionConfig = null;
         this.isExtensionConfigLoaded = false; // 配置是否已加载
         this.moduleConfig = null; // 内存中的配置缓存
@@ -41,6 +42,10 @@ class ConfigManager {
         this.autoSaveTimeout = null; // 自动保存的超时ID
         this.autoSaveDelay = 1000; // 自动保存延迟（毫秒）
         this.uiDataCollector = new UIDataCollector(); // UI数据收集器
+
+        // 事件监听系统
+        this.loadCallbacks = []; // 存储加载完成时的回调函数
+        this.loadCallbacksExecuted = false; // 标记回调是否已执行
     }
 
     /**
@@ -119,6 +124,10 @@ class ConfigManager {
     load() {
         this.loadModuleConfig();
         this.loadExtensionConfig();
+        this.isLoaded = true;
+
+        // 执行所有注册的加载完成回调
+        this.executeLoadCallbacks();
     }
 
     isExtensionEnabled() {
@@ -220,6 +229,64 @@ class ConfigManager {
         config.lastUpdated = new Date().toISOString();
         this.scheduleAutoSave();
         debugLog('模块配置已更新到内存缓存');
+    }
+
+    /**
+     * 注册加载完成回调函数
+     * @param {Function} callback 回调函数
+     * @param {string} [name] 回调函数名称（可选，用于调试）
+     */
+    registerLoadCallback(callback, name = 'anonymous') {
+        if (typeof callback !== 'function') {
+            errorLog('注册加载回调失败：回调必须是函数');
+            return;
+        }
+
+        // 如果配置已经加载完成，立即执行回调
+        if (this.isLoaded && !this.loadCallbacksExecuted) {
+            try {
+                callback();
+                debugLog(`立即执行加载回调: ${name}`);
+            } catch (error) {
+                errorLog(`执行加载回调失败 (${name}):`, error);
+            }
+            return;
+        }
+
+        // 如果回调已经执行过，不再注册
+        if (this.loadCallbacksExecuted) {
+            debugLog(`配置已加载完成，不再注册新回调: ${name}`);
+            return;
+        }
+
+        this.loadCallbacks.push({ callback, name });
+        debugLog(`注册加载回调: ${name}, 当前回调数量: ${this.loadCallbacks.length}`);
+    }
+
+    /**
+     * 执行所有注册的加载完成回调
+     */
+    executeLoadCallbacks() {
+        if (this.loadCallbacksExecuted) {
+            return;
+        }
+
+        debugLog(`开始执行加载回调，数量: ${this.loadCallbacks.length}`);
+
+        // 执行所有回调
+        this.loadCallbacks.forEach(({ callback, name }) => {
+            try {
+                callback();
+                debugLog(`执行加载回调成功: ${name}`);
+            } catch (error) {
+                errorLog(`执行加载回调失败 (${name}):`, error);
+            }
+        });
+
+        // 标记为已执行，清空回调数组
+        this.loadCallbacksExecuted = true;
+        this.loadCallbacks = [];
+        debugLog('所有加载回调执行完成');
     }
 
     /**
