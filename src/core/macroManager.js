@@ -3,7 +3,7 @@
  * 允许用户在提示词中使用 {{CONTINUITY_PROMPT}} 等宏来自动插入模块提示词
  */
 
-import { processModuleData, configManager, debugLog, errorLog, infoLog } from '../index.js';
+import { groupProcessResultByMessageIndex, chat, processModuleData, configManager, debugLog, errorLog, infoLog } from '../index.js';
 import { generateFormalPrompt } from '../modules/promptGenerator.js';
 import { extension_settings, extensionName, loadModuleConfig } from '../index.js';
 import { replaceVariables } from '../utils/variableReplacer.js';
@@ -239,8 +239,8 @@ export function getContinuityOrder() {
 
         // 添加输出模式说明
         orderPrompt += "输出模式说明：\n";
-        orderPrompt += "• 全量输出（输出：全量）：每次生成时都会完整输出该模块的所有键值对\n";
-        orderPrompt += "• 增量更新（输出：增量）：初始化时需完整输出。更新时所有主副键必须输出，此外只需输出与上次生成相比发生变化的键值对\n\n";
+        orderPrompt += "• 全量输出（输出：全量）：每次生成时都会完整输出该模块的**所有**键值对\n";
+        orderPrompt += "• 增量更新（输出：增量）：初始化时需完整输出。更新时所有**主副键**必须输出，此外只需输出与上次生成相比发生变化的键值对\n\n";
 
         // 可嵌入模块（按序号排序）
         if (embeddableModules.length > 0) {
@@ -405,8 +405,72 @@ function getContextBottomFilteredModuleConfigs() {
 }
 
 function getContinuityChatModule(index) {
+    debugLog('[MACRO] 模块内容索引:', index);
+
+    // 提取全部聊天记录的所有模块数据（一次性获取）
+    const extractParams = {
+        startIndex: 0,
+        endIndex: null, // null表示提取到最新楼层
+        moduleFilters: getChatFilteredModuleConfigs()
+    };
+
+    const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
+
+
+    // 一次性获取所有模块数据
+    const processResult = processModuleData(
+        extractParams,
+        'auto', // 自动处理类型
+        selectedModuleNames
+    );
+    // debugLog('[MACRO] 模块提取结果:', processResult);
+
+    const curIndex = chat.length - 1 - index;
+    const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
+    const modulesForThisMessage = groupedByMessageIndex[curIndex] || [];
+    debugLog(`[MACRO] 当前聊天索引为${curIndex}模块index分组结果:`, groupedByMessageIndex);
+    // debugLog(`[MACRO] 聊天索引${curIndex}模块结果:`, modulesForThisMessage);
+
+    // todo 可能还要判断remainLayers去决定要不要加进去
+
+    let resultString = '';
+    if (modulesForThisMessage.length > 0) {
+        let lastModuleName = '';
+        modulesForThisMessage.forEach((entry, index) => {
+            // 判断模块名是否连续一致
+            if (index === 0 || entry.moduleName !== lastModuleName) {
+                // 第一条或模块名不同时，输出模块名标题
+                resultString += `## ${entry.moduleName}\n`;
+            }
+            resultString += entry.moduleString + '\n';
+            lastModuleName = entry.moduleName;
+        });
+    }
+
+    debugLog(`[MACRO] 当前聊天索引为${curIndex}模块输出:`, resultString);
+
     const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
-    return `<${moduleTag}>\n${index}\n</${moduleTag}>`;
+    return `<${moduleTag}>\n${resultString}\n</${moduleTag}>`;
+}
+
+function getChatFilteredModuleConfigs() {
+    // 获取所有模块配置
+    const allModuleConfigs = configManager.getModules();
+    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
+    const filteredModuleConfigs = allModuleConfigs.filter(config => {
+        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full') ||
+            config.outputMode === 'incremental';
+        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
+        return result;
+    });
+    debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
+    debugLog(`[CUSTOM STYLES] 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
+    // 构建模块过滤条件数组
+    const moduleFilters = filteredModuleConfigs.map(config => ({
+        name: config.name,
+        compatibleModuleNames: config.compatibleModuleNames || []
+    }));
+    return moduleFilters;
 }
 
 import { getContext } from '../../../../../extensions.js';
