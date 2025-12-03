@@ -242,16 +242,14 @@ export function getContinuityOrder() {
         orderPrompt += "• 增量(INC): Initialize full. ALWAYS output Identity keys + ONLY changed fields.\n";
         orderPrompt += "• 全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
 
+        orderPrompt += "Format: [Module]|Trigger|Qty|Mode|Pos/Note*\n\n";
+
         // 可嵌入模块（按序号排序）
         if (embeddableModules.length > 0) {
             embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += "可嵌入模块，不限制位置，应积极插入正文内：\n";
             embeddableModules.forEach(module => {
-                const timingPrompt = module.timingPrompt ? `(Trigger:${module.timingPrompt})` : "";
-                const rangePrompt = getRangePrompt(module);
-                const outputModePrompt = getOutputModePrompt(module);
-                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt}${outputModePrompt} `;
-                orderPrompt += "\n";
+                orderPrompt += buildModulePrompt(module);
             });
             orderPrompt += "\n\n";
         }
@@ -261,11 +259,7 @@ export function getContinuityOrder() {
             bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += "正文内模块：\n";
             bodyModules.forEach(module => {
-                const timingPrompt = module.timingPrompt ? `(Trigger:${module.timingPrompt})` : "";
-                const rangePrompt = getRangePrompt(module);
-                const outputModePrompt = getOutputModePrompt(module);
-                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt}${outputModePrompt} `;
-                orderPrompt += "\n";
+                orderPrompt += buildModulePrompt(module);
             });
             orderPrompt += "\n\n";
         }
@@ -276,12 +270,7 @@ export function getContinuityOrder() {
             orderPrompt += "正文内特定位置模块（位于正文开始标签后，被<某正文标签></某正文标签>包裹）：\n";
             orderPrompt += "<某正文标签>\n";
             specificPositionModules.forEach(module => {
-                const positionPrompt = module.positionPrompt ? `(Position:${module.positionPrompt})` : "";
-                const timingPrompt = module.timingPrompt ? `(Trigger:${module.timingPrompt})` : "";
-                const rangePrompt = getRangePrompt(module);
-                const outputModePrompt = getOutputModePrompt(module);
-                orderPrompt += `[${module.name}]${positionPrompt}${timingPrompt}${rangePrompt}${outputModePrompt} `;
-                orderPrompt += "\n";
+                orderPrompt += buildModulePrompt(module, true);
             });
             orderPrompt += "</某正文标签>\n";
             orderPrompt += "\n\n";
@@ -296,11 +285,7 @@ export function getContinuityOrder() {
             orderPrompt += "</某正文标签>\n";
             orderPrompt += `<${moduleTag}>\n`;
             afterBodyModules.forEach(module => {
-                const timingPrompt = module.timingPrompt ? `(Trigger:${module.timingPrompt})` : "";
-                const rangePrompt = getRangePrompt(module);
-                const outputModePrompt = getOutputModePrompt(module);
-                orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt}${outputModePrompt} `;
-                orderPrompt += "\n";
+                orderPrompt += buildModulePrompt(module);
             });
         }
         orderPrompt += `</${moduleTag}>\n\n`;
@@ -318,6 +303,20 @@ export function getContinuityOrder() {
 }
 
 /**
+ * 构建模块提示词字符串
+ * @param {Object} module 模块对象
+ * @param {boolean} includePosition 是否包含位置提示词
+ * @returns {string} 模块提示词字符串
+ */
+function buildModulePrompt(module, includePosition = false) {
+    const positionPrompt = includePosition && module.positionPrompt ? `|${module.positionPrompt}` : "";
+    const timingPrompt = module.timingPrompt ? `${module.timingPrompt}` : "";
+    const rangePrompt = getRangePrompt(module);
+    const outputModePrompt = getOutputModePrompt(module);
+    return `[${module.name}]|${timingPrompt}|${rangePrompt}|${outputModePrompt}${positionPrompt}\n`;
+}
+
+/**
  * 获取模块生成数量限制的提示词
  * @param {Object} module 模块对象
  * @returns {string} 数量限制提示词
@@ -327,18 +326,18 @@ function getRangePrompt(module) {
 
     switch (rangeMode) {
         case 'unlimited':
-            return "(Quantity:∞)";
+            return "∞";
         case 'specified': {
             const maxCount = module.itemMax || 1;
-            return `(Quantity:${maxCount})`;
+            return `${maxCount}`;
         }
         case 'range': {
             const minCount = module.itemMin || 0;
             const maxCount = module.itemMax || 1;
             if (minCount === maxCount) {
-                return `(Quantity:${minCount})`;
+                return `${minCount}`;
             } else {
-                return `(Quantity:${minCount}-${maxCount})`;
+                return `${minCount}-${maxCount}`;
             }
         }
         default:
@@ -356,9 +355,9 @@ function getOutputModePrompt(module) {
 
     switch (outputMode) {
         case 'full':
-            return "(Output:FULL,All Fields)";
+            return "FULL(All Fields)";
         case 'incremental':
-            return "(Output:INC,Only changes)";
+            return "INC(Only changes)";
         default:
             return "";
     }
