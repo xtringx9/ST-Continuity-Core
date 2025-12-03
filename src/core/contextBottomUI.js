@@ -61,12 +61,30 @@ async function loadContextBottomUITemplate(containerId = CONTEXT_BOTTOM_CONTAINE
  * 使用外部HTML模板和CSS样式
  * @returns {Promise<HTMLElement>} 创建的容器元素
  */
-async function createContextContainer(containerId = CONTEXT_BOTTOM_CONTAINER_ID) {
+async function createContextContainer(containerId = CONTEXT_BOTTOM_CONTAINER_ID, parentContainer = null) {
     // 检查容器是否已存在
-    if (document.getElementById(containerId)) {
-        debugLog('上下文底部UI容器已存在');
-        return document.getElementById(containerId);
+    // 优先在parentContainer中查找，如果parentContainer不存在则在document中查找
+    let existingContainer = null;
+    if (parentContainer) {
+        // 处理jQuery对象和DOM元素
+        if (typeof parentContainer.find === 'function') {
+            // parentContainer是jQuery对象
+            existingContainer = parentContainer.find(`#${containerId}`)[0];
+        } else if (typeof parentContainer.querySelector === 'function') {
+            // parentContainer是DOM元素
+            existingContainer = parentContainer.querySelector(`#${containerId}`);
+        }
+    } else {
+        // 在document中查找容器
+        existingContainer = document.getElementById(containerId);
     }
+
+    if (existingContainer) {
+        debugLog('上下文底部UI容器已存在');
+        return existingContainer;
+    }
+
+    debugLog(`创建上下文底部UI容器 ${containerId}`);
 
     // 加载CSS样式
     loadContextUICSS();
@@ -135,146 +153,119 @@ function findSuitableMessageContainer(excludeUserMes = false) {
 let isUpdatingMsgUI = false;
 
 /**
- * 将UI插入到上下文底部
- * 修改为插入到mes_text下方，确保折叠功能正常工作
+ * 将UI插入到mes_text下方，确保折叠功能正常工作
  */
-export function updateUItoMsgBottom() {
+export async function updateUItoMsgBottom() {
     try {
-        // 防止重复插入
-        if (isUpdatingMsgUI) {
-            debugLog('UI插入操作正在进行中，跳过重复调用');
-            return false;
-        }
-
-        // 检查UI是否已经存在且位置正确
-        const existingUI = document.getElementById(CONTEXT_MSG_CONTAINER_ID);
-        if (existingUI) {
-            // 检查UI是否在正确的容器中
-            const messageContainer = findSuitableMessageContainer(true);
-            if (messageContainer) {
-                const mesBlock = messageContainer.find('.mes_block');
-                const messageText = messageContainer.find('.mes_text');
-
-                if (mesBlock.length > 0) {
-                    const currentParent = $(existingUI).parent();
-                    if (currentParent.is(mesBlock) && currentParent.find('.mes_text').next().is(existingUI)) {
-                        debugLog('UI已在正确的mes_text下方位置，无需重新插入');
-                        return true;
-                    }
-                } else {
-                    const currentParent = $(existingUI).parent();
-                    if (currentParent.is(messageContainer)) {
-                        debugLog('UI已在正确的消息容器中，无需重新插入');
-                        return true;
-                    }
-                }
-            }
-        }
-
         // 设置插入标记
         isUpdatingMsgUI = true;
 
-        // 使用setTimeout确保DOM完全渲染后再插入
-        setTimeout(() => {
-            try {
-                // 检查jQuery是否可用
-                if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
-                    errorLog('jQuery未加载，无法使用选择器');
-                    isUpdatingMsgUI = false;
-                    return false;
-                }
+        // 检查jQuery是否可用
+        if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
+            errorLog('jQuery未加载，无法使用选择器');
+            isUpdatingMsgUI = false;
+            return false;
+        }
 
-                // 查找合适的消息容器
-                const messageContainer = findSuitableMessageContainer(true);
+        // 提取全部聊天记录的所有模块数据（一次性获取）
+        const extractParams = {
+            startIndex: 0,
+            endIndex: null, // null表示提取到最新楼层
+            moduleFilters: getContextBottomUIFilteredModuleConfigs() // 只提取符合条件的模块
+        };
 
-                if (!messageContainer) {
-                    debugLog('没有找到合适的消息容器，等待下次事件触发');
-                    isUpdatingMsgUI = false;
-                    return false;
-                }
+        const processResult = updateModulesDataAndStyles(null, extractParams, false);
+        if (!processResult) {
+            errorLog('更新上下文底部UI失败');
+            isUpdatingRenderUI = false;
+            return false;
+        }
+        // debugLog('按messageIndex分组前的模块数据:', processResult);
+        // 按messageIndex分组处理模块数据
+        const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
 
-                // 额外检查：确保容器包含消息内容
-                const messageText = messageContainer.find('.mes_text');
-                if (messageText.length === 0 || messageText.text().trim() === '') {
-                    debugLog('消息容器中没有消息内容，等待下次事件触发');
-                    isUpdatingMsgUI = false;
-                    return false;
-                }
+        const containers = getCurrentMessageContainer();
 
-                // 查找mes_block容器
-                const mesBlock = messageContainer.find('.mes_block');
-                if (mesBlock.length === 0) {
-                    debugLog('消息容器中没有找到mes_block，使用默认插入位置');
-                    // 如果没有mes_block，回退到消息容器底部
-                    const existingUI = document.getElementById(CONTEXT_MSG_CONTAINER_ID);
-                    if (existingUI) {
-                        const currentParent = $(existingUI).parent();
-                        if (currentParent.is(messageContainer)) {
-                            debugLog('UI已在正确的消息容器中，无需移动');
-                            isUpdatingMsgUI = false;
-                            return true;
-                        } else {
-                            debugLog('UI在错误的容器中，移动到新的消息容器');
-                            existingUI.remove();
-                        }
-                    }
-                    createContextContainer().then(contextBottomUI => {
-                        messageContainer.append(contextBottomUI);
-                        isUpdatingMsgUI = false;
-                    }).catch(error => {
-                        errorLog('创建UI容器失败:', error);
-                        isUpdatingMsgUI = false;
-                    });
-                    debugLog('UI已成功插入到消息容器内部底部');
-                    return true;
-                }
-
-                // 检查UI是否已经存在
-                const existingUI = document.getElementById(CONTEXT_MSG_CONTAINER_ID);
-
-                if (existingUI) {
-                    // UI已存在，检查是否在正确的容器中
-                    const currentParent = $(existingUI).parent();
-                    if (currentParent.is(mesBlock) && currentParent.find('.mes_text').next().is(existingUI)) {
-                        debugLog('UI已在正确的mes_text下方位置，无需移动');
-                        isUpdatingMsgUI = false;
-                        return true;
-                    } else {
-                        // UI在错误的容器中，需要移动到新的容器
-                        debugLog('UI在错误的容器中，移动到mes_text下方');
-                        existingUI.remove();
-                    }
-                }
-
-                // 创建或重新插入上下文底部UI
-                createContextContainer(CONTEXT_MSG_CONTAINER_ID).then(contextBottomUI => {
-                    // 插入到mes_text下方
-                    messageText.after(contextBottomUI);
-                    debugLog('UI已成功插入/移动到mes_text下方');
-
-                    // 调用新方法插入模块数据和样式
-                    (async () => {
-                        await updateModulesDataAndStyles(contextBottomUI);
-                    })();
-
-                    isUpdatingMsgUI = false;
-                }).catch(error => {
-                    errorLog('创建UI容器失败:', error);
-                    isUpdatingMsgUI = false;
-                });
-
-                debugLog('UI已成功插入/移动到mes_text下方');
-                return true;
-            } catch (error) {
-                errorLog('插入UI到mes_text下方失败:', error);
-                isUpdatingMsgUI = false;
-                return false;
+        for (let i = containers.length - 1; i >= 0; i--) {
+            const message = $(containers[i]);
+            const isUser = message.attr('is_user') === 'true';
+            if (isUser) {
+                continue;
             }
-        }, 0);
+
+            const messageText = message.find('.mes_text');
+            // 从分组数据中获取当前消息的模块数据
+            const messageIndex = message.attr('mesid');
+            const modulesForThisMessage = groupedByMessageIndex[messageIndex] || [];
+
+            let container = message.find(`#${CONTEXT_MSG_CONTAINER_ID}`)[0];
+            if (!container) {
+                container = await createContextContainer(CONTEXT_MSG_CONTAINER_ID, message);
+                messageText.after(container);
+            }
+
+            const contentContainer = container?.querySelector('.modules-content-container');
+
+            // 清空容器内的所有内容
+            if (contentContainer) {
+                contentContainer.innerHTML = '';
+                debugLog('[CUSTOM STYLES] 已清空模块内容容器');
+            }
+
+            debugLog(messageIndex, `当前消息的模块数据:`, modulesForThisMessage);
+
+            renderSingleMessageContextBottomUI(modulesForThisMessage, contentContainer, message)
+        }
+
+        isUpdatingMsgUI = false;
+        return true;
     } catch (error) {
         errorLog('插入UI到mes_text下方失败:', error);
         isUpdatingMsgUI = false;
         return false;
+    }
+}
+
+function renderSingleMessageContextBottomUI(messages, container, mes) {
+    try {
+        // 检查参数有效性
+        if (!messages || !container || container.length === 0) {
+            debugLog('renderSingleMessageContext: 参数无效，跳过渲染');
+            return;
+        }
+
+        // const swipeId = mes.attr('swipeid');
+        // const renderSwipe = mes.attr('renderSwipe');
+        // // 检查是否已渲染过
+        // if (renderSwipe === swipeId) {
+        //     debugLog('renderSingleMessageContext: 消息已渲染过，跳过重复渲染');
+        //     return;
+        // }
+
+
+        if (messages.length > 0) {
+            messages.forEach((entry) => {
+                // 检查是否有moduleData.raw内容用于匹配
+                if (!entry.moduleData || !entry.moduleData.raw || typeof entry.moduleData.raw !== 'string' || entry.moduleData.raw.trim() === '') {
+                    debugLog('renderSingleMessageContext: entry.moduleData.raw为空或无效，无法匹配原文');
+                }
+                // 检查是否有customStyles内容用于替换
+                else if (!entry.customStyles || typeof entry.customStyles !== 'string' || entry.customStyles.trim() === '') {
+                    debugLog('renderSingleMessageContext: entry.customStyles为空或无效，无法替换');
+                }
+                // 使用entry.moduleData.raw来匹配mes_text div内部的原文，包括后面的<br>标签
+                else {
+                    // container.append(entry.customStyles);
+                    container.innerHTML += `${entry.customStyles}`;
+                }
+            });
+            // container.html(newHtml);
+            // 渲染成功后设置renderSwipe属性
+            // mes.attr('renderSwipe', swipeId);
+        }
+    } catch (error) {
+        errorLog('renderSingleMessageContext: 渲染单个消息上下文失败:', error);
+        // mes.attr('renderSwipe', '');
     }
 }
 
@@ -342,7 +333,7 @@ export async function updateUItoContextBottom() {
             }
         }
 
-        await updateModulesDataAndStyles(container, extractParams);
+        updateModulesDataAndStyles(container, extractParams);
         isUpdatingContextBottomUI = false;
         return true;
 
@@ -428,14 +419,14 @@ function getRenderUIFilteredModuleConfigs() {
  * 插入模块数据和样式到模块内容容器
  * @param {HTMLElement} container 上下文底部UI元素
  */
-export async function updateModulesDataAndStyles(container, extractParams, isUseContainer = true) {
+export function updateModulesDataAndStyles(container, extractParams, isUseContainer = true) {
     try {
         debugLog('[CUSTOM STYLES] 开始更新模块数据和样式', container);
 
         const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
 
         // 一次性获取所有模块数据
-        const processResult = await processModuleData(
+        const processResult = processModuleData(
             extractParams,
             'auto', // 自动处理类型
             selectedModuleNames
@@ -615,8 +606,13 @@ export function checkPageStateAndUpdateUI() {
             debugLog('上下文底部UI插入操作正在进行中，跳过重复调用');
         }
 
-        // 处理消息中UI（每层的模块内容）
-        // updateUItoMsgBottom();
+        if (!isUpdatingMsgUI) {
+            isUpdatingMsgUI = true;
+            (async () => {
+                // 处理消息中UI（每层的模块内容）
+                await updateUItoMsgBottom();
+            })();
+        }
 
 
         if (!isUpdatingRenderUI) {
@@ -637,7 +633,7 @@ export function checkPageStateAndUpdateUI() {
 
 let isUpdatingRenderUI = false;
 
-export async function renderCurrentMessageContext() {
+export function renderCurrentMessageContext() {
     try {
         // 防止重复插入
         // if (isUpdatingRenderUI) {
@@ -666,7 +662,7 @@ export async function renderCurrentMessageContext() {
         };
         // todo 可以获取的时候获取所有index，然后下面按messageIndex分组的时候过滤掉显示范围外的条目
 
-        const processResult = await updateModulesDataAndStyles(null, extractParams, false);
+        const processResult = updateModulesDataAndStyles(null, extractParams, false);
         if (!processResult) {
             errorLog('更新上下文底部UI失败');
             isUpdatingRenderUI = false;
