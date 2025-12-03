@@ -1276,7 +1276,7 @@ export function sortModules(modules) {
  * @param {Array} modules 标准化后的模块数组
  * @returns {Object} 分组后的模块对象
  */
-export function groupModulesByIdentifier(modules) {
+export function groupModulesByIdentifier(modules, needSort = false) {
     const groups = {};
 
     // 动态获取所有模块配置
@@ -1380,6 +1380,17 @@ export function groupModulesByIdentifier(modules) {
         }
         groups[groupKey].push(module);
     });
+
+    // 如果需要排序，对每个分组内的模块按照messageIndex从小到大排序
+    if (needSort) {
+        Object.keys(groups).forEach(groupKey => {
+            groups[groupKey].sort((a, b) => {
+                const aIndex = a.messageIndex || 0;
+                const bIndex = b.messageIndex || 0;
+                return aIndex - bIndex;
+            });
+        });
+    }
 
     return groups;
 }
@@ -1890,7 +1901,7 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
  */
 export function processIncrementalModules(modules) {
     // 按模块名和标识符分组处理
-    const moduleGroups = groupModulesByIdentifier(modules);
+    const moduleGroups = groupModulesByIdentifier(modules, true);
 
     // 构建结果数组
     const resultItems = [];
