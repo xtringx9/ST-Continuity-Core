@@ -1781,7 +1781,7 @@ export function processAutoModules(rawModules, selectedModuleNames, showModuleNa
             // 根据outputMode选择处理方式
             if (outputMode === 'incremental') {
                 // 增量处理
-                resultData = processIncrementalModules(moduleGroup);
+                resultData = processIncrementalModules(moduleGroup, moduleConfig);
             } else {
                 // 全量处理（默认）
                 resultData = processFullModules(moduleGroup);
@@ -1790,6 +1790,7 @@ export function processAutoModules(rawModules, selectedModuleNames, showModuleNa
 
         // 计算包含隐藏模块的最大ID值
         let maxId = null;
+        debugLog(`处理模块获取maxId：`, resultData);
         if (processType === 'incremental' && Array.isArray(resultData) && resultData.length > 0) {
             // 从增量处理结果中提取最大ID值
             const maxIds = resultData.map(item => item.maxId).filter(id => id !== null);
@@ -1899,12 +1900,16 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
  * @param {Array} modules 标准化后的模块数组
  * @returns {Array} 结构化的增量更新模块条目数组
  */
-export function processIncrementalModules(modules) {
+export function processIncrementalModules(modules, moduleConfig) {
     // 按模块名和标识符分组处理
     const moduleGroups = groupModulesByIdentifier(modules, true);
 
     // 构建结果数组
     const resultItems = [];
+
+    // 计算包含隐藏模块的最大ID值
+    let maxId = 0;
+    const hasIdVariable = moduleConfig.variables.some(variable => variable.name === 'id');
 
     // 转换模块组为数组，以便排序
     const moduleGroupsArray = Object.entries(moduleGroups);
@@ -1914,6 +1919,26 @@ export function processIncrementalModules(modules) {
         // 使用第一个模块作为代表进行排序
         const moduleA = modulesA[0];
         const moduleB = modulesB[0];
+
+        // 顺便获取最大id
+        if (hasIdVariable) {
+            const idValueA = moduleA.variables.id;
+            if (idValueA) {
+                // 解析ID值（支持数字和三位数格式）
+                const idNumA = parseInt(idValueA, 10);
+                if (!isNaN(idNumA) && idNumA > maxId) {
+                    maxId = idNumA;
+                }
+            }
+            const idValueB = moduleB.variables.id;
+            if (idValueB) {
+                // 解析ID值（支持数字和三位数格式）
+                const idNumB = parseInt(idValueB, 10);
+                if (!isNaN(idNumB) && idNumB > maxId) {
+                    maxId = idNumB;
+                }
+            }
+        }
 
         // 直接比较messageIndex即可，因为模块已经在标准化阶段排序过
         return moduleA.messageIndex - moduleB.messageIndex;
@@ -1957,23 +1982,19 @@ export function processIncrementalModules(modules) {
                 }
             }
 
-            // 计算包含隐藏模块的最大ID值
-            let maxId = 0;
-            const hasIdVariable = moduleConfig.variables.some(variable => variable.name === 'id');
-
-            if (hasIdVariable) {
-                // 遍历所有模块（包括隐藏的）来找到最大ID
-                for (const module of moduleList) {
-                    const idValue = module.variables.id;
-                    if (idValue) {
-                        // 解析ID值（支持数字和三位数格式）
-                        const idNum = parseInt(idValue, 10);
-                        if (!isNaN(idNum) && idNum > maxId) {
-                            maxId = idNum;
-                        }
-                    }
-                }
-            }
+            // if (hasIdVariable) {
+            //     // 遍历所有模块（包括隐藏的）来找到最大ID
+            //     for (const module of moduleList) {
+            //         const idValue = module.variables.id;
+            //         if (idValue) {
+            //             // 解析ID值（支持数字和三位数格式）
+            //             const idNum = parseInt(idValue, 10);
+            //             if (!isNaN(idNum) && idNum > maxId) {
+            //                 maxId = idNum;
+            //             }
+            //         }
+            //     }
+            // }
 
             // 如果不需要隐藏，则构建模块条目
             if (!shouldHide) {
@@ -1991,7 +2012,7 @@ export function processIncrementalModules(modules) {
                     identifier,
                     moduleData: mergedModule,
                     moduleString,
-                    maxId: maxId > 0 ? maxId : null, // 存储最大ID值
+                    maxId: maxId > 0 ? maxId : 1, // 存储最大ID值
                 });
             }
         }
