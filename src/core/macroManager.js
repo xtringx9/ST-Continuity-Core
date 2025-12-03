@@ -239,10 +239,10 @@ export function getContinuityOrder() {
 
         // 添加输出模式说明
         orderPrompt += "[OUTPUT PROTOCOL]\n";
-        orderPrompt += "• 增量(INC): Initialize full. ALWAYS output Identity keys + ONLY changed fields.\n";
+        orderPrompt += "• 增量(INC): Initialize full. ALWAYS output KEYs + ONLY changed fields.\n";
         orderPrompt += "• 全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
 
-        orderPrompt += "Format: [Module]|Trigger|Qty|Mode|Pos/Note*\n\n";
+        // orderPrompt += "Format: [Module]|Trigger|Qty|Mode|Pos/Note*\n\n";
 
         // 可嵌入模块（按序号排序）
         if (embeddableModules.length > 0) {
@@ -309,11 +309,11 @@ export function getContinuityOrder() {
  * @returns {string} 模块提示词字符串
  */
 function buildModulePrompt(module, includePosition = false) {
-    const positionPrompt = includePosition && module.positionPrompt ? `|${module.positionPrompt}` : "";
-    const timingPrompt = module.timingPrompt ? `${module.timingPrompt}` : "";
+    const positionPrompt = includePosition && module.positionPrompt ? `;生成位置:${module.positionPrompt}` : "";
+    const timingPrompt = module.timingPrompt ? `生成时机:${module.timingPrompt}` : "";
     const rangePrompt = getRangePrompt(module);
     const outputModePrompt = getOutputModePrompt(module);
-    return `[${module.name}]|${timingPrompt}|${rangePrompt}|${outputModePrompt}${positionPrompt}\n`;
+    return `[${module.name}](${timingPrompt};${rangePrompt};${outputModePrompt}${positionPrompt})\n`;
 }
 
 /**
@@ -326,18 +326,18 @@ function getRangePrompt(module) {
 
     switch (rangeMode) {
         case 'unlimited':
-            return "∞";
+            return "数量:∞";
         case 'specified': {
             const maxCount = module.itemMax || 1;
-            return `${maxCount}`;
+            return `数量:${maxCount}`;
         }
         case 'range': {
             const minCount = module.itemMin || 0;
             const maxCount = module.itemMax || 1;
             if (minCount === maxCount) {
-                return `${minCount}`;
+                return `数量:${minCount}`;
             } else {
-                return `${minCount}-${maxCount}`;
+                return `数量:${minCount}-${maxCount}`;
             }
         }
         default:
@@ -355,9 +355,9 @@ function getOutputModePrompt(module) {
 
     switch (outputMode) {
         case 'full':
-            return "FULL(All Fields)";
+            return "输出模式:全量(输出所有字段)";
         case 'incremental':
-            return "INC(Only changes)";
+            return "输出模式:增量(仅输出所有KEY字段和变化字段)";
         default:
             return "";
     }
