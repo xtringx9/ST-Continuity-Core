@@ -175,7 +175,7 @@ function parseTimeRange(startTimeStr, endTimeStr) {
                 endResult.startTime.minute,
                 endResult.startTime.second
             );
-            endResult.startTime.timestamp = endDate.getTime() - endResult.startTime.hasTime ? 0 : 1;
+            endResult.startTime.timestamp = endDate.getTime() - (endResult.startTime.hasTime ? 0 : 1);
 
             // 修复：更新结束时间的isComplete状态
             endResult.isComplete = true;
@@ -367,7 +367,7 @@ function parseSingleTime(timeStr, isEnd = false) {
 
                 // 计算时间戳（如果有完整日期时间） 不需要判断hasTimes
                 const timestamp = hasDate ?
-                    new Date(result.year, result.month - 1, (!hasTime && isEnd) ? result.day + 1 : result.day, result.hour, result.minute, result.second).getTime() - ((!hasTime && isEnd) ? 1 : 0) : 0;
+                    new Date(result.year, result.month - 1, ((!hasTime && isEnd) ? result.day + 1 : result.day), result.hour, result.minute, result.second).getTime() - ((!hasTime && isEnd) ? 1 : 0) : 0;
 
                 return {
                     isValid: true,
