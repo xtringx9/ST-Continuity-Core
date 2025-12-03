@@ -153,7 +153,7 @@ export function getContinuityUsageGuide() {
         }
 
         // 构建使用指导提示词
-        let usageGuide = "<module_usage_guide>\n";
+        let usageGuide = "<module_data_usage_guide>\n";
         usageGuide += "模块内容使用指导：\n\n";
 
         modulesWithUsagePrompt.forEach(module => {
@@ -161,7 +161,7 @@ export function getContinuityUsageGuide() {
             usageGuide += `使用指导：${module.contentPrompt}\n\n`;
         });
 
-        usageGuide += "</module_usage_guide>\n";
+        usageGuide += "</module_data_usage_guide>\n";
 
         // 替换提示词中的变量
         const replacedUsageGuide = replaceVariables(usageGuide.trim());
