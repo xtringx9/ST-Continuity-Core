@@ -234,20 +234,20 @@ export function getContinuityOrder() {
         });
 
         // 构建顺序提示词
-        let orderPrompt = "<module_order>\n";
-        orderPrompt += "模块生成顺序和配置：\n\n";
+        let orderPrompt = "<module_output_rules>\n";
+        // orderPrompt += "模块生成顺序和配置：\n\n";
 
         // 添加输出模式说明
-        orderPrompt += "输出模式说明：\n";
-        orderPrompt += "• 全量输出（输出：全量）：每次生成时都会完整输出该模块的**所有**键值对\n";
-        orderPrompt += "• 增量更新（输出：增量）：初始化时需完整输出。更新时所有**主副键**必须输出，此外只需输出与上次生成相比发生变化的键值对\n\n";
+        orderPrompt += "[OUTPUT PROTOCOL]\n";
+        orderPrompt += "• 增量(INC): Initialize full. ALWAYS output Identity keys + ONLY changed fields.\n";
+        orderPrompt += "• 全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
 
         // 可嵌入模块（按序号排序）
         if (embeddableModules.length > 0) {
             embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += "可嵌入模块，不限制位置，应积极插入正文内：\n";
             embeddableModules.forEach(module => {
-                const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
+                const timingPrompt = module.timingPrompt ? `(Trigger:${module.timingPrompt})` : "";
                 const rangePrompt = getRangePrompt(module);
                 const outputModePrompt = getOutputModePrompt(module);
                 orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt}${outputModePrompt} `;
@@ -261,7 +261,7 @@ export function getContinuityOrder() {
             bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += "正文内模块：\n";
             bodyModules.forEach(module => {
-                const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
+                const timingPrompt = module.timingPrompt ? `(Trigger:${module.timingPrompt})` : "";
                 const rangePrompt = getRangePrompt(module);
                 const outputModePrompt = getOutputModePrompt(module);
                 orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt}${outputModePrompt} `;
@@ -276,8 +276,8 @@ export function getContinuityOrder() {
             orderPrompt += "正文内特定位置模块（位于正文开始标签后，被<某正文标签></某正文标签>包裹）：\n";
             orderPrompt += "<某正文标签>\n";
             specificPositionModules.forEach(module => {
-                const positionPrompt = module.positionPrompt ? `（位置：${module.positionPrompt}）` : "";
-                const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
+                const positionPrompt = module.positionPrompt ? `(Position:${module.positionPrompt})` : "";
+                const timingPrompt = module.timingPrompt ? `(Trigger:${module.timingPrompt})` : "";
                 const rangePrompt = getRangePrompt(module);
                 const outputModePrompt = getOutputModePrompt(module);
                 orderPrompt += `[${module.name}]${positionPrompt}${timingPrompt}${rangePrompt}${outputModePrompt} `;
@@ -296,7 +296,7 @@ export function getContinuityOrder() {
             orderPrompt += "</某正文标签>\n";
             orderPrompt += `<${moduleTag}>\n`;
             afterBodyModules.forEach(module => {
-                const timingPrompt = module.timingPrompt ? `（生成时机：${module.timingPrompt}）` : "";
+                const timingPrompt = module.timingPrompt ? `(Trigger:${module.timingPrompt})` : "";
                 const rangePrompt = getRangePrompt(module);
                 const outputModePrompt = getOutputModePrompt(module);
                 orderPrompt += `[${module.name}]${timingPrompt}${rangePrompt}${outputModePrompt} `;
@@ -304,7 +304,7 @@ export function getContinuityOrder() {
             });
         }
         orderPrompt += `</${moduleTag}>\n\n`;
-        orderPrompt += "</module_order>\n";
+        orderPrompt += "</module_output_rules>\n";
 
         // 替换提示词中的变量
         const replacedOrderPrompt = replaceVariables(orderPrompt.trim());
@@ -327,18 +327,18 @@ function getRangePrompt(module) {
 
     switch (rangeMode) {
         case 'unlimited':
-            return "（数量：无限制）";
+            return "(Quantity:∞)";
         case 'specified': {
             const maxCount = module.itemMax || 1;
-            return `（数量：${maxCount}条）`;
+            return `(Quantity:${maxCount})`;
         }
         case 'range': {
             const minCount = module.itemMin || 0;
             const maxCount = module.itemMax || 1;
             if (minCount === maxCount) {
-                return `（数量：${minCount}条）`;
+                return `(Quantity:${minCount})`;
             } else {
-                return `（数量：${minCount}~${maxCount}条）`;
+                return `(Quantity:${minCount}-${maxCount})`;
             }
         }
         default:
@@ -356,9 +356,9 @@ function getOutputModePrompt(module) {
 
     switch (outputMode) {
         case 'full':
-            return "（输出：全量）";
+            return "(Output:FULL,All Fields)";
         case 'incremental':
-            return "（输出：增量）";
+            return "(Output:INC,Only changes)";
         default:
             return "";
     }
