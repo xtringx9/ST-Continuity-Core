@@ -2205,6 +2205,7 @@ export function processFullModules(modules) {
         debugLog(`处理模块：${moduleName}`);
         // debugLog(`模块配置：${JSON.stringify(moduleConfig)}`);
 
+        // todo 修改retainLayers需要按照最大messageIndex来计算，而不是模块数量
         // 获取retainLayers值（默认为-1，表示无限）
         const retainLayers = moduleConfig.retainLayers === undefined ? -1 : parseInt(moduleConfig.retainLayers, 10);
         debugLog(`retainLayers值：${retainLayers}`);
