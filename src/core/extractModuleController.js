@@ -304,6 +304,7 @@ export class ExtractModuleController {
                 selectedModuleNames,
                 true,
                 true,
+                true,
                 true
             );
 
@@ -346,6 +347,7 @@ export class ExtractModuleController {
                 selectedModuleNames,
                 true,
                 true,
+                true,
                 true
             );
 
@@ -379,6 +381,7 @@ export class ExtractModuleController {
                 selectedModuleNames,
                 true,
                 true,
+                true,
                 true
             );
 
@@ -408,6 +411,7 @@ export class ExtractModuleController {
                 { startIndex, endIndex, moduleFilters },
                 'ui',
                 selectedModuleNames,
+                true,
                 true,
                 true,
                 true

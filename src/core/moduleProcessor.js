@@ -1728,7 +1728,7 @@ export function htmlEscape(text) {
  * @param {boolean} showProcessInfo 是否显示处理方式说明
  * @returns {Object} 按模块名分组的结构化数据
  */
-export function processAutoModules(rawModules, selectedModuleNames, showModuleNames = false, showProcessInfo = false, needOutputformat = false) {
+export function processAutoModules(rawModules, selectedModuleNames) {
     debugLog('开始自动处理模块');
 
     // 标准化模块数据，直接传入selectedModuleNames参数，normalizeModules会返回按模块名分组的结构
@@ -2068,13 +2068,13 @@ export function processIncrementalModules(modules, moduleConfig) {
  * @param {boolean} returnString 是否返回字符串（默认：true），如果为false则返回结构化数据
  * @param {boolean} showModuleNames 是否显示模块名
  * @param {boolean} showProcessInfo 是否显示处理方式说明
- * @returns {Promise<Object>} 包含处理结果和显示信息的对象
+ * @returns {Object} 包含处理结果和显示信息的对象
  *
  * 注意：extractParams.moduleFilters和selectedModuleNames的区别：
  * - moduleFilters: 在提取阶段使用，是一个包含{name, compatibleModuleNames}的数组，用于从聊天记录中过滤出特定类型的模块
  * - selectedModuleNames: 在处理阶段使用，是一个字符串数组，只包含模块名，用于从已提取的模块中选择需要处理的模块
  */
-export function processModuleData(extractParams, processType, selectedModuleNames = undefined, returnString = false, showModuleNames = false, showProcessInfo = false, needOutputformat = false) {
+export function processModuleData(extractParams, processType, selectedModuleNames = undefined, isForce = false, showModuleNames = false, showProcessInfo = false, needOutputformat = false, returnString = false) {
     try {
         debugLog(`[EVENTS]开始处理模块数据，类型：${processType}`);
 
@@ -2085,20 +2085,59 @@ export function processModuleData(extractParams, processType, selectedModuleName
 
         let { startIndex, endIndex, moduleFilters } = extractParams;
 
-        // const isAllModule = moduleFilters === null;
+        const isAllModule = moduleFilters === null;
 
-        // if (endIndex === null) {
-        //     endIndex = chat?.length - 1;
-        // }
+        let checkEndIndex = endIndex;
+        if (checkEndIndex === null) {
+            checkEndIndex = chat?.length - 1;
+        }
 
-        // todo 需要通过moduleCacheManager来判断是否有缓存数据，有的话获取缓存数据并返回。没有的话就存入缓存
+        if (processType === 'auto' && moduleCacheManager.hasCurrentChatData(startIndex, checkEndIndex) && !isForce) {
+            // 从缓存中获取数据
+            const cachedData = moduleCacheManager.getCurrentChatData(startIndex, checkEndIndex);
+            let content = {};
+            // debugLog(`从缓存中获取模块数据，范围：${startIndex} - ${checkEndIndex}`, cachedData);
+            //然后根据moduleFilters或selectedModuleNames过滤一下
+            let tmpSelectedModuleNames = selectedModuleNames;
+            if (tmpSelectedModuleNames === undefined) {
+                if (isAllModule) {
+                    tmpSelectedModuleNames = configManager.getModules().map(module => module.moduleName);
+                }
+                else {
+                    tmpSelectedModuleNames = moduleFilters.map(config => config.name);
+                }
+            }
+            Object.keys(cachedData.content).forEach(moduleName => {
+                if (tmpSelectedModuleNames.includes(moduleName)) {
+                    content[moduleName] = cachedData.content[moduleName];
+                }
+            });
 
-        // if (processType === 'auto' && moduleCacheManager.hasCurrentChatData(startIndex, endIndex)) {
-        //     // 从缓存中获取数据
-        //     const cachedData = moduleCacheManager.getCurrentChatData(startIndex, endIndex);
-        //     debugLog(`从缓存中获取模块数据，范围：${startIndex} - ${endIndex}`, cachedData);
-        //     return cachedData;
-        // }
+            // 刷新字符串表示
+            let contentString = '';
+            if (typeof content !== 'string') {
+                contentString = buildModulesString(content, showModuleNames, showProcessInfo, needOutputformat);
+            }
+            let count = 0;
+            let hasContent = false;
+            if (Array.isArray(content)) {
+                count = content.length;
+                hasContent = count > 0;
+            } else if (content && typeof content === 'object') {
+                count = Object.keys(content).length;
+                hasContent = count > 0;
+            }
+            const returnContent = {
+                success: cachedData.success,
+                content: content, // 原始内容（可能是结构化数据或字符串）
+                contentString: contentString, // 字符串表示
+                displayTitle: cachedData.displayTitle,
+                moduleCount: count,
+                hasContent: hasContent
+            };
+            debugLog(`从缓存中获取模块数据，范围：${startIndex} - ${checkEndIndex}`, cachedData, returnContent);
+            return returnContent;
+        }
 
         // 如果moduleFilters为null，则加载全部模块，不需要添加时间标准模块
         if (moduleFilters !== null) {
@@ -2171,7 +2210,7 @@ export function processModuleData(extractParams, processType, selectedModuleName
 
             case 'auto':
                 // 自动根据模块配置判断处理方式
-                const structuredResult = processAutoModules(rawModules, selectedModuleNames, showModuleNames, showProcessInfo, needOutputformat);
+                const structuredResult = processAutoModules(rawModules, selectedModuleNames);
 
                 // 如果需要返回字符串，则转换结构化数据
                 // if (returnString) {
@@ -2214,11 +2253,12 @@ export function processModuleData(extractParams, processType, selectedModuleName
         };
 
         debugLog(`模块处理结果：`, moduleFinalData);
-        // if (processType === 'auto' && isAllModule) {
-        //     // 缓存提取结果
-        //     moduleCacheManager.setCurrentChatData(startIndex, endIndex, moduleFinalData);
-        //     debugLog(`缓存模块数据，范围：${startIndex} - ${endIndex}`, moduleFinalData);
-        // }
+        if (processType === 'auto' && isAllModule) {
+            // 缓存提取结果
+            const hasOldData = moduleCacheManager.hasCurrentChatData(startIndex, checkEndIndex);
+            moduleCacheManager.setCurrentChatData(startIndex, checkEndIndex, moduleFinalData);
+            debugLog(`${hasOldData ? '更新缓存' : '存入缓存'}模块数据，范围：${startIndex} - ${checkEndIndex}`, moduleFinalData);
+        }
 
         return moduleFinalData;
 
