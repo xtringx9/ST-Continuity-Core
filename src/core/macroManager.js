@@ -237,17 +237,33 @@ export function getContinuityOrder() {
         let orderPrompt = "<module_output_rules>\n";
         // orderPrompt += "模块生成顺序和配置：\n\n";
 
+        const globalSettings = configManager.getGlobalSettings();
+
+        orderPrompt += "# 模块输出要求\n";
+
+        // 添加核心原则提示词（如果设置了）
+        if (globalSettings?.corePrinciples) {
+            orderPrompt += `[CORE PRINCIPLE]\n${globalSettings.corePrinciples}\n\n`;
+        }
+
+        // 添加通用格式描述提示词（如果设置了）
+        if (globalSettings?.formatDescription) {
+            orderPrompt += `[GENERAL FORMAT]\n${globalSettings.formatDescription}\n\n`;
+        }
+
         // 添加输出模式说明
         orderPrompt += "[OUTPUT PROTOCOL]\n";
         orderPrompt += "• 增量(INC): Initialize full. ALWAYS output KEYs + ONLY changed fields.\n";
         orderPrompt += "• 全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
 
+        orderPrompt += "# 格式与顺序\n";
         // orderPrompt += "Format: [Module]|Trigger|Qty|Mode|Pos/Note*\n\n";
 
         // 可嵌入模块（按序号排序）
         if (embeddableModules.length > 0) {
             embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "可嵌入模块，不限制位置，应积极插入正文内：\n";
+            orderPrompt += "[DURING GENERATION]\n";
+            orderPrompt += "> 可嵌入模块，不限制位置，应积极插入正文内\n";
             embeddableModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module);
             });
@@ -257,7 +273,8 @@ export function getContinuityOrder() {
         // 正文内模块（按序号排序）
         if (bodyModules.length > 0) {
             bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "正文内模块：\n";
+            orderPrompt += "[STRUCTURED IN-TEXT]\n";
+            orderPrompt += "> 正文内模块：\n";
             bodyModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module);
             });
@@ -267,7 +284,8 @@ export function getContinuityOrder() {
         // 正文内特定位置模块（使用顺序提示词）
         if (specificPositionModules.length > 0) {
             specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "正文内特定位置模块（位于正文开始标签后，被<某正文标签></某正文标签>包裹）：\n";
+            orderPrompt += "[STRUCTURED IN-TEXT]\n";
+            orderPrompt += "> 正文内特定位置模块（位于正文开始标签后，被<某正文标签></某正文标签>包裹）：\n";
             orderPrompt += "<某正文标签>\n";
             specificPositionModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, true);
@@ -281,7 +299,8 @@ export function getContinuityOrder() {
         // 正文后模块（按序号排序）
         if (afterBodyModules.length > 0) {
             afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += `正文后的模块（位于正文结束标签后，被<${moduleTag}></${moduleTag}>包裹）：\n`;
+            orderPrompt += "[AFTER GENERATION]\n";
+            orderPrompt += `> 正文后的模块（位于正文结束标签后，被<${moduleTag}></${moduleTag}>包裹）：\n`;
             orderPrompt += "</某正文标签>\n";
             orderPrompt += `<${moduleTag}>\n`;
             afterBodyModules.forEach(module => {
@@ -313,7 +332,12 @@ function buildModulePrompt(module, includePosition = false) {
     const timingPrompt = module.timingPrompt ? `生成时机:${module.timingPrompt}` : "";
     const rangePrompt = getRangePrompt(module);
     const outputModePrompt = getOutputModePrompt(module);
-    return `[${module.name}](${timingPrompt};${rangePrompt};${outputModePrompt}${positionPrompt})\n`;
+    let prompt = `## ${module.name}\n> ${timingPrompt};${rangePrompt};${outputModePrompt}${positionPrompt}\n[${module.name}|...]\n`;
+    if (module.outputPosition !== 'embedded' && !(module.rangeMode === 'specified' || module.itemMax == 1)) {
+        prompt += '...\n';
+        prompt += `[${module.name}|...]\n`;
+    }
+    return prompt;
 }
 
 /**
@@ -382,7 +406,7 @@ function getContinuityModuleData() {
         false,
         true
     );
-    return `<module_data>\n最新模块数据：\n${processResult.contentString}\n</module_data>\n`;
+    return `<module_data>\n# 最新模块数据\n${processResult.contentString}\n</module_data>\n`;
 }
 
 function getContextBottomFilteredModuleConfigs() {
