@@ -1,4 +1,4 @@
-import { chat_metadata, getContext, extension_settings, saveSettingsDebounced, infoLog, errorLog, debugLog } from "../index.js";
+import { chat, processModuleData, chat_metadata, getContext, extension_settings, saveSettingsDebounced, infoLog, errorLog, debugLog } from "../index.js";
 class ModuleCacheManager {
     constructor() {
         // 使用嵌套Map结构存储缓存数据
@@ -8,6 +8,40 @@ class ModuleCacheManager {
         this.charWorldBookCache = new Map();
 
         debugLog("ModuleCacheManager 初始化完成");
+    }
+
+    updateModuleCache(isForce) {
+        debugLog("updateModuleCache 开始执行, isForce: ", isForce);
+        const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
+        const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
+
+        const extractParams = {
+            startIndex: 0,
+            endIndex: null,
+            moduleFilters: null
+        };
+        processModuleData(
+            extractParams,
+            'auto',
+            undefined,
+            isForce
+        );
+        extractParams.endIndex = endIndex;
+        processModuleData(
+            extractParams,
+            'auto',
+            undefined,
+            isForce
+        );
+        debugLog("updateModuleCache 执行完成, isForce:", isForce, this.cache);
+    }
+
+    updateModuleCacheNoForce() {
+        moduleCacheManager.updateModuleCache(false);
+    }
+
+    updateModuleCacheForce() {
+        moduleCacheManager.updateModuleCache(true);
     }
 
     /**

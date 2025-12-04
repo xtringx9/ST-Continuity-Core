@@ -1,6 +1,6 @@
 // 事件处理器 - 处理SillyTavern扩展事件
 import { getTestData, registerContinuityRegexPattern, updateCurrentCharWorldBookCache, checkAndInitializeWorldBook, getCurrentCharBooks } from "../index.js";
-import { eventSource, event_types, UpdateUI, removeUIfromContextBottom } from "../index.js";
+import { moduleCacheManager, eventSource, event_types, UpdateUI, removeUIfromContextBottom } from "../index.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 /**
  * 事件处理器类
@@ -22,6 +22,7 @@ export class EventHandler {
                 return;
             }
 
+            this.initializeModuleCache();
             // 初始化Regex扩展集成
             this.initializeRegexIntegration();
             // 初始化世界书集成
@@ -61,6 +62,7 @@ export class EventHandler {
             this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, UpdateUI);
             // 注册用户消息渲染完成事件
             this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, UpdateUI);
+            this.registerEvent(event_types.MORE_MESSAGES_LOADED, UpdateUI);
             infoLog('[EVENTS]UI相关事件处理器注册成功');
         } catch (error) {
             errorLog('[EVENTS]注册UI相关事件处理器失败:', error);
@@ -181,6 +183,19 @@ export class EventHandler {
         this.registerEvent(event_types.WORLDINFO_SETTINGS_UPDATED, updateCurrentCharWorldBookCache);
         this.registerEvent(event_types.WORLDINFO_UPDATED, updateCurrentCharWorldBookCache);
         this.registerEvent(event_types.CHARACTER_EDITOR_OPENED, updateCurrentCharWorldBookCache);
+    }
+
+    initializeModuleCache() {
+        this.registerEvent(event_types.CHAT_CHANGED, moduleCacheManager.updateModuleCacheNoForce);
+        this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, moduleCacheManager.updateModuleCacheNoForce);
+        this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, moduleCacheManager.updateModuleCacheNoForce);
+        // this.registerEvent(event_types.MESSAGE_RECEIVED, moduleCacheManager.updateModuleCacheForce);
+        this.registerEvent(event_types.MESSAGE_EDITED, moduleCacheManager.updateModuleCacheForce);
+        this.registerEvent(event_types.MESSAGE_DELETED, moduleCacheManager.updateModuleCacheForce);
+        this.registerEvent(event_types.MESSAGE_SWIPED, moduleCacheManager.updateModuleCacheForce);
+        this.registerEvent(event_types.MESSAGE_SWIPE_DELETED, moduleCacheManager.updateModuleCacheForce);
+        this.registerEvent(event_types.MESSAGE_UPDATED, moduleCacheManager.updateModuleCacheForce);
+        this.registerEvent(event_types.MESSAGE_SENT, moduleCacheManager.updateModuleCacheForce);
     }
 }
 
