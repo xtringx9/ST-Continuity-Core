@@ -1864,9 +1864,9 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
 
             if (showModuleNames) {
                 result += `## ${moduleConfig.name} (${moduleConfig.displayName})\n`;
-                result += `> Stats:Count=${moduleData.moduleCount}`;
+                result += `> stats:count=${moduleData.moduleCount}`;
                 if (moduleData.isIncremental && moduleData.maxId !== undefined) {
-                    result += `,NextID=${moduleData.maxId + 1}`;
+                    result += `,next_id=${moduleData.maxId + 1}`;
                 }
                 if (showProcessInfo) {
                     let processInfo = '';
@@ -1886,10 +1886,10 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
                 if (!showProcessInfo) {
                     result += `> [INSTRUCTION]\n`;
                     if (moduleConfig.contentPrompt) {
-                        result += `> Usage:${moduleConfig.contentPrompt}\n`;
+                        result += `> usage:${moduleConfig.contentPrompt}\n`;
                     }
                     if (moduleConfig.prompt) {
-                        result += `> Rule:${moduleConfig.prompt}\n`;
+                        result += `> rule:${moduleConfig.prompt}\n`;
                     }
 
                     let formatPrompt = '';
@@ -1903,7 +1903,7 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
                     } else {
                         formatPrompt += `[${moduleConfig.name}]\n`;
                     }
-                    result += `> Format:${formatPrompt}`;
+                    result += `> format:${formatPrompt}`;
                 }
             }
 
