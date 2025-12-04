@@ -76,9 +76,39 @@ export function parseTimeDetailed(timeStr, standardTimeData) {
     // 清理字符串
     timeStr = timeStr.trim();
 
-    // 检查是否是时间段
-    const timeRangeMatch = timeStr.match(/(.*?)\s*[~\-]\s*(.*)/);
-    if (timeRangeMatch) {
+    // 检查是否是时间段（支持更广泛的时间范围格式）
+    let timeRangeMatch = null;
+
+    // 首先尝试匹配包含时间格式的字符串中的~分隔符
+    const timeRangePattern = /([^~]*\d{1,2}:\d{1,2}[^~]*)\s*~\s*([^~]*\d{1,2}:\d{1,2}[^~]*)/;
+    timeRangeMatch = timeStr.match(timeRangePattern);
+
+    // 如果没有找到~分隔符，再尝试-分隔符（但要排除日期中的-）
+    if (!timeRangeMatch) {
+        const dashRangePattern = /([^-]*\d{1,2}:\d{1,2}[^-]*)\s*-\s*([^-]*\d{1,2}:\d{1,2}[^-]*)/;
+        timeRangeMatch = timeStr.match(dashRangePattern);
+    }
+
+    // 如果以上都不匹配，尝试匹配更广泛的时间范围格式（支持纯日期范围）
+    if (!timeRangeMatch) {
+        const generalRangePattern = /(.+?)\s*[~\-]\s*(.+)/;
+        const generalMatch = timeStr.match(generalRangePattern);
+
+        // 验证匹配结果是否包含有效的时间或日期格式
+        if (generalMatch && generalMatch[1].trim() && generalMatch[2].trim()) {
+            const startPart = generalMatch[1].trim();
+            const endPart = generalMatch[2].trim();
+
+            // 检查是否包含日期或时间格式
+            const hasDateOrTimeFormat = /(\d{4}[年\-]|\d{1,2}:\d{1,2})/.test(startPart) && /(\d{4}[年\-]|\d{1,2}:\d{1,2})/.test(endPart);
+
+            if (hasDateOrTimeFormat) {
+                timeRangeMatch = generalMatch;
+            }
+        }
+    }
+
+    if (timeRangeMatch && timeRangeMatch[1].trim() && timeRangeMatch[2].trim()) {
         const result = parseTimeRange(timeRangeMatch[1].trim(), timeRangeMatch[2].trim());
 
         // 在调用formatTimeDataToStandard之前，使用standardTimeValue重新计算weekday
@@ -256,7 +286,20 @@ function parseSingleTime(timeStr, isEnd = false) {
                 second: match[7] ? parseInt(match[7], 10) : 0
             })
         },
-        // 格式5: 2023-09-25 11:33:10
+        // 格式5: 2023-10-01 周日 17:05（支持不含秒数的格式）
+        {
+            pattern: /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
+            handler: (match) => ({
+                year: parseInt(match[1], 10),
+                month: parseInt(match[2], 10),
+                day: parseInt(match[3], 10),
+                weekday: normalizeWeekday(match[4]),
+                hour: parseInt(match[5], 10),
+                minute: parseInt(match[6], 10),
+                second: 0
+            })
+        },
+        // 格式6: 2023-09-25 11:33:10
         {
             pattern: /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/,
             handler: (match) => ({
@@ -269,7 +312,7 @@ function parseSingleTime(timeStr, isEnd = false) {
                 second: match[6] ? parseInt(match[6], 10) : 0
             })
         },
-        // 格式6: 2023年09月25日 17:35:05
+        // 格式7: 2023年09月25日 17:35:05
         {
             pattern: /^(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/,
             handler: (match) => ({
@@ -282,7 +325,7 @@ function parseSingleTime(timeStr, isEnd = false) {
                 second: match[6] ? parseInt(match[6], 10) : 0
             })
         },
-        // 格式7: 24年4月11日 08:23:59
+        // 格式8: 24年4月11日 08:23:59
         {
             pattern: /^(\d{2})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/,
             handler: (match) => ({
@@ -295,7 +338,7 @@ function parseSingleTime(timeStr, isEnd = false) {
                 second: match[6] ? parseInt(match[6], 10) : 0
             })
         },
-        // 格式8: 2023-09-25
+        // 格式9: 2023-09-25
         {
             pattern: /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
             handler: (match) => ({
@@ -308,7 +351,7 @@ function parseSingleTime(timeStr, isEnd = false) {
                 second: 0
             })
         },
-        // 格式9: 2023年09月25日
+        // 格式10: 2023年09月25日
         {
             pattern: /^(\d{4})年(\d{1,2})月(\d{1,2})日$/,
             handler: (match) => ({
@@ -321,7 +364,7 @@ function parseSingleTime(timeStr, isEnd = false) {
                 second: 0
             })
         },
-        // 格式10: 11:33:45
+        // 格式11: 11:33:45
         {
             pattern: /^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/,
             handler: (match) => {
