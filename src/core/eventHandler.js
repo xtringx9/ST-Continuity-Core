@@ -72,8 +72,15 @@ export class EventHandler {
     /**
      * 通用UI事件注册方法（支持同一事件类型注册多个处理器）
      */
-    registerEvent(eventType, handler) {
+    registerEvent(eventType, func, printEvent = false, printKey = "") {
         try {
+            let handler = func;
+            if (printEvent) {
+                handler = () => {
+                    infoLog(`${printKey ? `[${printKey}]` : ""}触发事件: ${eventType}`);
+                    func();
+                }
+            }
             // 检查是否已经注册过相同的事件处理器，避免重复注册
             if (this.eventHandlers.has(eventType)) {
                 const existingHandlers = this.eventHandlers.get(eventType);
@@ -186,16 +193,16 @@ export class EventHandler {
     }
 
     initializeModuleCache() {
-        this.registerEvent(event_types.CHAT_CHANGED, moduleCacheManager.updateModuleCacheNoForce);
-        this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, moduleCacheManager.updateModuleCacheNoForce);
-        this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, moduleCacheManager.updateModuleCacheNoForce);
-        // this.registerEvent(event_types.MESSAGE_RECEIVED, moduleCacheManager.updateModuleCacheForce);
-        this.registerEvent(event_types.MESSAGE_EDITED, moduleCacheManager.updateModuleCacheForce);
-        this.registerEvent(event_types.MESSAGE_DELETED, moduleCacheManager.updateModuleCacheForce);
-        this.registerEvent(event_types.MESSAGE_SWIPED, moduleCacheManager.updateModuleCacheForce);
-        this.registerEvent(event_types.MESSAGE_SWIPE_DELETED, moduleCacheManager.updateModuleCacheForce);
-        this.registerEvent(event_types.MESSAGE_UPDATED, moduleCacheManager.updateModuleCacheForce);
-        this.registerEvent(event_types.MESSAGE_SENT, moduleCacheManager.updateModuleCacheForce);
+        this.registerEvent(event_types.CHAT_CHANGED, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
+        this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
+        this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_RECEIVED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_EDITED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_DELETED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_SWIPED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_SWIPE_DELETED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_UPDATED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_SENT, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
     }
 }
 
