@@ -165,6 +165,7 @@ class ConfigManager {
             };
 
             extension_settings[extensionName][EXTENSION_CONFIG_KEY] = this.extensionConfig;
+            infoLog('扩展配置已更新到内存缓存:', this.extensionConfig);
             saveSettingsDebounced(true);
         } catch (error) {
             errorLog('设置扩展配置失败:', error);

@@ -7,11 +7,11 @@ class ModuleCacheManager {
         this.cache = new Map();
         this.charWorldBookCache = new Map();
 
-        debugLog("ModuleCacheManager 初始化完成");
+        debugLog("[Module Cache]ModuleCacheManager 初始化完成");
     }
 
     updateModuleCache(isForce) {
-        debugLog("updateModuleCache 开始执行, isForce: ", isForce);
+        // debugLog("[Module Cache]updateModuleCache 开始执行, isForce: ", isForce);
         const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
 
@@ -33,7 +33,7 @@ class ModuleCacheManager {
             undefined,
             isForce
         );
-        debugLog("updateModuleCache 执行完成, isForce:", isForce, this.cache);
+        infoLog("[Module Cache]updateModuleCache 执行完成, isForce:", isForce, this.cache);
     }
 
     updateModuleCacheNoForce() {
@@ -136,7 +136,7 @@ class ModuleCacheManager {
         const rangeKey = this.generateRangeKey(startIndex, endIndex);
 
         chatCache.set(rangeKey, data);
-        debugLog(`缓存数据已设置：chatIdHash=${chatIdHash}, range=${rangeKey}`);
+        debugLog(`[Module Cache]缓存数据已设置：chatIdHash=${chatIdHash}, range=${rangeKey}`);
     }
 
     /**
@@ -172,7 +172,7 @@ class ModuleCacheManager {
             this.cache.delete(chatIdHash);
         }
 
-        debugLog(`缓存数据已删除：chatIdHash=${chatIdHash}, range=${rangeKey}`);
+        debugLog(`[Module Cache]缓存数据已删除：chatIdHash=${chatIdHash}, range=${rangeKey}`);
         return result;
     }
 
@@ -194,7 +194,7 @@ class ModuleCacheManager {
     clearChatCache(chatIdHash) {
         if (this.cache.has(chatIdHash)) {
             this.cache.delete(chatIdHash);
-            debugLog(`已清除聊天缓存：chatIdHash=${chatIdHash}`);
+            debugLog(`[Module Cache]已清除聊天缓存：chatIdHash=${chatIdHash}`);
         }
     }
 
@@ -203,7 +203,7 @@ class ModuleCacheManager {
      */
     clearAllCache() {
         this.cache.clear();
-        debugLog("已清除所有缓存数据");
+        debugLog("[Module Cache]已清除所有缓存数据");
     }
 
     /**
@@ -229,7 +229,7 @@ class ModuleCacheManager {
 
 
     outputCache() {
-        infoLog("打印当前缓存数据:", moduleCacheManager.cache, moduleCacheManager.charWorldBookCache);
+        infoLog("[Module Cache]打印当前缓存数据:", moduleCacheManager.cache, moduleCacheManager.charWorldBookCache);
     }
 }
 
