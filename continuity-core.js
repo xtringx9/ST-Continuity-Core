@@ -9,11 +9,11 @@ import {
     getContext,
 } from "./src/index.js";
 
-// 导入事件处理器
-import { EventHandler } from "./src/core/eventHandler.js";
-
 // 导入配置管理器
 import configManager from "./src/singleton/configManager.js";
+
+// 导入事件处理器
+import { EventHandler } from "./src/core/eventHandler.js";
 
 infoLog("♥️ Continuity Core LOADED!");
 

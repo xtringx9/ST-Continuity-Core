@@ -1,5 +1,5 @@
 // 提取模块控制器 - 独立管理提取模块功能
-import { chat, configManager, debugLog, errorLog } from '../index.js';
+import { chat, configManager, infoLog, debugLog, errorLog, moduleCacheManager } from '../index.js';
 import { parseCompatibleNames } from '../modules/moduleParser.js';
 import { parseMultipleModules } from '../modules/parseModuleManager.js';
 import { processModuleData, htmlEscape } from './moduleProcessor.js';
@@ -397,32 +397,33 @@ export class ExtractModuleController {
  * 自动处理模块功能（根据模块配置自动选择增量或全量处理）
  */
     async extractUIModules() {
-        try {
-            debugLog('开始自动处理模块功能（支持多选）');
+        moduleCacheManager.outputCache();
+        // try {
+        //     debugLog('开始自动处理模块功能（支持多选）');
 
-            // 提取参数
-            const params = this.extractParameters();
-            if (!params) return;
+        //     // 提取参数
+        //     const params = this.extractParameters();
+        //     if (!params) return;
 
-            const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
+        //     const { startIndex, endIndex, selectedModuleNames, moduleFilters } = params;
 
-            // 使用统一的模块数据处理方法（包含模块提取逻辑）
-            const processResult = await processModuleData(
-                { startIndex, endIndex, moduleFilters },
-                'ui',
-                selectedModuleNames,
-                true,
-                true,
-                true,
-                true
-            );
+        //     // 使用统一的模块数据处理方法（包含模块提取逻辑）
+        //     const processResult = await processModuleData(
+        //         { startIndex, endIndex, moduleFilters },
+        //         'ui',
+        //         selectedModuleNames,
+        //         true,
+        //         true,
+        //         true,
+        //         true
+        //     );
 
-            // 显示处理结果
-            this.displayModuleResult(processResult, '渲染模块');
-        } catch (error) {
-            errorLog('渲染模块失败:', error);
-            toastr.error('渲染模块失败，请查看控制台日志');
-        }
+        //     // 显示处理结果
+        //     this.displayModuleResult(processResult, '渲染模块');
+        // } catch (error) {
+        //     errorLog('渲染模块失败:', error);
+        //     toastr.error('渲染模块失败，请查看控制台日志');
+        // }
     }
 
     /**
