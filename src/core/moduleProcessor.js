@@ -1,5 +1,5 @@
 // 模块数据处理器 - 独立管理模块数据的文本处理方法
-import { chat, moduleCacheManager, configManager, debugLog, errorLog } from '../index.js';
+import { chat, moduleCacheManager, configManager, infoLog, debugLog, errorLog } from '../index.js';
 import { extractModulesFromChat } from './moduleExtractor.js';
 import { IdentifierParser } from '../utils/identifierParser.js';
 import { parseTimeDetailed, formatTimeDataToStandard, completeTimeDataWithStandard } from '../utils/timeParser.js';
@@ -748,6 +748,7 @@ export function completeTimeVariables(modules) {
                         debugLog(`[TimeCompletion] 模块 ${module.moduleName} 的时间数据无效，${module.timeData?.originalText}`, module);
                         module.timeData = standardTimeData;
                         module.variables[variableName] = module.timeData.formattedString;
+                        module.isAddTime = true;
                         completionCount++;
                         break;
                     }
@@ -1418,6 +1419,8 @@ export function mergeModulesByOrder(modules) {
 
     // 构建累积的变量状态
     let cumulativeVariables = {};
+    let hasTimeVar = false;
+    let lastTimeData = undefined;
 
     modules.forEach((module, index) => {
         const currentVariables = { ...cumulativeVariables };
@@ -1425,12 +1428,31 @@ export function mergeModulesByOrder(modules) {
 
         // 更新当前变量状态
         Object.keys(module.variables).forEach(key => {
-            const value = module.variables[key];
+            let value = module.variables[key];
 
             // 只有当值不为空或undefined时才更新
             if (value !== '' && value !== undefined) {
+                let canSave = true;
+                if (key === 'time') {
+                    hasTimeVar = true;
+                }
+                if (hasTimeVar && key === 'time') {
+                    if (lastTimeData === undefined && module.timeData !== undefined && module.timeData.isValid && module.timeData.isComplete) {
+                        lastTimeData = module.timeData;
+                    }
+                    else if (module.isAddTime === undefined || (module.isAddTime != undefined && !module.isAddTime)) {
+                        lastTimeData = module.timeData;
+                    }
+                    else if (module.isAddTime !== undefined && module.isAddTime) {
+                        module.timeData = lastTimeData !== undefined ? lastTimeData : module.timeData;
+                        module.variables[key] = lastTimeData !== undefined ? lastTimeData.formattedString : module.variables[key];
+                        value = lastTimeData !== undefined ? lastTimeData.formattedString : value;
+                        canSave = false;
+                    }
+                }
+
                 // 检查变量是否发生变化
-                if (currentVariables[key] !== value) {
+                if (currentVariables[key] !== value && canSave) {
                     changedKeys.push(key);
                 }
                 currentVariables[key] = value;
@@ -2252,7 +2274,6 @@ export function processModuleData(extractParams, processType, selectedModuleName
             hasContent: hasContent
         };
 
-        debugLog(`模块处理结果：`, moduleFinalData);
         if (processType === 'auto' && isAllModule) {
             // 缓存提取结果
             const hasOldData = moduleCacheManager.hasCurrentChatData(startIndex, checkEndIndex);
@@ -2260,6 +2281,7 @@ export function processModuleData(extractParams, processType, selectedModuleName
             debugLog(`${hasOldData ? '更新缓存' : '存入缓存'}模块数据，范围：${startIndex} - ${checkEndIndex}`, moduleFinalData);
         }
 
+        debugLog(`模块处理结果：`, moduleFinalData);
         return moduleFinalData;
 
     } catch (error) {
