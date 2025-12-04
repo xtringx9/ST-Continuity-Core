@@ -1843,53 +1843,108 @@ export function getMaxMessageIndexFromHistory(module, currentMessageIndex) {
 export function buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false, needOutputformat = false) {
     let result = '';
 
-    // 处理每个模块组
-    Object.keys(structuredModules).forEach(moduleName => {
+    // 获取所有模块配置并按order排序
+    const allModuleConfigs = configManager.getModules() || [];
+    const sortedModuleConfigs = [...allModuleConfigs].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    // 处理每个模块（按order排序）
+    sortedModuleConfigs.forEach(moduleConfig => {
+        const moduleName = moduleConfig.name;
         const moduleData = structuredModules[moduleName];
-        const moduleConfig = moduleData.moduleConfig;
-        const { processType, data } = moduleData;
 
-        if (needOutputformat) {
-            result += `## ${moduleName}`;
-        }
+        if (moduleData) {
+            // 处理structuredModules中存在的模块
+            const { processType, data } = moduleData;
 
-        if (showModuleNames) {
-            result += `【${moduleConfig.name} (${moduleConfig.displayName})】 (当前数量:${moduleData.moduleCount}`;
-            if (moduleData.isIncremental && moduleData.maxId !== undefined) {
-                result += `, 下一可用id:${moduleData.maxId + 1}`;
+            if (needOutputformat) {
+                result += `## ${moduleName}`;
             }
-            result += `)`;
-        }
 
-        if (showProcessInfo) {
-            let processInfo = '';
-            switch (processType) {
-                case 'incremental':
-                    processInfo = ' (增量处理)';
-                    break;
-                case 'full_without_config':
-                    processInfo = ' (全量处理 - 无配置)';
-                    break;
-                default:
-                    processInfo = ' (全量处理)';
+            if (showModuleNames) {
+                result += `## ${moduleConfig.name} (${moduleConfig.displayName})\n`;
+                result += `> Stats:Count=${moduleData.moduleCount}`;
+                if (moduleData.isIncremental && moduleData.maxId !== undefined) {
+                    result += `,NextID=${moduleData.maxId + 1}`;
+                }
+                if (showProcessInfo) {
+                    let processInfo = '';
+                    switch (processType) {
+                        case 'incremental':
+                            processInfo = ' (增量处理)';
+                            break;
+                        case 'full_without_config':
+                            processInfo = ' (全量处理 - 无配置)';
+                            break;
+                        default:
+                            processInfo = ' (全量处理)';
+                    }
+                    result += `${processInfo}`;
+                }
+                result += `\n`;
+                if (!showProcessInfo) {
+                    result += `> [INSTRUCTION]\n`;
+                    if (moduleConfig.contentPrompt) {
+                        result += `> Usage:${moduleConfig.contentPrompt}\n`;
+                    }
+                    if (moduleConfig.prompt) {
+                        result += `> Rule:${moduleConfig.prompt}\n`;
+                    }
+
+                    let formatPrompt = '';
+                    if (moduleConfig.variables && moduleConfig.variables.length > 0) {
+                        const variableDescriptions = moduleConfig.variables.map(variable => {
+                            const variableName = variable.name;
+                            const variableDesc = variable.description ? `${variable.description}` : '';
+                            return `${variableName}:${variable.isIdentifier ? '(KEY)' : variable.isBackupIdentifier ? '(KEY)' : ''}${variableDesc}`;
+                        }).join('|');
+                        formatPrompt += `[${moduleConfig.name}|${variableDescriptions}]\n`;
+                    } else {
+                        formatPrompt += `[${moduleConfig.name}]\n`;
+                    }
+                    result += `> Format:${formatPrompt}`;
+                }
             }
-            result += `${processInfo}`;
+
+            // 根据数据类型处理
+            if (Array.isArray(data)) {
+                // 处理结构化条目数组
+                data.forEach(item => {
+                    result += `${item.moduleString || item}\n`;
+                });
+            } else if (typeof data === 'string') {
+                // 处理字符串
+                result += data + '\n\n';
+            }
+
+            result += '\n';
+        } else if (showModuleNames && !showProcessInfo) {
+            // 处理structuredModules中不存在的模块（剩余模块）
+            result += `## ${moduleConfig.name} (${moduleConfig.displayName})\n`;
+            result += `> stats:count=0\n`;
+            if (!showProcessInfo) {
+                result += `> [INSTRUCTION]\n`;
+                if (moduleConfig.contentPrompt) {
+                    result += `> usage:${moduleConfig.contentPrompt}\n`;
+                }
+                if (moduleConfig.prompt) {
+                    result += `> rule:${moduleConfig.prompt}\n`;
+                }
+
+                let formatPrompt = '';
+                if (moduleConfig.variables && moduleConfig.variables.length > 0) {
+                    const variableDescriptions = moduleConfig.variables.map(variable => {
+                        const variableName = variable.name;
+                        const variableDesc = variable.description ? `${variable.description}` : '';
+                        return `${variableName}:${variable.isIdentifier ? '(KEY)' : variable.isBackupIdentifier ? '(KEY)' : ''}${variableDesc}`;
+                    }).join('|');
+                    formatPrompt += `[${moduleConfig.name}|${variableDescriptions}]\n`;
+                } else {
+                    formatPrompt += `[${moduleConfig.name}]\n`;
+                }
+                result += `> format:${formatPrompt}`;
+            }
+            result += '\n';
         }
-        result += `\n`;
-
-
-        // 根据数据类型处理
-        if (Array.isArray(data)) {
-            // 处理结构化条目数组
-            data.forEach(item => {
-                result += `${item.moduleString || item}\n`;
-            });
-        } else if (typeof data === 'string') {
-            // 处理字符串
-            result += data + '\n\n';
-        }
-
-        result += '\n';
     });
 
     return result.trim();
