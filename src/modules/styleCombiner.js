@@ -256,7 +256,7 @@ export function generateStylesForModuleEntries(moduleData) {
 
             // 生成当前模块条目的样式
             getCombinedCustomStyles(moduleData.moduleConfig, entry);
-            if (entry.customStyles) {
+            if (entry.customStyles && !entry.shouldHide) {
                 allStyles.push(entry.customStyles);
             }
         });
@@ -376,10 +376,10 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
     const variableRegex = /\$\{([^}]+)\}/g;
 
     // 计算模块条目数量（用于${count}和${length}变量）
-    let entryCount = 0;
-    if (moduleData && moduleData.data !== undefined) {
-        entryCount = moduleData.data.length;
-    }
+    let entryCount = moduleData.moduleCount !== undefined ? moduleData.moduleCount : 0;
+    // if (moduleData && moduleData.data !== undefined) {
+    //     entryCount = moduleData.data.filter(item => !item.shouldHide).length;
+    // }
 
 
     return styles.replace(variableRegex, (match, variablePath) => {

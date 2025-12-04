@@ -171,7 +171,7 @@ export async function updateUItoMsgBottom() {
         const extractParams = {
             startIndex: 0,
             endIndex: null, // null表示提取到最新楼层
-            moduleFilters: getContextBottomUIFilteredModuleConfigs() // 只提取符合条件的模块
+            moduleFilters: getMsgUIFilteredModuleConfigs() // 只提取符合条件的模块
         };
 
         const processResult = updateModulesDataAndStyles(null, extractParams, false);
@@ -378,13 +378,13 @@ function getMsgUIFilteredModuleConfigs() {
     const allModuleConfigs = configManager.getModules();
     // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full') ||
+        const result = (config.outputPosition === 'after_body') ||
             config.outputMode === 'incremental';
         // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
         return result;
     });
-    debugLog(`[CUSTOM STYLES] Msg 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
-    debugLog(`[CUSTOM STYLES] Msg 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
+    debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
+    debugLog(`[CUSTOM STYLES] 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
     // 构建模块过滤条件数组
     const moduleFilters = filteredModuleConfigs.map(config => ({
         name: config.name,
@@ -467,7 +467,7 @@ export function updateModulesDataAndStyles(container, extractParams, isUseContai
                         moduleDataElement.className = 'module-data-container';
                         let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
                         // 添加处理后的模块数据
-                        const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.data.length})</summary>${moduleStrings}</details>`;
+                        const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.moduleCount})</summary>${moduleStrings}</details>`;
                         moduleDataElement.innerHTML = moduleContent;
                         contentContainer.appendChild(moduleDataElement);
                         debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);
