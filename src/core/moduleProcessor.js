@@ -573,6 +573,7 @@ export function deduplicateModules(modules) {
         const moduleConfig = modulesConfig.find(config => config.name === module.moduleName);
         // 判断是否为增量模块（outputMode === 'incremental'）
         const isIncrementalModule = moduleConfig && moduleConfig.outputMode === 'incremental';
+        // debugLog('[Deduplication] 检查模块是否为增量模块:', module, moduleConfig);
 
         // 构建模块的唯一标识符：基于所有变量值的组合
         const moduleKey = JSON.stringify({
@@ -622,56 +623,31 @@ export function deduplicateModules(modules) {
                 }
             }
 
-            //     if (isIncrementalModule) {
-            //         // 增量模块的特殊处理逻辑
-
-            //         // 获取或初始化临时messageIndex
-            //         let tempMessageIndex = tempMessageIndexMap.get(moduleKey) || Math.max(existingModule.messageIndex, module.messageIndex);
-
-            //         // 比较当前模块的messageIndex与临时messageIndex的差值
-            //         const currentMessageIndex = module.messageIndex >= 0 ? module.messageIndex : tempMessageIndex;
-            //         const diff = Math.abs(currentMessageIndex - tempMessageIndex);
-
-            //         // 如果差值大于2，则保留两个模块（通过创建新的key来实现）
-            //         if (diff > 2) {
-            //             // 创建一个新的唯一key，避免去重
-            //             const newModuleKey = `${moduleKey}_${Date.now()}_${Math.random()}`;
-            //             moduleMap.set(newModuleKey, module);
-            //             // 为新模块设置临时messageIndex
-            //             tempMessageIndexMap.set(newModuleKey, currentMessageIndex);
-            //             debugLog('[Deduplication] 增量模块差值大于2，保留两个模块:', module.moduleName, '差值:', diff, 'messageIndex1:', tempMessageIndex, 'messageIndex2:', currentMessageIndex);
-            //         } else {
-            //             // 如果差值小于等于2，则保留原有模块，但更新临时messageIndex
-            //             tempMessageIndex = Math.max(tempMessageIndex, currentMessageIndex);
-            //             tempMessageIndexMap.set(moduleKey, tempMessageIndex);
-            //             debugLog('[Deduplication] 增量模块差值小于等于2，保留原有模块并更新临时messageIndex:', module.moduleName, '差值:', diff, '新临时messageIndex:', tempMessageIndex);
-            //         }
-            //     } else {
-            //         // 全量模块使用原有逻辑
-            //         // 比较messageIndex，保留较小的那个，但只在messageIndex都非负数时进行比较
-            //         const shouldCompare = module.messageIndex >= 0 && existingModule.messageIndex >= 0;
-
-            //         if (shouldCompare && module.messageIndex < existingModule.messageIndex) {
-            //             // 两个messageIndex都非负数，且当前模块的messageIndex更小
-            //             moduleMap.set(moduleKey, module);
-            //             debugLog('[Deduplication] 替换为更小的messageIndex:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
-            //         } else if (!shouldCompare && module.messageIndex >= 0 && existingModule.messageIndex < 0) {
-            //             // 当前模块messageIndex非负数，已存在模块为负数，保留非负数
-            //             moduleMap.set(moduleKey, module);
-            //             debugLog('[Deduplication] 替换负数messageIndex为正数:', module.moduleName, '新messageIndex:', module.messageIndex, '旧messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
-            //         } else if (!shouldCompare && module.messageIndex < 0 && existingModule.messageIndex >= 0) {
-            //             // 当前模块messageIndex为负数，已存在模块为非负数，保留非负数
-            //             debugLog('[Deduplication] 保留非负数messageIndex:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
-            //         } else {
-            //             // 其他情况（包括两个都为负数，或比较后保留原有模块）
-            //             debugLog('[Deduplication] 保留原有模块:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
-            //         }
-            //     }
-
             duplicateCount++;
         } else {
-            // 第一次遇到这个模块，直接存储
-            moduleMap.set(moduleKey, module);
+            if (isIncrementalModule) {
+                // 检查是否只输出了moduleConfig中isIdentifier或isBackupIdentifier的变量，是的话视为无效条目
+                let hasValidVariable = false;
+                // debugLog('[Deduplication] 检查增量模块是否输出了有效变量:', module.moduleName, 'variables:', module.variables, 'module:', module);
+                for (const [variableName] of Object.entries(module.variables)) {
+                    // debugLog('[Deduplication] 检查变量:', variableName, 'moduleConfig.variables:', moduleConfig.variables);
+                    const variableConfig = moduleConfig.variables.find(v => v.name === variableName);
+                    if (module.variables[variableName] !== "" && variableConfig && !variableConfig.isIdentifier) {// && !variableConfig.isBackupIdentifier
+                        hasValidVariable = true;
+                        // debugLog('[Deduplication] 增量模块输出了有效变量:', module.moduleName, 'variableName:', variableName, 'variables:', module.variables, 'module:', module);
+                        break;
+                    }
+                }
+                if (hasValidVariable) {
+                    moduleMap.set(moduleKey, module);
+                }
+                else {
+                    debugLog('[Deduplication] 增量模块输出了无效变量:', module.moduleName, 'variables:', module.variables, 'module:', module);
+                }
+            } else {
+                // 第一次遇到这个模块，直接存储
+                moduleMap.set(moduleKey, module);
+            }
             if (!module.messageIndexHistory) {
                 module.messageIndexHistory = [module.messageIndex];
             }
