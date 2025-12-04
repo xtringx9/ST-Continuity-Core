@@ -13,7 +13,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
     enabled: true, // 全局开关默认开启
     backendUrl: "", // 后端服务器地址 http://192.168.0.119:8888/simple-process
     debugLogs: false, // 调试日志开关，默认关闭
-    autoInject: true, // 自动注入开关，默认开启
+    autoInject: false, // 自动注入开关，默认开启
 };
 
 export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";

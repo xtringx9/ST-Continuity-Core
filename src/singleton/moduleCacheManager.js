@@ -226,6 +226,11 @@ class ModuleCacheManager {
             chatStats: chatStats
         };
     }
+
+
+    outputCache() {
+        infoLog("打印当前缓存数据:", moduleCacheManager.cache, moduleCacheManager.charWorldBookCache);
+    }
 }
 
 // 创建单例实例
