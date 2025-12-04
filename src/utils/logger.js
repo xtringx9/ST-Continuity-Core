@@ -1,12 +1,13 @@
 // 日志管理模块
-import { extension_settings, extensionName } from "../index.js";
+import { EXTENSION_CONFIG_KEY, extension_settings, extensionName } from "../index.js";
 
 /**
  * 检查调试日志是否启用
  * @returns {boolean} 调试日志是否启用
  */
 export function isDebugLogsEnabled() {
-    const settings = extension_settings[extensionName];
+    const settings = extension_settings[extensionName][EXTENSION_CONFIG_KEY];
+    // console.log("settings:", settings, settings.debugLogs);
     return settings && settings.debugLogs === true;
 }
 
