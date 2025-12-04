@@ -1462,15 +1462,17 @@ export function mergeModulesByOrder(modules) {
             }
         });
 
-        // 记录时间点状态
-        merged.timeline.push({
-            moduleName: module.moduleName,
-            messageIndex: module.messageIndex || 0,
-            messageIndexHistory: module.messageIndexHistory || [module.messageIndex],
-            raw: module.raw || '',
-            variables: { ...currentVariables }, // 该messageIndex时的完整变量数据
-            changedKeys: changedKeys // 该条messageIndex中发生变化的变量
-        });
+        if (changedKeys.length > 0) {
+            // 记录时间点状态
+            merged.timeline.push({
+                moduleName: module.moduleName,
+                messageIndex: module.messageIndex || 0,
+                messageIndexHistory: module.messageIndexHistory || [module.messageIndex],
+                raw: module.raw || '',
+                variables: { ...currentVariables }, // 该messageIndex时的完整变量数据
+                changedKeys: changedKeys // 该条messageIndex中发生变化的变量
+            });
+        }
     });
 
     // 最终variables使用累积后的完整状态
@@ -1802,7 +1804,7 @@ export function processAutoModules(rawModules, selectedModuleNames, showModuleNa
         structuredResult[moduleName] = {
             processType: processType,
             data: resultData,
-            moduleCount: resultData.length,
+            moduleCount: Array.isArray(resultData) ? resultData.filter(item => !item.shouldHide).length : resultData.length,
             moduleConfig: moduleConfig,
             isIncremental: processType === 'incremental',
             maxId: maxId, // 存储最大ID值
@@ -1909,7 +1911,9 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
             if (Array.isArray(data)) {
                 // 处理结构化条目数组
                 data.forEach(item => {
-                    result += `${item.moduleString || item}\n`;
+                    if (!item.shouldHide) {
+                        result += `${item.moduleString || item}\n`;
+                    }
                 });
             } else if (typeof data === 'string') {
                 // 处理字符串
@@ -2052,24 +2056,27 @@ export function processIncrementalModules(modules, moduleConfig) {
             // }
 
             // 如果不需要隐藏，则构建模块条目
-            if (!shouldHide) {
-                // 构建统合后的模块字符串
-                const moduleString = buildModuleString(mergedModule, moduleConfig);
-                mergedModule.moduleString = moduleString;
+            // if (!shouldHide) {
+            // 构建统合后的模块字符串
+            const moduleString = buildModuleString(mergedModule, moduleConfig);
+            mergedModule.shouldHide = shouldHide;
+            mergedModule.moduleString = moduleString;
 
-                mergedModule.timeline.forEach(module => {
-                    module.moduleString = buildModuleString(module, moduleConfig, true);
-                });
+            mergedModule.timeline.forEach(module => {
+                module.shouldHide = shouldHide;
+                module.moduleString = buildModuleString(module, moduleConfig, true);
+            });
 
-                // 添加结构化条目到结果数组
-                resultItems.push({
-                    moduleName,
-                    identifier,
-                    moduleData: mergedModule,
-                    moduleString,
-                    maxId: maxId > 0 ? maxId : 1, // 存储最大ID值
-                });
-            }
+            // 添加结构化条目到结果数组
+            resultItems.push({
+                moduleName,
+                identifier,
+                moduleData: mergedModule,
+                moduleString,
+                maxId: maxId > 0 ? maxId : 1, // 存储最大ID值
+                shouldHide: shouldHide,
+            });
+            // }
         }
     }
 
@@ -2281,7 +2288,6 @@ export function processFullModules(modules) {
         debugLog(`处理模块：${moduleName}`);
         // debugLog(`模块配置：${JSON.stringify(moduleConfig)}`);
 
-        // todo 修改retainLayers需要按照最大messageIndex来计算，而不是模块数量
         // 获取retainLayers值（默认为-1，表示无限）
         const retainLayers = moduleConfig.retainLayers === undefined ? -1 : parseInt(moduleConfig.retainLayers, 10);
         debugLog(`retainLayers值：${retainLayers}`);
@@ -2289,49 +2295,63 @@ export function processFullModules(modules) {
         let filteredModules = allModulesOfName;
         debugLog(`原始模块数量：${allModulesOfName.length}`);
         debugLog(`模块messageIndex列表：${allModulesOfName.map(m => m.messageIndex).join(', ')}`);
+        // todo 修改retainLayers需要按照最大messageIndex来计算，而不是模块内最大messageIndex
+        const maxMessageIndex = Math.max(...allModulesOfName.map(m => m.messageIndex));
+        debugLog(`最大messageIndex：${maxMessageIndex}`);
+        filteredModules.forEach(module => {
+            module.shouldHide = false;
+            if (retainLayers === 0) {
+                // 0表示不保留任何模块
+                module.shouldHide = true;
+            } else if (retainLayers > 0) {
+                // 大于0表示只保留最近的retainLayers个楼层的模块
+                module.shouldHide = module.messageIndex < maxMessageIndex - retainLayers;
+            }
+        });
 
         // 根据retainLayers值决定显示的模块 - 按楼层而不是条数，在所有标识符的模块上应用
-        if (retainLayers === 0) {
-            // 0表示不保留任何模块
-            filteredModules = [];
-            debugLog(`retainLayers为0，不显示任何模块`);
-        } else if (retainLayers > 0) {
-            // 大于0表示只保留最近的retainLayers个楼层的模块
-            debugLog(`retainLayers大于0，开始过滤`);
+        // if (retainLayers === 0) {
+        // 0表示不保留任何模块
+        // filteredModules = [];
+        // debugLog(`retainLayers为0，不显示任何模块`);
+        // } else if (retainLayers > 0) {
+        // // 大于0表示只保留最近的retainLayers个楼层的模块
+        // debugLog(`retainLayers大于0，开始过滤`);
 
-            // 1. 按楼层分组所有该模块名的模块（跨标识符）
-            const modulesByFloor = {};
-            allModulesOfName.forEach(module => {
-                const floor = module.messageIndex;
-                if (!modulesByFloor[floor]) {
-                    modulesByFloor[floor] = [];
-                }
-                modulesByFloor[floor].push(module);
-            });
-            debugLog(`按楼层分组结果：${JSON.stringify(modulesByFloor)}`);
+        // // 1. 按楼层分组所有该模块名的模块（跨标识符）
+        // const modulesByFloor = {};
+        // allModulesOfName.forEach(module => {
+        //     const floor = module.messageIndex;
+        //     if (!modulesByFloor[floor]) {
+        //         modulesByFloor[floor] = [];
+        //     }
+        //     modulesByFloor[floor].push(module);
+        // });
+        // debugLog(`按楼层分组结果：${JSON.stringify(modulesByFloor)}`);
 
-            // 2. 获取所有楼层并按倒序排列（最近的楼层在前）
-            const floors = Object.keys(modulesByFloor).map(Number).sort((a, b) => b - a);
-            debugLog(`所有楼层（倒序）：${floors.join(', ')}`);
+        // // 2. 获取所有楼层并按倒序排列（最近的楼层在前）
+        // const floors = Object.keys(modulesByFloor).map(Number).sort((a, b) => b - a);
+        // debugLog(`所有楼层（倒序）：${floors.join(', ')}`);
 
-            // 3. 选择最近的retainLayers个楼层
-            const selectedFloors = floors.slice(0, retainLayers);
-            debugLog(`选择的楼层：${selectedFloors.join(', ')}`);
+        // // 3. 选择最近的retainLayers个楼层
+        // const selectedFloors = floors.slice(0, retainLayers);
+        // debugLog(`选择的楼层：${selectedFloors.join(', ')}`);
 
-            // 4. 收集这些楼层中的所有模块，并按楼层倒序排列
-            filteredModules = [];
-            selectedFloors.forEach(floor => {
-                // 每个楼层内的模块按出现顺序排列
-                filteredModules.push(...modulesByFloor[floor]);
-            });
-            debugLog(`过滤后的模块数量：${filteredModules.length}`);
-            debugLog(`过滤后的模块messageIndex列表：${filteredModules.map(m => m.messageIndex).join(', ')}`);
-        } else {
-            // -1或其他负值表示显示所有模块
-            debugLog(`retainLayers为-1或负值，显示所有模块`);
-        }
+        // // 4. 收集这些楼层中的所有模块，并按楼层倒序排列
+        // filteredModules = [];
+        // selectedFloors.forEach(floor => {
+        //     // 每个楼层内的模块按出现顺序排列
+        //     filteredModules.push(...modulesByFloor[floor]);
+        // });
+        //     debugLog(`过滤后的模块数量：${filteredModules.length}`);
+        //     debugLog(`过滤后的模块messageIndex列表：${filteredModules.map(m => m.messageIndex).join(', ')}`);
+        // } else {
+        //     // -1或其他负值表示显示所有模块
+        //     debugLog(`retainLayers为-1或负值，显示所有模块`);
+        // }
 
         // 对过滤后的模块按标识符分组
+
         const moduleGroups = groupModulesByIdentifier(filteredModules);
 
         // 处理每个标识符组
@@ -2346,36 +2366,40 @@ export function processFullModules(modules) {
             // 处理每个模块
             for (const module of moduleList) {
                 // 检查是否需要隐藏该模块条目
-                let shouldHide = false;
-                for (const variable of moduleConfig.variables) {
-                    if (variable.isHideCondition) {
-                        const variableValue = module.variables[variable.name];
-                        if (variableValue) {
-                            // 使用新的标识符解析工具分割隐藏条件值（支持中英文逗号、分号分隔）
-                            // const hideValues = IdentifierParser.parseMultiValues(variable.hideConditionValues);
-                            // 修改为包含判断：只要variableValue包含任一条件值即可
-                            if (variable.hideConditionValues.some(hideValue => variableValue.includes(hideValue))) {
-                                shouldHide = true;
-                                break;
+                let shouldHide = module.shouldHide !== undefined ? module.shouldHide : false;
+                if (!shouldHide) {
+                    for (const variable of moduleConfig.variables) {
+                        if (variable.isHideCondition) {
+                            const variableValue = module.variables[variable.name];
+                            if (variableValue) {
+                                // 使用新的标识符解析工具分割隐藏条件值（支持中英文逗号、分号分隔）
+                                // const hideValues = IdentifierParser.parseMultiValues(variable.hideConditionValues);
+                                // 修改为包含判断：只要variableValue包含任一条件值即可
+                                if (variable.hideConditionValues.some(hideValue => variableValue.includes(hideValue))) {
+                                    shouldHide = true;
+                                    break;
+                                }
                             }
                         }
                     }
                 }
 
                 // 如果不需要隐藏，则构建模块条目
-                if (!shouldHide) {
-                    // 构建模块字符串
-                    const moduleString = buildModuleString(module, moduleConfig);
-                    module.moduleString = moduleString;
+                // if (!shouldHide) {
+                // 构建模块字符串
+                const moduleString = buildModuleString(module, moduleConfig);
+                module.shouldHide = shouldHide;
+                module.moduleString = moduleString;
 
-                    // 添加结构化条目到结果数组
-                    resultItems.push({
-                        moduleName,
-                        identifier,
-                        moduleData: module,
-                        moduleString
-                    });
-                }
+                // 添加结构化条目到结果数组
+                resultItems.push({
+                    moduleName,
+                    identifier,
+                    moduleData: module,
+                    moduleString,
+                    shouldHide: shouldHide
+                });
+                // }
             }
         }
     }

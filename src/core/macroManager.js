@@ -467,13 +467,18 @@ function getContinuityChatModule(index) {
     if (modulesForThisMessage.length > 0) {
         let lastModuleName = '';
         modulesForThisMessage.forEach((entry, index) => {
-            // 判断模块名是否连续一致
-            if (index === 0 || entry.moduleName !== lastModuleName) {
-                // 第一条或模块名不同时，输出模块名标题
-                resultString += `## ${entry.moduleName}\n`;
+            if (!entry.shouldHide) {
+                // 判断模块名是否连续一致
+                if (index === 0 || entry.moduleName !== lastModuleName) {
+                    if (lastModuleName !== '') {
+                        resultString += '\n';
+                    }
+                    // 第一条或模块名不同时，输出模块名标题
+                    resultString += `## ${entry.moduleName}\n`;
+                }
+                resultString += entry.moduleString + '\n';
+                lastModuleName = entry.moduleName;
             }
-            resultString += entry.moduleString + '\n';
-            lastModuleName = entry.moduleName;
         });
     }
 
