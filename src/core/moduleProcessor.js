@@ -1865,7 +1865,8 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
             if (showModuleNames) {
                 result += `## ${moduleConfig.name} (${moduleConfig.displayName})\n`;
                 result += `> stats:count=${moduleData.moduleCount}`;
-                if (moduleData.isIncremental && moduleData.maxId !== undefined) {
+                const hasIdVariable = moduleConfig.variables && moduleConfig.variables.some(variable => variable.name === 'id');
+                if (moduleData.isIncremental && hasIdVariable && moduleData.maxId !== undefined) {
                     result += `,next_id=${moduleData.maxId + 1}`;
                 }
                 if (showProcessInfo) {
