@@ -183,6 +183,7 @@ export async function updateUItoMsgBottom() {
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
+        // infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         const containers = getCurrentMessageContainer();
 
@@ -672,7 +673,7 @@ export function renderCurrentMessageContext() {
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
-        // debugLog('按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
+        // infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         for (let i = containers.length - 1; i >= 0; i--) {
             const message = $(containers[i]);
