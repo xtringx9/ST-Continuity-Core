@@ -251,7 +251,8 @@ function renderSingleMessageContextBottomUI(messages, container, mes) {
                 }
                 // 检查是否有customStyles内容用于替换
                 else if (!entry.customStyles || typeof entry.customStyles !== 'string' || entry.customStyles.trim() === '') {
-                    debugLog('renderSingleMessageContext: entry.customStyles为空或无效，无法替换');
+                    // debugLog('renderSingleMessageContext: entry.customStyles为空或无效，无法替换');
+                    container.innerHTML += `<div>${entry.moduleData.raw}</div>`;
                 }
                 // 使用entry.moduleData.raw来匹配mes_text div内部的原文，包括后面的<br>标签
                 else {
