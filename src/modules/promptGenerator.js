@@ -1,5 +1,5 @@
 // 提示词生成器模块
-import { configManager, debugLog, errorLog, infoLog, extension_settings, extensionName, loadModuleConfig } from "../index.js";
+import { processModuleData, groupProcessResultByMessageIndex, chat, configManager, debugLog, errorLog, infoLog, extension_settings, extensionName, loadModuleConfig } from "../index.js";
 import { replaceVariables } from "../utils/variableReplacer.js";
 
 // 默认插入设置
@@ -14,6 +14,9 @@ const DEFAULT_INSERTION_SETTINGS = {
  */
 export function generateFormalPrompt() {
     try {
+        const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
+        const promptTag = `${moduleTag}_generate_rule`;
+
         const modules = configManager.getModules() || [];
         debugLog('开始生成正式提示词，模块数量:', modules.length);
 
@@ -22,34 +25,40 @@ export function generateFormalPrompt() {
 
         if (enabledModules.length === 0) {
             infoLog('没有启用的模块，无法生成提示词');
-            return '暂无启用的模块配置，请先启用模块。';
+            return '';
         }
 
-        let prompt = '<module_generate_guide>\n';
+        let prompt = `<${promptTag}>\n`;
 
         // 从模块配置中获取全局设置
-        const moduleConfig = loadModuleConfig();
-        const globalSettings = moduleConfig?.globalSettings;
+        // const moduleConfig = loadModuleConfig();
+        // const globalSettings = moduleConfig?.globalSettings;
 
-        // 添加核心原则提示词（如果设置了）
-        if (globalSettings?.corePrinciples) {
-            prompt += `核心原则：\n${globalSettings.corePrinciples}\n\n`;
-        }
+        // // 添加核心原则提示词（如果设置了）
+        // if (globalSettings?.corePrinciples) {
+        //     prompt += `[CORE PRINCIPLE]\n${globalSettings.corePrinciples}\n\n`;
+        // }
 
-        // 添加通用格式描述提示词（如果设置了）
-        if (globalSettings?.formatDescription) {
-            prompt += `通用格式：\n${globalSettings.formatDescription}\n\n`;
-        }
+        // // 添加通用格式描述提示词（如果设置了）
+        // if (globalSettings?.formatDescription) {
+        //     prompt += `[GENERAL FORMAT]\n${globalSettings.formatDescription}\n\n`;
+        // }
+
+        prompt += getOutputRulePrompt();
+
+        prompt += '# 模块配置\n';
 
         // 按模块顺序生成提示词，按照新格式组织
         enabledModules.forEach((module, index) => {
             // 模块标题：使用【name (displayName)】格式，方便AI理解
             const displayName = module.displayName || module.name;
-            prompt += `【${module.name} (${displayName})】\n`;
+            prompt += `## ${module.name} (${displayName})\n`;
+
+            prompt += getModuleRules(module, module.outputPosition === 'specific_position');
 
             // 要求：使用prompt内容
             if (module.prompt) {
-                prompt += `要求：${module.prompt}\n`;
+                prompt += `requirement:${module.prompt}\n`;
             }
 
             // 格式：生成变量描述格式
@@ -57,19 +66,19 @@ export function generateFormalPrompt() {
                 const variableDescriptions = module.variables.map(variable => {
                     const variableName = variable.name;
                     const variableDesc = variable.description ? `${variable.description}` : '';
-                    return `${variableName}:${variable.isIdentifier ? '(KEY)' : variable.isBackupIdentifier ? '(KEY)' : ''}${variableDesc}`;
+                    return `${module.outputMode === 'full' ? '' : variable.isIdentifier ? '*' : variable.isBackupIdentifier ? '^' : ''}${variableName}:${variableDesc}`;
                 }).join('|');
 
-                prompt += `格式：[${module.name}|${variableDescriptions}]\n`;
+                prompt += `format:[${module.name}|${variableDescriptions}]\n`;
             } else {
-                prompt += `格式：[${module.name}]\n`;
+                prompt += `format:[${module.name}]\n`;
             }
 
             // 模块之间添加空行分隔
             prompt += '\n';
         });
 
-        prompt += '</module_generate_guide>\n';
+        prompt += `</${promptTag}>\n`;
 
         // 替换提示词中的变量
         const replacedPrompt = replaceVariables(prompt);
@@ -87,6 +96,438 @@ export function generateFormalPrompt() {
         errorLog('生成正式提示词失败:', error);
         return '生成提示词时发生错误：' + error.message;
     }
+}
+
+export function generateUsageGuide() {
+    try {
+        const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
+        const promptTag = `${moduleTag}_data_usage_guide`;
+
+        // 获取模块数据
+        const modulesData = configManager.getModules() || [];
+
+        if (!modulesData || modulesData.length === 0) {
+            debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
+            return "";
+        }
+
+        // 过滤启用的模块且使用提示词不为空
+        const modulesWithUsagePrompt = modulesData.filter(module =>
+            module.enabled !== false &&
+            module.contentPrompt &&
+            module.contentPrompt.trim() !== ""
+        );
+
+        if (modulesWithUsagePrompt.length === 0) {
+            debugLog("[Macro]宏管理器: 没有使用提示词不为空的模块，返回空提示词");
+            return "";
+        }
+
+        // 构建使用指导提示词
+        let usageGuide = `<${promptTag}>\n`;
+        usageGuide += "# 模块内容使用指导：\n\n";
+
+        modulesWithUsagePrompt.forEach(module => {
+            usageGuide += `## ${module.name} (${module.displayName})\n`;
+            usageGuide += `usage:${module.contentPrompt}\n\n`;
+        });
+
+        usageGuide += `</${promptTag}>\n`;
+
+        // 替换提示词中的变量
+        const replacedUsageGuide = replaceVariables(usageGuide.trim());
+
+        return replacedUsageGuide;
+    } catch (error) {
+        errorLog('生成使用指导提示词失败:', error);
+        return '生成提示词时发生错误：' + error.message;
+    }
+}
+
+export function generateModuleOrderPrompt() {
+    try {
+        const globalSettings = configManager.getGlobalSettings();
+        const moduleTag = globalSettings.moduleTag || "module";
+        const promptTag = `${moduleTag}_output_rule`;
+        const contentTag = globalSettings.contentTag || "content";
+        let contentTagString = Array.isArray(contentTag) ? contentTag.join(',') : contentTag;
+        contentTagString = contentTagString + ",...";
+
+        // 获取模块数据
+        const modulesData = configManager.getModules() || [];
+
+        if (!modulesData || modulesData.length === 0) {
+            debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
+            return "";
+        }
+
+        // 过滤启用的模块
+        const enabledModules = modulesData.filter(module => module.enabled !== false);
+
+        if (enabledModules.length === 0) {
+            debugLog("[Macro]宏管理器: 没有启用的模块，返回空提示词");
+            return "";
+        }
+
+        // 按照生成位置和序号分组
+        const embeddableModules = []; // 可嵌入模块
+        const bodyModules = []; // 正文内模块
+        const specificPositionModules = []; // 正文内特定位置模块
+        const afterBodyModules = []; // 正文后模块
+
+        // 分类模块
+        enabledModules.forEach(module => {
+            switch (module.outputPosition) {
+                case 'embedded':
+                    embeddableModules.push(module);
+                    break;
+                case 'body':
+                    bodyModules.push(module);
+                    break;
+                case 'specific_position':
+                    specificPositionModules.push(module);
+                    break;
+                case 'after_body':
+                    afterBodyModules.push(module);
+                    break;
+                default:
+                    // 默认归为正文后模块
+                    afterBodyModules.push(module);
+            }
+        });
+
+        // 构建顺序提示词
+        let orderPrompt = `<${promptTag}>\n`;
+        // orderPrompt += "模块生成顺序和配置：\n\n";
+
+        // orderPrompt += getOutputRulePrompt();
+        // orderPrompt += "# 格式与顺序\n";
+
+
+        // orderPrompt += "Format: [Module]|Trigger|Qty|Mode|Pos/Note*\n\n";
+
+        // 可嵌入模块（按序号排序）
+        if (embeddableModules.length > 0) {
+            embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            // orderPrompt += "[DURING GENERATION]\n";
+            orderPrompt += "# 可嵌入模块，不限制位置，应积极插入正文内\n";
+            embeddableModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module);
+            });
+            orderPrompt += "\n\n";
+        }
+
+        // 正文内模块（按序号排序）
+        if (bodyModules.length > 0) {
+            bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            // orderPrompt += "[STRUCTURED IN-TEXT]\n";
+            orderPrompt += "# 正文内模块(位于<${contentTagString}></${contentTagString}>内):\n";
+            bodyModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module);
+            });
+            orderPrompt += "\n\n";
+        }
+
+        // 正文内特定位置模块（使用顺序提示词）
+        if (specificPositionModules.length > 0) {
+            specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            // orderPrompt += "[STRUCTURED IN-TEXT]\n";
+            orderPrompt += `# 正文内特定位置模块(位于\`<${contentTagString}>\`后，被<${contentTagString}></${contentTagString}>包裹):\n`;
+            orderPrompt += `<${contentTagString}>\n`;
+            specificPositionModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module, false, true);
+            });
+            orderPrompt += `</${contentTagString}>\n`;
+            orderPrompt += "\n\n";
+        }
+
+        // 正文后模块（按序号排序）
+        if (afterBodyModules.length > 0) {
+            afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            // orderPrompt += "[AFTER TEXT GENERATION]\n";
+            orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}></${moduleTag}>包裹):\n`;
+            orderPrompt += `</${contentTagString}>\n`;
+            orderPrompt += `<${moduleTag}>\n`;
+            afterBodyModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module);
+            });
+        }
+        orderPrompt += `</${moduleTag}>\n\n`;
+        orderPrompt += `</${promptTag}>\n`;
+
+        // 替换提示词中的变量
+        const replacedOrderPrompt = replaceVariables(orderPrompt.trim());
+        return replacedOrderPrompt;
+    } catch (error) {
+        errorLog('生成模块顺序提示词失败:', error);
+        return '生成提示词时发生错误：' + error.message;
+    }
+}
+
+function getOutputRulePrompt() {
+    const globalSettings = configManager.getGlobalSettings();
+
+    let prompt = "# 模块输出要求\n";
+
+    // 添加核心原则提示词（如果设置了）
+    if (globalSettings?.corePrinciples) {
+        prompt += `[CORE PRINCIPLE]\n${globalSettings.corePrinciples}\n\n`;
+    }
+
+    // 添加通用格式描述提示词（如果设置了）
+    if (globalSettings?.formatDescription) {
+        prompt += `[GENERAL FORMAT]\n${globalSettings.formatDescription}\n\n`;
+    }
+
+    // 添加输出模式说明
+    prompt += "[OUTPUT PROTOCOL]\n";
+    prompt += "增量(INC): Initialize full. ALWAYS output keys marked * or ^ + ONLY changed fields.\n";
+    prompt += "全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
+
+    return prompt;
+}
+
+/**
+ * 构建模块提示词字符串
+ * @param {Object} module 模块对象
+ * @param {boolean} includePosition 是否包含位置提示词
+ * @returns {string} 模块提示词字符串
+ */
+function buildModulePrompt(module, needRules = false, includePosition = false) {
+    let prompt = `## ${module.name}\n`;
+    if (needRules) {
+        prompt += `> ` + getModuleRules(module, includePosition, true);
+    }
+    prompt += `[${module.name}|...]\n`;
+    if (module.outputPosition !== 'embedded' && !(module.rangeMode === 'specified' || module.itemMax == 1)) {
+        prompt += '...\n';
+        prompt += `[${module.name}|...]\n`;
+    }
+    return prompt;
+}
+
+function getModuleRules(module, includePosition = false, oneline = false) {
+    const positionPrompt = getModulePositionPrompt(module, includePosition);
+    const timingPrompt = getModuleTimingPrompt(module);
+    const rangePrompt = getRangePrompt(module);
+    const outputModePrompt = getOutputModePrompt(module);
+
+    // 构建提示词，如果内容不为空则添加分号分隔
+    const parts = [];
+    if (timingPrompt) parts.push(timingPrompt);
+    if (rangePrompt) parts.push(rangePrompt);
+    if (outputModePrompt) parts.push(outputModePrompt);
+    if (positionPrompt) parts.push(positionPrompt);
+
+    let promp = '';
+    if (oneline) {
+        prompt = parts.length > 0 ? parts.join('; ') + '\n' : '';
+    }
+    else {
+        prompt = parts.length > 0 ? parts.join('\n') + '\n' : '';
+    }
+    return prompt;
+}
+
+function getModulePositionPrompt(module, includePosition = false) {
+    return includePosition && module.positionPrompt ? `position:${module.positionPrompt}` : "";
+}
+
+function getModuleTimingPrompt(module) {
+    return module.timingPrompt ? `trigger:${module.timingPrompt}` : "";
+}
+
+/**
+ * 获取模块生成数量限制的提示词
+ * @param {Object} module 模块对象
+ * @returns {string} 数量限制提示词
+ */
+function getRangePrompt(module) {
+    const rangeMode = module.rangeMode || 'specified';
+
+    switch (rangeMode) {
+        case 'unlimited':
+            return "quantity:∞";
+        case 'specified': {
+            const maxCount = module.itemMax || 1;
+            return `quantity:${maxCount}`;
+        }
+        case 'range': {
+            const minCount = module.itemMin || 0;
+            const maxCount = module.itemMax || 1;
+            if (minCount === maxCount) {
+                return `quantity:${minCount}`;
+            } else {
+                return `quantity:${minCount}-${maxCount}`;
+            }
+        }
+        default:
+            return "";
+    }
+}
+
+/**
+ * 获取模块输出模式的提示词
+ * @param {Object} module 模块对象
+ * @returns {string} 输出模式提示词
+ */
+function getOutputModePrompt(module) {
+    const outputMode = module.outputMode || 'full';
+
+    switch (outputMode) {
+        case 'full':
+            return "output mode:全量";
+        case 'incremental':
+            return "output mode:增量";
+        default:
+            return "";
+    }
+}
+
+
+export function generateModuleDataPrompt() {
+    try {
+        const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
+        const promptTag = `${moduleTag}_data`;
+
+        const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
+        const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
+        // 提取全部聊天记录的所有模块数据（一次性获取）
+        const extractParams = {
+            startIndex: 0,
+            endIndex: endIndex, // null表示提取到最新楼层
+            moduleFilters: getContextBottomFilteredModuleConfigs() // 只提取符合条件的模块
+        };
+        const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
+
+        // 一次性获取所有模块数据
+        const processResult = processModuleData(
+            extractParams,
+            'auto', // 自动处理类型
+            selectedModuleNames,
+            false,
+            true,
+            // false,
+            // false,
+            // false,
+            // true
+        );
+        const moduleDataPrompt = `<${promptTag}>\n# 最新模块数据\n\n${processResult.contentString}\n</${promptTag}>\n`;
+        // 替换提示词中的变量
+        const replacedModuleDataPrompt = replaceVariables(moduleDataPrompt.trim());
+        return replacedModuleDataPrompt;
+    } catch (error) {
+        errorLog('生成模块数据提示词失败:', error);
+        return '生成提示词时发生错误：' + error.message;
+    }
+}
+function getContextBottomFilteredModuleConfigs() {
+    // 获取所有模块配置
+    const allModuleConfigs = configManager.getModules();
+    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
+    const filteredModuleConfigs = allModuleConfigs.filter(config => {
+        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full' && config.retainLayers === -1) ||
+            config.outputMode === 'incremental';
+        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
+        return result;
+    });
+    // debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
+    // debugLog(`[CUSTOM STYLES] 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
+    // 构建模块过滤条件数组
+    const moduleFilters = filteredModuleConfigs.map(config => ({
+        name: config.name,
+        compatibleModuleNames: config.compatibleModuleNames || []
+    }));
+    return moduleFilters;
+}
+
+export function generateSingleChatModuleData(index) {
+    try {
+        debugLog('[MACRO] 模块内容索引:', index);
+
+        const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
+        const promptTag = `${moduleTag}`;
+
+        const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
+        const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
+
+        // 提取全部聊天记录的所有模块数据（一次性获取）
+        const extractParams = {
+            startIndex: 0,
+            endIndex: endIndex, // null表示提取到最新楼层
+            moduleFilters: getChatFilteredModuleConfigs()
+        };
+
+        const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
+
+
+        // 一次性获取所有模块数据
+        const processResult = processModuleData(
+            extractParams,
+            'auto', // 自动处理类型
+            selectedModuleNames
+        );
+        // debugLog('[MACRO] 模块提取结果:', processResult);
+
+
+
+        const curIndex = chat.length - 1 - (isUserMessage ? index : index + 1);
+        const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
+        const modulesForThisMessage = groupedByMessageIndex[curIndex] || [];
+        debugLog(`[MACRO] 当前聊天索引为${curIndex}模块index分组结果:`, groupedByMessageIndex);
+        // debugLog(`[MACRO] 聊天索引${curIndex}模块结果:`, modulesForThisMessage);
+
+        // todo 可能还要判断remainLayers去决定要不要加进去
+
+        let resultString = '';
+        if (modulesForThisMessage.length > 0) {
+            let lastModuleName = '';
+            modulesForThisMessage.forEach((entry, index) => {
+                if (!entry.shouldHide) {
+                    // 判断模块名是否连续一致
+                    if (index === 0 || entry.moduleName !== lastModuleName) {
+                        if (lastModuleName !== '') {
+                            resultString += '\n';
+                        }
+                        // 第一条或模块名不同时，输出模块名标题
+                        resultString += `## ${entry.moduleName}\n`;
+                    }
+                    resultString += entry.moduleString + '\n';
+                    lastModuleName = entry.moduleName;
+                }
+            });
+        }
+
+        debugLog(`[MACRO] 当前聊天索引为${curIndex}模块输出:`, resultString);
+
+        const prompt = `<${promptTag}>\n${resultString}\n</${promptTag}>`;
+        // 替换提示词中的变量
+        const replacedPrompt = replaceVariables(prompt.trim());
+        return replacedPrompt;
+
+    } catch (error) {
+        errorLog(`生成聊天消息 ${index} 的模块数据提示词失败:`, error);
+        return "";
+    }
+}
+function getChatFilteredModuleConfigs() {
+    // 获取所有模块配置
+    const allModuleConfigs = configManager.getModules();
+    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
+    const filteredModuleConfigs = allModuleConfigs.filter(config => {
+        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full') ||
+            config.outputMode === 'incremental';
+        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
+        return result;
+    });
+    // debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
+    // debugLog(`[CUSTOM STYLES] 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
+    // 构建模块过滤条件数组
+    const moduleFilters = filteredModuleConfigs.map(config => ({
+        name: config.name,
+        compatibleModuleNames: config.compatibleModuleNames || []
+    }));
+    return moduleFilters;
 }
 
 /**

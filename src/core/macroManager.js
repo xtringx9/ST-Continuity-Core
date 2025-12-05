@@ -4,7 +4,7 @@
  */
 
 import { groupProcessResultByMessageIndex, chat, processModuleData, configManager, debugLog, errorLog, infoLog } from '../index.js';
-import { generateFormalPrompt } from '../modules/promptGenerator.js';
+import { generateSingleChatModuleData, generateModuleDataPrompt, generateModuleOrderPrompt, generateUsageGuide, generateFormalPrompt } from '../modules/promptGenerator.js';
 import { extension_settings, extensionName, loadModuleConfig } from '../index.js';
 import { replaceVariables } from '../utils/variableReplacer.js';
 
@@ -15,31 +15,19 @@ import { replaceVariables } from '../utils/variableReplacer.js';
  */
 export function getContinuityPrompt() {
     try {
-        debugLog("[Macro]宏管理器: 获取连续性提示词");
-
-        // 检查全局开关状态
-        const settings = extension_settings[extensionName];
-        if (!settings || !settings.enabled) {
-            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空提示词");
-            return "";
-        }
-
-        // 获取模块数据
-        const modulesData = configManager.getModules() || [];
-
-        if (!modulesData || modulesData.length === 0) {
-            debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
+        if (!configManager.isExtensionEnabled()) {
+            debugLog("[Macro]宏管理器: 扩展未启用，返回空提示词");
             return "";
         }
 
         // 生成正式提示词
         const prompt = generateFormalPrompt();
 
-        // 替换提示词中的变量
-        const replacedPrompt = replaceVariables(prompt);
+        // // 替换提示词中的变量
+        // const replacedPrompt = replaceVariables(prompt);
 
         debugLog("[Macro]宏管理器: 成功生成并替换变量后的连续性提示词");
-        return replacedPrompt;
+        return prompt;
     } catch (error) {
         errorLog("[Macro]宏管理器: 获取连续性提示词失败", error);
         return "";
@@ -53,14 +41,11 @@ export function getContinuityPrompt() {
  */
 export function getContinuityConfig() {
     try {
-        debugLog("[Macro]宏管理器: 获取模块配置数据");
-
-        // 检查全局开关状态
-        const settings = extension_settings[extensionName];
-        if (!settings || !settings.enabled) {
-            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空配置");
+        if (!configManager.isExtensionEnabled()) {
+            debugLog("[Macro]宏管理器: 扩展未启用，返回空提示词");
             return "";
         }
+        debugLog("[Macro]宏管理器: 获取模块配置数据");
 
         // 获取模块数据
         const modulesData = configManager.getModules() || [];
@@ -88,14 +73,12 @@ export function getContinuityConfig() {
  */
 export function getContinuityModules() {
     try {
-        debugLog("[Macro]宏管理器: 获取模块名称列表");
-
-        // 检查全局开关状态
-        const settings = extension_settings[extensionName];
-        if (!settings || !settings.enabled) {
-            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空列表");
+        if (!configManager.isExtensionEnabled()) {
+            debugLog("[Macro]宏管理器: 扩展未启用，返回空提示词");
             return "";
         }
+        debugLog("[Macro]宏管理器: 获取模块名称列表");
+
 
         // 获取模块数据
         const modulesData = configManager.getModules() || [];
@@ -123,51 +106,17 @@ export function getContinuityModules() {
  */
 export function getContinuityUsageGuide() {
     try {
+        if (!configManager.isExtensionEnabled()) {
+            debugLog("[Macro]宏管理器: 扩展未启用，返回空提示词");
+            return "";
+        }
+
         debugLog("[Macro]宏管理器: 获取模块使用指导提示词");
 
-        // 检查全局开关状态
-        const settings = extension_settings[extensionName];
-        if (!settings || !settings.enabled) {
-            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空提示词");
-            return "";
-        }
-
-        // 获取模块数据
-        const modulesData = configManager.getModules() || [];
-
-        if (!modulesData || modulesData.length === 0) {
-            debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
-            return "";
-        }
-
-        // 过滤启用的模块且使用提示词不为空
-        const modulesWithUsagePrompt = modulesData.filter(module =>
-            module.enabled !== false &&
-            module.contentPrompt &&
-            module.contentPrompt.trim() !== ""
-        );
-
-        if (modulesWithUsagePrompt.length === 0) {
-            debugLog("[Macro]宏管理器: 没有使用提示词不为空的模块，返回空提示词");
-            return "";
-        }
-
-        // 构建使用指导提示词
-        let usageGuide = "<module_data_usage_guide>\n";
-        usageGuide += "模块内容使用指导：\n\n";
-
-        modulesWithUsagePrompt.forEach(module => {
-            usageGuide += `【${module.name} (${module.displayName})】\n`;
-            usageGuide += `使用指导：${module.contentPrompt}\n\n`;
-        });
-
-        usageGuide += "</module_data_usage_guide>\n";
-
-        // 替换提示词中的变量
-        const replacedUsageGuide = replaceVariables(usageGuide.trim());
+        const prompt = generateUsageGuide();
 
         debugLog("[Macro]宏管理器: 成功生成并替换变量后的模块使用指导提示词");
-        return replacedUsageGuide;
+        return prompt;
     } catch (error) {
         errorLog("[Macro]宏管理器: 获取模块使用指导提示词失败", error);
         return "";
@@ -181,332 +130,66 @@ export function getContinuityUsageGuide() {
  */
 export function getContinuityOrder() {
     try {
+        if (!configManager.isExtensionEnabled()) {
+            debugLog("[Macro]宏管理器: 扩展未启用，返回空提示词");
+            return "";
+        }
+
         debugLog("[Macro]宏管理器: 获取连续性顺序提示词");
 
-        // 检查全局开关状态
-        const settings = extension_settings[extensionName];
-        if (!settings || !settings.enabled) {
-            debugLog("[Macro]宏管理器: 全局开关已关闭，返回空提示词");
-            return "";
-        }
-
-        // 获取模块数据
-        const modulesData = configManager.getModules() || [];
-
-        if (!modulesData || modulesData.length === 0) {
-            debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
-            return "";
-        }
-
-        // 过滤启用的模块
-        const enabledModules = modulesData.filter(module => module.enabled !== false);
-
-        if (enabledModules.length === 0) {
-            debugLog("[Macro]宏管理器: 没有启用的模块，返回空提示词");
-            return "";
-        }
-
-        // 按照生成位置和序号分组
-        const embeddableModules = []; // 可嵌入模块
-        const bodyModules = []; // 正文内模块
-        const specificPositionModules = []; // 正文内特定位置模块
-        const afterBodyModules = []; // 正文后模块
-
-        // 分类模块
-        enabledModules.forEach(module => {
-            switch (module.outputPosition) {
-                case 'embedded':
-                    embeddableModules.push(module);
-                    break;
-                case 'body':
-                    bodyModules.push(module);
-                    break;
-                case 'specific_position':
-                    specificPositionModules.push(module);
-                    break;
-                case 'after_body':
-                    afterBodyModules.push(module);
-                    break;
-                default:
-                    // 默认归为正文后模块
-                    afterBodyModules.push(module);
-            }
-        });
-
-        // 构建顺序提示词
-        let orderPrompt = "<module_output_rules>\n";
-        // orderPrompt += "模块生成顺序和配置：\n\n";
-
-        const globalSettings = configManager.getGlobalSettings();
-
-        orderPrompt += "# 模块输出要求\n";
-
-        // 添加核心原则提示词（如果设置了）
-        if (globalSettings?.corePrinciples) {
-            orderPrompt += `[CORE PRINCIPLE]\n${globalSettings.corePrinciples}\n\n`;
-        }
-
-        // 添加通用格式描述提示词（如果设置了）
-        if (globalSettings?.formatDescription) {
-            orderPrompt += `[GENERAL FORMAT]\n${globalSettings.formatDescription}\n\n`;
-        }
-
-        // 添加输出模式说明
-        orderPrompt += "[OUTPUT PROTOCOL]\n";
-        orderPrompt += "• 增量(INC): Initialize full. ALWAYS output KEYs + ONLY changed fields.\n";
-        orderPrompt += "• 全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
-
-        orderPrompt += "# 格式与顺序\n";
-        // orderPrompt += "Format: [Module]|Trigger|Qty|Mode|Pos/Note*\n\n";
-
-        // 可嵌入模块（按序号排序）
-        if (embeddableModules.length > 0) {
-            embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "[DURING GENERATION]\n";
-            orderPrompt += "> 可嵌入模块，不限制位置，应积极插入正文内\n";
-            embeddableModules.forEach(module => {
-                orderPrompt += buildModulePrompt(module);
-            });
-            orderPrompt += "\n\n";
-        }
-
-        // 正文内模块（按序号排序）
-        if (bodyModules.length > 0) {
-            bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "[STRUCTURED IN-TEXT]\n";
-            orderPrompt += "> 正文内模块：\n";
-            bodyModules.forEach(module => {
-                orderPrompt += buildModulePrompt(module);
-            });
-            orderPrompt += "\n\n";
-        }
-
-        // 正文内特定位置模块（使用顺序提示词）
-        if (specificPositionModules.length > 0) {
-            specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "[STRUCTURED IN-TEXT]\n";
-            orderPrompt += "> 正文内特定位置模块（位于正文开始标签后，被<某正文标签></某正文标签>包裹）：\n";
-            orderPrompt += "<某正文标签>\n";
-            specificPositionModules.forEach(module => {
-                orderPrompt += buildModulePrompt(module, true);
-            });
-            orderPrompt += "</某正文标签>\n";
-            orderPrompt += "\n\n";
-        }
-
-        const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
-
-        // 正文后模块（按序号排序）
-        if (afterBodyModules.length > 0) {
-            afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += "[AFTER GENERATION]\n";
-            orderPrompt += `> 正文后的模块（位于正文结束标签后，被<${moduleTag}></${moduleTag}>包裹）：\n`;
-            orderPrompt += "</某正文标签>\n";
-            orderPrompt += `<${moduleTag}>\n`;
-            afterBodyModules.forEach(module => {
-                orderPrompt += buildModulePrompt(module);
-            });
-        }
-        orderPrompt += `</${moduleTag}>\n\n`;
-        orderPrompt += "</module_output_rules>\n";
-
-        // 替换提示词中的变量
-        const replacedOrderPrompt = replaceVariables(orderPrompt.trim());
+        // 生成连续性顺序提示词
+        const prompt = generateModuleOrderPrompt();
 
         debugLog("[Macro]宏管理器: 成功生成并替换变量后的连续性顺序提示词");
-        return replacedOrderPrompt;
+        return prompt;
     } catch (error) {
         errorLog("[Macro]宏管理器: 获取连续性顺序提示词失败", error);
         return "";
     }
 }
 
-/**
- * 构建模块提示词字符串
- * @param {Object} module 模块对象
- * @param {boolean} includePosition 是否包含位置提示词
- * @returns {string} 模块提示词字符串
- */
-function buildModulePrompt(module, includePosition = false) {
-    const positionPrompt = includePosition && module.positionPrompt ? `;生成位置:${module.positionPrompt}` : "";
-    const timingPrompt = module.timingPrompt ? `生成时机:${module.timingPrompt}` : "";
-    const rangePrompt = getRangePrompt(module);
-    const outputModePrompt = getOutputModePrompt(module);
-    let prompt = `## ${module.name}\n> ${timingPrompt};${rangePrompt};${outputModePrompt}${positionPrompt}\n[${module.name}|...]\n`;
-    if (module.outputPosition !== 'embedded' && !(module.rangeMode === 'specified' || module.itemMax == 1)) {
-        prompt += '...\n';
-        prompt += `[${module.name}|...]\n`;
-    }
-    return prompt;
-}
-
-/**
- * 获取模块生成数量限制的提示词
- * @param {Object} module 模块对象
- * @returns {string} 数量限制提示词
- */
-function getRangePrompt(module) {
-    const rangeMode = module.rangeMode || 'specified';
-
-    switch (rangeMode) {
-        case 'unlimited':
-            return "数量:∞";
-        case 'specified': {
-            const maxCount = module.itemMax || 1;
-            return `数量:${maxCount}`;
-        }
-        case 'range': {
-            const minCount = module.itemMin || 0;
-            const maxCount = module.itemMax || 1;
-            if (minCount === maxCount) {
-                return `数量:${minCount}`;
-            } else {
-                return `数量:${minCount}-${maxCount}`;
-            }
-        }
-        default:
-            return "";
-    }
-}
-
-/**
- * 获取模块输出模式的提示词
- * @param {Object} module 模块对象
- * @returns {string} 输出模式提示词
- */
-function getOutputModePrompt(module) {
-    const outputMode = module.outputMode || 'full';
-
-    switch (outputMode) {
-        case 'full':
-            return "输出模式:全量(输出所有字段)";
-        case 'incremental':
-            return "输出模式:增量(仅输出所有KEY字段和变化字段)";
-        default:
-            return "";
-    }
-}
 
 function getContinuityModuleData() {
-    const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
-    const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
-    // 提取全部聊天记录的所有模块数据（一次性获取）
-    const extractParams = {
-        startIndex: 0,
-        endIndex: endIndex, // null表示提取到最新楼层
-        moduleFilters: getContextBottomFilteredModuleConfigs() // 只提取符合条件的模块
-    };
-    const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
+    try {
+        if (!configManager.isExtensionEnabled()) {
+            debugLog("[Macro]宏管理器: 扩展未启用，返回空提示词");
+            return "";
+        }
 
-    // 一次性获取所有模块数据
-    const processResult = processModuleData(
-        extractParams,
-        'auto', // 自动处理类型
-        selectedModuleNames,
-        false,
-        true
-    );
-    return `<module_data>\n# 最新模块数据\n${processResult.contentString}\n</module_data>\n`;
+        debugLog("[Macro]宏管理器: 获取连续性模块数据");
+
+        // 生成连续性模块数据提示词
+        const prompt = generateModuleDataPrompt();
+
+        debugLog("[Macro]宏管理器: 成功生成并替换变量后的连续性模块数据提示词");
+        return prompt;
+    } catch (error) {
+        errorLog("[Macro]宏管理器: 获取连续性模块数据失败", error);
+        return "";
+    }
 }
 
-function getContextBottomFilteredModuleConfigs() {
-    // 获取所有模块配置
-    const allModuleConfigs = configManager.getModules();
-    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
-    const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full' && config.retainLayers === -1) ||
-            config.outputMode === 'incremental';
-        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
-        return result;
-    });
-    debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
-    debugLog(`[CUSTOM STYLES] 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
-    // 构建模块过滤条件数组
-    const moduleFilters = filteredModuleConfigs.map(config => ({
-        name: config.name,
-        compatibleModuleNames: config.compatibleModuleNames || []
-    }));
-    return moduleFilters;
-}
 
 function getContinuityChatModule(index) {
-    debugLog('[MACRO] 模块内容索引:', index);
+    try {
+        if (!configManager.isExtensionEnabled()) {
+            debugLog("[Macro]宏管理器: 扩展未启用，返回空提示词");
+            return "";
+        }
 
-    const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
-    const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
+        debugLog(`[Macro]宏管理器: 获取聊天消息 ${index} 的连续性模块数据`);
 
-    // 提取全部聊天记录的所有模块数据（一次性获取）
-    const extractParams = {
-        startIndex: 0,
-        endIndex: endIndex, // null表示提取到最新楼层
-        moduleFilters: getChatFilteredModuleConfigs()
-    };
+        // 生成连续性模块数据提示词
+        const prompt = generateSingleChatModuleData(index);
 
-    const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
-
-
-    // 一次性获取所有模块数据
-    const processResult = processModuleData(
-        extractParams,
-        'auto', // 自动处理类型
-        selectedModuleNames
-    );
-    // debugLog('[MACRO] 模块提取结果:', processResult);
-
-
-
-    const curIndex = chat.length - 1 - (isUserMessage ? index : index + 1);
-    const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
-    const modulesForThisMessage = groupedByMessageIndex[curIndex] || [];
-    debugLog(`[MACRO] 当前聊天索引为${curIndex}模块index分组结果:`, groupedByMessageIndex);
-    // debugLog(`[MACRO] 聊天索引${curIndex}模块结果:`, modulesForThisMessage);
-
-    // todo 可能还要判断remainLayers去决定要不要加进去
-
-    let resultString = '';
-    if (modulesForThisMessage.length > 0) {
-        let lastModuleName = '';
-        modulesForThisMessage.forEach((entry, index) => {
-            if (!entry.shouldHide) {
-                // 判断模块名是否连续一致
-                if (index === 0 || entry.moduleName !== lastModuleName) {
-                    if (lastModuleName !== '') {
-                        resultString += '\n';
-                    }
-                    // 第一条或模块名不同时，输出模块名标题
-                    resultString += `## ${entry.moduleName}\n`;
-                }
-                resultString += entry.moduleString + '\n';
-                lastModuleName = entry.moduleName;
-            }
-        });
+        debugLog(`[Macro]宏管理器: 成功生成并替换变量后的聊天消息 ${index} 的连续性模块数据提示词`);
+        return prompt;
+    } catch (error) {
+        errorLog(`[Macro]宏管理器: 获取聊天消息 ${index} 的连续性模块数据失败`, error);
+        return "";
     }
-
-    debugLog(`[MACRO] 当前聊天索引为${curIndex}模块输出:`, resultString);
-
-    const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
-    return `<${moduleTag}>\n${resultString}\n</${moduleTag}>`;
 }
 
-function getChatFilteredModuleConfigs() {
-    // 获取所有模块配置
-    const allModuleConfigs = configManager.getModules();
-    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
-    const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full') ||
-            config.outputMode === 'incremental';
-        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
-        return result;
-    });
-    debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
-    debugLog(`[CUSTOM STYLES] 过滤后的模块列表: ${filteredModuleConfigs.map(config => config.name).join(', ')}`);
-    // 构建模块过滤条件数组
-    const moduleFilters = filteredModuleConfigs.map(config => ({
-        name: config.name,
-        compatibleModuleNames: config.compatibleModuleNames || []
-    }));
-    return moduleFilters;
-}
 
 import { getContext } from '../../../../../extensions.js';
 
