@@ -125,7 +125,7 @@ export function generateUsageGuide() {
 
         // 构建使用指导提示词
         let usageGuide = `<${promptTag}>\n`;
-        usageGuide += "# 模块内容使用指导：\n\n";
+        usageGuide += "# 模块内容使用指导\n\n";
 
         modulesWithUsagePrompt.forEach(module => {
             usageGuide += `## ${module.name} (${module.displayName})\n`;
@@ -235,7 +235,7 @@ export function generateModuleOrderPrompt() {
             orderPrompt += `# 正文内特定位置模块(位于\`<${contentTagString}>\`后，被<${contentTagString}></${contentTagString}>包裹):\n`;
             orderPrompt += `<${contentTagString}>\n`;
             specificPositionModules.forEach(module => {
-                orderPrompt += buildModulePrompt(module, false, true);
+                orderPrompt += buildModulePrompt(module, false, false, true);
             });
             orderPrompt += `</${contentTagString}>\n`;
             orderPrompt += "\n\n";
@@ -249,7 +249,7 @@ export function generateModuleOrderPrompt() {
             orderPrompt += `</${contentTagString}>\n`;
             orderPrompt += `<${moduleTag}>\n`;
             afterBodyModules.forEach(module => {
-                orderPrompt += buildModulePrompt(module);
+                orderPrompt += buildModulePrompt(module, true);
             });
         }
         orderPrompt += `</${moduleTag}>\n\n`;
@@ -293,12 +293,17 @@ function getOutputRulePrompt() {
  * @param {boolean} includePosition 是否包含位置提示词
  * @returns {string} 模块提示词字符串
  */
-function buildModulePrompt(module, needRules = false, includePosition = false) {
-    let prompt = `## ${module.name}\n`;
+function buildModulePrompt(module, needTitle = false, needRules = false, includePosition = false) {
+    let prompt = needTitle ? `## ${module.name}\n` : '';
     if (needRules) {
         prompt += `> ` + getModuleRules(module, includePosition, true);
     }
-    prompt += `[${module.name}|...]\n`;
+    if ((!needTitle || !needRules) && includePosition) {
+        prompt += `[${module.name}|...](${getModulePositionPrompt(module, includePosition)})\n`;
+    }
+    else {
+        prompt += `[${module.name}|...]\n`;
+    }
     if (module.outputPosition !== 'embedded' && !(module.rangeMode === 'specified' || module.itemMax == 1)) {
         prompt += '...\n';
         prompt += `[${module.name}|...]\n`;
