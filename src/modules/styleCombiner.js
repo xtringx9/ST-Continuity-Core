@@ -252,7 +252,7 @@ export function generateStylesForModuleEntries(moduleData) {
 
         // 为每个模块条目生成样式
         moduleData.data.forEach((entry, index) => {
-            debugLog(`[CUSTOM STYLES] 处理模块条目 ${index + 1}/${moduleData.data.length}`, entry);
+            // debugLog(`[CUSTOM STYLES] 处理模块条目 ${index + 1}/${moduleData.data.length}`, entry);
 
             // 生成当前模块条目的样式
             getCombinedCustomStyles(moduleData.moduleConfig, entry);

@@ -17,7 +17,7 @@ class ModuleCacheManager {
 
         const extractParams = {
             startIndex: 0,
-            endIndex: null,
+            endIndex: endIndex,
             moduleFilters: null
         };
         processModuleData(
@@ -26,7 +26,7 @@ class ModuleCacheManager {
             undefined,
             isForce
         );
-        extractParams.endIndex = endIndex;
+        extractParams.endIndex = null;
         processModuleData(
             extractParams,
             'auto',
