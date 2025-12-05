@@ -431,7 +431,7 @@ function getContextBottomFilteredModuleConfigs() {
     const allModuleConfigs = configManager.getModules();
     // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full' && config.retainLayers === -1) ||
+        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full' && config.retainLayers !== 0) ||
             config.outputMode === 'incremental';
         // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
         return result;

@@ -213,11 +213,14 @@ class ConfigManager {
 
     /**
      * 获取模块配置
-     * @returns {Array} 模块配置数组
+     * @returns {Array} 模块配置数组（只返回enabled为true的模块）
      */
     getModules() {
         const config = this.getModuleConfig();
-        return config.modules || [];
+        const modules = config.modules || [];
+
+        // 过滤掉enabled为false的模块
+        return modules.filter(module => module.enabled !== false);
     }
 
     /**
@@ -736,7 +739,7 @@ class UIDataCollector {
                 case 'displayName':
                     return container.find('.module-display-name').val() || '';
                 case 'enabled':
-                    return container.find('.module-enabled').prop('checked') !== false;
+                    return container.find('.module-enabled-toggle').prop('checked') !== false;
                 case 'order':
                     const orderText = container.find('.module-order-number').text();
                     return parseInt(orderText) || 0;
