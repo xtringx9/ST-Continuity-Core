@@ -83,7 +83,7 @@ export function generateFormalPrompt() {
         // 替换提示词中的变量
         const replacedPrompt = replaceVariables(prompt);
 
-        infoLog('正式提示词生成成功');
+        // infoLog('正式提示词生成成功');
 
         // 使用logger输出生成的提示词
         // debugLog('=== Continuity 生成的正式提示词 ===');
@@ -324,7 +324,7 @@ function getModuleRules(module, includePosition = false, oneline = false) {
     if (outputModePrompt) parts.push(outputModePrompt);
     if (positionPrompt) parts.push(positionPrompt);
 
-    let promp = '';
+    let prompt = '';
     if (oneline) {
         prompt = parts.length > 0 ? parts.join('; ') + '\n' : '';
     }

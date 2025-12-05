@@ -585,53 +585,55 @@ export function hasValidLastMessageContainer(needMesText = false) {
     }
 }
 
-/**
- * 检测页面状态并插入UI
- * 确保只有在合适的页面状态下才插入UI
- */
-export function checkPageStateAndUpdateUI() {
-    try {
-        // 检查是否在聊天页面
-        if (!isInChatPage()) {
-            debugLog('[PAGE_CHECK] 当前不在聊天页面，不插入UI');
-            return false;
-        }
+// /**
+//  * 检测页面状态并插入UI
+//  * 确保只有在合适的页面状态下才插入UI
+//  */
+// export function checkPageStateAndUpdateUI() {
+//     try {
+//         // 检查是否在聊天页面
+//         if (!isInChatPage()) {
+//             debugLog('[PAGE_CHECK] 当前不在聊天页面，不插入UI');
+//             return false;
+//         }
 
-        if (!isUpdatingContextBottomUI) {
-            isUpdatingContextBottomUI = true;
-            // 处理底部UI（统合的模块内容）
-            (async () => {
-                await updateUItoContextBottom();
-            })();
-        }
-        else {
-            debugLog('上下文底部UI插入操作正在进行中，跳过重复调用');
-        }
+//         if (!isUpdatingContextBottomUI) {
+//             isUpdatingContextBottomUI = true;
+//             // 处理底部UI（统合的模块内容）
+//             (async () => {
+//                 await updateUItoContextBottom();
+//             })();
+//         }
+//         else {
+//             debugLog('上下文底部UI插入操作正在进行中，跳过重复调用');
+//         }
 
-        if (!isUpdatingMsgUI) {
-            isUpdatingMsgUI = true;
-            (async () => {
-                // 处理消息中UI（每层的模块内容）
-                await updateUItoMsgBottom();
-            })();
-        }
+//         if (!isUpdatingMsgUI) {
+//             isUpdatingMsgUI = true;
+//             (async () => {
+//                 // 处理消息中UI（每层的模块内容）
+//                 await updateUItoMsgBottom();
+//             })();
+//         }
 
 
-        if (!isUpdatingRenderUI) {
-            isUpdatingRenderUI = true;
-            // 渲染消息内UI（每层的模块内容）
-            (async () => {
-                await renderCurrentMessageContext();
-            })();
-        }
-        else {
-            debugLog('渲染消息内部UI操作正在进行中，跳过重复调用');
-        }
+//         if (!isUpdatingRenderUI) {
+//             isUpdatingRenderUI = true;
+//             // 渲染消息内UI（每层的模块内容）- 延迟执行
+//             setTimeout(() => {
+//                 (async () => {
+//                     await renderCurrentMessageContext();
+//                 })();
+//             }, 100); // 延迟100毫秒执行
+//         }
+//         else {
+//             debugLog('渲染消息内部UI操作正在进行中，跳过重复调用');
+//         }
 
-    } catch (error) {
-        errorLog('[PAGE_CHECK] 检测页面状态并插入UI失败:', error);
-    }
-}
+//     } catch (error) {
+//         errorLog('[PAGE_CHECK] 检测页面状态并插入UI失败:', error);
+//     }
+// }
 
 let isUpdatingRenderUI = false;
 
@@ -761,12 +763,88 @@ export function getCurrentMessageContainer() {
     return jQuery('#chat .mes');
 }
 
-export function UpdateUI() {
+// export function UpdateUI() {
+//     infoLog('UpdateUI: 开始更新上下文底部UI');
+//     if (configManager.isExtensionEnabled()) {
+//         debugLog("[UI EVENTS][CHAT_CHANGED]检测到聊天变更，检查页面状态并插入UI");
+//         checkPageStateAndUpdateUI();
+//     } else {
+//         debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
+//         removeUIfromContextBottom();
+//     }
+// }
+
+export function checkUItoContextBottom() {
+    debugLog('[UI EVENTS]UpdateUI: 开始更新上下文底部UI');
     if (configManager.isExtensionEnabled()) {
-        debugLog("[UI EVENTS][CHAT_CHANGED]检测到聊天变更，检查页面状态并插入UI");
-        checkPageStateAndUpdateUI();
+        if (!isInChatPage()) {
+            debugLog('[PAGE_CHECK] 当前不在聊天页面，不插入UI');
+            return false;
+        }
+
+        if (!isUpdatingContextBottomUI) {
+            isUpdatingContextBottomUI = true;
+            // 处理底部UI（统合的模块内容）
+            (async () => {
+                await updateUItoContextBottom();
+            })();
+        }
+        else {
+            debugLog('上下文底部UI插入操作正在进行中，跳过重复调用');
+        }
     } else {
         debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
         removeUIfromContextBottom();
+    }
+}
+
+
+export function checkUItoMsgBottom() {
+    debugLog('[UI EVENTS]UpdateUI: 开始更新消息底部UI');
+    if (configManager.isExtensionEnabled()) {
+        if (!isInChatPage()) {
+            debugLog('[PAGE_CHECK] 当前不在聊天页面，不插入UI');
+            return false;
+        }
+
+        if (!isUpdatingMsgUI) {
+            isUpdatingMsgUI = true;
+            (async () => {
+                // 处理消息中UI（每层的模块内容）
+                await updateUItoMsgBottom();
+            })();
+        }
+        else {
+            debugLog('消息底部UI插入操作正在进行中，跳过重复调用');
+        }
+    } else {
+        debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
+        removeUIfromContextBottom();
+    }
+}
+
+export function checkRenderCurrentMessageContext() {
+    debugLog('[UI EVENTS]RenderUI: 开始渲染当前消息上下文');
+    if (configManager.isExtensionEnabled()) {
+        if (!isInChatPage()) {
+            debugLog('[PAGE_CHECK] 当前不在聊天页面，不渲染UI');
+            return false;
+        }
+
+        if (!isUpdatingRenderUI) {
+            isUpdatingRenderUI = true;
+            // 渲染消息内UI（每层的模块内容）- 延迟执行
+            // setTimeout(() => {
+            (async () => {
+                await renderCurrentMessageContext();
+            })();
+            // }, 1000); // 延迟100毫秒执行
+        }
+        else {
+            debugLog('渲染当前消息上下文操作正在进行中，跳过重复调用');
+        }
+    } else {
+        // debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
+        // removeUIfromContextBottom();
     }
 }

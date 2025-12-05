@@ -1,6 +1,7 @@
 // 事件处理器 - 处理SillyTavern扩展事件
 import { getTestData, registerContinuityRegexPattern, updateCurrentCharWorldBookCache, checkAndInitializeWorldBook, getCurrentCharBooks } from "../index.js";
-import { moduleCacheManager, eventSource, event_types, UpdateUI, removeUIfromContextBottom } from "../index.js";
+import { moduleCacheManager, eventSource, event_types } from "../index.js";
+import { checkUItoContextBottom, checkUItoMsgBottom, checkRenderCurrentMessageContext } from "./contextBottomUI.js"
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 /**
  * 事件处理器类
@@ -46,24 +47,27 @@ export class EventHandler {
      */
     registerUIEvents() {
         try {
-            // 注册聊天变更事件
-            this.registerEvent(event_types.CHAT_CHANGED, UpdateUI);
-            // 注册消息接收事件
-            // this.registerEvent(event_types.MESSAGE_RECEIVED, UpdateUI);
-            // 注册角色消息渲染完成事件
-            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, UpdateUI);
-            // 注册消息编辑事件
-            this.registerEvent(event_types.MESSAGE_EDITED, UpdateUI);
-            // 注册消息删除事件
-            // this.registerEvent(event_types.MESSAGE_DELETED, UpdateUI);
-            // 注册消息滑动事件
-            this.registerEvent(event_types.MESSAGE_SWIPED, UpdateUI);
-            // 注册角色消息渲染完成事件
-            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, UpdateUI);
-            // 注册用户消息渲染完成事件
-            this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, UpdateUI);
-            this.registerEvent(event_types.MORE_MESSAGES_LOADED, UpdateUI);
-            infoLog('[EVENTS]UI相关事件处理器注册成功');
+            this.registerEvent(event_types.CHAT_CHANGED, checkUItoContextBottom);
+            this.registerEvent(event_types.MESSAGE_EDITED, checkUItoContextBottom);
+            this.registerEvent(event_types.MESSAGE_SWIPED, checkUItoContextBottom);
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkUItoContextBottom);
+            this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkUItoContextBottom);
+
+            this.registerEvent(event_types.CHAT_CHANGED, checkUItoMsgBottom);
+            this.registerEvent(event_types.MESSAGE_EDITED, checkUItoMsgBottom);
+            this.registerEvent(event_types.MESSAGE_SWIPED, checkUItoMsgBottom);
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkUItoMsgBottom);
+            this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkUItoMsgBottom);
+            this.registerEvent(event_types.MORE_MESSAGES_LOADED, checkUItoMsgBottom);
+
+            this.registerEvent(event_types.CHAT_CHANGED, checkRenderCurrentMessageContext);
+            this.registerEvent(event_types.MESSAGE_EDITED, checkRenderCurrentMessageContext);
+            this.registerEvent(event_types.MESSAGE_SWIPED, checkRenderCurrentMessageContext);
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkRenderCurrentMessageContext);
+            this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkRenderCurrentMessageContext);
+            this.registerEvent(event_types.MORE_MESSAGES_LOADED, checkRenderCurrentMessageContext);
+            this.registerEvent(event_types.MESSAGE_UPDATED, checkRenderCurrentMessageContext);
+            // infoLog('[EVENTS]UI相关事件处理器注册成功');
         } catch (error) {
             errorLog('[EVENTS]注册UI相关事件处理器失败:', error);
         }

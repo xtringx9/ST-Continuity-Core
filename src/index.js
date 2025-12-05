@@ -172,9 +172,7 @@ export { extractModulesFromChat } from './core/moduleExtractor.js';
 // 导出上下文底部UI管理模块
 export {
     removeUIfromContextBottom,
-    isInChatPage,
-    checkPageStateAndUpdateUI,
-    UpdateUI
+    isInChatPage
 } from './core/contextBottomUI.js';
 
 export { updateCurrentCharWorldBookCache, getCurrentCharBooksModuleEntries, getCurrentCharBooksEnabledEntries, checkAndInitializeWorldBook, getTestData, getCurrentCharBooks } from './utils/worldBookUtils.js';

@@ -2507,7 +2507,7 @@ export function attachStructuredTimeData(modules) {
                             if (timeData.formattedString) {
                                 module.variables[variableName] = timeData.formattedString;
                                 formattedCount++;
-                                debugLog(`[TimeDataAttachment] 格式化时间变量 ${variableName}: ${timeVal} -> ${timeData.formattedString}`);
+                                // debugLog(`[TimeDataAttachment] 格式化时间变量 ${variableName}: ${timeVal} -> ${timeData.formattedString}`);
                             }
 
                             // debugLog(`[TimeDataAttachment] 为模块 ${module.moduleName} 附加时间数据成功`);
