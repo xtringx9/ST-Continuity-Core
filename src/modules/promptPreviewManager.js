@@ -153,7 +153,7 @@ function getPreviewModeDescription() {
 export function updatePromptPreview() {
     try {
         const prompt = generatePreviewContent();
-        const modeDescription = getPreviewModeDescription();
+        // const modeDescription = getPreviewModeDescription();
 
         $('#prompt-preview-textarea').val(prompt);
         // debugLog(`提示词预览内容已更新（${modeDescription}）`);
