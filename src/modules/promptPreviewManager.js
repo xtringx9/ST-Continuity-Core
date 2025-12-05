@@ -1,7 +1,7 @@
 // 提示词预览区域管理模块
-import { debugLog, errorLog, infoLog } from '../index.js';
+import { configManager, debugLog, errorLog, infoLog } from '../index.js';
 import { generateModulePrompt, generatePromptWithInsertion, copyToClipboard } from './promptGenerator.js';
-import { getContinuityPrompt, getContinuityConfig, getContinuityModules, getContinuityOrder, getContinuityUsageGuide } from '../core/macroManager.js';
+import { getContinuityPrompt, getContinuityConfig, getContinuityModules, getContinuityOrder, getContinuityUsageGuide, getContinuityModuleData, getContinuityChatModule } from '../core/macroManager.js';
 
 // 默认插入设置
 const DEFAULT_INSERTION_SETTINGS = {
@@ -40,6 +40,36 @@ export function togglePromptPreview() {
 }
 
 /**
+ * 获取所有可用的预览模式配置
+ * @returns {Array} 预览模式配置数组
+ */
+function getPreviewModes() {
+    // 获取聊天消息层数配置
+    const entryCount = configManager.getGlobalSettings().contentRemainLayers || 9;
+    const chatModuleModes = [];
+
+    // 生成聊天模块宏选项（只在奇数索引时生成）
+    for (let i = 0; i < entryCount; i++) {
+        if (i % 2 === 1) {
+            chatModuleModes.push({
+                value: `macro-chat-module-${i}`,
+                label: `{{CONTINUITY_CHAT_MODULE_${i}}} 宏`
+            });
+        }
+    }
+
+    return [
+        { value: 'macro', label: '{{CONTINUITY_PROMPT}} 宏' },
+        // { value: 'macro-config', label: '{{CONTINUITY_CONFIG}} 宏' },
+        // { value: 'macro-modules', label: '{{CONTINUITY_MODULES}} 宏' },
+        { value: 'macro-usage-guide', label: '{{CONTINUITY_USAGE_GUIDE}} 宏' },
+        { value: 'macro-order', label: '{{CONTINUITY_ORDER}} 宏' },
+        { value: 'macro-module-data', label: '{{CONTINUITY_MODULE_DATA}} 宏' },
+        ...chatModuleModes
+    ];
+}
+
+/**
  * 获取当前预览模式
  * @returns {string} 预览模式：'macro' | 'macro-config' | 'macro-modules'
  */
@@ -60,6 +90,14 @@ function getCurrentPreviewMode() {
 function generatePreviewContent() {
     const mode = getCurrentPreviewMode();
 
+    // 处理聊天模块宏（格式：macro-chat-module-{index}）
+    if (mode.startsWith('macro-chat-module-')) {
+        const index = parseInt(mode.split('-').pop());
+        if (!isNaN(index)) {
+            return getContinuityChatModule(index);
+        }
+    }
+
     switch (mode) {
         case 'macro-config':
             return getContinuityConfig();
@@ -69,6 +107,8 @@ function generatePreviewContent() {
             return getContinuityOrder();
         case 'macro-usage-guide':
             return getContinuityUsageGuide();
+        case 'macro-module-data':
+            return getContinuityModuleData();
         case 'macro':
         default:
             return getContinuityPrompt();
@@ -82,6 +122,14 @@ function generatePreviewContent() {
 function getPreviewModeDescription() {
     const mode = getCurrentPreviewMode();
 
+    // 处理聊天模块宏（格式：macro-chat-module-{index}）
+    if (mode.startsWith('macro-chat-module-')) {
+        const index = parseInt(mode.split('-').pop());
+        if (!isNaN(index)) {
+            return `{{CONTINUITY_CHAT_MODULE_${index}}} 宏会生成的聊天消息 ${index} 的模块数据`;
+        }
+    }
+
     switch (mode) {
         case 'macro-config':
             return '{{CONTINUITY_CONFIG}} 宏会生成的配置数据';
@@ -91,6 +139,8 @@ function getPreviewModeDescription() {
             return '{{CONTINUITY_ORDER}} 宏会生成的顺序提示词';
         case 'macro-usage-guide':
             return '{{CONTINUITY_USAGE_GUIDE}} 宏会生成的使用指导提示词';
+        case 'macro-module-data':
+            return '{{CONTINUITY_MODULE_DATA}} 宏会生成的连续性模块数据';
         case 'macro':
         default:
             return '{{CONTINUITY_PROMPT}} 宏会生成的提示词';
@@ -106,8 +156,8 @@ export function updatePromptPreview() {
         const modeDescription = getPreviewModeDescription();
 
         $('#prompt-preview-textarea').val(prompt);
-        debugLog(`提示词预览内容已更新（${modeDescription}）`);
-        toastr.success(`提示词已更新（${modeDescription}）`);
+        // debugLog(`提示词预览内容已更新（${modeDescription}）`);
+        // toastr.success(`提示词已更新（${modeDescription}）`);
     } catch (error) {
         errorLog('更新提示词预览失败:', error);
         toastr.error('更新提示词失败');
@@ -183,10 +233,37 @@ function bindInsertionSettingsEvents() {
 }
 
 /**
+ * 动态生成预览模式选择器选项
+ */
+function generatePreviewModeOptions() {
+    try {
+        const previewModes = getPreviewModes();
+        const selectElement = $('#preview-mode-select');
+
+        // 清空现有选项
+        selectElement.empty();
+
+        // 动态添加选项
+        previewModes.forEach(mode => {
+            const option = $('<option>').val(mode.value).text(mode.label);
+            selectElement.append(option);
+        });
+
+        debugLog('动态生成预览模式选项完成，共添加了 ' + previewModes.length + ' 个选项');
+
+    } catch (error) {
+        errorLog('动态生成预览模式选项失败:', error);
+    }
+}
+
+/**
  * 绑定预览模式选择器事件
  */
 function bindPreviewModeEvents() {
     try {
+        // 动态生成预览模式选项
+        generatePreviewModeOptions();
+
         // 绑定预览模式选择器变化事件
         $('#preview-mode-select').off('change').on('change', function () {
             const mode = $(this).val();
