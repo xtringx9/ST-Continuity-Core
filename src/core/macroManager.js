@@ -149,7 +149,7 @@ export function getContinuityOrder() {
 }
 
 
-function getContinuityModuleData() {
+export function getContinuityModuleData() {
     try {
         if (!configManager.isExtensionEnabled()) {
             debugLog("[Macro]宏管理器: 扩展未启用，返回空提示词");
@@ -170,7 +170,7 @@ function getContinuityModuleData() {
 }
 
 
-function getContinuityChatModule(index) {
+export function getContinuityChatModule(index) {
     try {
         if (!configManager.isExtensionEnabled()) {
             debugLog("[Macro]宏管理器: 扩展未启用，返回空提示词");
