@@ -70,40 +70,40 @@ export function processExtractModules(rawModules, selectedModuleNames, returnStr
     const displayTitle = '原生模块提取结果';
 
     // 根据参数决定返回格式
-    if (returnString) {
-        // 直接返回原始模块字符串
-        resultContent = filteredModules.map(module => module.raw).join('\n');
-    } else {
-        // 返回原生结构化数据
-        resultContent = filteredModules.map(module => {
-            // 解析模块名和变量
-            const content = module.raw.slice(1, -1);
-            const [moduleName, ...parts] = content.split('|');
+    // if (returnString) {
+    // 直接返回原始模块字符串
+    resultContent = filteredModules.map(module => module.raw).join('\n');
+    // } else {
+    //     // 返回原生结构化数据
+    //     resultContent = filteredModules.map(module => {
+    //         // 解析模块名和变量
+    //         const content = module.raw.slice(1, -1);
+    //         const [moduleName, ...parts] = content.split('|');
 
-            // 解析变量
-            const variables = {};
-            parts.forEach(part => {
-                const colonIndex = part.indexOf(':');
-                if (colonIndex === -1) return;
-                const key = part.substring(0, colonIndex).trim();
-                const value = part.substring(colonIndex + 1).trim();
-                if (key) {
-                    variables[key] = value;
-                }
-            });
+    //         // 解析变量
+    //         const variables = {};
+    //         parts.forEach(part => {
+    //             const colonIndex = part.indexOf(':');
+    //             if (colonIndex === -1) return;
+    //             const key = part.substring(0, colonIndex).trim();
+    //             const value = part.substring(colonIndex + 1).trim();
+    //             if (key) {
+    //                 variables[key] = value;
+    //             }
+    //         });
 
-            // 构建原生模块的结构化数据
-            const moduleData = {
-                moduleName: moduleName,
-                identifier: module.identifier || '',
-                variables: variables,
-                raw: module.raw
-                // 不再存储moduleConfig，需要时从configManager动态获取
-            };
+    //         // 构建原生模块的结构化数据
+    //         const moduleData = {
+    //             moduleName: moduleName,
+    //             identifier: module.identifier || '',
+    //             variables: variables,
+    //             raw: module.raw
+    //             // 不再存储moduleConfig，需要时从configManager动态获取
+    //         };
 
-            return moduleData;
-        });
-    }
+    //         return moduleData;
+    //     });
+    // }
 
     return { resultContent, displayTitle };
 }
@@ -126,50 +126,50 @@ export function processProcessedModules(rawModules, selectedModuleNames, returnS
     const displayTitle = '整理后模块结果';
 
     // 根据参数决定返回格式
-    if (returnString) {
-        // 构建处理后的模块字符串
-        const processedModules = filteredModules.map(module => {
-            // 动态获取模块配置
-            const modulesData = configManager.getModules() || [];
-            const moduleConfig = modulesData.find(config => config.name === module.moduleName);
+    // if (returnString) {
+    // 构建处理后的模块字符串
+    const processedModules = filteredModules.map(module => {
+        // 动态获取模块配置
+        const modulesData = configManager.getModules() || [];
+        const moduleConfig = modulesData.find(config => config.name === module.moduleName);
 
-            if (!moduleConfig) {
-                // 没有模块配置，返回原始内容
-                return module.raw;
-            }
+        if (!moduleConfig) {
+            // 没有模块配置，返回原始内容
+            return module.raw;
+        }
 
-            // 构建当前模块的字符串
-            let moduleString = `[${module.moduleName}`;
+        // 构建当前模块的字符串
+        let moduleString = `[${module.moduleName}`;
 
-            // 按照模块配置中的变量顺序添加变量
-            moduleConfig.variables.forEach(variable => {
-                // 获取变量值
-                let varValue = module.variables[variable.name] || '';
+        // 按照模块配置中的变量顺序添加变量
+        moduleConfig.variables.forEach(variable => {
+            // 获取变量值
+            let varValue = module.variables[variable.name] || '';
 
-                moduleString += `|${variable.name}:${varValue}`;
-            });
-
-            moduleString += ']';
-
-            return moduleString;
+            moduleString += `|${variable.name}:${varValue}`;
         });
 
-        resultContent = processedModules.join('\n');
-    } else {
-        // 返回结构化数据
-        resultContent = filteredModules.map(module => {
-            // 构建当前模块的结构化数据
-            const moduleData = {
-                moduleName: module.moduleName,
-                identifier: module.identifier || '',
-                variables: module.variables || {},
-                raw: module.raw
-                // 不再存储moduleConfig，需要时从configManager动态获取
-            };
+        moduleString += ']';
 
-            return moduleData;
-        });
-    }
+        return moduleString;
+    });
+
+    resultContent = processedModules.join('\n');
+    // } else {
+    //     // 返回结构化数据
+    //     resultContent = filteredModules.map(module => {
+    //         // 构建当前模块的结构化数据
+    //         const moduleData = {
+    //             moduleName: module.moduleName,
+    //             identifier: module.identifier || '',
+    //             variables: module.variables || {},
+    //             raw: module.raw
+    //             // 不再存储moduleConfig，需要时从configManager动态获取
+    //         };
+
+    //         return moduleData;
+    //     });
+    // }
 
     return { resultContent, displayTitle };
 }
@@ -1840,7 +1840,7 @@ export function getMaxMessageIndexFromHistory(module, currentMessageIndex) {
  * @param {boolean} showProcessInfo 是否显示处理信息
  * @returns {string} 转换后的模块字符串
  */
-export function buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false, needOutputformat = false) {
+export function buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false, showRule = false) {
     let result = '';
 
     // 获取所有模块配置并按order排序
@@ -1856,9 +1856,9 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
             // 处理structuredModules中存在的模块
             const { processType, data } = moduleData;
 
-            if (needOutputformat) {
-                result += `## ${moduleName}`;
-            }
+            // if (needOutputformat) {
+            //     result += `## ${moduleName}`;
+            // }
 
             if (showModuleNames) {
                 result += `## ${moduleConfig.name} (${moduleConfig.displayName})\n`;
@@ -1882,13 +1882,13 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
                     result += `${processInfo}`;
                 }
                 result += `\n`;
-                if (!showProcessInfo) {
+                if (!showProcessInfo && showRule) {
                     result += `> [INSTRUCTION]\n`;
                     if (moduleConfig.contentPrompt) {
                         result += `> usage:${moduleConfig.contentPrompt}\n`;
                     }
                     if (moduleConfig.prompt) {
-                        result += `> rule:${moduleConfig.prompt}\n`;
+                        result += `> requirement:${moduleConfig.prompt}\n`;
                     }
 
                     let formatPrompt = '';
@@ -1896,7 +1896,7 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
                         const variableDescriptions = moduleConfig.variables.map(variable => {
                             const variableName = variable.name;
                             const variableDesc = variable.description ? `${variable.description}` : '';
-                            return `${variableName}:${variable.isIdentifier ? '(KEY)' : variable.isBackupIdentifier ? '(KEY)' : ''}${variableDesc}`;
+                            return `${module.outputMode === 'full' ? '' : variable.isIdentifier ? '*' : variable.isBackupIdentifier ? '^' : ''}${variableName}:${variableDesc}`;
                         }).join('|');
                         formatPrompt += `[${moduleConfig.name}|${variableDescriptions}]\n`;
                     } else {
@@ -1920,7 +1920,7 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
             }
 
             result += '\n';
-        } else if (showModuleNames && !showProcessInfo) {
+        } else if (showModuleNames && !showProcessInfo && showRule) {
             // 处理structuredModules中不存在的模块（剩余模块）
             result += `## ${moduleConfig.name} (${moduleConfig.displayName})\n`;
             result += `> stats:count=0\n`;
@@ -1930,7 +1930,7 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
                     result += `> usage:${moduleConfig.contentPrompt}\n`;
                 }
                 if (moduleConfig.prompt) {
-                    result += `> rule:${moduleConfig.prompt}\n`;
+                    result += `> requirement:${moduleConfig.prompt}\n`;
                 }
 
                 let formatPrompt = '';
@@ -2096,7 +2096,7 @@ export function processIncrementalModules(modules, moduleConfig) {
  * - moduleFilters: 在提取阶段使用，是一个包含{name, compatibleModuleNames}的数组，用于从聊天记录中过滤出特定类型的模块
  * - selectedModuleNames: 在处理阶段使用，是一个字符串数组，只包含模块名，用于从已提取的模块中选择需要处理的模块
  */
-export function processModuleData(extractParams, processType, selectedModuleNames = undefined, isForce = false, showModuleNames = false, showProcessInfo = false, needOutputformat = false, returnString = false) {
+export function processModuleData(extractParams, processType, selectedModuleNames = undefined, isForce = false, showModuleNames = false, showProcessInfo = false, showRule = false) {
     try {
         debugLog(`[EVENTS]开始处理模块数据，类型：${processType}`);
 
@@ -2138,7 +2138,7 @@ export function processModuleData(extractParams, processType, selectedModuleName
             // 刷新字符串表示
             let contentString = '';
             if (typeof content !== 'string') {
-                contentString = buildModulesString(content, showModuleNames, showProcessInfo, needOutputformat);
+                contentString = buildModulesString(content, showModuleNames, showProcessInfo, showRule);
             }
             let count = 0;
             let hasContent = false;
@@ -2218,14 +2218,14 @@ export function processModuleData(extractParams, processType, selectedModuleName
         switch (processType) {
             case 'extract':
                 // 调用独立的原生模块处理函数
-                const extractResult = processExtractModules(rawModules, selectedModuleNames, returnString);
+                const extractResult = processExtractModules(rawModules, selectedModuleNames);
                 resultContent = extractResult.resultContent;
                 displayTitle = extractResult.displayTitle;
                 break;
 
             case 'processed':
                 // 调用独立的标准化模块处理函数
-                const processedResult = processProcessedModules(rawModules, selectedModuleNames, returnString);
+                const processedResult = processProcessedModules(rawModules, selectedModuleNames);
                 resultContent = processedResult.resultContent;
                 displayTitle = processedResult.displayTitle;
                 break;
@@ -2262,7 +2262,7 @@ export function processModuleData(extractParams, processType, selectedModuleName
         // 构建字符串表示
         let contentString = resultContent;
         if (typeof resultContent !== 'string') {
-            contentString = buildModulesString(resultContent, showModuleNames, showProcessInfo, needOutputformat);
+            contentString = buildModulesString(resultContent, showModuleNames, showProcessInfo, showRule);
         }
 
         const moduleFinalData = {

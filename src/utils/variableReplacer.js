@@ -185,7 +185,7 @@ export function getUserAndCharNames() {
  */
 export function replaceVariables(prompt) {
     try {
-        debugLog("变量替换器: 开始替换提示词中的变量");
+        // debugLog("变量替换器: 开始替换提示词中的变量");
 
         if (!prompt || typeof prompt !== 'string') {
             debugLog("变量替换器: 提示词为空或无效，直接返回");
@@ -209,32 +209,32 @@ export function replaceVariables(prompt) {
         // 替换 {{user}} 变量
         if (prompt.includes("{{user}}")) {
             replacedPrompt = replacedPrompt.replace(/\{\{user\}\}/gi, userName);
-            debugLog("变量替换器: 已替换 {{user}} 变量");
+            // debugLog("变量替换器: 已替换 {{user}} 变量");
         }
 
         // 替换 {{char}} 变量
         if (prompt.includes("{{char}}")) {
             replacedPrompt = replacedPrompt.replace(/\{\{char\}\}/gi, charName);
-            debugLog("变量替换器: 已替换 {{char}} 变量");
+            // debugLog("变量替换器: 已替换 {{char}} 变量");
         }
 
         // 替换 <user> XML标签格式
         if (prompt.includes("<user>")) {
             replacedPrompt = replacedPrompt.replace(/<user>/gi, userName);
-            debugLog("变量替换器: 已替换 <user> 变量");
+            // debugLog("变量替换器: 已替换 <user> 变量");
         }
 
         // 替换 <char> XML标签格式
         if (prompt.includes("<char>")) {
             replacedPrompt = replacedPrompt.replace(/<char>/gi, charName);
-            debugLog("变量替换器: 已替换 <char> 变量");
+            // debugLog("变量替换器: 已替换 <char> 变量");
         }
 
         // 替换其他常见变量格式
         replacedPrompt = replacedPrompt.replace(/\{\{USER\}\}/gi, userName);
         replacedPrompt = replacedPrompt.replace(/\{\{CHAR\}\}/gi, charName);
 
-        debugLog("变量替换器: 变量替换完成");
+        // debugLog("变量替换器: 变量替换完成");
         return replacedPrompt;
 
     } catch (error) {
