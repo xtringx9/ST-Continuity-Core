@@ -474,32 +474,39 @@ export function generateSingleChatModuleData(index) {
         );
         // debugLog('[MACRO] 模块提取结果:', processResult);
 
-
-
         const curIndex = chat.length - 1 - (isUserMessage ? index : index + 1);
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
         const modulesForThisMessage = groupedByMessageIndex[curIndex] || [];
         debugLog(`[MACRO] 当前聊天索引为${curIndex}模块index分组结果:`, groupedByMessageIndex);
         // debugLog(`[MACRO] 聊天索引${curIndex}模块结果:`, modulesForThisMessage);
 
-        // todo 可能还要判断remainLayers去决定要不要加进去
-
         let resultString = '';
         if (modulesForThisMessage.length > 0) {
             let lastModuleName = '';
             modulesForThisMessage.forEach((entry, index) => {
-                if (!entry.shouldHide) {
-                    // 判断模块名是否连续一致
-                    if (index === 0 || entry.moduleName !== lastModuleName) {
-                        if (lastModuleName !== '') {
-                            resultString += '\n';
-                        }
-                        // 第一条或模块名不同时，输出模块名标题
-                        resultString += `## ${entry.moduleName}\n`;
+                // 判断模块名是否连续一致
+                if (index === 0 || entry.moduleName !== lastModuleName) {
+                    if (lastModuleName !== '') {
+                        resultString += '\n';
                     }
-                    resultString += entry.moduleString + '\n';
-                    lastModuleName = entry.moduleName;
+                    // 第一条或模块名不同时，输出模块名标题
+                    resultString += `## ${entry.moduleName}\n`;
                 }
+                // 获取当前entry的模块配置
+                const moduleConfig = configManager.getModules().find(module => module.name === entry.moduleName);
+                let shouldFilter = false;
+                let retainLayers = moduleConfig.retainLayers * 2;
+                if (retainLayers >= 0) {
+                    if (index > retainLayers) {
+                        shouldFilter = true;
+                    }
+                }
+                // if (!entry.shouldHide) {
+                if (!shouldFilter) {
+                    resultString += entry.moduleString + '\n';
+                }
+                // }
+                lastModuleName = entry.moduleName;
             });
         }
 
