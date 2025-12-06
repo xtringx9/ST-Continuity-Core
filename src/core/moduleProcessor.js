@@ -3,7 +3,7 @@ import { chat, moduleCacheManager, configManager, infoLog, debugLog, errorLog } 
 import { extractModulesFromChat } from './moduleExtractor.js';
 import { IdentifierParser } from '../utils/identifierParser.js';
 import { parseTimeDetailed, formatTimeDataToStandard, completeTimeDataWithStandard } from '../utils/timeParser.js';
-import { removeHyphens } from '../utils/stringUtils.js';
+import { removeHyphens, removeSpecialSymbols } from '../utils/stringUtils.js';
 
 // /**
 //  * 模块数据处理器类
@@ -188,7 +188,7 @@ export function normalizeModules(modules, selectedModuleNames = []) {
     modules.forEach(module => {
         // 解析模块名和变量
         const [originalModuleName, ...parts] = module.raw.slice(1, -1).split('|');
-        const moduleName = removeHyphens(originalModuleName.trim());
+        const moduleName = removeSpecialSymbols(originalModuleName.trim());
 
         // 解析当前模块的变量
         let isValid = false;
@@ -197,7 +197,7 @@ export function normalizeModules(modules, selectedModuleNames = []) {
             const colonIndex = part.indexOf(':');
             if (colonIndex === -1) return;
 
-            const key = removeHyphens(part.substring(0, colonIndex).trim());
+            const key = removeSpecialSymbols(part.substring(0, colonIndex).trim());
             const value = part.substring(colonIndex + 1).trim();
             if (value) isValid = true;
             if (key) {
@@ -263,17 +263,18 @@ export function normalizeModules(modules, selectedModuleNames = []) {
                     variables: normalizedVariables
                     // 不再存储moduleConfig，需要时从configManager动态获取
                 };
-
                 normalizedModules.push(normalizedModule);
             } else {
-                // 如果没有找到模块配置，使用原始模块数据（使用去'-'后的模块名）
-                normalizedModules.push({
-                    ...module,
-                    originalModuleName,
-                    moduleName: moduleName,
-                    variables: originalVariables
-                    // 不再存储moduleConfig，需要时从configManager动态获取
-                });
+                debugLog(`未找到模块配置：${module}`);
+                // // 如果没有找到模块配置，使用原始模块数据（使用去'-'后的模块名）
+                // const normalizedModule = {
+                //     ...module,
+                //     originalModuleName,
+                //     moduleName: moduleName,
+                //     variables: originalVariables
+                //     // 不再存储moduleConfig，需要时从configManager动态获取
+                // };
+                // normalizedModules.push(normalizedModule);
             }
         }
     });
@@ -1421,6 +1422,7 @@ export function mergeModulesByOrder(modules) {
     let cumulativeVariables = {};
     let hasTimeVar = false;
     let lastTimeData = undefined;
+    let lastTimeString = undefined;
 
     modules.forEach((module, index) => {
         const currentVariables = { ...cumulativeVariables };
@@ -1437,16 +1439,21 @@ export function mergeModulesByOrder(modules) {
                     hasTimeVar = true;
                 }
                 if (hasTimeVar && key === 'time') {
+                    if (lastTimeString === undefined && module.variables[key] && module.variables[key].trim() !== '') {
+                        lastTimeString = module.variables[key].trim();
+                    }
                     if (lastTimeData === undefined && module.timeData !== undefined && module.timeData.isValid && module.timeData.isComplete) {
                         lastTimeData = module.timeData;
+                        lastTimeString = module.variables[key].trim();
                     }
                     else if (module.isAddTime === undefined || (module.isAddTime != undefined && !module.isAddTime)) {
                         lastTimeData = module.timeData;
+                        lastTimeString = module.variables[key].trim();
                     }
                     else if (module.isAddTime !== undefined && module.isAddTime) {
                         module.timeData = lastTimeData !== undefined ? lastTimeData : module.timeData;
-                        module.variables[key] = lastTimeData !== undefined ? lastTimeData.formattedString : module.variables[key];
-                        value = lastTimeData !== undefined ? lastTimeData.formattedString : value;
+                        module.variables[key] = lastTimeString !== undefined ? lastTimeString : module.variables[key];
+                        value = lastTimeString !== undefined ? lastTimeString : value;
                         canSave = false;
                     }
                 }
@@ -1660,19 +1667,19 @@ export function parseSingleVariableInProcess(part, variablesMap, variableNameMap
 
     if (colonIndex === -1) return;
 
-    const varName = part.substring(0, colonIndex).trim();
+    const varName = removeSpecialSymbols(part.substring(0, colonIndex).trim());
     const varValue = part.substring(colonIndex + 1).trim();
 
     if (varName && varValue) {
         // 检查变量名是否在映射表中
         if (variableNameMap.hasOwnProperty(varName)) {
             const currentVarName = variableNameMap[varName];
-            variablesMap[currentVarName] = (currentVarName !== 'time' && currentVarName !== 'id') ? removeHyphens(varValue) : varValue;
+            variablesMap[currentVarName] = (currentVarName !== 'time' && currentVarName !== 'id' && currentVarName !== 'log') ? removeHyphens(varValue) : varValue;
         } else {
             // 处理兼容变量名的精确匹配
             for (const [compatName, currentName] of Object.entries(variableNameMap)) {
                 if (varName === compatName) {
-                    variablesMap[currentName] = (currentName !== 'time' && currentName !== 'id') ? removeHyphens(varValue) : varValue;
+                    variablesMap[currentName] = (currentName !== 'time' && currentName !== 'id' && currentName !== 'log') ? removeHyphens(varValue) : varValue;
                     break;
                 }
             }
@@ -1769,11 +1776,11 @@ export function processAutoModules(rawModules, selectedModuleNames) {
         let processType = 'full';
         let resultData;
 
-        if (!moduleConfig) {
-            // 没有模块配置，使用全量处理
-            processType = 'full_without_config';
-            resultData = moduleGroup.map(module => module.raw);
-        } else {
+        if (moduleConfig) {
+            //     // 没有模块配置，不作任何处理，当作模块不存在
+            //     processType = 'skip';
+            //     resultData = [];
+            // } else {
             // 获取模块的outputMode配置
             const outputMode = moduleConfig.outputMode || 'full';
             processType = outputMode;
@@ -1786,27 +1793,28 @@ export function processAutoModules(rawModules, selectedModuleNames) {
                 // 全量处理（默认）
                 resultData = processFullModules(moduleGroup);
             }
-        }
 
-        // 计算包含隐藏模块的最大ID值
-        let maxId = null;
-        debugLog(`处理模块获取maxId：`, resultData);
-        if (processType === 'incremental' && Array.isArray(resultData) && resultData.length > 0) {
-            // 从增量处理结果中提取最大ID值
-            const maxIds = resultData.map(item => item.maxId).filter(id => id !== null);
-            if (maxIds.length > 0) {
-                maxId = Math.max(...maxIds);
+            // 计算包含隐藏模块的最大ID值
+            let maxId = null;
+            debugLog(`处理模块获取maxId：`, resultData);
+            if (processType === 'incremental' && Array.isArray(resultData) && resultData.length > 0) {
+                // 从增量处理结果中提取最大ID值
+                const maxIds = resultData.map(item => item.maxId).filter(id => id !== null);
+                if (maxIds.length > 0) {
+                    maxId = Math.max(...maxIds);
+                }
             }
+
+            structuredResult[moduleName] = {
+                processType: processType,
+                data: resultData,
+                moduleCount: Array.isArray(resultData) ? resultData.filter(item => !item.shouldHide).length : resultData.length,
+                moduleConfig: moduleConfig,
+                isIncremental: processType === 'incremental',
+                maxId: maxId, // 存储最大ID值
+            };
         }
 
-        structuredResult[moduleName] = {
-            processType: processType,
-            data: resultData,
-            moduleCount: Array.isArray(resultData) ? resultData.filter(item => !item.shouldHide).length : resultData.length,
-            moduleConfig: moduleConfig,
-            isIncremental: processType === 'incremental',
-            maxId: maxId, // 存储最大ID值
-        };
     });
 
     return structuredResult;
