@@ -1,6 +1,7 @@
 // 模块提取器 - 用于从聊天记录中提取模块数据
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { chat, getCurrentCharBooksModuleEntries, configManager } from "../index.js";
+import { processQuotes } from '../utils/textConverter.js';
 
 export const MODULE_REGEX = /\[([^:|]+?)\|(.*?)\]/g;
 export const MODULE_NAME_REGEX = /^\[([^:|]+?)\|/;
@@ -72,6 +73,7 @@ export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFi
 
                     const moduleData = {
                         raw: rawModule,
+                        processedRaw: processQuotes(rawModule),
                         messageIndex: index,
                         isUserMessage: isUserMessage,
                         speakerName: speakerName,
