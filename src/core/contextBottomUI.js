@@ -468,7 +468,7 @@ export function updateModulesDataAndStyles(container, extractParams, isUseContai
                         moduleDataElement.className = 'module-data-container';
                         let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
                         // 添加处理后的模块数据
-                        const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.moduleCount})</summary>${moduleStrings}</details>`;
+                        const moduleContent = `<details class="module-data" style="white-space: pre-wrap;"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.moduleCount})</summary>${moduleStrings}</details>`;
                         moduleDataElement.innerHTML = moduleContent;
                         contentContainer.appendChild(moduleDataElement);
                         debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);

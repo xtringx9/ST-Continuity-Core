@@ -115,6 +115,7 @@ details.bottom-summary[open]>.summary-title::before {
     color: #495057;
     /* white-space: pre-wrap; */
     word-wrap: break-word;
+    /* overflow-wrap: break-word; */
 }
 
 /* 模块数据summary样式 */
