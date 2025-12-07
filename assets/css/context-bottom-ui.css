@@ -157,13 +157,27 @@ details.bottom-summary[open]>.summary-title::before {
     user-select: none;
 }
 
+/* 确保.module-data-content内部的summary保持正常样式
+.module-data-content summary {
+    all: unset;
+    display: list-item;
+    padding: 1px 0;
+    line-height: 1.2;
+    font-size: 11px;
+    font-weight: bold;
+    color: #6c757d;
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+} */
+
 /* 模块数据summary展开时的竖向按钮效果 */
 details.module-data[open] {
     position: relative;
     padding-right: 15px;
 }
 
-details.module-data[open] summary {
+details.module-data[open]>summary {
     all: unset;
     position: absolute;
     top: 0;
@@ -190,13 +204,13 @@ details.module-data[open] summary {
 }
 
 /* 模块数据竖向按钮的悬停效果 */
-details.module-data[open] summary:hover {
+details.module-data[open]>summary:hover {
     background: #e8e8e8;
     border-color: #b8b2af;
 }
 
 /* 模块数据展开状态下使用三角符号 */
-details.module-data[open] summary::before {
+details.module-data[open]>summary::before {
     content: '▼';
     font-size: 9px;
     color: #6c757d;
