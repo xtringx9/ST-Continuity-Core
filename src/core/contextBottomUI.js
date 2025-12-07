@@ -742,6 +742,7 @@ export function renderSingleMessageContext(messages, container, mes) {
                     // const processedRaw = processQuotes(entry.moduleData.raw);
                     const processedRaw = entry.moduleData.processedRaw;
 
+                    // infoLog('renderSingleMessageContext: 处理后的raw文本:', processedRaw, entry);
                     // 构建匹配模式：entry.moduleData.raw后面可能跟着0个或多个<br>标签
                     const rawPattern = new RegExp(processedRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:<br>)*', 'g');
 

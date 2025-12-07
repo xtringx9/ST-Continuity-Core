@@ -5,3 +5,9 @@
 - moduleConfigTemplate.normalizeConfig 规范化配置对象，导入导出保存都需要经过
    - 改变配置时记得修改
 - configImporterExporter 配置导入导出工具，用于处理配置文件的导入导出
+
+
+raw数据：
+mergeModulesByOrder
+groupProcessResultByMessageIndex
+extractModulesFromChat
