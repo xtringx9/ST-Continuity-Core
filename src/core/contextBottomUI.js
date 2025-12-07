@@ -750,7 +750,7 @@ export function renderSingleMessageContext(messages, container, mes) {
                     if (matchResult) {
                         const matchedText = matchResult[0].replace(processedRaw + '<br>', processedRaw);
                         // 如果匹配上了，用customStyles替换匹配到的内容（包括后面的<br>标签）
-                        newHtml = newHtml.replace(matchedText, entry.customStyles);
+                        newHtml = newHtml.replaceAll(matchedText, entry.customStyles); //因为有可能出现同模块在一个页面多次的情况
                         debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
                         // }
                     } else {
