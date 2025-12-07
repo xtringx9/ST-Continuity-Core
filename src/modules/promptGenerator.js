@@ -14,7 +14,8 @@ const DEFAULT_INSERTION_SETTINGS = {
  */
 export function generateFormalPrompt() {
     try {
-        const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
+        const globalSettings = configManager.getGlobalSettings();
+        const moduleTag = globalSettings.moduleTag || "module";
         const promptTag = `${moduleTag}_generate_rule`;
 
         const modules = configManager.getModules() || [];
@@ -41,10 +42,10 @@ export function generateFormalPrompt() {
 
         // // 添加通用格式描述提示词（如果设置了）
         // if (globalSettings?.formatDescription) {
-        //     prompt += `[GENERAL FORMAT]\n${globalSettings.formatDescription}\n\n`;
+        //     prompt += `${globalSettings.formatDescription}\n\n`;
         // }
 
-        prompt += getOutputRulePrompt();
+        prompt += getOutputRulePrompt('core');
 
         prompt += '# 模块配置\n';
 
@@ -200,8 +201,11 @@ export function generateModuleOrderPrompt() {
         let orderPrompt = `<${promptTag}>\n`;
         // orderPrompt += "模块生成顺序和配置：\n\n";
 
-        // orderPrompt += getOutputRulePrompt();
-        // orderPrompt += "# 格式与顺序\n";
+        let formatPrompt = getOutputRulePrompt('format');
+        if (formatPrompt) {
+            orderPrompt += formatPrompt;
+            // orderPrompt += "# 格式与顺序\n";
+        }
 
 
         // orderPrompt += "Format: [Module]|Trigger|Qty|Mode|Pos/Note*\n\n";
@@ -264,27 +268,44 @@ export function generateModuleOrderPrompt() {
     }
 }
 
-function getOutputRulePrompt() {
+function getOutputRulePrompt(type) {
     const globalSettings = configManager.getGlobalSettings();
 
     let prompt = "# 模块输出要求\n";
-
-    // 添加核心原则提示词（如果设置了）
-    if (globalSettings?.corePrinciples) {
-        prompt += `[CORE PRINCIPLE]\n${globalSettings.corePrinciples}\n\n`;
+    let settingPrompt = '';
+    switch (type) {
+        case 'core':
+            // 添加核心原则提示词（如果设置了）
+            if (globalSettings?.corePrinciples) {
+                settingPrompt += `${globalSettings.corePrinciples}\n\n`;
+            }
+            break;
+        case 'format':
+            // 添加通用格式描述提示词（如果设置了）
+            if (globalSettings?.formatDescription) {
+                settingPrompt += `${globalSettings.formatDescription}\n\n`;
+            }
+            break;
+        case 'all':
+            // 添加核心原则提示词（如果设置了）
+            if (globalSettings?.corePrinciples) {
+                settingPrompt += `${globalSettings.corePrinciples}\n\n`;
+            }
+            // 添加通用格式描述提示词（如果设置了）
+            if (globalSettings?.formatDescription) {
+                settingPrompt += `${globalSettings.formatDescription}\n\n`;
+            }
+            break;
+        default:
+            return '';
     }
 
-    // 添加通用格式描述提示词（如果设置了）
-    if (globalSettings?.formatDescription) {
-        prompt += `[GENERAL FORMAT]\n${globalSettings.formatDescription}\n\n`;
-    }
-
-    // 添加输出模式说明
-    prompt += "[OUTPUT PROTOCOL]\n";
-    prompt += "增量(INC): Initialize full. ALWAYS output keys marked * or ^ + ONLY changed fields.\n";
-    prompt += "全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
-
-    return prompt;
+    // // 添加输出模式说明
+    // prompt += "[OUTPUT PROTOCOL]\n";
+    // prompt += "增量(INC): Initialize full. ALWAYS output keys marked * or ^ + ONLY changed fields.\n";
+    // prompt += "全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
+    if (settingPrompt) return prompt + settingPrompt;
+    return '';
 }
 
 /**
