@@ -9,6 +9,7 @@ import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 import { insertCombinedStylesToDetails } from '../modules/styleCombiner.js';
 import { processModuleData } from './moduleProcessor.js';
 import { groupProcessResultByMessageIndex, chat_metadata, getContext, configManager } from '../index.js';
+import { processQuotes } from '../utils/textConverter.js';
 
 // 上下文底部UI容器ID
 const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';
@@ -737,19 +738,22 @@ export function renderSingleMessageContext(messages, container, mes) {
                 }
                 // 使用entry.moduleData.raw来匹配mes_text div内部的原文，包括后面的<br>标签
                 else {
+                    // 先使用processQuotes处理raw文本，如果匹配不上就直接返回原文
+                    const processedRaw = processQuotes(entry.moduleData.raw);
+
                     // 构建匹配模式：entry.moduleData.raw后面可能跟着0个或多个<br>标签
-                    const rawPattern = new RegExp(entry.moduleData.raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:<br>)*', 'g');
+                    const rawPattern = new RegExp(processedRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:<br>)*', 'g');
 
                     // if (rawPattern.test(newHtml)) {
                     const matchResult = rawPattern.exec(newHtml);
                     if (matchResult) {
-                        const matchedText = matchResult[0].replace(entry.moduleData.raw + '<br>', entry.moduleData.raw);
+                        const matchedText = matchResult[0].replace(processedRaw + '<br>', processedRaw);
                         // 如果匹配上了，用customStyles替换匹配到的内容（包括后面的<br>标签）
                         newHtml = newHtml.replace(matchedText, entry.customStyles);
-                        debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText);
+                        infoLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
                         // }
                     } else {
-                        debugLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', entry);
+                        infoLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', entry, processedRaw);
                     }
                 }
             });
