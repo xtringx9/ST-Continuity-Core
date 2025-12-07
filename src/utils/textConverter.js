@@ -21,7 +21,7 @@ export function convertQuotesToQTags(text) {
         // 英文双引号
         /"([^"]*)"/g,
         // 中文双引号
-        /"([^”]*)”/g,
+        /“([^”]*)”/g,
         // 日文双引号
         /「([^」]*)」/g,
         // 法文双引号
