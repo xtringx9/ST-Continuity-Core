@@ -207,6 +207,11 @@ export async function updateUItoMsgBottom() {
 
             const contentContainer = container?.querySelector('.modules-content-container');
 
+            // 为内容容器设置最大高度
+            if (contentContainer) {
+                contentContainer.style.maxHeight = '500px';
+            }
+
             // 清空容器内的所有内容
             if (contentContainer) {
                 contentContainer.innerHTML = '';
