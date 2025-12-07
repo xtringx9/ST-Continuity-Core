@@ -28,7 +28,8 @@ import {
     updateAllModulesPreview,
     initPromptPreview,
     ExtractModuleController,
-    initParseModule
+    initParseModule,
+    extensionName
 } from '../index.js';
 
 
@@ -47,6 +48,7 @@ function loadCSS() {
 
     cssFiles.forEach(fileName => {
         const link = document.createElement('link');
+        link.id = `third-party_${extensionName}-css`;
         link.rel = 'stylesheet';
         link.href = `${extensionFolderPath}/assets/css/${fileName}`;
         document.head.appendChild(link);
