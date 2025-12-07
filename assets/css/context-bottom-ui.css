@@ -111,7 +111,11 @@ details.bottom-summary[open]>.summary-title::before {
     margin-bottom: -2px;
     max-width: calc(100% - 22px);
     /* 为竖向按钮留出空间 */
+    padding: 0px;
     min-height: 40px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f0f0f0;
 }
 
 /* 10. 模块数据容器样式 */
