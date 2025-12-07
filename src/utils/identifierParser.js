@@ -6,13 +6,16 @@
 class IdentifierParser {
     /**
      * 解析标识符变量的多值
-     * @param {string} value 标识符变量的值
+     * @param {string|number} value 标识符变量的值
      * @returns {Array} 解析后的值数组（已去空格）
      */
     static parseMultiValues(value) {
-        if (!value || typeof value !== 'string') {
+        if (value === null || value === undefined || value === '') {
             return [];
         }
+
+        // 将数字转换为字符串进行处理
+        const stringValue = String(value);
 
         // 支持的分隔符：英文逗号、中文逗号、英文分号、中文分号
         const separators = [',', '，', ';', '；'];
@@ -21,7 +24,7 @@ class IdentifierParser {
         const regex = new RegExp(`[${separators.map(s => '\\' + s).join('')}]`);
 
         // 分割并去除空格
-        return value.split(regex)
+        return stringValue.split(regex)
             .map(v => v.trim())
             .filter(v => v.length > 0);
     }
