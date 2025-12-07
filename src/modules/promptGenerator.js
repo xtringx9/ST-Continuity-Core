@@ -53,7 +53,7 @@ export function generateFormalPrompt() {
         enabledModules.forEach((module, index) => {
             // 模块标题：使用【name (displayName)】格式，方便AI理解
             const displayName = module.displayName || module.name;
-            prompt += `## ${module.name} (${displayName})\n`;
+            prompt += `${configManager.MODULE_TITLE_LEFT}${module.name} (${displayName})${configManager.MODULE_TITLE_RIGHT}\n`;
 
             prompt += getModuleRules(module, module.outputPosition === 'specific_position');
 
@@ -129,7 +129,7 @@ export function generateUsageGuide() {
         usageGuide += "# 模块内容使用指导\n\n";
 
         modulesWithUsagePrompt.forEach(module => {
-            usageGuide += `## ${module.name} (${module.displayName})\n`;
+            usageGuide += `${configManager.MODULE_TITLE_LEFT}${module.name} (${module.displayName})${configManager.MODULE_TITLE_RIGHT}\n`;
             usageGuide += `usage:${module.contentPrompt}\n\n`;
         });
 
@@ -315,7 +315,7 @@ function getOutputRulePrompt(type) {
  * @returns {string} 模块提示词字符串
  */
 function buildModulePrompt(module, needTitle = false, needRules = false, includePosition = false) {
-    let prompt = needTitle ? `## ${module.name}\n` : '';
+    let prompt = needTitle ? `${configManager.MODULE_TITLE_LEFT}${module.name}${configManager.MODULE_TITLE_RIGHT}\n` : '';
     if (needRules) {
         prompt += `> ` + getModuleRules(module, includePosition, true);
     }
@@ -511,7 +511,7 @@ export function generateSingleChatModuleData(index) {
                         resultString += '\n';
                     }
                     // 第一条或模块名不同时，输出模块名标题
-                    resultString += `## ${entry.moduleName}\n`;
+                    resultString += `${configManager.MODULE_TITLE_LEFT}${entry.moduleName}${configManager.MODULE_TITLE_RIGHT}\n`;
                 }
                 // 获取当前entry的模块配置
                 const moduleConfig = configManager.getModules().find(module => module.name === entry.moduleName);

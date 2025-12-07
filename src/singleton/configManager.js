@@ -48,6 +48,9 @@ class ConfigManager {
         this.loadCallbacksExecuted = false; // 标记回调是否已执行
     }
 
+    MODULE_TITLE_LEFT = "## "
+    MODULE_TITLE_RIGHT = "";
+
     /**
      * 加载模块配置到内存缓存
      */
