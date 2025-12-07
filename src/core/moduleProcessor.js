@@ -2598,7 +2598,7 @@ export function groupProcessResultByMessageIndex(processResult) {
                             groupedResult[entry.moduleData.messageIndex] = [];
                         }
 
-                        if (!groupedResult[timelineEntry.messageIndex].includes(entry)) {
+                        if (!groupedResult[entry.moduleData.messageIndex].includes(entry)) {
                             // 将条目添加到对应的messageIndex分组中
                             groupedResult[entry.moduleData.messageIndex].push(entry);
                         }
