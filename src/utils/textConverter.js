@@ -1,7 +1,7 @@
-// 简单的双引号转<q>标签工具
+// 简单的双引号转<q>标签工具和反引号转<code>标签工具
 
 /**
- * 将文本中的双引号（包括各种语言的双引号）转换为<q>标签
+ * 将文本中的双引号（包括各种语言的双引号）转换为<q>标签，以及反引号转换为<code>标签
  * @param {string} text - 要处理的文本
  * @returns {string} 处理后的文本
  */
@@ -10,12 +10,18 @@ export function convertQuotesToQTags(text) {
         return text;
     }
 
+    let result = text;
+
+    // 首先处理反引号，转换为<code>标签
+    const backtickPattern = /`([^`]*)`/g;
+    result = result.replace(backtickPattern, '<code>$1</code>');
+
     // 定义各种语言的双引号模式
     const quotePatterns = [
         // 英文双引号
         /"([^"]*)"/g,
         // 中文双引号
-        /“([^”]*)”/g,
+        /"([^”]*)”/g,
         // 日文双引号
         /「([^」]*)」/g,
         // 法文双引号
@@ -28,8 +34,6 @@ export function convertQuotesToQTags(text) {
         /﹁([^﹂]*)﹂/g,
         /﹃([^﹄]*)﹄/g
     ];
-
-    let result = text;
 
     // 对每种引号模式进行替换，将整个引号内容包裹在<q>标签中
     quotePatterns.forEach(pattern => {
