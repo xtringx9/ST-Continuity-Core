@@ -750,10 +750,10 @@ export function renderSingleMessageContext(messages, container, mes) {
                         const matchedText = matchResult[0].replace(processedRaw + '<br>', processedRaw);
                         // 如果匹配上了，用customStyles替换匹配到的内容（包括后面的<br>标签）
                         newHtml = newHtml.replace(matchedText, entry.customStyles);
-                        infoLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
+                        debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
                         // }
                     } else {
-                        infoLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', entry, processedRaw);
+                        debugLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', entry, processedRaw);
                     }
                 }
             });
