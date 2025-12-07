@@ -8,7 +8,7 @@
     border: 1px solid #d1cac6;
     border-radius: 6px;
     font-family: "Noto Sans SC", sans-serif;
-    padding: 8px;
+    padding: 4px;
 }
 
 /* 2. 折叠面板基础样式 */
@@ -39,8 +39,8 @@ details.bottom-summary {
     /* 重置所有继承的样式 */
     position: absolute;
     top: 0;
-    right: 0;
-    width: 24px;
+    right: -1px;
+    width: 20px;
     height: 100%;
     writing-mode: vertical-rl;
     text-orientation: mixed;
@@ -94,8 +94,9 @@ details.bottom-summary[open]>.summary-title::before {
 
 /* 9. 模块内容容器样式 */
 .modules-content-container {
-    margin-top: 8px;
-    max-width: calc(100% - 24px);
+    margin-top: 2px;
+    margin-bottom: -2px;
+    max-width: calc(100% - 22px);
     /* 为竖向按钮留出空间 */
     min-height: 40px;
 }
@@ -133,6 +134,55 @@ details.bottom-summary[open]>.summary-title::before {
     cursor: pointer;
     outline: none;
     user-select: none;
+}
+
+/* 模块数据summary展开时的竖向按钮效果 */
+details.module-data[open] {
+    position: relative;
+    padding-right: 20px;
+}
+
+details.module-data[open] summary {
+    all: unset;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 100%;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    padding: 6px 3px;
+    line-height: 1;
+    background: #f5f5f5;
+    border: 1px solid #d1cac6;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    list-style: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    color: transparent;
+    z-index: 1;
+    pointer-events: auto;
+}
+
+/* 模块数据竖向按钮的悬停效果 */
+details.module-data[open] summary:hover {
+    background: #e8e8e8;
+    border-color: #b8b2af;
+}
+
+/* 模块数据展开状态下使用三角符号 */
+details.module-data[open] summary::before {
+    content: '▼';
+    font-size: 9px;
+    color: #6c757d;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .continuity-context-bottom-ui {
