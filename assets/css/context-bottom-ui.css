@@ -116,7 +116,7 @@ details.bottom-summary[open]>.summary-title::before {
     /* white-space: pre-wrap; */
     word-wrap: break-word;
     /* overflow-wrap: break-word; */
-    max-height: 200px;
+    /* max-height: 200px; */
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #c1c1c1 #f0f0f0;
