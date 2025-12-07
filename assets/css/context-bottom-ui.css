@@ -20,7 +20,9 @@ details.bottom-summary {
 
 /* 3. 默认状态下的横向标题样式 */
 .summary-title {
-    display: list-item;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 1px 0;
     line-height: 1.2;
     font-size: 11px;
@@ -30,6 +32,17 @@ details.bottom-summary {
     outline: none;
     user-select: none;
     min-height: auto;
+    text-align: center;
+    width: 100%;
+    list-style-position: inside;
+    gap: 4px;
+}
+
+/* 恢复小三角箭头的显示 */
+.summary-title::before {
+    content: '▶';
+    font-size: 10px;
+    color: #6D6A67;
 }
 
 /* 4. 主容器summary - 完全独立的竖向按钮（右侧） */
