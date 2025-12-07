@@ -251,7 +251,7 @@ function parseSingleTime(timeStr, isEnd = false) {
         {
             pattern: /^(\d{2})年(\d{1,2})月(\d{1,2})日\s+(周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/,
             handler: (match) => ({
-                year: parseInt(match[1], 10) + 2000,
+                year: parseInt(match[1], 10),  // 直接使用输入的年份，不自动加2000
                 month: parseInt(match[2], 10),
                 day: parseInt(match[3], 10),
                 weekday: normalizeWeekday(match[4]),
@@ -329,7 +329,7 @@ function parseSingleTime(timeStr, isEnd = false) {
         {
             pattern: /^(\d{2})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/,
             handler: (match) => ({
-                year: parseInt(match[1], 10) + 2000,
+                year: parseInt(match[1], 10),  // 直接使用输入的年份，不自动加2000
                 month: parseInt(match[2], 10),
                 day: parseInt(match[3], 10),
                 weekday: '',
@@ -647,7 +647,7 @@ export function completeTimeDataWithStandard(targetTimeData, standardTimeData) {
             targetTimeData.startTime.day = standardDay;
             targetTimeData.startTime.hasDate = true;
 
-            // 如果有结束时间，需要考虑跨日情况
+            // 如果结束时间，需要考虑跨日情况
             if (targetTimeData.isRange && targetTimeData.endTime) {
                 // 计算targetTimeData原始的日期跨度（如果有）
                 let daySpan = 0;
@@ -699,7 +699,7 @@ export function completeTimeDataWithStandard(targetTimeData, standardTimeData) {
             targetTimeData.startTime.second = standardSecond;
             targetTimeData.startTime.hasTime = true;
 
-            // 如果有结束时间，也补全时分秒，并考虑跨日情况
+            // 如果结束时间，也补全时分秒，并考虑跨日情况
             if (targetTimeData.isRange && targetTimeData.endTime) {
                 // 计算原始时间差（如果有）
                 let timeDiffMs = 0;
@@ -844,4 +844,5 @@ export function completeTimeDataWithStandard(targetTimeData, standardTimeData) {
 //         console.log('---');
 //     });
 // }
+
 
