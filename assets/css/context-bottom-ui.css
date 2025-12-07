@@ -117,7 +117,7 @@ details.bottom-summary[open]>.summary-title::before {
 /* 10. 模块数据容器样式 */
 .module-data-container {
     margin-bottom: 4px;
-    padding: 6px;
+    padding: 4px;
     /* background-color: #f8f9fa; */
     border: 1px solid #dee2e6;
     border-radius: 4px;
@@ -130,7 +130,11 @@ details.bottom-summary[open]>.summary-title::before {
     /* white-space: pre-wrap; */
     word-wrap: break-word;
     /* overflow-wrap: break-word; */
+}
+
+.module-data-content {
     /* max-height: 200px; */
+    padding: 0px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #c1c1c1 #f0f0f0;
@@ -152,15 +156,15 @@ details.bottom-summary[open]>.summary-title::before {
 /* 模块数据summary展开时的竖向按钮效果 */
 details.module-data[open] {
     position: relative;
-    padding-right: 20px;
+    padding-right: 15px;
 }
 
 details.module-data[open] summary {
     all: unset;
     position: absolute;
     top: 0;
-    right: 0;
-    width: 20px;
+    right: -2px;
+    width: 15px;
     height: 100%;
     writing-mode: vertical-rl;
     text-orientation: mixed;
