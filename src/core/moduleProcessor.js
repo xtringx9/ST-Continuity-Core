@@ -1869,7 +1869,7 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
             // }
 
             if (showModuleNames) {
-                result += `## ${moduleConfig.name} (${moduleConfig.displayName})\n`;
+                result += `${configManager.MODULE_TITLE_LEFT}${moduleConfig.name} (${moduleConfig.displayName})${configManager.MODULE_TITLE_RIGHT}\n`;
                 result += `> stats:count=${moduleData.moduleCount}`;
                 const hasIdVariable = moduleConfig.variables && moduleConfig.variables.some(variable => variable.name === 'id');
                 if (moduleData.isIncremental && hasIdVariable && moduleData.maxId !== undefined) {
