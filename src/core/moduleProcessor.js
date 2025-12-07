@@ -1435,6 +1435,7 @@ export function mergeModulesByOrder(modules) {
                 messageIndex: module.messageIndex || 0,
                 messageIndexHistory: module.messageIndexHistory || [module.messageIndex],
                 raw: module.raw || '',
+                processedRaw: module.processedRaw || '',
                 variables: { ...currentVariables }, // 该messageIndex时的完整变量数据
                 changedKeys: changedKeys // 该条messageIndex中发生变化的变量
             });
@@ -2545,7 +2546,7 @@ export function groupProcessResultByMessageIndex(processResult) {
 
                         const timelineData = {
                             ...timelineEntry,
-                            moduleData: { raw: timelineEntry.raw }
+                            moduleData: { raw: timelineEntry.raw, processedRaw: timelineEntry.processedRaw }
                         }
 
                         if (!groupedResult[timelineEntry.messageIndex]) {

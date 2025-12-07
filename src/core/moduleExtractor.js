@@ -71,9 +71,10 @@ export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFi
                         }
                     }
 
+                    const processedRaw = processQuotes(rawModule);
                     const moduleData = {
                         raw: rawModule,
-                        processedRaw: processQuotes(rawModule),
+                        processedRaw: processedRaw ? processedRaw : rawModule,
                         messageIndex: index,
                         isUserMessage: isUserMessage,
                         speakerName: speakerName,
