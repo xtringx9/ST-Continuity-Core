@@ -130,18 +130,18 @@
                 <!-- 核心原则提示词设置 -->
                 <div class="setting-group">
                     <div class="setting-item">
-                        <label for="core-principles-input">核心原则提示词</label>
+                        <label for="core-principles-input">{{CONTINUITY_PROMPT}}头部提示词</label>
                         <textarea id="core-principles-input" class="prompt-textarea"
-                            placeholder="输入核心原则提示词，用于指导模型遵循的核心原则和价值观"></textarea>
+                            placeholder="该提示词将会放在{{CONTINUITY_PROMPT}}头部"></textarea>
                     </div>
                 </div>
 
                 <!-- 通用格式描述提示词设置 -->
                 <div class="setting-group">
                     <div class="setting-item">
-                        <label for="format-description-input">通用格式描述提示词</label>
+                        <label for="format-description-input">{CONTINUITY_ORDER}}头部提示词</label>
                         <textarea id="format-description-input" class="prompt-textarea"
-                            placeholder="输入通用格式描述提示词，用于描述模块的标准格式和结构"></textarea>
+                            placeholder="该提示词将会放在{{CONTINUITY_ORDER}}头部"></textarea>
                     </div>
                 </div>
             </div>
