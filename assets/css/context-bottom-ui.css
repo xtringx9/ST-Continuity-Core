@@ -174,14 +174,14 @@ details.bottom-summary[open]>.summary-title::before {
 /* 模块数据summary展开时的竖向按钮效果 */
 details.module-data[open] {
     position: relative;
-    padding-right: 15px;
+    padding-left: 15px;
 }
 
 details.module-data[open]>summary {
     all: unset;
     position: absolute;
     top: 0;
-    right: -2px;
+    left: -2px;
     width: 15px;
     height: 100%;
     writing-mode: vertical-rl;
