@@ -4,6 +4,7 @@ import { extractModulesFromChat } from './moduleExtractor.js';
 import { IdentifierParser } from '../utils/identifierParser.js';
 import { parseTimeDetailed, formatTimeDataToStandard, completeTimeDataWithStandard } from '../utils/timeParser.js';
 import { removeHyphens, removeSpecialSymbols } from '../utils/stringUtils.js';
+import { tryParseNumber, formatIdValue, convertAlphaNumericId } from '../utils/numberParser.js';
 
 // /**
 //  * 模块数据处理器类
@@ -544,19 +545,6 @@ function isIdInRange(id, range) {
         idNum >= startNum && idNum <= endNum;
 }
 
-/**
- * 获取模块配置
- * @param {string} moduleName 模块名称
- * @returns {Object|null} 模块配置对象
- */
-function getModuleConfigByName(moduleName) {
-    // 从全局获取modulesData
-    // 这里需要确保modulesData在当前作用域可用
-    // 参考getModuleIdentifierInfo函数的实现方式
-    // 注意：在实际使用processLevelVariables时，需要传入modulesData
-    return global.modulesData ? global.modulesData.find(config => config.name === moduleName) : null;
-}
-
 export function deduplicateModules(modules) {
     // debugLog('[Deduplication] 开始模块去重，模块数量:', modules.length);
 
@@ -1065,33 +1053,6 @@ function getModuleIdentifierInfo(module, modulesData) {
  * @param {boolean} currentHasValidIdentifier - 当前是否有有效标识符
  * @returns {Object} 更新后的标识符信息对象
  */
-/**
- * 将字母数字组合的id转换为可排序的数值格式
- * @param {string} id - 字母数字组合的id（如m001、s001）
- * @returns {string|number} 转换后的数值格式
- */
-function convertAlphaNumericId(id) {
-    // 匹配字母前缀和数字后缀
-    const match = id.match(/^([a-zA-Z]+)(\d+)$/);
-    if (match) {
-        const letters = match[1];
-        const numbers = match[2];
-
-        // 将字母转换为ASCII码值（每个字母占3位以确保唯一性）
-        let lettersAsNumbers = '';
-        for (let i = 0; i < letters.length; i++) {
-            const charCode = letters.charCodeAt(i);
-            // 格式化ASCII码为3位数字，前面补0
-            lettersAsNumbers += String(charCode).padStart(3, '0');
-        }
-
-        // 组合字母ASCII码和数字部分
-        return lettersAsNumbers + numbers;
-    }
-    // 如果不是字母数字组合，返回原值
-    return id;
-}
-
 function getBackupIdentifierInfo(module, moduleConfig, currentIdentifierValue, currentIsTimeIdentifier, currentHasValidIdentifier) {
     // 创建返回对象，初始值为传入的值
     const result = {
@@ -1526,7 +1487,10 @@ export function buildModuleString(moduleData, moduleConfig, isIncremental = fals
             // 只包含选定的变量
             moduleConfig.variables.forEach(variable => {
                 if (includedVariables.has(variable.name)) {
-                    const value = String(moduleData.variables[variable.name] !== undefined ? moduleData.variables[variable.name] : '') || '';
+                    let value = String(moduleData.variables[variable.name] !== undefined ? moduleData.variables[variable.name] : '') || '';
+                    if (variable.name === 'id') {
+                        value = formatIdValue(value);
+                    }
                     moduleStr += `|${variable.name}:${value}`;
                 }
             });
@@ -1534,7 +1498,11 @@ export function buildModuleString(moduleData, moduleConfig, isIncremental = fals
             // 非增量模式，包含所有变量
             moduleConfig.variables.forEach(variable => {
                 // 转换为字符串以确保数字0能被正确处理，而不是被视为false值
-                const value = String(moduleData.variables[variable.name] !== undefined ? moduleData.variables[variable.name] : '') || '';
+                let value = String(moduleData.variables[variable.name] !== undefined ? moduleData.variables[variable.name] : '') || '';
+                // 对id变量进行特殊处理：如果能转为数字则用三位数格式
+                if (variable.name === 'id') {
+                    value = formatIdValue(value);
+                }
                 moduleStr += `|${variable.name}:${value}`;
             });
         }
@@ -1615,19 +1583,19 @@ export function completeIdVariables(modules) {
                     if (identifierIdMap.has(backupKey)) {
                         // 已存在，使用相同的id
                         currentIdValue = identifierIdMap.get(backupKey);
-                        debugLog(`[IdCompletion] 模块 ${moduleName} 使用已存在的id ${currentIdValue}，备用标识符: ${backupKey}`);
+                        // debugLog(`[IdCompletion] 模块 ${moduleName} 使用已存在的id ${currentIdValue}，备用标识符: ${backupKey}`);
                     } else {
                         // 不存在，生成新id
                         currentIdValue = String(currentId).padStart(3, '0');
                         identifierIdMap.set(backupKey, currentIdValue);
                         currentId++;
-                        debugLog(`[IdCompletion] 模块 ${moduleName} 生成新id ${currentIdValue}，备用标识符: ${backupKey}`);
+                        // debugLog(`[IdCompletion] 模块 ${moduleName} 生成新id ${currentIdValue}，备用标识符: ${backupKey}`);
                     }
                 } else {
                     // 没有备用标识符，直接递增生成id
                     currentIdValue = String(currentId).padStart(3, '0');
                     currentId++;
-                    debugLog(`[IdCompletion] 模块 ${moduleName} 生成新id ${currentIdValue}，无备用标识符`);
+                    // debugLog(`[IdCompletion] 模块 ${moduleName} 生成新id ${currentIdValue}，无备用标识符`);
                 }
 
                 // 更新模块的id值
@@ -1669,17 +1637,24 @@ export function parseSingleVariableInProcess(part, variablesMap, variableNameMap
 
     const varName = removeSpecialSymbols(part.substring(0, colonIndex).trim());
     const varValue = part.substring(colonIndex + 1).trim();
-
     if (varName && varValue) {
         // 检查变量名是否在映射表中
         if (variableNameMap.hasOwnProperty(varName)) {
             const currentVarName = variableNameMap[varName];
-            variablesMap[currentVarName] = (currentVarName !== 'time' && currentVarName !== 'id' && currentVarName !== 'log') ? removeHyphens(varValue) : varValue;
+            let finalValue = (currentVarName !== 'time' && currentVarName !== 'id' && currentVarName !== 'log') ? removeHyphens(varValue) : varValue;
+            if (currentVarName === 'id') {
+                finalValue = tryParseNumber(varValue);
+            }
+            variablesMap[currentVarName] = finalValue;
         } else {
             // 处理兼容变量名的精确匹配
             for (const [compatName, currentName] of Object.entries(variableNameMap)) {
+                let finalValue = (currentName !== 'time' && currentName !== 'id' && currentName !== 'log') ? removeHyphens(varValue) : varValue;
                 if (varName === compatName) {
-                    variablesMap[currentName] = (currentName !== 'time' && currentName !== 'id' && currentName !== 'log') ? removeHyphens(varValue) : varValue;
+                    if (currentName === 'id') {
+                        finalValue = tryParseNumber(varValue);
+                    }
+                    variablesMap[currentName] = finalValue;
                     break;
                 }
             }
