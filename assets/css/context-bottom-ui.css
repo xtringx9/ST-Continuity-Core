@@ -138,6 +138,7 @@ details.bottom-summary[open]>.summary-title::before {
 
 .module-data-content {
     /* max-height: 200px; */
+    min-height: 40px;
     padding: 0px;
     overflow-y: auto;
     scrollbar-width: thin;
