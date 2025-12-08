@@ -426,50 +426,56 @@ function processLevelVariables(modules, modulesData) {
  * @param {Array} modules 所有模块数组
  */
 function processTimeBasedCompression(compressedModule, modules) {
-    const { timeData } = compressedModule;
-    if (!timeData || !timeData.isValid || (!timeData.isComplete && !timeData.startTime.hasDate)) return;
+    try {
+        const { timeData } = compressedModule;
+        if (!timeData || !timeData.isValid || (!timeData.isComplete && !timeData.startTime.hasDate)) return;
+        // 获取压缩模块的时间范围
+        const compressedStart = timeData.startTime.timestamp;
+        const compressedEnd = timeData.endTime.timestamp; // todo 在这里可能因为没有时间范围endTime报错的时候可能需要反馈让用户知道数据错误
+        const compressedLevel = compressedModule.variables.level;
 
-    // 获取压缩模块的时间范围
-    const compressedStart = timeData.startTime.timestamp;
-    const compressedEnd = timeData.endTime.timestamp;
-    const compressedLevel = compressedModule.variables.level;
 
-    // 隐藏所有在时间范围内且level小于压缩模块level的模块
-    modules.forEach(module => {
-        // 跳过自身和已隐藏的模块
-        if (module === compressedModule || !module.visibility) return;
+        // 隐藏所有在时间范围内且level小于压缩模块level的模块
+        modules.forEach(module => {
+            // 跳过自身和已隐藏的模块
+            if (module === compressedModule || !module.visibility) return;
 
-        // 跳过level不小于压缩模块level的模块
-        if (module.variables.level >= compressedLevel) return;
+            // 跳过level不小于压缩模块level的模块
+            if (module.variables.level >= compressedLevel) return;
 
-        // 检查时间范围
-        const moduleTimeData = module.timeData;
-        if (moduleTimeData && moduleTimeData.isValid && (moduleTimeData.isComplete || (!moduleTimeData.isComplete && moduleTimeData.startTime.hasDate))) {
-            if (!moduleTimeData.isRange) {
-                const moduleStart = moduleTimeData.startTime.timestamp;
-                // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
-                if (moduleStart >= compressedStart && moduleStart <= compressedEnd) {
-                    debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
-                    module.visibility = false;
+            // 检查时间范围
+            const moduleTimeData = module.timeData;
+            if (moduleTimeData && moduleTimeData.isValid && (moduleTimeData.isComplete || (!moduleTimeData.isComplete && moduleTimeData.startTime.hasDate))) {
+                if (!moduleTimeData.isRange) {
+                    const moduleStart = moduleTimeData.startTime.timestamp;
+                    // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
+                    if (moduleStart >= compressedStart && moduleStart <= compressedEnd) {
+                        debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
+                        module.visibility = false;
+                    }
+                    else {
+                        debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
+                    }
                 }
                 else {
-                    debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
+                    const moduleStart = moduleTimeData.startTime.timestamp;
+                    const moduleEnd = moduleTimeData.endTime.timestamp;
+                    // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
+                    if (moduleStart >= compressedStart && moduleEnd <= compressedEnd) {
+                        debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, ' ', moduleEnd, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
+                        module.visibility = false;
+                    }
+                    else {
+                        debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
+                    }
                 }
             }
-            else {
-                const moduleStart = moduleTimeData.startTime.timestamp;
-                const moduleEnd = moduleTimeData.endTime.timestamp;
-                // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
-                if (moduleStart >= compressedStart && moduleEnd <= compressedEnd) {
-                    debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, ' ', moduleEnd, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
-                    module.visibility = false;
-                }
-                else {
-                    debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
-                }
-            }
-        }
-    });
+        });
+    }
+    catch (error) {
+        errorLog('[Level Processor] 处理时间压缩模块时出错:', error, compressedModule, modules);
+        return;
+    }
 }
 
 /**
