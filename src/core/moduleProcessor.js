@@ -1593,14 +1593,16 @@ export function completeIdVariables(modules) {
                         // debugLog(`[IdCompletion] 模块 ${moduleName} 使用已存在的id ${currentIdValue}，备用标识符: ${backupKey}`);
                     } else {
                         // 不存在，生成新id
-                        currentIdValue = String(currentId).padStart(3, '0');
+                        currentIdValue = currentId;
+                        // currentIdValue = String(currentId).padStart(3, '0');
                         identifierIdMap.set(backupKey, currentIdValue);
                         currentId++;
                         // debugLog(`[IdCompletion] 模块 ${moduleName} 生成新id ${currentIdValue}，备用标识符: ${backupKey}`);
                     }
                 } else {
                     // 没有备用标识符，直接递增生成id
-                    currentIdValue = String(currentId).padStart(3, '0');
+                    currentIdValue = currentId;
+                    // currentIdValue = String(currentId).padStart(3, '0');
                     currentId++;
                     // debugLog(`[IdCompletion] 模块 ${moduleName} 生成新id ${currentIdValue}，无备用标识符`);
                 }
