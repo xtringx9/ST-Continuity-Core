@@ -448,7 +448,8 @@ function processTimeBasedCompression(compressedModule, modules, backupIdentifier
 
             const backupIdentifierValue = backupIdentifierName ? module.variables[backupIdentifierName] : '';
             // debugLog(`[Level Processor] 检查模块备份标识符:${backupIdentifierName}, backupIdentifierValue: ${backupIdentifierValue}, comporessedBackupIdentifierValue: ${comporessedBackupIdentifierValue}`, module);
-            if (backupIdentifierValue !== comporessedBackupIdentifierValue) return;
+            // if (backupIdentifierValue !== comporessedBackupIdentifierValue) return;
+            if (!IdentifierParser.isIdentifierMatch(comporessedBackupIdentifierValue, backupIdentifierValue)) return;
 
             // 检查时间范围
             const moduleTimeData = module.timeData;
@@ -514,7 +515,8 @@ function processIdBasedCompression(compressedModule, modules, identifierVar, bac
 
         const backupIdentifierValue = backupIdentifierName ? module.variables[backupIdentifierName] : '';
         // debugLog(`[Level Processor] 检查模块备份标识符:${backupIdentifierName}, backupIdentifierValue: ${backupIdentifierValue}, comporessedBackupIdentifierValue: ${comporessedBackupIdentifierValue}`, module);
-        if (backupIdentifierValue !== comporessedBackupIdentifierValue) return;
+        // if (backupIdentifierValue !== comporessedBackupIdentifierValue) return;
+        if (!IdentifierParser.isIdentifierMatch(comporessedBackupIdentifierValue, backupIdentifierValue)) return;
 
         // 检查ID范围
         const moduleIdValue = module.variables[identifierName];
@@ -535,7 +537,7 @@ function pushToCompressed(compressedModule, module) {
     if (compressedModule) {
         if (!compressedModule.compressedModules) compressedModule.compressedModules = [];
         compressedModule.compressedModules.push(module);
-        // debugLog('[compressedModules] 模块添加到时间线:', module, '压缩模块:', compressedModule);
+        debugLog('[compressedModules] 模块添加到时间线:', module, '压缩模块:', compressedModule);
     }
 }
 
@@ -807,193 +809,6 @@ export function completeTimeVariables(modules) {
     debugLog('[TimeCompletion] 智能补全time变量完成');
 }
 
-// /**
-//  * 根据参考时间字符串的格式，格式化新的时间对象
-//  * @param {string} referenceTimeStr 参考时间字符串
-//  * @param {Date} date 要格式化的时间对象
-//  * @returns {string} 格式化后的时间字符串
-//  */
-// export function formatTimeToSamePattern(referenceTimeStr, date) {
-//     // 根据参考时间的格式返回相应格式的时间字符串
-//     if (/^\d{4}年\d{1,2}月\d{1,2}日\s+\d{1,2}:\d{1,2}$/.test(referenceTimeStr)) {
-//         // 格式：2023年09月30日 21:30
-//         return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, '0')}月${String(date.getDate()).padStart(2, '0')}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-//     } else if (/^\d{2}年\d{1,2}月\d{1,2}日\s+\d{1,2}:\d{1,2}$/.test(referenceTimeStr)) {
-//         // 格式：24年4月11日 08:23
-//         return `${String(date.getFullYear()).slice(-2)}年${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-//     } else if (/^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:\d{1,2}$/.test(referenceTimeStr)) {
-//         // 格式：2023-09-30 21:30
-//         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-//     } else if (/^\d{4}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{1,2}$/.test(referenceTimeStr)) {
-//         // 格式：2023/09/30 21:30
-//         return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-//     } else {
-//         // 默认格式
-//         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-//     }
-// }
-
-// /**
-//  * 解析时间字符串为时间戳
-//  * 支持多种时间格式，包括时间段
-//  * @param {string} timeStr 时间字符串
-//  * @returns {number} 时间戳（毫秒）
-//  */
-// export function parseTime(timeStr) {
-//     if (!timeStr || typeof timeStr !== 'string') {
-//         return 0;
-//     }
-
-//     // 尝试匹配时间段格式，例如 "24年4月11日 周四 08:23 ~ 24年4月22日 周一 18:40"
-//     // 支持中英文时间范围格式：
-//     // 2023年09月28日 周四 10:10~17:30
-//     // 2023年09月28日 周四 10:10~2023年09月28日 周五 17:30
-//     // 2023-09-28 Thursday 10:10~17:30
-//     // 2023-09-28 Thursday 10:10~2023-09-29 Friday 17:30
-//     const timeRangeMatch = timeStr.match(/(.*?)\s*~\s*(.*)/);
-//     if (timeRangeMatch) {
-//         // 如果是时间段，取开始时间
-//         timeStr = timeRangeMatch[1].trim();
-//     }
-
-//     // 尝试匹配各种时间格式（按从具体到通用的顺序）
-//     const patterns = [
-//         // 最具体的格式：带星期的完整日期时间
-//         // 格式：2023年09月28日 周四 10:10
-//         /^(\d{4})年(\d{1,2})月(\d{1,2})日\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
-//         // 格式：24年4月11日 周四 08:23
-//         /^(\d{2})年(\d{1,2})月(\d{1,2})日\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
-//         // 格式：2023-09-28 Thursday 10:10
-//         /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
-//         // 格式：2023/09/28 Thursday 10:10
-//         /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(?:周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+(\d{1,2}):(\d{1,2})$/,
-
-//         // 完整的日期时间格式
-//         // 格式：2023年09月30日 21:30
-//         /^(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})$/,
-//         // 格式：24年4月11日 08:23
-//         /^(\d{2})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{1,2})$/,
-//         // 格式：2023-09-30 21:30
-//         /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/,
-//         // 格式：2023/09/30 21:30
-//         /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2})$/,
-
-//         // 仅日期格式
-//         // 格式：2023年09月30日
-//         /^(\d{4})年(\d{1,2})月(\d{1,2})日$/,
-//         // 格式：24年4月11日
-//         /^(\d{2})年(\d{1,2})月(\d{1,2})日$/,
-//         // 格式：2023-09-30
-//         /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
-//         // 格式：2023/09/30
-//         /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/,
-
-//         // 仅时间格式（放在最后，因为最通用）
-//         // 格式：08:23
-//         /^(\d{1,2}):(\d{1,2})$/,
-//     ];
-
-//     for (const pattern of patterns) {
-//         const match = timeStr.match(pattern);
-//         if (match) {
-//             let year, month, day, hour = 0, minute = 0;
-
-//             switch (match.length) {
-//                 case 4: // 时间格式：HH:MM 或 日期格式：YYYY年MM月DD日
-//                     if (pattern.toString().includes('年') && pattern.toString().includes('月') && pattern.toString().includes('日')) {
-//                         // 日期格式：YYYY年MM月DD日
-//                         [, year, month, day] = match;
-//                     } else {
-//                         // 时间格式：HH:MM
-//                         [, hour, minute] = match;
-//                         year = new Date().getFullYear();
-//                         month = new Date().getMonth() + 1;
-//                         day = new Date().getDate();
-//                     }
-//                     break;
-//                 case 6: // 日期+时间格式
-//                     if (match[1].length === 2) {
-//                         // 两位数年份
-//                         [, year, month, day, hour, minute] = match;
-//                         year = parseInt(year, 10) + 2000; // 假设是2000年后
-//                     } else {
-//                         // 四位数年份
-//                         [, year, month, day, hour, minute] = match;
-//                     }
-//                     break;
-//                 case 5: // 日期格式
-//                     if (match[1].length === 2) {
-//                         // 两位数年份
-//                         [, year, month, day] = match;
-//                         year = parseInt(year, 10) + 2000; // 假设是2000年后
-//                     } else {
-//                         // 四位数年份
-//                         [, year, month, day] = match;
-//                     }
-//                     break;
-//             }
-
-//             // 转换为数字
-//             year = parseInt(year, 10);
-//             month = parseInt(month, 10) - 1; // JavaScript月份从0开始
-//             day = parseInt(day, 10);
-//             hour = parseInt(hour, 10);
-//             minute = parseInt(minute, 10);
-
-//             // 创建日期对象
-//             const date = new Date(year, month, day, hour, minute);
-//             if (!isNaN(date.getTime())) {
-//                 return date.getTime();
-//             }
-//         }
-//     }
-
-//     // 如果无法解析，返回0
-//     return 0;
-// }
-
-// /**
-//  * 解析时间字符串为时间戳，支持时间段的中点排序
-//  * 支持混合时间格式：完整日期时间、仅日期、仅时间、时间段
-//  * @param {string} timeStr 时间字符串
-//  * @returns {number} 时间戳（毫秒），对于时间段返回中点时间戳
-//  */
-// export function parseTimeForSorting(timeStr) {
-//     if (!timeStr || typeof timeStr !== 'string') {
-//         return 0;
-//     }
-
-//     // 尝试匹配时间段格式，例如 "24年4月11日 周四 08:23 ~ 24年4月22日 周一 18:40"
-//     const timeRangeMatch = timeStr.match(/(.*?)\s*~\s*(.*)/);
-//     if (timeRangeMatch) {
-//         // 如果是时间段，计算中点时间
-//         const startTimeStr = timeRangeMatch[1].trim();
-//         const endTimeStr = timeRangeMatch[2].trim();
-
-//         const startTime = parseTime(startTimeStr);
-//         const endTime = parseTime(endTimeStr);
-
-//         // 如果开始时间和结束时间都有效，计算中点
-//         if (startTime > 0 && endTime > 0) {
-//             return (startTime + endTime) / 2;
-//         }
-//         // 如果只有开始时间有效，使用开始时间
-//         else if (startTime > 0) {
-//             return startTime;
-//         }
-//         // 如果只有结束时间有效，使用结束时间
-//         else if (endTime > 0) {
-//             return endTime;
-//         }
-//         // 如果都无法解析，返回0
-//         else {
-//             return 0;
-//         }
-//     }
-
-//     // 如果不是时间段，使用原有的parseTime逻辑
-//     return parseTime(timeStr);
-// }
 
 /**
  * 判断字符串是否可以转换为数值

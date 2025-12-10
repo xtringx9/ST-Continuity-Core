@@ -18,7 +18,7 @@ class IdentifierParser {
         const stringValue = String(value);
 
         // 支持的分隔符：英文逗号、中文逗号、英文分号、中文分号
-        const separators = [',', '，', ';', '；'];
+        const separators = [',', '，', ';', '；', '、', '/'];
 
         // 使用正则表达式分割字符串，支持多种分隔符
         const regex = new RegExp(`[${separators.map(s => '\\' + s).join('')}]`);
@@ -55,9 +55,12 @@ class IdentifierParser {
         }
 
         // 检查两个值数组是否包含相同的元素（不考虑顺序）
-        return values1.length === values2.length &&
+        const result = values1.length === values2.length &&
             values1.every(val => values2.includes(val)) &&
             values2.every(val => values1.includes(val));
+
+        // console.log(`[IdentifierParser] 检查标识符匹配: ${value1} vs ${value2}, 结果: ${result}`, values1, values2);
+        return result;
     }
 
     /**
