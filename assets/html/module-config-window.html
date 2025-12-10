@@ -52,6 +52,7 @@
                             <button id="extract-processed-modules-btn" class="btn-small">提取模块并整理</button>
                             <button id="extract-auto-modules-btn" class="btn-small">自动处理模块（根据配置智能选择）</button>
                             <button id="extract-ui-modules-btn" class="btn-small">打印缓存数据</button>
+                            <button id="extract-ui-modules-config-btn" class="btn-small">打印配置数据</button>
                         </div>
                     </div>
                     <div class="floor-range-group">
@@ -284,6 +285,11 @@
                                 </button>
                                 <input type="hidden" class="module-time-reference-standard" value="false">
                             </div>
+                            <button class="module-toggle-expand-btn module-external-display-btn"
+                                data-external-display="false" title="启用后，此模块将在外部显示">
+                                <span class="variable-order-number">🌐</span>
+                            </button>
+                            <input type="hidden" class="module-is-external-display" value="false">
                         </div>
                         <div class="module-actions-right">
                             <button class="btn-small toggle-variables"><span class="arrow">▶</span><span

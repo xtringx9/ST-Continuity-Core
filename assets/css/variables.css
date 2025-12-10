@@ -193,6 +193,11 @@
 }
 
 /* 变量标识符按钮样式 */
+.variable-enabled-btn.active .variable-order-number {
+    background-color: rgba(100, 200, 100, 0.6) !important;
+}
+
+/* 变量标识符按钮样式 */
 .variable-identifier-btn.active .variable-order-number {
     background-color: rgba(100, 200, 100, 0.6) !important;
 }
@@ -202,6 +207,7 @@
 }
 
 /* 时间参考标准按钮样式 - 与module-toggle-expand-btn保持一致 */
+.module-external-display-btn,
 .module-time-reference-standard-btn {
     background: none;
     border: none;
@@ -214,18 +220,22 @@
     transition: all 0.2s ease;
 }
 
+.module-external-display-btn:hover,
 .module-time-reference-standard-btn:hover {
     transform: scale(1.1);
 }
 
+.module-external-display-btn:active,
 .module-time-reference-standard-btn:active {
     transform: scale(0.95);
 }
 
+.module-external-display-btn.active .variable-order-number,
 .module-time-reference-standard-btn.active .variable-order-number {
     background-color: rgba(100, 181, 246, 0.6);
 }
 
+.module-external-display-btn.active:hover .variable-order-number,
 .module-time-reference-standard-btn.active:hover .variable-order-number {
     background-color: rgba(100, 181, 246, 0.8);
 }

@@ -367,6 +367,13 @@ export function renderModulesFromConfig(config) {
             .attr('data-time-reference-standard', timeReferenceStandard ? 'true' : 'false')
             .toggleClass('active', timeReferenceStandard);
 
+        // 设置外部显示状态
+        const isExternalDisplay = module.isExternalDisplay || false;
+        moduleItem.find('.module-is-external-display').val(isExternalDisplay ? 'true' : 'false');
+        moduleItem.find('.module-external-display-btn')
+            .attr('data-external-display', isExternalDisplay ? 'true' : 'false')
+            .toggleClass('active', isExternalDisplay);
+
         // 根据输出模式控制保留层数输入框的显示/隐藏
         const retainLayersInput = moduleItem.find('.module-retain-layers');
         if (outputMode === 'full') {
