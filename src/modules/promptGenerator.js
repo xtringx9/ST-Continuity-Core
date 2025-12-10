@@ -251,12 +251,12 @@ export function generateModuleOrderPrompt() {
             // orderPrompt += "[AFTER TEXT GENERATION]\n";
             orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}></${moduleTag}>包裹):\n`;
             orderPrompt += `</${contentTagString}>\n`;
-            orderPrompt += `<${moduleTag}>\n`;
+            orderPrompt += `<${moduleTag}_update>\n`;
             afterBodyModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, true);
             });
         }
-        orderPrompt += `</${moduleTag}>\n\n`;
+        orderPrompt += `</${moduleTag}_update>\n\n`;
         orderPrompt += `</${promptTag}>\n`;
 
         // 替换提示词中的变量
