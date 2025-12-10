@@ -454,6 +454,37 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
 }
 
 /**
+ * 切换变量显示状态
+ * @param {string} id 容器元素ID
+ * @param {string} lastValue 旧值
+ * @param {string} currentValue 新值
+ */
+function toggleVariableDisplay(id, lastValue, currentValue) {
+    const container = document.getElementById(id);
+    if (!container) return;
+
+    const currentSpan = container.children[0];
+    const lastSpan = container.children[1];
+
+    if (currentSpan.style.display !== 'none') {
+        // 切换到显示旧值
+        currentSpan.style.display = 'none';
+        lastSpan.style.display = 'inline';
+        container.title = '点击显示新值: ' + currentValue;
+    } else {
+        // 切换回显示新值
+        currentSpan.style.display = 'inline';
+        lastSpan.style.display = 'none';
+        container.title = '点击显示旧值: ' + lastValue;
+    }
+}
+
+// 将函数挂载到全局作用域，供HTML onclick事件调用
+if (typeof window !== 'undefined') {
+    window.toggleVariableDisplay = toggleVariableDisplay;
+}
+
+/**
  * 生成变量变化的HTML显示
  * @param {string} lastString 旧值
  * @param {string} currentString 新值
@@ -486,27 +517,6 @@ function generateVariableChangeHTML(lastString, currentString) {
                 display: none;
             ">${lastString}</span>
         </span>
-        <script>
-            function toggleVariableDisplay(id, lastValue, currentValue) {
-                const container = document.getElementById(id);
-                if (!container) return;
-
-                const currentSpan = container.children[0];
-                const lastSpan = container.children[1];
-
-                if (currentSpan.style.display !== 'none') {
-                    // 切换到显示旧值
-                    currentSpan.style.display = 'none';
-                    lastSpan.style.display = 'inline';
-                    container.title = '点击显示新值: ' + currentValue;
-                } else {
-                    // 切换回显示新值
-                    currentSpan.style.display = 'inline';
-                    lastSpan.style.display = 'none';
-                    container.title = '点击显示旧值: ' + lastValue;
-                }
-            }
-        </script>
     `;
     } else {
         resultString = `<span style="
