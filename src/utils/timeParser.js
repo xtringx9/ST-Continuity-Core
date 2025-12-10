@@ -91,7 +91,8 @@ export function parseTimeDetailed(timeStr, standardTimeData) {
 
     // 如果以上都不匹配，尝试匹配更广泛的时间范围格式（支持纯日期范围）
     if (!timeRangeMatch) {
-        const generalRangePattern = /(.+?)\s*[~\-]\s*(.+)/;
+        // 改进的正则表达式，更好地匹配日期格式
+        const generalRangePattern = /((?:\d{4}[年\-]\d{1,2}[月\-]\d{1,2}[日]?|[^~\-]+?))\s*[~\-]\s*((?:\d{4}[年\-]\d{1,2}[月\-]\d{1,2}[日]?(?:\s+\d{1,2}:\d{1,2})?|[^~\-]+?))/;
         const generalMatch = timeStr.match(generalRangePattern);
 
         // 验证匹配结果是否包含有效的时间或日期格式
@@ -99,10 +100,12 @@ export function parseTimeDetailed(timeStr, standardTimeData) {
             const startPart = generalMatch[1].trim();
             const endPart = generalMatch[2].trim();
 
-            // 检查是否包含日期或时间格式
-            const hasDateOrTimeFormat = /(\d{4}[年\-]|\d{1,2}:\d{1,2})/.test(startPart) && /(\d{4}[年\-]|\d{1,2}:\d{1,2})/.test(endPart);
+            // 检查是否包含日期或时间格式（放宽条件，允许开始部分只有日期，结束部分有日期和时间）
+            const startHasDateOrTimeFormat = /(\d{4}[年\-]|\d{1,2}:\d{1,2})/.test(startPart);
+            const endHasDateOrTimeFormat = /(\d{4}[年\-]|\d{1,2}:\d{1,2})/.test(endPart);
 
-            if (hasDateOrTimeFormat) {
+            // 允许开始部分只有日期，结束部分有日期和时间
+            if (startHasDateOrTimeFormat && endHasDateOrTimeFormat) {
                 timeRangeMatch = generalMatch;
             }
         }
