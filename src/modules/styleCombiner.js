@@ -463,30 +463,56 @@ function generateVariableChangeHTML(lastString, currentString) {
     let resultString = currentString;
     // 为时间线中发生变化的变量添加优化样式
     if (lastString) {
+        // 生成唯一ID避免冲突
+        const uniqueId = 'var-change-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
         resultString = `
-        <span style="
+        <span id="${uniqueId}" style="
             display: inline-flex;
             align-items: center;
             gap: 4px;
-        ">
+            cursor: pointer;
+            user-select: none;
+        " onclick="toggleVariableDisplay('${uniqueId}', '${lastString.replace(/'/g, "\\'")}', '${currentString.replace(/'/g, "\\'")}')">
+            <span style="
+                color: #28a745;
+                font-weight: 600;
+            ">${currentString}</span>
             <span style="
                 color: #6c757d;
                 text-decoration: line-through;
                 opacity: 0.7;
                 font-weight: 500;
+                display: none;
             ">${lastString}</span>
-            <span style="
-                color: #28a745;
-                font-weight: 600;
-            ">${currentString}</span>
         </span>
+        <script>
+            function toggleVariableDisplay(id, lastValue, currentValue) {
+                const container = document.getElementById(id);
+                if (!container) return;
+
+                const currentSpan = container.children[0];
+                const lastSpan = container.children[1];
+
+                if (currentSpan.style.display !== 'none') {
+                    // 切换到显示旧值
+                    currentSpan.style.display = 'none';
+                    lastSpan.style.display = 'inline';
+                    container.title = '点击显示新值: ' + currentValue;
+                } else {
+                    // 切换回显示新值
+                    currentSpan.style.display = 'inline';
+                    lastSpan.style.display = 'none';
+                    container.title = '点击显示旧值: ' + lastValue;
+                }
+            }
+        </script>
     `;
     } else {
-        resultString = `
-        <span style="
-            color: #28a745;
-            font-weight: 600;
-        ">${resultString}</span>`;
+        resultString = `<span style="
+                                        color: #28a745;
+                                        font-weight: 600;
+                                    ">${resultString}</span>`;
     }
     return resultString;
 }
