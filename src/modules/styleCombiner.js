@@ -358,6 +358,9 @@ function resolveNestedCustomStyles(styles, moduleConfig) {
             // 重置正则表达式的lastIndex，以便重新匹配
             customStylesRegex.lastIndex = 0;
         }
+        else {
+            processedStyles = processedStyles.replace(match[0], '');
+        }
 
         maxDepth--;
     }
@@ -439,6 +442,9 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
                 else if (targetVariable[propName] !== undefined) {
                     return String(targetVariable[propName]);
                 }
+            }
+            else {
+                return `配置中不存在${varName}`;
             }
         }
 
