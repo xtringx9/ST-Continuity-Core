@@ -53,9 +53,28 @@ export function updateModulePreview(moduleItem) {
     const variables = moduleItem.find('.variable-item').filter(function () {
         return $(this).closest('.variable-template').length === 0;
     }).map(function () {
-        const varName = $(this).find('.variable-name').val() || '变量名';
-        return varName + ':';
-    }).get();
+        // 检查变量是否启用（variable-enabled的值为'true'）
+        const isEnabled = $(this).find('.variable-enabled').val() === 'true';
+        if (isEnabled) {
+            const varName = $(this).find('.variable-name').val() || '变量名';
+            // 检查标识符状态和隐藏条件状态
+            const isIdentifier = $(this).find('.variable-is-identifier').val() === 'true';
+            const isBackupIdentifier = $(this).find('.variable-is-backup-identifier').val() === 'true';
+            const isHideCondition = $(this).find('.variable-is-hide-condition').val() === 'true';
+
+            let prefix = '';
+            if (isIdentifier) {
+                prefix = '*';
+            } else if (isBackupIdentifier) {
+                prefix = '^';
+            } else if (isHideCondition) {
+                prefix = '~';
+            }
+
+            return prefix + varName + ':';
+        }
+        return null; // 返回null表示跳过此变量
+    }).get().filter(variable => variable !== null); // 过滤掉null值
 
     const previewText = variables.length > 0
         ? `[${moduleName}|${variables.join('|')}]`

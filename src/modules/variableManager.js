@@ -15,7 +15,7 @@ export function addVariable(moduleItem) {
 
     // 检查变量容器
     const variablesContainer = moduleItem.find('.variables-container');
-    debugLog('找到的变量容器数量:', variablesContainer.length);
+    // debugLog('找到的变量容器数量:', variablesContainer.length);
 
     if (variablesContainer.length === 0) {
         errorLog('[Continuity] 未找到变量容器');
@@ -25,18 +25,18 @@ export function addVariable(moduleItem) {
     // 使用模板管理模块创建新的变量项HTML
     const variableItemHTML = getEmptyVariableItemTemplate();
 
-    debugLog('创建变量项HTML成功');
+    // debugLog('创建变量项HTML成功');
 
     // 将HTML转换为jQuery对象
     const variableItem = $(variableItemHTML);
-    debugLog('变量项创建成功');
-    debugLog('变量项类名:', variableItem.attr('class'));
+    // debugLog('变量项创建成功');
+    // debugLog('变量项类名:', variableItem.attr('class'));
 
     variablesContainer.append(variableItem);
-    debugLog('变量项添加到容器成功');
+    // debugLog('变量项添加到容器成功');
 
     // 检查添加后的容器内容
-    debugLog('添加后容器内.variable-item数量:', variablesContainer.find('.variable-item').length);
+    // debugLog('添加后容器内.variable-item数量:', variablesContainer.find('.variable-item').length);
     // debugLog('添加后容器内HTML:', variablesContainer.html());
 
     // 使用bindVariableEvents函数绑定所有事件（包括删除变量事件）
@@ -261,7 +261,7 @@ export function bindVariableEvents(variableItem, moduleItem) {
         configManager.autoSave();
     });
 
-    // 隐藏条件按钮事件
+    // 启用按钮事件
     variableItem.find('.variable-enabled-btn').on('click', function () {
         const isEnabled = variableItem.find('.variable-enabled');
         const currentValue = isEnabled.val() === 'true';
