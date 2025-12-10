@@ -430,8 +430,8 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
                         let resultString = String(moduleData.variables[varName]);
                         if (isTimeline) {
                             if (moduleData.changedKeys != undefined && moduleData.changedKeys.includes(varName)) {
-                                // 为时间线中发生变化的变量添加简洁样式
-                                resultString = `<span style="color: #ff4444; font-weight: bold;">${resultString}</span>`;
+                                let lastString = moduleData.lastVariables && moduleData.lastVariables[varName] !== undefined ? String(moduleData.lastVariables[varName]) : '';
+                                resultString = generateVariableChangeHTML(lastString, resultString);
                             }
                         }
                         return resultString;
@@ -451,6 +451,63 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
         // 如果未找到匹配的变量，保留原始格式
         return match;
     });
+}
+
+/**
+ * 生成变量变化的HTML显示
+ * @param {string} lastString 旧值
+ * @param {string} currentString 新值
+ * @returns {string} HTML字符串
+ */
+function generateVariableChangeHTML(lastString, currentString) {
+    let resultString = currentString;
+    // 为时间线中发生变化的变量添加优化样式
+    if (lastString) {
+        resultString = `
+        <span style="
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        ">
+            <span style="
+                color: #6c757d;
+                text-decoration: line-through;
+                opacity: 0.7;
+                font-weight: 500;
+            ">${lastString}</span>
+            <span style="
+                color: #28a745;
+                font-weight: 600;
+            ">${currentString}</span>
+        </span>
+    `;
+    } else {
+        resultString = `
+        <span style="
+            color: #28a745;
+            font-weight: 600;
+        ">${resultString}</span>`;
+    }
+    return resultString;
+}
+
+/**
+ * 初始化变量变化样式（只需要调用一次）
+ */
+function initVariableChangeStyles() {
+    if (!document.querySelector('#variable-change-styles')) {
+        const style = document.createElement('style');
+        style.id = 'variable-change-styles';
+        style.textContent = `
+            .variable-change-container:hover .current-value {
+                opacity: 0;
+            }
+            .variable-change-container:hover .last-value {
+                opacity: 1;
+            }
+        `;
+        document.head.appendChild(style);
+    }
 }
 
 /**

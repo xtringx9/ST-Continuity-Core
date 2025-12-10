@@ -1231,6 +1231,7 @@ export function mergeModulesByOrder(modules) {
 
     modules.forEach((module, index) => {
         const currentVariables = { ...cumulativeVariables };
+        const lastVariables = { ...cumulativeVariables };
         const changedKeys = [];
 
         // 更新当前变量状态
@@ -1273,6 +1274,12 @@ export function mergeModulesByOrder(modules) {
         });
 
         if (changedKeys.length > 0) {
+            // // 为每个changedKey创建对应的lastVariable记录
+            // const changedKeysLastVariables = {};
+            // changedKeys.forEach(key => {
+            //     changedKeysLastVariables[key] = lastVariables[key];
+            // });
+
             // 记录时间点状态
             merged.timeline.push({
                 moduleName: module.moduleName,
@@ -1281,7 +1288,9 @@ export function mergeModulesByOrder(modules) {
                 raw: module.raw || '',
                 processedRaw: module.processedRaw || '',
                 variables: { ...currentVariables }, // 该messageIndex时的完整变量数据
-                changedKeys: changedKeys // 该条messageIndex中发生变化的变量
+                lastVariables: { ...lastVariables }, // 该messageIndex前的完整变量数据
+                changedKeys: changedKeys, // 该条messageIndex中发生变化的变量
+                // changedKeysLastVariables: changedKeysLastVariables // 每个changedKey对应的前一个状态值
             });
         }
     });
