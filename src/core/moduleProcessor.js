@@ -535,9 +535,9 @@ function processIdBasedCompression(compressedModule, modules, identifierVar, bac
 
 function pushToCompressed(compressedModule, module) {
     if (compressedModule) {
-        if (!compressedModule.compressedModules) compressedModule.compressedModules = [];
-        compressedModule.compressedModules.push(module);
-        debugLog('[compressedModules] 模块添加到时间线:', module, '压缩模块:', compressedModule);
+        if (!compressedModule.timeline) compressedModule.timeline = [];
+        compressedModule.timeline.push(module);
+        debugLog('[timeline] 模块添加到时间线:', module, '压缩模块:', compressedModule);
     }
 }
 
@@ -2387,7 +2387,8 @@ export function groupProcessResultByMessageIndex(processResult) {
                     return;
                 }
                 // 处理增量模块timeline内容
-                if (entry.moduleData.isIncremental && entry.moduleData.timeline) {
+                // if (entry.moduleData.isIncremental && entry.moduleData.timeline) {
+                if (entry.moduleData.timeline) {
                     entry.moduleData.timeline.forEach(timelineEntry => {
 
                         const timelineData = {

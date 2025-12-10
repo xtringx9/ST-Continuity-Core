@@ -217,7 +217,8 @@ export function getCombinedCustomStyles(moduleConfig, moduleData) {
             moduleData.customStyles = replaceVariablesInStyles(moduleData.customStyles, moduleConfig, moduleData.moduleData, false, moduleData.moduleData.isIncremental);
         }
 
-        if (moduleData.moduleData.isIncremental) {
+        // if (moduleData.moduleData.isIncremental) {
+        if (moduleData.moduleData.timeline) {
             moduleData.moduleData.timeline.forEach((entry) => {
                 entry.customStyles = moduleConfig.customStyles || '';
                 // 如果有模块数据，进行变量替换
@@ -226,7 +227,7 @@ export function getCombinedCustomStyles(moduleConfig, moduleData) {
                     entry.customStyles = resolveNestedCustomStyles(entry.customStyles, moduleConfig);
 
                     // 再处理其他变量替换
-                    entry.customStyles = replaceVariablesInStyles(entry.customStyles, moduleConfig, entry, false, true);
+                    entry.customStyles = replaceVariablesInStyles(entry.customStyles, moduleConfig, entry, false, moduleData.moduleData.isIncremental);
                 }
             })
         }
