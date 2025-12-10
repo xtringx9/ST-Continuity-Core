@@ -406,14 +406,14 @@ export function bindModuleEvents(moduleElement) {
 
     // 添加变量按钮事件
     moduleItem.find('.add-variable').on('click', function () {
-        debugLog('添加变量按钮被点击');
-        debugLog('按钮元素:', this);
-        debugLog('按钮类名:', this.className);
-        debugLog('按钮文本:', this.textContent || this.innerText);
-        debugLog('模块项:', moduleItem);
-        debugLog('模块项长度:', moduleItem.length);
-        debugLog('模块项选择器:', moduleItem.selector || '无选择器');
-        debugLog('当前模块变量数量:', moduleItem.find('.variable-item').length);
+        // debugLog('添加变量按钮被点击');
+        // debugLog('按钮元素:', this);
+        // debugLog('按钮类名:', this.className);
+        // debugLog('按钮文本:', this.textContent || this.innerText);
+        // debugLog('模块项:', moduleItem);
+        // debugLog('模块项长度:', moduleItem.length);
+        // debugLog('模块项选择器:', moduleItem.selector || '无选择器');
+        // debugLog('当前模块变量数量:', moduleItem.find('.variable-item').length);
 
         try {
             addVariable(moduleItem);

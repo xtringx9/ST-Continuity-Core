@@ -8,10 +8,10 @@ import configManager from "../singleton/configManager.js";
  * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
  */
 export function addVariable(moduleItem) {
-    debugLog('addVariable函数开始执行');
-    debugLog('传入的moduleItem:', moduleItem);
-    debugLog('moduleItem长度:', moduleItem.length);
-    debugLog('moduleItem选择器:', moduleItem.selector || '无选择器');
+    // debugLog('addVariable函数开始执行');
+    // debugLog('传入的moduleItem:', moduleItem);
+    // debugLog('moduleItem长度:', moduleItem.length);
+    // debugLog('moduleItem选择器:', moduleItem.selector || '无选择器');
 
     // 检查变量容器
     const variablesContainer = moduleItem.find('.variables-container');
@@ -289,6 +289,9 @@ export function bindVariableEvents(variableItem, moduleItem) {
     if (variableItem.find('.variable-enabled').val() === 'true') {
         isEnabledBtn.addClass('active');
         isEnabledBtn.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
+    } else {
+        isEnabledBtn.removeClass('active');
+        isEnabledBtn.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
     }
 
     // 初始化激活状态
