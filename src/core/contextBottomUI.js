@@ -716,14 +716,29 @@ export function renderSingleMessageContext(messages, container, mes) {
 
         const swipeId = mes.attr('swipeid');
         const renderSwipe = mes.attr('renderSwipe');
-        // 检查是否已渲染过
-        if (renderSwipe === swipeId) {
-            debugLog('renderSingleMessageContext: 消息已渲染过，跳过重复渲染');
-            return;
-        }
-
         // 获取mes_text div内部的原文内容
         const originalText = container.html();
+        // 检查是否已渲染过
+        if (renderSwipe === swipeId) {
+            if (messages.length > 0) {
+                // 检测第一条消息的processedRaw是否能匹配上原始HTML内容
+                const firstMessage = messages[0];
+                if (firstMessage && firstMessage.moduleData && firstMessage.moduleData.processedRaw) {
+                    const processedRaw = firstMessage.moduleData.processedRaw;
+                    const rawPattern = new RegExp(processedRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:<br>)*', 'g');
+
+                    // 检查是否能匹配上原始HTML内容
+                    const matchResult = rawPattern.exec(originalText);
+                    if (!matchResult) {
+                        debugLog('renderSingleMessageContext: 第一条消息的processedRaw无法匹配原始HTML内容，可能已渲染过，跳过渲染');
+                        return;
+                    }
+                }
+            }
+            // debugLog('renderSingleMessageContext: 消息已渲染过，跳过重复渲染');
+            // return;
+        }
+
         let newHtml = originalText;
 
         if (messages.length > 0) {
