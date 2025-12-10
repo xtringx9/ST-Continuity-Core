@@ -404,13 +404,15 @@ function processLevelVariables(modules, modulesData) {
         const identifierValue = compressedModule.variables[identifierName];
         debugLog('[Level Processor] 压缩模块的identifier变量:', identifierVar, '名称:', identifierName, '值:', identifierValue, compressedModule);
 
+        const backupIdentifierName = moduleConfig.variables.filter(variable => variable.isBackupIdentifier)?.[0]?.name || '';
+
         // 根据不同类型的identifier进行处理
         if (identifierName.toLowerCase().includes('time')) {
             // 时间类型identifier，使用timeData
-            processTimeBasedCompression(compressedModule, modules);
+            processTimeBasedCompression(compressedModule, modules, backupIdentifierName);
         } else if (identifierName.toLowerCase() === 'id') {
             // ID类型identifier，使用convertAlphaNumericId处理
-            processIdBasedCompression(compressedModule, modules, identifierVar);
+            processIdBasedCompression(compressedModule, modules, identifierVar, backupIdentifierName);
         }
     });
 
@@ -425,7 +427,7 @@ function processLevelVariables(modules, modulesData) {
  * @param {Object} compressedModule 压缩模块
  * @param {Array} modules 所有模块数组
  */
-function processTimeBasedCompression(compressedModule, modules) {
+function processTimeBasedCompression(compressedModule, modules, backupIdentifierName) {
     try {
         const { timeData } = compressedModule;
         if (!timeData || !timeData.isValid || (!timeData.isComplete && !timeData.startTime.hasDate)) return;
@@ -433,6 +435,7 @@ function processTimeBasedCompression(compressedModule, modules) {
         const compressedStart = timeData.startTime.timestamp;
         const compressedEnd = timeData.endTime.timestamp; // todo 在这里可能因为没有时间范围endTime报错的时候可能需要反馈让用户知道数据错误
         const compressedLevel = compressedModule.variables.level;
+        const comporessedBackupIdentifierValue = backupIdentifierName ? compressedModule.variables[backupIdentifierName] : '';
 
 
         // 隐藏所有在时间范围内且level小于压缩模块level的模块
@@ -443,6 +446,10 @@ function processTimeBasedCompression(compressedModule, modules) {
             // 跳过level不小于压缩模块level的模块
             if (module.variables.level >= compressedLevel) return;
 
+            const backupIdentifierValue = backupIdentifierName ? module.variables[backupIdentifierName] : '';
+            // debugLog(`[Level Processor] 检查模块备份标识符:${backupIdentifierName}, backupIdentifierValue: ${backupIdentifierValue}, comporessedBackupIdentifierValue: ${comporessedBackupIdentifierValue}`, module);
+            if (backupIdentifierValue !== comporessedBackupIdentifierValue) return;
+
             // 检查时间范围
             const moduleTimeData = module.timeData;
             if (moduleTimeData && moduleTimeData.isValid && (moduleTimeData.isComplete || (!moduleTimeData.isComplete && moduleTimeData.startTime.hasDate))) {
@@ -450,11 +457,12 @@ function processTimeBasedCompression(compressedModule, modules) {
                     const moduleStart = moduleTimeData.startTime.timestamp;
                     // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
                     if (moduleStart >= compressedStart && moduleStart <= compressedEnd) {
-                        debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
+                        // debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
                         module.visibility = false;
+                        pushToCompressed(compressedModule, module);
                     }
                     else {
-                        debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
+                        // debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
                     }
                 }
                 else {
@@ -462,11 +470,12 @@ function processTimeBasedCompression(compressedModule, modules) {
                     const moduleEnd = moduleTimeData.endTime.timestamp;
                     // 如果模块的时间范围完全包含在压缩模块的时间范围内，则隐藏
                     if (moduleStart >= compressedStart && moduleEnd <= compressedEnd) {
-                        debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, ' ', moduleEnd, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
+                        // debugLog('[Level Processor] 隐藏模块，因为其时间范围完全包含在压缩模块时间范围内:', moduleStart, ' ', moduleEnd, '压缩开始时间:', compressedStart, '压缩结束时间:', compressedEnd, module, compressedModule);
                         module.visibility = false;
+                        pushToCompressed(compressedModule, module);
                     }
                     else {
-                        debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
+                        // debugLog('[Level Processor] 检查模块时间范围:', module, '压缩模块时间范围:', compressedStart, compressedEnd);
                     }
                 }
             }
@@ -484,10 +493,11 @@ function processTimeBasedCompression(compressedModule, modules) {
  * @param {Array} modules 所有模块数组
  * @param {Object} identifierVar 标识符变量配置
  */
-function processIdBasedCompression(compressedModule, modules, identifierVar) {
+function processIdBasedCompression(compressedModule, modules, identifierVar, backupIdentifierName) {
     const identifierName = identifierVar.name;
     const compressedIdValue = compressedModule.variables[identifierName];
     const compressedLevel = compressedModule.variables.level;
+    const comporessedBackupIdentifierValue = backupIdentifierName ? compressedModule.variables[backupIdentifierName] : '';
 
     debugLog('[Level Processor] 压缩模块的ID值:', compressedIdValue, '压缩模块的level:', compressedLevel, compressedModule);
     // 解析压缩模块的ID范围
@@ -502,6 +512,10 @@ function processIdBasedCompression(compressedModule, modules, identifierVar) {
         // 跳过level不小于压缩模块level的模块
         if (module.variables.level >= compressedLevel) return;
 
+        const backupIdentifierValue = backupIdentifierName ? module.variables[backupIdentifierName] : '';
+        // debugLog(`[Level Processor] 检查模块备份标识符:${backupIdentifierName}, backupIdentifierValue: ${backupIdentifierValue}, comporessedBackupIdentifierValue: ${comporessedBackupIdentifierValue}`, module);
+        if (backupIdentifierValue !== comporessedBackupIdentifierValue) return;
+
         // 检查ID范围
         const moduleIdValue = module.variables[identifierName];
         if (moduleIdValue) {
@@ -511,9 +525,18 @@ function processIdBasedCompression(compressedModule, modules, identifierVar) {
             // 如果模块的ID在压缩模块的ID范围内，则隐藏
             if (isIdInRange(convertedModuleId, idRange)) {
                 module.visibility = false;
+                pushToCompressed(compressedModule, module);
             }
         }
     });
+}
+
+function pushToCompressed(compressedModule, module) {
+    if (compressedModule) {
+        if (!compressedModule.compressedModules) compressedModule.compressedModules = [];
+        compressedModule.compressedModules.push(module);
+        // debugLog('[compressedModules] 模块添加到时间线:', module, '压缩模块:', compressedModule);
+    }
 }
 
 /**

@@ -755,7 +755,7 @@ export function renderSingleMessageContext(messages, container, mes) {
                         debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
                         // }
                     } else {
-                        infoLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', entry, processedRaw);
+                        debugLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', entry, processedRaw);
                     }
                 }
             });
