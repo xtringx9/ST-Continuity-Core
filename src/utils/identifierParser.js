@@ -36,6 +36,7 @@ class IdentifierParser {
      * @returns {boolean} 是否匹配
      */
     static isIdentifierMatch(value1, value2) {
+        if (value1 === value2) return true;
         if (!value1 || !value2) {
             return false;
         }
