@@ -97,6 +97,10 @@ export class ExtractModuleController {
         $('#extract-ui-modules-btn').on('click', async () => {
             await this.extractUIModules();
         });
+
+        $('#extract-ui-modules-config-btn').on('click', async () => {
+            await this.extractUIModulesConfig();
+        });
     }
 
     /**
@@ -421,6 +425,10 @@ export class ExtractModuleController {
         //     errorLog('渲染模块失败:', error);
         //     toastr.error('渲染模块失败，请查看控制台日志');
         // }
+    }
+
+    async extractUIModulesConfig() {
+        configManager.outputCache();
     }
 
     /**

@@ -10,6 +10,7 @@ export function getVariableItemTemplate(variable = {}) {
     const description = variable.description || '';
     const displayName = variable.displayName || '';
     const compatibleNames = variable.compatibleVariableNames || '';
+    const enabled = variable.enabled || false;
     const isIdentifier = variable.isIdentifier || false;
     const isBackupIdentifier = variable.isBackupIdentifier || false;
     const isHideCondition = variable.isHideCondition || false;
@@ -19,7 +20,9 @@ export function getVariableItemTemplate(variable = {}) {
     return `
         <div class="variable-item">
             <div class="variable-order-group">
+                <button class="module-toggle-expand-btn variable-enabled-btn" data-is-enabled="true" title="启用/禁用变量">
                 <span class="variable-order-number"></span>
+                </button>
                 <button class="module-toggle-expand-btn variable-identifier-btn" data-is-identifier="true" title="设置为主标识符">
                     <span class="variable-order-number">🔑</span>
                 </button>
@@ -33,6 +36,7 @@ export function getVariableItemTemplate(variable = {}) {
             <div class="variable-name-group">
                 <label>变量名</label>
                 <input type="text" class="variable-name" placeholder="变量名" value="${name}">
+                <input type="hidden" class="variable-enabled" value="${enabled ? 'true' : 'false'}">
                 <input type="hidden" class="variable-is-identifier" value="${isIdentifier ? 'true' : 'false'}">
                 <input type="hidden" class="variable-is-backup-identifier" value="${isBackupIdentifier ? 'true' : 'false'}">
                 <input type="hidden" class="variable-is-hide-condition" value="${isHideCondition ? 'true' : 'false'}">

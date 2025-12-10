@@ -122,6 +122,7 @@ export function bindModuleEvents(moduleElement) {
     moduleItem.find('.variable-item .remove-variable').off('click');
     moduleItem.find('.module-enabled-toggle').off('change');
     moduleItem.find('.module-time-reference-standard-btn').off('click');
+    moduleItem.find('.module-external-display-btn').off('click');
     moduleItem.find('.drag-handle').off('mousedown touchstart');
 
     // 绑定模块名称输入事件
@@ -287,6 +288,32 @@ export function bindModuleEvents(moduleElement) {
         }
 
         debugLog('时间参考标准状态改变:', moduleItem.find('.module-name').val(), newState);
+        // 自动保存配置
+        configManager.autoSave();
+    });
+
+    // 外部显示按钮点击事件
+    moduleItem.find('.module-external-display-btn').on('click', function () {
+        const button = $(this);
+        const moduleItem = button.closest('.module-item');
+        const hiddenInput = moduleItem.find('.module-is-external-display');
+
+        // 切换状态
+        const currentState = hiddenInput.val() === 'true';
+        const newState = !currentState;
+
+        // 更新隐藏输入框的值
+        hiddenInput.val(newState.toString());
+
+        // 更新按钮状态
+        button.attr('data-external-display', newState.toString());
+        if (newState) {
+            button.addClass('active');
+        } else {
+            button.removeClass('active');
+        }
+
+        debugLog('外部显示状态改变:', moduleItem.find('.module-name').val(), newState);
         // 自动保存配置
         configManager.autoSave();
     });

@@ -143,6 +143,11 @@ export const MODULE_CONFIG_TEMPLATE = {
                 default: -1,
                 description: '保留层数（-1表示不限制）'
             },
+            isExternalDisplay: {
+                type: 'boolean',
+                default: false,
+                description: '是否在外部显示模块'
+            },
             containerStyles: {
                 type: 'string',
                 default: '',
@@ -172,6 +177,11 @@ export const MODULE_CONFIG_TEMPLATE = {
                         type: 'string',
                         required: true,
                         description: '变量显示名称（中文）'
+                    },
+                    enabled: {
+                        type: 'boolean',
+                        default: true,
+                        description: '变量是否启用'
                     },
                     description: {
                         type: 'string',
@@ -303,6 +313,10 @@ export function validateConfig(config) {
             warnings.push(`${modulePrefix}: timeReferenceStandard字段应为布尔值`);
         }
 
+        if (module.isExternalDisplay !== undefined && typeof module.isExternalDisplay !== 'boolean') {
+            warnings.push(`${modulePrefix}: isExternalDisplay字段应为布尔值`);
+        }
+
         // 验证枚举值
         const validOutputPositions = ['before_body', 'after_body', 'embedded', 'specific_position', 'custom'];
         if (module.outputPosition && !validOutputPositions.includes(module.outputPosition)) {
@@ -330,6 +344,11 @@ export function validateConfig(config) {
 
                 if (variable.isIdentifier !== undefined && typeof variable.isIdentifier !== 'boolean') {
                     warnings.push(`${varPrefix}: isIdentifier字段应为布尔值`);
+                }
+
+                // 验证字段类型
+                if (variable.enabled !== undefined && typeof variable.enabled !== 'boolean') {
+                    warnings.push(`${varPrefix}: enabled字段应为布尔值`);
                 }
 
                 if (variable.isBackupIdentifier !== undefined && typeof variable.isBackupIdentifier !== 'boolean') {
@@ -394,6 +413,7 @@ export function normalizeConfig(config) {
             itemMin: typeof module.itemMin === 'number' ? module.itemMin : 0,
             itemMax: typeof module.itemMax === 'number' ? module.itemMax : 1,
             timeReferenceStandard: module.timeReferenceStandard || false,
+            isExternalDisplay: module.isExternalDisplay || false,
             containerStyles: module.containerStyles || '',
             customStyles: module.customStyles || '',
             variables: []
@@ -408,6 +428,7 @@ export function normalizeConfig(config) {
                     displayName: variable.displayName || variable.name || '',
                     compatibleVariableNames: variable.compatibleVariableNames || '',
                     description: variable.description || '',
+                    enabled: variable.enabled !== undefined ? variable.enabled : true,
                     // type: variable.type || 'text',
                     // defaultValue: variable.defaultValue || '',
                     isIdentifier: variable.isIdentifier || false,

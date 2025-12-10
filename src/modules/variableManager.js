@@ -157,15 +157,15 @@ export function bindVariableEvents(variableItem, moduleItem) {
 
     // 主标识符按钮事件
     variableItem.find('.variable-identifier-btn').on('click', function () {
-        debugLog('主标识符按钮被点击');
+        // debugLog('主标识符按钮被点击');
         const isIdentifierInput = variableItem.find('.variable-is-identifier');
-        debugLog('找到的isIdentifierInput:', isIdentifierInput);
-        debugLog('isIdentifierInput长度:', isIdentifierInput.length);
+        // debugLog('找到的isIdentifierInput:', isIdentifierInput);
+        // debugLog('isIdentifierInput长度:', isIdentifierInput.length);
         const currentValue = isIdentifierInput.val() === 'true';
-        debugLog('当前值:', currentValue);
+        // debugLog('当前值:', currentValue);
         const newValue = !currentValue;
         isIdentifierInput.val(newValue);
-        debugLog('新值:', isIdentifierInput.val());
+        // debugLog('新值:', isIdentifierInput.val());
 
         if (newValue) {
             // 如果选择了主标识符，取消选择备用标识符
@@ -260,6 +260,36 @@ export function bindVariableEvents(variableItem, moduleItem) {
         // 自动保存配置
         configManager.autoSave();
     });
+
+    // 隐藏条件按钮事件
+    variableItem.find('.variable-enabled-btn').on('click', function () {
+        const isEnabled = variableItem.find('.variable-enabled');
+        const currentValue = isEnabled.val() === 'true';
+        isEnabled.val(!currentValue);
+
+        // 切换激活状态样式
+        const button = $(this);
+
+        if (!currentValue) {
+            button.addClass('active');
+            // 设置激活状态背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
+        } else {
+            button.removeClass('active');
+            // 恢复默认背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
+        }
+
+        updateModulePreview(moduleItem);
+        // 自动保存配置
+        configManager.autoSave();
+    });
+
+    const isEnabledBtn = variableItem.find('.variable-enabled-btn');
+    if (variableItem.find('.variable-enabled').val() === 'true') {
+        isEnabledBtn.addClass('active');
+        isEnabledBtn.find('.variable-order-number').css('background-color', 'rgba(100, 200, 100, 0.6)');
+    }
 
     // 初始化激活状态
     const identifierBtn = variableItem.find('.variable-identifier-btn');
@@ -434,7 +464,7 @@ export function updateVariableOrderNumbers(variablesContainer) {
         return $(this).closest('.variable-template').length === 0;
     }).each(function (index) {
         const orderNumber = index + 1;
-        // 只更新变量项最左侧的序号，不影响标识符按钮中的emoji
-        $(this).find('.variable-order-group > .variable-order-number:first-child').text(orderNumber);
+        // 更新变量项最左侧的启用按钮中的序号
+        $(this).find('.variable-order-group > .variable-enabled-btn > .variable-order-number').text(orderNumber);
     });
 }

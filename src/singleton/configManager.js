@@ -216,14 +216,25 @@ class ConfigManager {
 
     /**
      * 获取模块配置
-     * @returns {Array} 模块配置数组（只返回enabled为true的模块）
+     * @returns {Array} 模块配置数组（只返回enabled为true的模块和变量）
      */
     getModules() {
         const config = this.getModuleConfig();
         const modules = config.modules || [];
 
         // 过滤掉enabled为false的模块
-        return modules.filter(module => module.enabled !== false);
+        const enabledModules = modules.filter(module => module.enabled !== false);
+
+        // 对每个模块，过滤掉enabled为false的变量
+        return enabledModules.map(module => {
+            if (module.variables && Array.isArray(module.variables)) {
+                return {
+                    ...module,
+                    variables: module.variables.filter(variable => variable.enabled !== false)
+                };
+            }
+            return module;
+        });
     }
 
     /**
@@ -570,6 +581,10 @@ class ConfigManager {
         return this.uiDataCollector;
     }
 
+    outputCache() {
+        infoLog("[Module Cache]打印当前配置缓存数据:", configManager.extensionConfig, configManager.moduleConfig);
+    }
+
     /**
      * 判断模块配置是否包含特定变量
      * @param {Object} moduleData 单一模块的数据对象
@@ -647,10 +662,10 @@ class UIDataCollector {
             'timingPrompt', 'contentPrompt', 'outputPosition', 'positionPrompt',
             'outputMode', 'retainLayers', 'compatibleModuleNames',
             'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode',
-            'containerStyles', 'customStyles'
+            'containerStyles', 'customStyles', 'isExternalDisplay'
         ];
         this.variableFields = [
-            'name', 'displayName', 'description', 'compatibleVariableNames',
+            'name', 'displayName', 'description', 'compatibleVariableNames', 'enabled',
             'isIdentifier', 'isBackupIdentifier', 'isHideCondition', 'hideConditionValues', 'customStyles'
         ];
     }
@@ -768,6 +783,8 @@ class UIDataCollector {
                     return parseInt(container.find('.module-item-specified').val()) || 0;
                 case 'timeReferenceStandard':
                     return container.find('.module-time-reference-standard').val() === 'true' || false;
+                case 'isExternalDisplay':
+                    return container.find('.module-is-external-display').val() === 'true' || false;
                 case 'compatibleModuleNames':
                     const names = container.find('.module-compatible-names').val() || '';
                     return IdentifierParser.parseMultiValues(names);
@@ -846,6 +863,8 @@ class UIDataCollector {
                     return variableElement.find('.variable-display-name').val() || '';
                 case 'description':
                     return variableElement.find('.variable-desc').val() || '';
+                case 'enabled':
+                    return variableElement.find('.variable-enabled').val() === 'true';
                 case 'isIdentifier':
                     return variableElement.find('.variable-is-identifier').val() === 'true';
                 case 'isBackupIdentifier':
