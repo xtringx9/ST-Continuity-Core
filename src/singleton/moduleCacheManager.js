@@ -7,7 +7,7 @@ class ModuleCacheManager {
         this.cache = new Map();
         this.charWorldBookCache = new Map();
 
-        debugLog("[Module Cache]ModuleCacheManager 初始化完成");
+        console.log("[Module Cache]ModuleCacheManager 初始化完成");
     }
 
     updateModuleCache(isForce) {
