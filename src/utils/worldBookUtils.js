@@ -74,7 +74,7 @@ export const WORLD_BOOK_ENTRIES = {
             content: '{{CONTINUITY_PROMPT}}',
             constant: true,
             order: 1,
-            position: 1,
+            position: 4,
             disable: false,
             excludeRecursion: true,
             preventRecursion: true,
