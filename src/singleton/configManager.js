@@ -238,6 +238,31 @@ class ConfigManager {
     }
 
     /**
+     * 按照模块名获取对应模块配置
+     * @param {string} moduleName 模块名称
+     * @returns {Object|null} 模块配置对象，如果找不到则返回null
+     */
+    getModuleByName(moduleName) {
+        if (!moduleName || typeof moduleName !== 'string') {
+            errorLog('getModuleByName: 模块名参数无效');
+            return null;
+        }
+
+        const modules = this.getModules();
+        const module = modules.find(m => m.name === moduleName);
+
+        if (!module) {
+            debugLog(`getModuleByName: 未找到名为"${moduleName}"的模块`);
+            return null;
+        }
+
+        debugLog(`getModuleByName: 成功找到模块"${moduleName}"`);
+        return module;
+    }
+
+
+
+    /**
      * 设置模块配置
      * @param {Array} modules 模块配置数组
      */
