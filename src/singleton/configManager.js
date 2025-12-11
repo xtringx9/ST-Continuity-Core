@@ -125,8 +125,8 @@ class ConfigManager {
      * 加载所有配置到内存缓存
      */
     load() {
-        this.loadModuleConfig();
         this.loadExtensionConfig();
+        this.loadModuleConfig();
         this.isLoaded = true;
 
         // 执行所有注册的加载完成回调

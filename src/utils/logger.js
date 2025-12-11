@@ -6,7 +6,11 @@ import { EXTENSION_CONFIG_KEY, extension_settings, extensionName } from "../inde
  * @returns {boolean} 调试日志是否启用
  */
 export function isDebugLogsEnabled() {
-    const settings = extension_settings[extensionName][EXTENSION_CONFIG_KEY];
+    // 检查 extension_settings 是否已定义
+    if (typeof extension_settings === 'undefined' || !extension_settings) {
+        return false;
+    }
+    const settings = extension_settings?.[extensionName]?.[EXTENSION_CONFIG_KEY];
     // console.log("settings:", settings, settings.debugLogs);
     return settings && settings.debugLogs === true;
 }
