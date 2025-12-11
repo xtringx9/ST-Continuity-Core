@@ -207,6 +207,7 @@ export async function updateUItoMsgBottom() {
             }
 
             const contentContainer = container?.querySelector('.modules-content-container');
+            const externalContainer = container?.querySelector('#continuity-context-bottom-external-container');
 
             // 为内容容器设置最大高度
             if (contentContainer) {
@@ -216,12 +217,13 @@ export async function updateUItoMsgBottom() {
             // 清空容器内的所有内容
             if (contentContainer) {
                 contentContainer.innerHTML = '';
+                externalContainer.innerHTML = '';
                 debugLog('[CUSTOM STYLES] 已清空模块内容容器');
             }
 
             debugLog(messageIndex, `当前消息的模块数据:`, modulesForThisMessage);
 
-            renderSingleMessageContextBottomUI(modulesForThisMessage, contentContainer, message)
+            renderSingleMessageContextBottomUI(modulesForThisMessage, contentContainer, externalContainer)
         }
 
         isUpdatingMsgUI = false;
@@ -233,7 +235,7 @@ export async function updateUItoMsgBottom() {
     }
 }
 
-function renderSingleMessageContextBottomUI(messages, container, mes) {
+function renderSingleMessageContextBottomUI(messages, container, externalContainer) {
     try {
         // 检查参数有效性
         if (!messages || !container || container.length === 0) {
@@ -249,9 +251,13 @@ function renderSingleMessageContextBottomUI(messages, container, mes) {
         //     return;
         // }
 
-
         if (messages.length > 0) {
             messages.forEach((entry) => {
+
+                const config = configManager.getModuleByName(entry.moduleName);
+
+                let finalContainer = config && config.isExternalDisplay ? externalContainer : container;
+
                 // 检查是否有moduleData.raw内容用于匹配
                 if (!entry.moduleData || !entry.moduleData.raw || typeof entry.moduleData.raw !== 'string' || entry.moduleData.raw.trim() === '') {
                     debugLog('renderSingleMessageContext: entry.moduleData.raw为空或无效，无法匹配原文');
@@ -259,12 +265,12 @@ function renderSingleMessageContextBottomUI(messages, container, mes) {
                 // 检查是否有customStyles内容用于替换
                 else if (!entry.customStyles || typeof entry.customStyles !== 'string' || entry.customStyles.trim() === '') {
                     // debugLog('renderSingleMessageContext: entry.customStyles为空或无效，无法替换');
-                    container.innerHTML += `<div>${entry.moduleData.raw}</div>`;
+                    finalContainer.innerHTML += `<div>${entry.moduleData.raw}</div>`;
                 }
                 // 使用entry.moduleData.raw来匹配mes_text div内部的原文，包括后面的<br>标签
                 else {
                     // container.append(entry.customStyles);
-                    container.innerHTML += `${entry.customStyles}`;
+                    finalContainer.innerHTML += `${entry.customStyles}`;
                 }
             });
             // container.html(newHtml);

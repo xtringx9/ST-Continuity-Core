@@ -648,17 +648,35 @@ export function deduplicateModules(modules) {
             if (isIncrementalModule) {
                 // 检查是否只输出了moduleConfig中isIdentifier或isBackupIdentifier的变量，是的话视为无效条目
                 let hasValidVariable = false;
+                let hasIdentifierVariable = false;
+                let identifierValid = false;
+                let backupIdentifierValid = false;
+
                 // debugLog('[Deduplication] 检查增量模块是否输出了有效变量:', module.moduleName, 'variables:', module.variables, 'module:', module);
                 for (const [variableName] of Object.entries(module.variables)) {
                     // debugLog('[Deduplication] 检查变量:', variableName, 'moduleConfig.variables:', moduleConfig.variables);
                     const variableConfig = moduleConfig.variables.find(v => v.name === variableName);
-                    if (module.variables[variableName] !== "" && variableConfig && !variableConfig.isIdentifier) {// && !variableConfig.isBackupIdentifier
+                    if (module.variables[variableName] !== "" && variableConfig && !variableConfig.isIdentifier && !variableConfig.isBackupIdentifier) {
                         hasValidVariable = true;
                         // debugLog('[Deduplication] 增量模块输出了有效变量:', module.moduleName, 'variableName:', variableName, 'variables:', module.variables, 'module:', module);
                         break;
                     }
+
+                    // 检查标识符变量
+                    if (variableConfig && variableConfig.isIdentifier && module.variables[variableName] !== "") {
+                        hasIdentifierVariable = true;
+                        identifierValid = true;
+                    }
+                    if (variableConfig && variableConfig.isBackupIdentifier && module.variables[variableName] !== "") {
+                        hasIdentifierVariable = true;
+                        backupIdentifierValid = true;
+                    }
                 }
-                if (hasValidVariable) {
+
+                // 如果标识符变量存在但两个标识符都无效（值为空），视为无效条目
+                if (hasIdentifierVariable && !identifierValid && !backupIdentifierValid) {
+                    debugLog('[Deduplication] 增量模块标识符变量都无效，视为无效条目:', module.moduleName, 'variables:', module.variables, 'module:', module);
+                } else if (hasValidVariable) {
                     moduleMap.set(moduleKey, module);
                 }
                 else {
