@@ -15,7 +15,7 @@ const REGEX_PATTERNS = {
     patterns: [
         {
             scriptName: CONTINUITY_CORE_IDENTIFIER + '隐藏<module>内容_' + REGEX_CONSTANTS.version,
-            findRegex: '/(?<!<details>\\s*)<(modules?|ccore)>([\\s\\S]*?)<\\/\\1>/g',
+            findRegex: '/(?<!<details>\\s*)<(modules?|ccore|module_update)>([\\s\\S]*?)<\\/\\1>/g',
             replaceString: '',
             trimStrings: [],
             placement: [1, 2], // AI输出 (regex_placement.AI_OUTPUT = 2)
