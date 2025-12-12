@@ -98,7 +98,7 @@ export const MODULE_CONFIG_TEMPLATE = {
             // 输出设置
             outputPosition: {
                 type: 'string',
-                enum: ['before_body', 'after_body', 'embedded', 'specific_position', 'custom'],
+                enum: ['body', 'after_body', 'embedded', 'specific_position', 'custom'],
                 default: 'after_body',
                 description: '输出位置'
             },
@@ -318,7 +318,7 @@ export function validateConfig(config) {
         }
 
         // 验证枚举值
-        const validOutputPositions = ['before_body', 'after_body', 'embedded', 'specific_position', 'custom'];
+        const validOutputPositions = ['body', 'after_body', 'embedded', 'specific_position', 'custom'];
         if (module.outputPosition && !validOutputPositions.includes(module.outputPosition)) {
             warnings.push(`${modulePrefix}: outputPosition应为 ${validOutputPositions.join(', ')} 之一`);
         }
