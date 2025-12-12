@@ -600,7 +600,7 @@ export function deduplicateModules(modules) {
         const moduleKey = JSON.stringify({
             moduleName: module.moduleName,
             variables: module.variables,
-            notAfterBody: !isIncrementalModule && notAfterBody ? module.raw : '',
+            notAfterBody: !isIncrementalModule && notAfterBody ? module.raw : '',// todo 或者可以把!isIncrementalModule 的判断也去掉
         });
 
         // 检查是否已经存在相同的模块
