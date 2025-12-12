@@ -2387,9 +2387,10 @@ export function attachStructuredTimeData(modules) {
 /**
  * 按messageIndex和messageIndexHistory分组处理processResult数据
  * @param {Object} processResult 处理结果对象，包含content属性
+ * @param {boolean} moveIncrementalEmbeddedToLast 是否将可嵌入模块排到最后
  * @returns {Object} 按messageIndex分组的条目数据
  */
-export function groupProcessResultByMessageIndex(processResult) {
+export function groupProcessResultByMessageIndex(processResult, moveIncrementalEmbeddedToLast = false) {
     try {
         if (!processResult || !processResult.content || typeof processResult.content !== 'object') {
             errorLog('[Module Processor] processResult格式无效');
@@ -2431,36 +2432,6 @@ export function groupProcessResultByMessageIndex(processResult) {
                             // 将条目添加到对应的messageIndex分组中
                             groupedResult[timelineEntry.messageIndex].push(timelineData);
                         }
-
-                        // const messageIndexHistory = timelineEntry.messageIndexHistory;
-
-                        // if (!timelineEntry.messageIndexHistory || !Array.isArray(timelineEntry.messageIndexHistory)) {
-                        //     debugLog(`[Module Processor]模块 ${moduleName} 的条目 ${timelineEntry.moduleName} 缺少有效的messageIndexHistory数组`);
-                        //     // 初始化该messageIndex的分组
-                        //     if (!groupedResult[timelineEntry.messageIndex]) {
-                        //         groupedResult[timelineEntry.messageIndex] = [];
-                        //     }
-
-                        //     if (!groupedResult[timelineEntry.messageIndex].includes(timelineData)) {
-                        //         // 将条目添加到对应的messageIndex分组中
-                        //         groupedResult[timelineEntry.messageIndex].push(timelineData);
-                        //     }
-
-                        //     return;
-                        // }
-
-                        // // 为每个messageIndex创建分组并添加条目
-                        // messageIndexHistory.forEach(index => {
-                        //     // 初始化该messageIndex的分组
-                        //     if (!groupedResult[index]) {
-                        //         groupedResult[index] = [];
-                        //     }
-
-                        //     if (!groupedResult[index].includes(timelineData)) {
-                        //         // 将条目添加到对应的messageIndex分组中
-                        //         groupedResult[index].push(timelineData);
-                        //     }
-                        // });
                     });
                 }
                 else {
@@ -2504,21 +2475,61 @@ export function groupProcessResultByMessageIndex(processResult) {
             // 获取模块配置数据
             const modulesData = configManager.getModules() || [];
 
-            // 按模块order排序
-            entries.sort((a, b) => {
-                const aModuleConfig = modulesData.find(config => config.name === a.moduleName);
-                const bModuleConfig = modulesData.find(config => config.name === b.moduleName);
+            // 如果启用了将嵌入模块排到最后的功能
+            if (moveIncrementalEmbeddedToLast) {
+                // 分离嵌入模块和非嵌入模块
+                const embeddedEntries = [];
+                const nonEmbeddedEntries = [];
 
-                const aOrder = aModuleConfig?.order !== undefined ? aModuleConfig.order : 0;
-                const bOrder = bModuleConfig?.order !== undefined ? bModuleConfig.order : 0;
+                entries.forEach(entry => {
+                    const moduleConfig = modulesData.find(config => config.name === entry.moduleName);
+                    if (moduleConfig && moduleConfig.outputPosition === 'embedded' && moduleConfig.outputMode === 'incremental') {
+                        embeddedEntries.push(entry);
+                    } else {
+                        nonEmbeddedEntries.push(entry);
+                    }
+                });
 
-                return aOrder - bOrder;
-            });
+                // 分别对非嵌入模块和嵌入模块按order排序
+                nonEmbeddedEntries.sort((a, b) => {
+                    const aModuleConfig = modulesData.find(config => config.name === a.moduleName);
+                    const bModuleConfig = modulesData.find(config => config.name === b.moduleName);
 
-            groupedResult[messageIndex] = entries;
+                    const aOrder = aModuleConfig?.order !== undefined ? aModuleConfig.order : 0;
+                    const bOrder = bModuleConfig?.order !== undefined ? bModuleConfig.order : 0;
+
+                    return aOrder - bOrder;
+                });
+
+                embeddedEntries.sort((a, b) => {
+                    const aModuleConfig = modulesData.find(config => config.name === a.moduleName);
+                    const bModuleConfig = modulesData.find(config => config.name === b.moduleName);
+
+                    const aOrder = aModuleConfig?.order !== undefined ? aModuleConfig.order : 0;
+                    const bOrder = bModuleConfig?.order !== undefined ? bModuleConfig.order : 0;
+
+                    return aOrder - bOrder;
+                });
+
+                // 合并数组：非嵌入模块在前，嵌入模块在后
+                groupedResult[messageIndex] = [...nonEmbeddedEntries, ...embeddedEntries];
+            } else {
+                // 按模块order排序
+                entries.sort((a, b) => {
+                    const aModuleConfig = modulesData.find(config => config.name === a.moduleName);
+                    const bModuleConfig = modulesData.find(config => config.name === b.moduleName);
+
+                    const aOrder = aModuleConfig?.order !== undefined ? aModuleConfig.order : 0;
+                    const bOrder = bModuleConfig?.order !== undefined ? bModuleConfig.order : 0;
+
+                    return aOrder - bOrder;
+                });
+
+                groupedResult[messageIndex] = entries;
+            }
         });
 
-        debugLog(`[Module Processor]按messageIndex和messageIndexHistory分组完成，共 ${Object.keys(groupedResult).length} 个不同的messageIndex，前后数据：`, processResult, groupedResult);
+        debugLog(`[Module Processor]按messageIndex和messageIndexHistory分组完成，共 ${Object.keys(groupedResult).length} 个不同的messageIndex，moveEmbeddedToLast: ${moveIncrementalEmbeddedToLast}，前后数据：`, processResult, groupedResult);
         return groupedResult;
 
     } catch (error) {

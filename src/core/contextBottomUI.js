@@ -667,8 +667,8 @@ export function renderCurrentMessageContext() {
         }
 
         const containers = getCurrentMessageContainer();
-        const startIndex = $(containers[0]).attr('mesid');
-        const endIndex = $(containers[containers.length - 1]).attr('mesid');
+        // const startIndex = $(containers[0]).attr('mesid');
+        // const endIndex = $(containers[containers.length - 1]).attr('mesid');
 
         // 提取全部聊天记录的所有模块数据（一次性获取）
         const extractParams = {
@@ -686,8 +686,8 @@ export function renderCurrentMessageContext() {
         }
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
-        const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
-        // infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
+        const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, true);
+        infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         for (let i = containers.length - 1; i >= 0; i--) {
             const message = $(containers[i]);
@@ -795,6 +795,10 @@ export function renderSingleMessageContext(messages, container, mes) {
             container.html(newHtml);
             // 渲染成功后设置renderSwipe属性
             mes.attr('renderSwipe', swipeId);
+            infoLog(`messageIndex: ${mes.attr('mesid')} 成功渲染并设置renderSwipe属性`, {
+                swipeId: swipeId,
+                newHtml: newHtml
+            });
         }
     } catch (error) {
         errorLog('renderSingleMessageContext: 渲染单个消息上下文失败:', error);
