@@ -712,6 +712,9 @@ export function renderCurrentMessageContext() {
     }
 }
 
+// 正则表达式特殊字符转义模式
+const REGEX_ESCAPE_PATTERN = /[.*+?^${}()|[\]\\><]/g;
+
 export function renderSingleMessageContext(messages, container, mes) {
     try {
         // 检查参数有效性
@@ -731,7 +734,7 @@ export function renderSingleMessageContext(messages, container, mes) {
                 const firstMessage = messages[0];
                 if (firstMessage && firstMessage.moduleData && firstMessage.moduleData.processedRaw) {
                     const processedRaw = firstMessage.moduleData.processedRaw;
-                    const rawPattern = new RegExp(processedRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:<br>)*', 'g');
+                    const rawPattern = new RegExp(processedRaw.replace(REGEX_ESCAPE_PATTERN, '\\$&') + '(?:<br>)*', 'g');
 
                     // 检查是否能匹配上原始HTML内容
                     const matchResult = rawPattern.exec(originalText);
@@ -765,18 +768,27 @@ export function renderSingleMessageContext(messages, container, mes) {
 
                     // infoLog('renderSingleMessageContext: 处理后的raw文本:', processedRaw, entry);
                     // 构建匹配模式：entry.moduleData.raw后面可能跟着0个或多个<br>标签
-                    const rawPattern = new RegExp(processedRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:<br>)*', 'g');
+                    const rawPattern = new RegExp(processedRaw.replace(REGEX_ESCAPE_PATTERN, '\\$&') + '(?:<br>)*', 'g');
 
                     // if (rawPattern.test(newHtml)) {
-                    const matchResult = rawPattern.exec(newHtml);
-                    if (matchResult) {
-                        const matchedText = matchResult[0].replace(processedRaw + '<br>', processedRaw);
-                        // 如果匹配上了，用customStyles替换匹配到的内容（包括后面的<br>标签）
-                        newHtml = newHtml.replaceAll(matchedText, entry.customStyles); //因为有可能出现同模块在一个页面多次的情况
-                        debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
+                    const matchResults = newHtml.match(rawPattern);
+                    if (matchResults && matchResults.length > 0) {
+                        // 处理所有匹配项
+                        matchResults.forEach(matchResult => {
+                            const matchedText = matchResult.replace(processedRaw + '<br>', processedRaw);
+                            // 如果匹配上了，用customStyles替换匹配到的内容（包括后面的<br>标签）
+                            newHtml = newHtml.replace(matchedText, entry.customStyles);
+                        });
+                        // debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
                         // }
                     } else {
-                        debugLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', entry, processedRaw);
+                        debugLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', {
+                            entry: entry,
+                            processedRaw: processedRaw,
+                            rawPattern: rawPattern,
+                            newHtml: newHtml,
+                            patternString: rawPattern.toString()
+                        });
                     }
                 }
             });

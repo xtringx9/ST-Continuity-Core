@@ -1,4 +1,4 @@
-// 简单的双引号转<q>标签工具和反引号转<code>标签工具
+// 文本转换工具：处理引号转换和HTML实体转义
 
 /**
  * 将文本中的双引号（包括各种语言的双引号）转换为<q>标签，以及反引号转换为<code>标签
@@ -44,13 +44,56 @@ export function convertQuotesToQTags(text) {
 }
 
 /**
- * 处理文本中的双引号转换（主函数）
+ * 处理HTML实体转义，将特殊字符转换为HTML实体
  * @param {string} text - 要处理的文本
  * @returns {string} 处理后的文本
  */
-export function processQuotes(text) {
-    return convertQuotesToQTags(text);
+export function escapeHtmlEntities(text) {
+    if (typeof text !== 'string' || text.trim() === '') {
+        return text;
+    }
+
+    const htmlEntities = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        // '"': '&quot;',
+        // "'": '&#39;'
+    };
+
+    const result = text.replace(/[&<>"']/g, match => htmlEntities[match] || match);
+    // console.log('HTML实体转义处理完成', { input: text, output: result });
+    return result;
 }
 
+/**
+ * 处理文本转换：包括引号转换和HTML实体转义
+ * @param {string} text - 要处理的文本
+ * @returns {string} 处理后的文本
+ */
+export function processTextForMatching(text) {
+    if (typeof text !== 'string' || text.trim() === '') {
+        return text;
+    }
+    let result = text;
+
+    // 处理HTML实体转义
+    result = escapeHtmlEntities(result);
+
+    // 处理引号转换
+    result = convertQuotesToQTags(result);
+
+    return result;
+}
+
+// /**
+//  * 处理文本中的双引号转换（主函数）- 保持向后兼容
+//  * @param {string} text - 要处理的文本
+//  * @returns {string} 处理后的文本
+//  */
+// export function processQuotes(text) {
+//     return convertQuotesToQTags(text);
+// }
+
 // 导出默认函数
-export default processQuotes;
+export default processTextForMatching;
