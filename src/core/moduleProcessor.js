@@ -594,11 +594,13 @@ export function deduplicateModules(modules) {
         // 判断是否为增量模块（outputMode === 'incremental'）
         const isIncrementalModule = moduleConfig && moduleConfig.outputMode === 'incremental';
         // debugLog('[Deduplication] 检查模块是否为增量模块:', module, moduleConfig);
+        const notAfterBody = moduleConfig && moduleConfig.outputPosition !== 'after_body'
 
         // 构建模块的唯一标识符：基于所有变量值的组合
         const moduleKey = JSON.stringify({
             moduleName: module.moduleName,
-            variables: module.variables
+            variables: module.variables,
+            notAfterBody: !isIncrementalModule && notAfterBody ? module.raw : '',
         });
 
         // 检查是否已经存在相同的模块
@@ -628,18 +630,18 @@ export function deduplicateModules(modules) {
                 if (shouldCompare && currentMessageIndex < existingMessageIndex) {
                     // 两个messageIndex都非负数，且当前模块的messageIndex更小
                     existingModule.messageIndex = currentMessageIndex;
-                    debugLog('[Deduplication] 替换为更小的messageIndex:', module.moduleName, '新messageIndex:', currentMessageIndex, '旧messageIndex:', existingMessageIndex, 'module:', module, 'existingModule:', existingModule);
+                    // debugLog('[Deduplication] 替换为更小的messageIndex:', module.moduleName, '新messageIndex:', currentMessageIndex, '旧messageIndex:', existingMessageIndex, 'module:', module, 'existingModule:', existingModule);
                 } else if (!shouldCompare && currentMessageIndex >= 0 && existingMessageIndex < 0) {
                     // 当前模块messageIndex非负数，已存在模块为负数，保留非负数
                     existingModule.messageIndex = currentMessageIndex;
-                    debugLog('[Deduplication] 替换负数messageIndex为正数:', module.moduleName, '新messageIndex:', currentMessageIndex, '旧messageIndex:', existingMessageIndex, 'module:', module, 'existingModule:', existingModule);
+                    // debugLog('[Deduplication] 替换负数messageIndex为正数:', module.moduleName, '新messageIndex:', currentMessageIndex, '旧messageIndex:', existingMessageIndex, 'module:', module, 'existingModule:', existingModule);
                 } else if (!shouldCompare && currentMessageIndex < 0 && existingMessageIndex >= 0) {
                     // 当前模块messageIndex为负数，已存在模块为非负数，保留非负数
                     // existingModule.messageIndex = existingMessageIndex;
-                    debugLog('[Deduplication] 保留非负数messageIndex:', module.moduleName, '当前messageIndex:', currentMessageIndex, '已有messageIndex:', existingMessageIndex, 'module:', module, 'existingModule:', existingModule);
+                    // debugLog('[Deduplication] 保留非负数messageIndex:', module.moduleName, '当前messageIndex:', currentMessageIndex, '已有messageIndex:', existingMessageIndex, 'module:', module, 'existingModule:', existingModule);
                 } else {
                     // 其他情况（包括两个都为负数，或比较后保留原有模块）
-                    debugLog('[Deduplication] 保留原有模块:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
+                    // debugLog('[Deduplication] 保留原有模块:', module.moduleName, '当前messageIndex:', module.messageIndex, '已有messageIndex:', existingModule.messageIndex, 'module:', module, 'existingModule:', existingModule);
                 }
             }
 
