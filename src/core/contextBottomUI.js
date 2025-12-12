@@ -687,7 +687,7 @@ export function renderCurrentMessageContext() {
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, true);
-        infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
+        debugLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         for (let i = containers.length - 1; i >= 0; i--) {
             const message = $(containers[i]);
@@ -795,10 +795,10 @@ export function renderSingleMessageContext(messages, container, mes) {
             container.html(newHtml);
             // 渲染成功后设置renderSwipe属性
             mes.attr('renderSwipe', swipeId);
-            infoLog(`messageIndex: ${mes.attr('mesid')} 成功渲染并设置renderSwipe属性`, {
-                swipeId: swipeId,
-                newHtml: newHtml
-            });
+            // debugLog(`messageIndex: ${mes.attr('mesid')} 成功渲染并设置renderSwipe属性`, {
+            //     swipeId: swipeId,
+            //     newHtml: newHtml
+            // });
         }
     } catch (error) {
         errorLog('renderSingleMessageContext: 渲染单个消息上下文失败:', error);

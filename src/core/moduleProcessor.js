@@ -247,14 +247,14 @@ export function normalizeModules(modules, selectedModuleNames = []) {
                     } else if (char === '|' && inNestedModule === 0) {
                         // 只在顶级管道符处分割
                         const varPart = content.substring(lastPipePos, i).trim();
-                        parseSingleVariableInProcess(varPart, normalizedVariables, variableNameMap);
+                        parseSingleVariableInProcess(varPart, normalizedVariables, variableNameMap, module);
                         lastPipePos = i + 1;
                     }
                 }
 
                 // 处理最后一个变量部分
                 const lastPart = content.substring(lastPipePos).trim();
-                parseSingleVariableInProcess(lastPart, normalizedVariables, variableNameMap);
+                parseSingleVariableInProcess(lastPart, normalizedVariables, variableNameMap, module);
 
                 // 构建标准化模块
                 const normalizedModule = {
@@ -1305,6 +1305,7 @@ export function mergeModulesByOrder(modules) {
                 messageIndexHistory: module.messageIndexHistory || [module.messageIndex],
                 raw: module.raw || '',
                 processedRaw: module.processedRaw || '',
+                nestedInfo: module.nestedInfo,
                 variables: { ...currentVariables }, // 该messageIndex时的完整变量数据
                 lastVariables: { ...lastVariables }, // 该messageIndex前的完整变量数据
                 changedKeys: changedKeys, // 该条messageIndex中发生变化的变量
@@ -1487,7 +1488,7 @@ export function completeIdVariables(modules) {
  * @param {Object} variablesMap 变量映射表
  * @param {Object} variableNameMap 变量名映射表（兼容变量名 -> 当前变量名）
  */
-export function parseSingleVariableInProcess(part, variablesMap, variableNameMap) {
+export function parseSingleVariableInProcess(part, variablesMap, variableNameMap, module) {
     if (!part) return;
 
     let colonIndex = -1;
@@ -1511,11 +1512,14 @@ export function parseSingleVariableInProcess(part, variablesMap, variableNameMap
 
     const varName = removeSpecialSymbols(part.substring(0, colonIndex).trim());
     const varValue = part.substring(colonIndex + 1).trim();
+
+    const isNestedVar = module.nestedInfo ? module.nestedInfo.nestedVariables.includes(varName) : false;
+
     if (varName && varValue) {
         // 检查变量名是否在映射表中
         if (variableNameMap.hasOwnProperty(varName)) {
             const currentVarName = variableNameMap[varName];
-            let finalValue = (currentVarName !== 'time' && currentVarName !== 'id' && currentVarName !== 'log') ? removeHyphens(varValue) : varValue;
+            let finalValue = (!isNestedVar && currentVarName !== 'time' && currentVarName !== 'id' && currentVarName !== 'log') ? removeHyphens(varValue) : varValue;
             if (currentVarName === 'id') {
                 finalValue = tryParseNumber(varValue);
             }
@@ -1523,7 +1527,7 @@ export function parseSingleVariableInProcess(part, variablesMap, variableNameMap
         } else {
             // 处理兼容变量名的精确匹配
             for (const [compatName, currentName] of Object.entries(variableNameMap)) {
-                let finalValue = (currentName !== 'time' && currentName !== 'id' && currentName !== 'log') ? removeHyphens(varValue) : varValue;
+                let finalValue = (!isNestedVar && currentName !== 'time' && currentName !== 'id' && currentName !== 'log') ? removeHyphens(varValue) : varValue;
                 if (varName === compatName) {
                     if (currentName === 'id') {
                         finalValue = tryParseNumber(varValue);
@@ -2421,7 +2425,7 @@ export function groupProcessResultByMessageIndex(processResult, moveIncrementalE
 
                         const timelineData = {
                             ...timelineEntry,
-                            moduleData: { raw: timelineEntry.raw, processedRaw: timelineEntry.processedRaw }
+                            moduleData: { raw: timelineEntry.raw, processedRaw: timelineEntry.processedRaw, nestedInfo: timelineEntry.nestedInfo }
                         }
 
                         if (!groupedResult[timelineEntry.messageIndex]) {

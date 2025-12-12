@@ -51,35 +51,42 @@ export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFi
                 const modules = parseNestedModules(messageContent);
 
                 // 将提取到的模块添加到结果数组
-                modules.forEach(rawModule => {
+                modules.forEach(moduleObj => {
                     // 如果有模块过滤条件，检查模块名是否匹配
                     if (moduleFilters && moduleFilters.length > 0) {
-                        // 提取模块名
-                        const moduleNameMatch = rawModule.match(MODULE_NAME_REGEX);
-                        if (moduleNameMatch) {
-                            const moduleName = moduleNameMatch[1];
-                            // 检查模块名是否在任意一个过滤条件中匹配
-                            const matchesAnyFilter = moduleFilters.some(moduleFilter => {
-                                return moduleFilter.name === moduleName ||
-                                    (moduleFilter.compatibleModuleNames &&
-                                        moduleFilter.compatibleModuleNames.includes(moduleName));
-                            });
-                            // 如果不匹配任何过滤条件，跳过这个模块
-                            if (!matchesAnyFilter) {
-                                return;
-                            }
+                        // 使用模块对象中的模块名进行过滤
+                        const moduleName = moduleObj.moduleName;
+                        // 检查模块名是否在任意一个过滤条件中匹配
+                        const matchesAnyFilter = moduleFilters.some(moduleFilter => {
+                            return moduleFilter.name === moduleName ||
+                                (moduleFilter.compatibleModuleNames &&
+                                    moduleFilter.compatibleModuleNames.includes(moduleName));
+                        });
+                        // 如果不匹配任何过滤条件，跳过这个模块
+                        if (!matchesAnyFilter) {
+                            return;
                         }
                     }
 
-                    const processedRaw = processTextForMatching(rawModule);
+                    const processedRaw = processTextForMatching(moduleObj.raw);
                     const moduleData = {
-                        raw: rawModule,
-                        processedRaw: processedRaw ? processedRaw : rawModule,
+                        raw: moduleObj.raw,
+                        processedRaw: processedRaw ? processedRaw : moduleObj.raw,
                         messageIndex: index,
                         isUserMessage: isUserMessage,
                         speakerName: speakerName,
                         timestamp: new Date().toISOString(),
-                        source: 'chat' // 标记来源为聊天记录
+                        source: 'chat', // 标记来源为聊天记录
+                        // 嵌套关系信息
+                        nestedInfo: {
+                            level: moduleObj.level,
+                            isNested: moduleObj.isNested,
+                            isContainer: moduleObj.isContainer,
+                            parentModule: moduleObj.parent ? moduleObj.parent.moduleName : null,
+                            childrenCount: moduleObj.children.length,
+                            childrenModules: moduleObj.children.map(child => child.moduleName),
+                            nestedVariables: moduleObj.nestedVariables // 包含嵌套模块的变量名数组
+                        }
                     };
 
                     extractedModules.push(moduleData);
@@ -98,33 +105,40 @@ export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFi
                 if (entry.content) {
                     const modules = parseNestedModules(entry.content);
 
-                    modules.forEach(rawModule => {
+                    modules.forEach(moduleObj => {
                         // 如果有模块过滤条件，检查模块名是否匹配
                         if (moduleFilters && moduleFilters.length > 0) {
-                            // 提取模块名
-                            const moduleNameMatch = rawModule.match(MODULE_NAME_REGEX);
-                            if (moduleNameMatch) {
-                                const moduleName = moduleNameMatch[1];
-                                // 检查模块名是否在任意一个过滤条件中匹配
-                                const matchesAnyFilter = moduleFilters.some(moduleFilter => {
-                                    return moduleFilter.name === moduleName ||
-                                        (moduleFilter.compatibleModuleNames &&
-                                            moduleFilter.compatibleModuleNames.includes(moduleName));
-                                });
-                                // 如果不匹配任何过滤条件，跳过这个模块
-                                if (!matchesAnyFilter) {
-                                    return;
-                                }
+                            // 使用模块对象中的模块名进行过滤
+                            const moduleName = moduleObj.moduleName;
+                            // 检查模块名是否在任意一个过滤条件中匹配
+                            const matchesAnyFilter = moduleFilters.some(moduleFilter => {
+                                return moduleFilter.name === moduleName ||
+                                    (moduleFilter.compatibleModuleNames &&
+                                        moduleFilter.compatibleModuleNames.includes(moduleName));
+                            });
+                            // 如果不匹配任何过滤条件，跳过这个模块
+                            if (!matchesAnyFilter) {
+                                return;
                             }
                         }
 
                         const moduleData = {
-                            raw: rawModule,
+                            raw: moduleObj.raw,
                             messageIndex: -1, // 世界书条目统一设置为-1
                             isUserMessage: false, // 世界书条目不是用户消息
                             speakerName: 'worldbook', // 标记为世界书来源
                             timestamp: new Date().toISOString(),
                             source: 'worldbook', // 标记来源为世界书条目
+                            // 嵌套关系信息
+                            nestedInfo: {
+                                level: moduleObj.level,
+                                isNested: moduleObj.isNested,
+                                isContainer: moduleObj.isContainer,
+                                parentModule: moduleObj.parent ? moduleObj.parent.moduleName : null,
+                                childrenCount: moduleObj.children.length,
+                                childrenModules: moduleObj.children.map(child => child.moduleName),
+                                nestedVariables: moduleObj.nestedVariables // 包含嵌套模块的变量名数组
+                            }
                             // worldBookEntry: {
                             //     uid: entry.uid,
                             //     name: entry.name,
@@ -150,25 +164,29 @@ export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFi
 }
 
 /**
- * 解析嵌套的模块结构
+ * 解析嵌套的模块结构，并标记嵌套关系
  * @param {string} content 包含模块的文本内容
- * @returns {Array} 提取到的所有模块（包括嵌套的）
+ * @returns {Array} 提取到的所有模块对象，包含嵌套关系信息
  */
 function parseNestedModules(content) {
     const modules = [];
     const stack = [];
-    const potentialModuleStarts = [];
+    const moduleStack = []; // 用于跟踪嵌套模块层级
 
     for (let i = 0; i < content.length; i++) {
         const char = content[i];
 
         if (char === '[') {
-            // 记录潜在的模块开始位置
-            potentialModuleStarts.push(i);
+            // 记录模块开始位置和当前嵌套层级
             stack.push(i);
+            moduleStack.push({
+                start: i,
+                level: stack.length - 1
+            });
         } else if (char === ']' && stack.length > 0) {
             // 找到模块的结束
             const start = stack.pop();
+            const currentModuleInfo = moduleStack.pop();
 
             // 检查这个[ ]对是否包含|字符，并且确保|在当前的[和]之间
             const substringBetweenBrackets = content.substring(start + 1, i);
@@ -180,11 +198,209 @@ function parseNestedModules(content) {
                 // 检查模块名是否包含冒号或竖线
                 if (!moduleName.includes(':') && !moduleName.includes('|')) {
                     // 这是一个有效的模块
-                    const module = content.substring(start, i + 1);
-                    modules.push(module);
+                    const moduleString = content.substring(start, i + 1);
+
+                    // 创建模块对象，包含嵌套关系信息
+                    const moduleObj = {
+                        raw: moduleString,
+                        startIndex: start,
+                        endIndex: i,
+                        level: currentModuleInfo.level,
+                        parent: null, // 将在后续处理中设置
+                        children: [], // 子模块数组
+                        isNested: currentModuleInfo.level > 0, // 是否嵌套在其他模块中
+                        isContainer: false, // 是否包含子模块（将在后续处理中设置）
+                        moduleName: moduleName.trim(),
+                        nestedVariables: [] // 包含嵌套模块的变量名数组
+                    };
+
+                    // 分析模块中的变量，识别哪些变量包含嵌套模块
+                    analyzeNestedVariables(moduleObj);
+
+                    modules.push(moduleObj);
                 }
             }
         }
+    }
+
+    // 构建嵌套关系
+    return buildNestedRelationships(modules);
+}
+
+/**
+ * 分析模块中的变量，识别哪些变量包含嵌套模块
+ * @param {Object} moduleObj 模块对象
+ */
+function analyzeNestedVariables(moduleObj) {
+    try {
+        const moduleString = moduleObj.raw;
+
+        // 提取变量部分（模块名后面的内容）
+        const firstPipeIndex = moduleString.indexOf('|');
+        if (firstPipeIndex === -1) return;
+
+        const variablesPart = moduleString.substring(firstPipeIndex + 1, moduleString.length - 1);
+
+        // 解析变量字符串，识别包含嵌套模块的变量
+        const variables = parseVariablesStringWithNestedDetection(variablesPart);
+
+        // 找出包含嵌套模块的变量
+        const nestedVars = variables.filter(variable => variable.containsNestedModule);
+        moduleObj.nestedVariables = nestedVars.map(variable => variable.name);
+
+        debugLog(`模块 ${moduleObj.moduleName} 中包含嵌套模块的变量: ${moduleObj.nestedVariables.join(', ')}`);
+    } catch (error) {
+        errorLog('分析嵌套变量失败:', error);
+    }
+}
+
+/**
+ * 解析变量字符串，检测哪些变量包含嵌套模块
+ * @param {string} variablesString 变量字符串
+ * @returns {Array} 变量数组，包含是否包含嵌套模块的信息
+ */
+function parseVariablesStringWithNestedDetection(variablesString) {
+    const variables = [];
+    let currentPos = 0;
+    let inNestedModule = 0;
+    let lastPipePos = 0;
+
+    for (let i = 0; i < variablesString.length; i++) {
+        const char = variablesString[i];
+
+        if (char === '[') {
+            inNestedModule++;
+        } else if (char === ']') {
+            inNestedModule--;
+        } else if (char === '|' && inNestedModule === 0) {
+            // 只在顶级管道符处分割
+            const part = variablesString.substring(lastPipePos, i).trim();
+            if (part) {
+                const variable = parseSingleVariableWithNestedDetection(part);
+                variables.push(variable);
+            }
+            lastPipePos = i + 1;
+        }
+    }
+
+    // 处理最后一个变量部分
+    const lastPart = variablesString.substring(lastPipePos).trim();
+    if (lastPart) {
+        const variable = parseSingleVariableWithNestedDetection(lastPart);
+        variables.push(variable);
+    }
+
+    return variables;
+}
+
+/**
+ * 解析单个变量，检测是否包含嵌套模块
+ * @param {string} part 单个变量部分
+ * @returns {Object} 变量对象，包含是否包含嵌套模块的信息
+ */
+function parseSingleVariableWithNestedDetection(part) {
+    let colonIndex = -1;
+    let inNestedModule = 0;
+
+    // 找到第一个顶级冒号
+    for (let i = 0; i < part.length; i++) {
+        const char = part[i];
+
+        if (char === '[') {
+            inNestedModule++;
+        } else if (char === ']') {
+            inNestedModule--;
+        } else if (char === ':' && inNestedModule === 0) {
+            colonIndex = i;
+            break;
+        }
+    }
+
+    if (colonIndex === -1) {
+        // 如果没有冒号，作为简单变量名处理
+        const simpleVariableName = part.trim();
+        return {
+            name: simpleVariableName,
+            description: '',
+            containsNestedModule: false
+        };
+    } else {
+        // 有冒号，解析为变量名和值
+        const variableName = part.substring(0, colonIndex).trim();
+        const variableDesc = part.substring(colonIndex + 1).trim();
+
+        // 检查变量描述中是否包含嵌套模块
+        const containsNestedModule = checkIfContainsNestedModule(variableDesc);
+
+        return {
+            name: variableName,
+            description: variableDesc || '',
+            containsNestedModule: containsNestedModule
+        };
+    }
+}
+
+/**
+ * 检查字符串中是否包含嵌套模块
+ * @param {string} text 要检查的文本
+ * @returns {boolean} 是否包含嵌套模块
+ */
+function checkIfContainsNestedModule(text) {
+    if (!text) return false;
+
+    let bracketCount = 0;
+    let hasPipeInBrackets = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+
+        if (char === '[') {
+            bracketCount++;
+        } else if (char === ']') {
+            if (bracketCount > 0) {
+                bracketCount--;
+                if (bracketCount === 0 && hasPipeInBrackets) {
+                    return true;
+                }
+            }
+        } else if (char === '|' && bracketCount > 0) {
+            hasPipeInBrackets = true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * 构建模块之间的嵌套关系
+ * @param {Array} modules 模块对象数组
+ * @returns {Array} 包含嵌套关系的模块数组
+ */
+function buildNestedRelationships(modules) {
+    // 按开始位置排序，便于处理嵌套关系
+    modules.sort((a, b) => a.startIndex - b.startIndex);
+
+    const rootModules = [];
+    const stack = [];
+
+    for (const module of modules) {
+        // 弹出栈中所有已经结束的模块
+        while (stack.length > 0 && stack[stack.length - 1].endIndex < module.startIndex) {
+            stack.pop();
+        }
+
+        // 设置父模块关系
+        if (stack.length > 0) {
+            const parent = stack[stack.length - 1];
+            module.parent = parent;
+            parent.children.push(module);
+            parent.isContainer = parent.children.length > 0;
+        } else {
+            rootModules.push(module);
+        }
+
+        // 将当前模块压入栈
+        stack.push(module);
     }
 
     return modules;
