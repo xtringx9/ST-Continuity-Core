@@ -687,7 +687,7 @@ export function renderCurrentMessageContext() {
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, true);
-        debugLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
+        infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         for (let i = containers.length - 1; i >= 0; i--) {
             const message = $(containers[i]);
@@ -762,8 +762,6 @@ export function renderSingleMessageContext(messages, container, mes) {
                 }
                 // 使用entry.moduleData.raw来匹配mes_text div内部的原文，包括后面的<br>标签
                 else {
-                    // 先使用processQuotes处理raw文本，如果匹配不上就直接返回原文
-                    // const processedRaw = processQuotes(entry.moduleData.raw);
                     const processedRaw = entry.moduleData.processedRaw;
 
                     // infoLog('renderSingleMessageContext: 处理后的raw文本:', processedRaw, entry);
@@ -782,7 +780,7 @@ export function renderSingleMessageContext(messages, container, mes) {
                         // debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
                         // }
                     } else {
-                        debugLog('renderSingleMessageContext: 未找到匹配的原文内容，跳过替换', {
+                        infoLog(`messageIndex: ${mes.attr('mesid')} renderSingleMessageContext: 未找到匹配的原文内容，跳过替换`, {
                             entry: entry,
                             processedRaw: processedRaw,
                             rawPattern: rawPattern,
