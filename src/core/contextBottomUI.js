@@ -780,13 +780,28 @@ export function renderSingleMessageContext(messages, container, mes) {
                         // debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
                         // }
                     } else {
-                        infoLog(`messageIndex: ${mes.attr('mesid')} renderSingleMessageContext: 未找到匹配的原文内容，跳过替换`, {
-                            entry: entry,
-                            processedRaw: processedRaw,
-                            rawPattern: rawPattern,
-                            newHtml: newHtml,
-                            patternString: rawPattern.toString()
-                        });
+                        const raw = entry.moduleData.raw;
+
+                        const rawPattern = new RegExp(raw.replace(REGEX_ESCAPE_PATTERN, '\\$&') + '(?:<br>)*', 'g');
+
+                        const matchResults = newHtml.match(rawPattern);
+                        if (matchResults && matchResults.length > 0) {
+                            // 处理所有匹配项
+                            matchResults.forEach(matchResult => {
+                                const matchedText = matchResult.replace(raw + '<br>', raw);
+                                newHtml = newHtml.replace(matchedText, entry.customStyles);
+                            });
+                        }
+                        else {
+                            infoLog(`messageIndex: ${mes.attr('mesid')} renderSingleMessageContext: 未找到匹配的原文内容，跳过替换`, {
+                                entry: entry,
+                                raw: raw,
+                                processedRaw: processedRaw,
+                                rawPattern: rawPattern,
+                                newHtml: newHtml,
+                                patternString: rawPattern.toString()
+                            });
+                        }
                     }
                 }
             });
