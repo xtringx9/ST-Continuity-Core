@@ -225,7 +225,7 @@ export function generateModuleOrderPrompt() {
         if (bodyModules.length > 0) {
             bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             // orderPrompt += "[STRUCTURED IN-TEXT]\n";
-            orderPrompt += "# 正文内模块(位于<${contentTagString}></${contentTagString}>内):\n";
+            orderPrompt += `# 正文内模块(位于<${contentTagString}></${contentTagString}>内):\n`;
             bodyModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module);
             });
