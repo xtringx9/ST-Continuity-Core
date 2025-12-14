@@ -260,11 +260,11 @@ export function renderModulesFromConfig(config) {
             $('#content-layers').val(config.globalSettings.contentRemainLayers);
         }
 
-        if (config.globalSettings.corePrinciples) {
-            $('#core-principles-input').val(config.globalSettings.corePrinciples);
+        if (config.globalSettings.prompt) {
+            $('#core-principles-input').val(config.globalSettings.prompt);
         }
-        if (config.globalSettings.formatDescription) {
-            $('#format-description-input').val(config.globalSettings.formatDescription);
+        if (config.globalSettings.orderPrompt) {
+            $('#format-description-input').val(config.globalSettings.orderPrompt);
         }
     }
 

@@ -35,13 +35,13 @@ export const MODULE_CONFIG_TEMPLATE = {
             description: '正文保留层数'
         },
         // 核心原则提示词
-        corePrinciples: {
+        prompt: {
             type: 'string',
             default: '',
             description: '{{CONTINUITY_PROMPT}}头部提示词'
         },
         // 通用格式描述提示词
-        formatDescription: {
+        orderPrompt: {
             type: 'string',
             default: '',
             description: '{{CONTINUITY_ORDER}}头部提示词'
@@ -281,8 +281,8 @@ export const DEFAULT_CONFIG_VALUES = {
     version: '1.1.0',
     lastUpdated: new Date().toISOString(),
     globalSettings: {
-        corePrinciples: '',
-        formatDescription: ''
+        prompt: '',
+        orderPrompt: ''
     },
     modules: []
 };
@@ -407,8 +407,8 @@ export function normalizeConfig(config) {
             compatibleModuleTags: config.globalSettings?.compatibleModuleTags || ['module', 'modules'],
             contentTag: config.globalSettings?.contentTag || ['content', 'game'],
             contentRemainLayers: config.globalSettings?.contentRemainLayers || 6,
-            corePrinciples: config.globalSettings?.corePrinciples || '',
-            formatDescription: config.globalSettings?.formatDescription || ''
+            prompt: config.globalSettings?.prompt || '',
+            orderPrompt: config.globalSettings?.orderPrompt || ''
         },
         modules: [],
     };
@@ -505,11 +505,11 @@ export function getConfigSchema() {
             globalSettings: {
                 type: 'object',
                 properties: {
-                    corePrinciples: {
+                    prompt: {
                         type: 'string',
                         description: '核心原则提示词'
                     },
-                    formatDescription: {
+                    orderPrompt: {
                         type: 'string',
                         description: '通用格式描述提示词'
                     }

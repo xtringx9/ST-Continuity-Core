@@ -51,8 +51,8 @@ export {
     onAutoInjectToggle,
     updateInjectionSettingsVisibility,
     updateExtensionUIState,
-    onCorePrinciplesChange,
-    onFormatDescriptionChange
+    onPromptChange,
+    onOrderPromptChange
 } from './ui/settingsManager.js';
 
 // 导出UI管理模块

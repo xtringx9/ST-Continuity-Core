@@ -26,8 +26,8 @@ const DEFAULT_MODULE_CONFIG = {
     version: '1.1.0',
     lastUpdated: new Date().toISOString(),
     globalSettings: {
-        corePrinciples: '',
-        formatDescription: ''
+        prompt: '',
+        orderPrompt: ''
     },
     modules: [],
 };
@@ -923,8 +923,8 @@ class UIDataCollector {
             compatibleModuleTags: IdentifierParser.parseMultiValues($('#module-compatible-tags').val() || ''),
             contentTag: IdentifierParser.parseMultiValues($('#content-tags').val() || ''),
             contentRemainLayers: parseInt($('#content-layers').val()) || 0,
-            corePrinciples: $('#core-principles-input').val() || '',
-            formatDescription: $('#format-description-input').val() || ''
+            prompt: $('#core-principles-input').val() || '',
+            orderPrompt: $('#format-description-input').val() || ''
         };
     }
 }
