@@ -8,6 +8,10 @@ import {
     onAutoInjectToggle,
     onPromptChange,
     onOrderPromptChange,
+    onUsagePromptChange,
+    onModuleDataPromptChange,
+    onContainerStylesChange,
+    onTimeFormatChange,
     updateInjectionSettingsVisibility,
     sendToBackend,
     saveModuleConfig,
@@ -181,6 +185,10 @@ export async function openModuleConfigWindow() {
             // 绑定新提示词输入框事件
             $('#global-prompt-input').on('input', onPromptChange);
             $('#global-order-prompt-input').on('input', onOrderPromptChange);
+            $('#global-usage-prompt-input').on('input', onUsagePromptChange);
+            $('#global-module-data-prompt-input').on('input', onModuleDataPromptChange);
+            $('#global-container-styles-input').on('input', onContainerStylesChange);
+            $('#global-time-format-input').on('input', onTimeFormatChange);
 
             // 加载设置到UI（包括自动注入开关状态）
             loadSettingsToUI();

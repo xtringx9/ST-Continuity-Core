@@ -162,6 +162,50 @@ export function onOrderPromptChange(event) {
 }
 
 /**
+ * 处理使用指南提示词变更
+ * @param {Event} event 事件对象
+ */
+export function onUsagePromptChange(event) {
+    const usagePrompt = $(event.target).val();
+    const moduleConfig = configManager.getGlobalSettings();
+    moduleConfig.usagePrompt = usagePrompt;
+    configManager.setGlobalSettings(moduleConfig);
+}
+
+/**
+ * 处理模块数据提示词变更
+ * @param {Event} event 事件对象
+ */
+export function onModuleDataPromptChange(event) {
+    const moduleDataPrompt = $(event.target).val();
+    const moduleConfig = configManager.getGlobalSettings();
+    moduleConfig.moduleDataPrompt = moduleDataPrompt;
+    configManager.setGlobalSettings(moduleConfig);
+}
+
+/**
+ * 处理容器样式变更
+ * @param {Event} event 事件对象
+ */
+export function onContainerStylesChange(event) {
+    const containerStyles = $(event.target).val();
+    const moduleConfig = configManager.getGlobalSettings();
+    moduleConfig.containerStyles = containerStyles;
+    configManager.setGlobalSettings(moduleConfig);
+}
+
+/**
+ * 处理时间格式变更
+ * @param {Event} event 事件对象
+ */
+export function onTimeFormatChange(event) {
+    const timeFormat = $(event.target).val();
+    const moduleConfig = configManager.getGlobalSettings();
+    moduleConfig.timeFormat = timeFormat;
+    configManager.setGlobalSettings(moduleConfig);
+}
+
+/**
  * 处理自动注入开关变更
  * @param {Event} event 事件对象
  */

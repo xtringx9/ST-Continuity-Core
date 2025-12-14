@@ -408,7 +408,11 @@ export function normalizeConfig(config) {
             contentTag: config.globalSettings?.contentTag || ['content', 'game'],
             contentRemainLayers: config.globalSettings?.contentRemainLayers || 6,
             prompt: config.globalSettings?.prompt || '',
-            orderPrompt: config.globalSettings?.orderPrompt || ''
+            orderPrompt: config.globalSettings?.orderPrompt || '',
+            usagePrompt: config.globalSettings?.usagePrompt || '',
+            moduleDataPrompt: config.globalSettings?.moduleDataPrompt || '',
+            containerStyles: config.globalSettings?.containerStyles || '',
+            timeFormat: config.globalSettings?.timeFormat || '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}',
         },
         modules: [],
     };

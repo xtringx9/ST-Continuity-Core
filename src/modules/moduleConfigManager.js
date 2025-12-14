@@ -266,6 +266,18 @@ export function renderModulesFromConfig(config) {
         if (config.globalSettings.orderPrompt) {
             $('#global-order-prompt-input').val(config.globalSettings.orderPrompt);
         }
+        if (config.globalSettings.usagePrompt) {
+            $('#global-usage-prompt-input').val(config.globalSettings.usagePrompt);
+        }
+        if (config.globalSettings.moduleDataPrompt) {
+            $('#global-module-data-prompt-input').val(config.globalSettings.moduleDataPrompt);
+        }
+        if (config.globalSettings.containerStyles) {
+            $('#global-container-styles-input').val(config.globalSettings.containerStyles);
+        }
+        if (config.globalSettings.timeFormat) {
+            $('#global-time-format-input').val(config.globalSettings.timeFormat);
+        }
     }
 
     // 清空现有模块（保留模板和标题区域）
