@@ -261,6 +261,30 @@ export function bindVariableEvents(variableItem, moduleItem) {
         configManager.autoSave();
     });
 
+    // 不需要规范化按钮事件
+    variableItem.find('.variable-no-normalize-btn').on('click', function () {
+        const isNoNormalizeInput = variableItem.find('.variable-is-no-normalize');
+        const currentValue = isNoNormalizeInput.val() === 'true';
+        isNoNormalizeInput.val(!currentValue);
+
+        // 切换激活状态样式
+        const button = $(this);
+
+        if (!currentValue) {
+            button.addClass('active');
+            // 设置激活状态背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(255, 100, 100, 0.6)');
+        } else {
+            button.removeClass('active');
+            // 恢复默认背景色
+            button.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
+        }
+
+        updateModulePreview(moduleItem);
+        // 自动保存配置
+        configManager.autoSave();
+    });
+
     // 启用按钮事件
     variableItem.find('.variable-enabled-btn').on('click', function () {
         const isEnabled = variableItem.find('.variable-enabled');
@@ -315,13 +339,19 @@ export function bindVariableEvents(variableItem, moduleItem) {
         hideConditionBtn.addClass('active');
         hideConditionBtn.find('.variable-order-number').css('background-color', 'rgba(150, 150, 255, 0.6)');
         hideConditionValuesInput.show();
-        hideConditionValuesInput.css('max-width', '200px');
+        // hideConditionValuesInput.css('max-width', '200px');
         descInput.css('flex', '3');
     } else {
         hideConditionBtn.removeClass('active');
         hideConditionBtn.find('.variable-order-number').css('background-color', 'rgba(255, 255, 255, 0.2)');
         hideConditionValuesInput.hide();
         descInput.css('flex', '1');
+    }
+
+    const noNormalizeBtn = variableItem.find('.variable-no-normalize-btn');
+    if (variableItem.find('.variable-is-no-normalize').val() === 'true') {
+        noNormalizeBtn.addClass('active');
+        noNormalizeBtn.find('.variable-order-number').css('background-color', 'rgba(255, 100, 100, 0.6)');
     }
 }
 

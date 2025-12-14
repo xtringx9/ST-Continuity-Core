@@ -695,7 +695,7 @@ class UIDataCollector {
         ];
         this.variableFields = [
             'name', 'displayName', 'description', 'compatibleVariableNames', 'enabled',
-            'isIdentifier', 'isBackupIdentifier', 'isHideCondition', 'hideConditionValues', 'customStyles'
+            'isIdentifier', 'isBackupIdentifier', 'isHideCondition', 'hideConditionValues', 'customStyles', 'isNoNormalize'
         ];
     }
 
@@ -900,6 +900,8 @@ class UIDataCollector {
                     return variableElement.find('.variable-is-backup-identifier').val() === 'true';
                 case 'isHideCondition':
                     return variableElement.find('.variable-is-hide-condition').val() === 'true';
+                case 'isNoNormalize':
+                    return variableElement.find('.variable-is-no-normalize').val() === 'true';
                 case 'hideConditionValues':
                     const values = variableElement.find('.variable-desc').eq(1).val() || '';
                     return IdentifierParser.parseMultiValues(values);

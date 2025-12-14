@@ -255,6 +255,11 @@ export const MODULE_CONFIG_TEMPLATE = {
                         default: [],
                         description: '隐藏条件值（逗号分隔）'
                     },
+                    isNoNormalize: {
+                        type: 'boolean',
+                        default: false,
+                        description: '是否不需要规范化'
+                    },
                     // required: {
                     //     type: 'boolean',
                     //     default: false,
@@ -465,6 +470,7 @@ export function normalizeConfig(config) {
                     isBackupIdentifier: variable.isBackupIdentifier || false,
                     isHideCondition: variable.isHideCondition || false,
                     hideConditionValues: variable.hideConditionValues || '',
+                    isNoNormalize: variable.isNoNormalize || false,
                     // required: variable.required || false,
                     customStyles: variable.customStyles || '',
                     // options: Array.isArray(variable.options) ? variable.options : []
