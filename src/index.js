@@ -56,6 +56,7 @@ export {
     onUsagePromptChange,
     onModuleDataPromptChange,
     onContainerStylesChange,
+    onExternalStylesChange,
     onTimeFormatChange,
 } from './ui/settingsManager.js';
 

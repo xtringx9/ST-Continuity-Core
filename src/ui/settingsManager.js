@@ -195,6 +195,17 @@ export function onContainerStylesChange(event) {
 }
 
 /**
+ * 处理外部样式变更
+ * @param {Event} event 事件对象
+ */
+export function onExternalStylesChange(event) {
+    const externalStyles = $(event.target).val();
+    const moduleConfig = configManager.getGlobalSettings();
+    moduleConfig.externalStyles = externalStyles;
+    configManager.setGlobalSettings(moduleConfig);
+}
+
+/**
  * 处理时间格式变更
  * @param {Event} event 事件对象
  */

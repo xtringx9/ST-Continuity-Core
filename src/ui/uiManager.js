@@ -11,6 +11,7 @@ import {
     onUsagePromptChange,
     onModuleDataPromptChange,
     onContainerStylesChange,
+    onExternalStylesChange,
     onTimeFormatChange,
     updateInjectionSettingsVisibility,
     sendToBackend,
@@ -188,6 +189,7 @@ export async function openModuleConfigWindow() {
             $('#global-usage-prompt-input').on('input', onUsagePromptChange);
             $('#global-module-data-prompt-input').on('input', onModuleDataPromptChange);
             $('#global-container-styles-input').on('input', onContainerStylesChange);
+            $('#global-external-styles-input').on('input', onExternalStylesChange);
             $('#global-time-format-input').on('input', onTimeFormatChange);
 
             // 加载设置到UI（包括自动注入开关状态）
