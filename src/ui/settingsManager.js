@@ -143,10 +143,10 @@ export function onDebugLogsToggle(event) {
  * 处理核心原则提示词变更
  * @param {Event} event 事件对象
  */
-export function onCorePrinciplesChange(event) {
+export function onPromptChange(event) {
     const moduleConfig = configManager.getGlobalSettings();
-    const corePrinciples = $(event.target).val();
-    moduleConfig.corePrinciples = corePrinciples;
+    const prompt = $(event.target).val();
+    moduleConfig.prompt = prompt;
     configManager.setGlobalSettings(moduleConfig);
 }
 
@@ -154,10 +154,10 @@ export function onCorePrinciplesChange(event) {
  * 处理通用格式描述提示词变更
  * @param {Event} event 事件对象
  */
-export function onFormatDescriptionChange(event) {
-    const formatDescription = $(event.target).val();
+export function onOrderPromptChange(event) {
+    const orderPrompt = $(event.target).val();
     const moduleConfig = configManager.getGlobalSettings();
-    moduleConfig.formatDescription = formatDescription;
+    moduleConfig.orderPrompt = orderPrompt;
     configManager.setGlobalSettings(moduleConfig);
 }
 

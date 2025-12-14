@@ -36,13 +36,13 @@ export function generateFormalPrompt() {
         // const globalSettings = moduleConfig?.globalSettings;
 
         // // 添加核心原则提示词（如果设置了）
-        // if (globalSettings?.corePrinciples) {
-        //     prompt += `[CORE PRINCIPLE]\n${globalSettings.corePrinciples}\n\n`;
+        // if (globalSettings?.prompt) {
+        //     prompt += `[CORE PRINCIPLE]\n${globalSettings.prompt}\n\n`;
         // }
 
         // // 添加通用格式描述提示词（如果设置了）
-        // if (globalSettings?.formatDescription) {
-        //     prompt += `${globalSettings.formatDescription}\n\n`;
+        // if (globalSettings?.orderPrompt) {
+        //     prompt += `${globalSettings.orderPrompt}\n\n`;
         // }
 
         prompt += getOutputRulePrompt('core');
@@ -276,24 +276,24 @@ function getOutputRulePrompt(type) {
     switch (type) {
         case 'core':
             // 添加核心原则提示词（如果设置了）
-            if (globalSettings?.corePrinciples) {
-                settingPrompt += `${globalSettings.corePrinciples}\n\n`;
+            if (globalSettings?.prompt) {
+                settingPrompt += `${globalSettings.prompt}\n\n`;
             }
             break;
         case 'format':
             // 添加通用格式描述提示词（如果设置了）
-            if (globalSettings?.formatDescription) {
-                settingPrompt += `${globalSettings.formatDescription}\n\n`;
+            if (globalSettings?.orderPrompt) {
+                settingPrompt += `${globalSettings.orderPrompt}\n\n`;
             }
             break;
         case 'all':
             // 添加核心原则提示词（如果设置了）
-            if (globalSettings?.corePrinciples) {
-                settingPrompt += `${globalSettings.corePrinciples}\n\n`;
+            if (globalSettings?.prompt) {
+                settingPrompt += `${globalSettings.prompt}\n\n`;
             }
             // 添加通用格式描述提示词（如果设置了）
-            if (globalSettings?.formatDescription) {
-                settingPrompt += `${globalSettings.formatDescription}\n\n`;
+            if (globalSettings?.orderPrompt) {
+                settingPrompt += `${globalSettings.orderPrompt}\n\n`;
             }
             break;
         default:
