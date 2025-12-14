@@ -38,13 +38,33 @@ export const MODULE_CONFIG_TEMPLATE = {
         corePrinciples: {
             type: 'string',
             default: '',
-            description: '核心原则提示词，用于指导整个系统的行为'
+            description: '{{CONTINUITY_PROMPT}}头部提示词'
         },
         // 通用格式描述提示词
         formatDescription: {
             type: 'string',
             default: '',
-            description: '通用格式描述提示词，用于定义输出格式'
+            description: '{{CONTINUITY_ORDER}}头部提示词'
+        },
+        usagePrompt: {
+            type: 'string',
+            default: '',
+            description: '{{CONTINUITY_USAGE_GUIDE}}头部提示词'
+        },
+        moduleDataPrompt: {
+            type: 'string',
+            default: '',
+            description: '{{CONTINUITY_MODULE_DATA}}头部提示词'
+        },
+        containerStyles: {
+            type: 'string',
+            default: '',
+            description: '最外部的容器CSS/HTML样式'
+        },
+        timeFormat: {
+            type: 'string',
+            default: '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}',
+            description: '时间格式，例如：${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}'
         },
     },
 
