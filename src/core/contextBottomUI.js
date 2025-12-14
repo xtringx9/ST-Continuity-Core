@@ -88,15 +88,15 @@ async function createContextContainer(containerId = CONTEXT_BOTTOM_CONTAINER_ID,
     debugLog(`创建上下文底部UI容器 ${containerId}`);
 
     // 加载CSS样式
-    loadContextUICSS();
+    // loadContextUICSS();
 
     // 加载HTML模板
-    const template = await loadContextBottomUITemplate();
+    // const template = await loadContextBottomUITemplate();
 
     // 创建容器元素
     const container = document.createElement('div');
     container.id = containerId;
-    container.innerHTML = template;
+    // container.innerHTML = template;
 
     // 为UI容器添加一个特殊的类名，用于样式应用
     container.classList.add('continuity-context-bottom-ui');
@@ -175,7 +175,7 @@ export async function updateUItoMsgBottom() {
             moduleFilters: getMsgUIFilteredModuleConfigs() // 只提取符合条件的模块
         };
 
-        const processResult = updateModulesDataAndStyles(null, extractParams, false);
+        const processResult = getProcessResult(null, extractParams, false);
         if (!processResult) {
             errorLog('更新上下文底部UI失败');
             isUpdatingRenderUI = false;
@@ -205,25 +205,43 @@ export async function updateUItoMsgBottom() {
                 container = await createContextContainer(CONTEXT_MSG_CONTAINER_ID, message);
                 messageText.after(container);
             }
-
-            const contentContainer = container?.querySelector('.modules-content-container');
-            const externalContainer = container?.querySelector('#continuity-context-bottom-external-container');
-
-            // 为内容容器设置最大高度
-            if (contentContainer) {
-                contentContainer.style.maxHeight = '500px';
-            }
-
-            // 清空容器内的所有内容
-            if (contentContainer) {
-                contentContainer.innerHTML = '';
-                externalContainer.innerHTML = '';
+            if (container) {
+                container.innerHTML = '';
                 debugLog('[CUSTOM STYLES] 已清空模块内容容器');
             }
 
+            // const contentContainer = container?.querySelector('.modules-content-container');
+            // const externalContainer = container?.querySelector('#continuity-context-bottom-external-container');
+
+            // // 为内容容器设置最大高度
+            // if (contentContainer) {
+            //     contentContainer.style.maxHeight = '500px';
+            // }
+
+            // // 清空容器内的所有内容
+            // if (contentContainer) {
+            //     contentContainer.innerHTML = '';
+            //     externalContainer.innerHTML = '';
+            //     debugLog('[CUSTOM STYLES] 已清空模块内容容器');
+            // }
+
             debugLog(messageIndex, `当前消息的模块数据:`, modulesForThisMessage);
 
-            renderSingleMessageContextBottomUI(modulesForThisMessage, contentContainer, externalContainer)
+            const { externalString, internalString } = renderSingleMessageContextBottomUI(modulesForThisMessage, container);
+            let finalString = configManager.getGlobalSettings().containerStyles || `
+            <div id="continuity-context-bottom-external-container">
+            ${externalCustomStyles}
+            </div>
+            <!-- 上下文底部UI模板 - 竖向按钮版本 -->
+            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">
+                <details class="bottom-summary">
+                    <summary class="summary-title">Modules</summary>
+                    <div class="modules-content-container">${customStyles}</div>
+                </details>
+            </div>`;
+            finalString = finalString.replace('${externalCustomStyles}', externalString);
+            finalString = finalString.replace('${customStyles}', internalString);
+            container.innerHTML = finalString;
         }
 
         isUpdatingMsgUI = false;
@@ -235,28 +253,23 @@ export async function updateUItoMsgBottom() {
     }
 }
 
-function renderSingleMessageContextBottomUI(messages, container, externalContainer) {
+function renderSingleMessageContextBottomUI(messages, container) {
     try {
         // 检查参数有效性
         if (!messages || !container || container.length === 0) {
             debugLog('renderSingleMessageContext: 参数无效，跳过渲染');
-            return;
+            return { externalString: '', internalString: '' };
         }
-
-        // const swipeId = mes.attr('swipeid');
-        // const renderSwipe = mes.attr('renderSwipe');
-        // // 检查是否已渲染过
-        // if (renderSwipe === swipeId) {
-        //     debugLog('renderSingleMessageContext: 消息已渲染过，跳过重复渲染');
-        //     return;
-        // }
+        let externalString = '';
+        let internalString = '';
 
         if (messages.length > 0) {
             messages.forEach((entry) => {
 
                 const config = configManager.getModuleByName(entry.moduleName);
 
-                let finalContainer = config && config.isExternalDisplay ? externalContainer : container;
+                // let finalContainer = config && config.isExternalDisplay ? externalContainer : container;
+                let isExternal = (config && config.isExternalDisplay) ?? false;
 
                 // 检查是否有moduleData.raw内容用于匹配
                 if (!entry.moduleData || !entry.moduleData.raw || typeof entry.moduleData.raw !== 'string' || entry.moduleData.raw.trim() === '') {
@@ -265,21 +278,29 @@ function renderSingleMessageContextBottomUI(messages, container, externalContain
                 // 检查是否有customStyles内容用于替换
                 else if (!entry.customStyles || typeof entry.customStyles !== 'string' || entry.customStyles.trim() === '') {
                     // debugLog('renderSingleMessageContext: entry.customStyles为空或无效，无法替换');
-                    finalContainer.innerHTML += `<div>${entry.moduleData.raw}</div>`;
+                    // finalContainer.innerHTML += `<div>${entry.moduleData.raw}</div>`;
+                    if (isExternal) {
+                        externalString += `<div>${entry.moduleData.raw}</div>`;
+                    } else {
+                        internalString += `<div>${entry.moduleData.raw}</div>`;
+                    }
                 }
                 // 使用entry.moduleData.raw来匹配mes_text div内部的原文，包括后面的<br>标签
                 else {
                     // container.append(entry.customStyles);
-                    finalContainer.innerHTML += `${entry.customStyles}`;
+                    // finalContainer.innerHTML += `${entry.customStyles}`;
+                    if (isExternal) {
+                        externalString += `${entry.customStyles}`;
+                    } else {
+                        internalString += `${entry.customStyles}`;
+                    }
                 }
             });
-            // container.html(newHtml);
-            // 渲染成功后设置renderSwipe属性
-            // mes.attr('renderSwipe', swipeId);
         }
+        return { externalString: externalString, internalString: internalString };
     } catch (error) {
         errorLog('renderSingleMessageContext: 渲染单个消息上下文失败:', error);
-        // mes.attr('renderSwipe', '');
+        return { externalString: '', internalString: '' };
     }
 }
 
@@ -347,7 +368,34 @@ export async function updateUItoContextBottom() {
             }
         }
 
-        updateModulesDataAndStyles(container, extractParams);
+        const processResult = getProcessResult(container, extractParams);
+        if (!processResult) {
+            errorLog('更新上下文底部UI失败');
+            isUpdatingContextBottomUI = false;
+            return false;
+        }
+
+        if (container) {
+            container.innerHTML = '';
+            debugLog('[CUSTOM STYLES] 已清空模块内容容器');
+        }
+
+        const resultString = getModulesDataAndStyles(processResult);
+        let finalString = configManager.getGlobalSettings().containerStyles || `
+            <div id="continuity-context-bottom-external-container">
+            ${externalCustomStyles}
+            </div>
+            <!-- 上下文底部UI模板 - 竖向按钮版本 -->
+            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">
+                <details class="bottom-summary">
+                    <summary class="summary-title">Modules</summary>
+                    <div class="modules-content-container">${customStyles}</div>
+                </details>
+            </div>`;
+        finalString = finalString.replace('${externalCustomStyles}', '');
+        finalString = finalString.replace('${customStyles}', resultString);
+        container.innerHTML = finalString;
+
         isUpdatingContextBottomUI = false;
         return true;
 
@@ -356,6 +404,35 @@ export async function updateUItoContextBottom() {
         isUpdatingContextBottomUI = false;
         return false;
     }
+}
+
+function getModulesDataAndStyles(data) {
+    let resultString = '';
+    Object.keys(data.content).forEach(moduleName => {
+        const moduleData = data.content[moduleName];
+        const moduleConfig = moduleData.moduleConfig;
+        if (!moduleConfig) {
+            debugLog(`[CUSTOM STYLES] 模块 ${moduleName} 没有配置`);
+            return;
+        }
+        if (moduleData.containerStyles) {
+            resultString += `${moduleData.containerStyles}`;
+            debugLog(`模块 ${moduleName} 的样式已插入到模块内容容器`);
+        }
+        else {
+            let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
+            resultString += `<div class="module-data-container"><details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.moduleCount})</summary><div class="module-data-content" style="white-space: pre-wrap;max-height: 200px;">${moduleStrings}</div></details></div>`;
+            // // 创建模块数据元素
+            // const moduleDataElement = document.createElement('div');
+            // moduleDataElement.className = 'module-data-container';
+            // // 添加处理后的模块数据
+            // const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.moduleCount})</summary><div class="module-data-content" style="white-space: pre-wrap;max-height: 200px;">${moduleStrings}</div></details>`;
+            // moduleDataElement.innerHTML = moduleContent;
+            // contentContainer.appendChild(moduleDataElement);
+            // debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);
+        }
+    });
+    return resultString;
 }
 
 /**
@@ -433,7 +510,7 @@ function getRenderUIFilteredModuleConfigs() {
  * 插入模块数据和样式到模块内容容器
  * @param {HTMLElement} container 上下文底部UI元素
  */
-export function updateModulesDataAndStyles(container, extractParams, isUseContainer = true) {
+export function getProcessResult(container, extractParams, isUseContainer = true) {
     try {
         debugLog('[CUSTOM STYLES] 开始更新模块数据和样式', container);
 
@@ -447,13 +524,13 @@ export function updateModulesDataAndStyles(container, extractParams, isUseContai
         );
         debugLog('[CUSTOM STYLES] 提取结果:', processResult);
 
-        const contentContainer = container?.querySelector('.modules-content-container');
+        // const contentContainer = container?.querySelector('.modules-content-container');
 
-        // 清空容器内的所有内容
-        if (contentContainer) {
-            contentContainer.innerHTML = '';
-            debugLog('[CUSTOM STYLES] 已清空模块内容容器');
-        }
+        // // 清空容器内的所有内容
+        // if (contentContainer) {
+        //     contentContainer.innerHTML = '';
+        //     debugLog('[CUSTOM STYLES] 已清空模块内容容器');
+        // }
 
         Object.keys(processResult.content).forEach(moduleName => {
             const moduleData = processResult.content[moduleName];
@@ -467,27 +544,27 @@ export function updateModulesDataAndStyles(container, extractParams, isUseContai
             // 获取处理后的样式字符串
             insertCombinedStylesToDetails(moduleData);
 
-            if (isUseContainer) {
-                // 插入模块数据和样式到模块内容容器
-                if (contentContainer) {
-                    if (moduleData.containerStyles) {
-                        contentContainer.innerHTML += `${moduleData.containerStyles}`;
-                        debugLog(`模块 ${moduleName} 的样式已插入到模块内容容器`);
-                    }
-                    else {
-                        // 创建模块数据元素
-                        const moduleDataElement = document.createElement('div');
-                        moduleDataElement.className = 'module-data-container';
-                        let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
-                        // 添加处理后的模块数据
-                        const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.moduleCount})</summary><div class="module-data-content" style="white-space: pre-wrap;max-height: 200px;">${moduleStrings}</div></details>`;
-                        moduleDataElement.innerHTML = moduleContent;
-                        contentContainer.appendChild(moduleDataElement);
-                        debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);
-                    }
-                }
-                debugLog('模块数据和样式已插入到模块内容容器');
-            }
+            // if (isUseContainer) {
+            //     // 插入模块数据和样式到模块内容容器
+            //     if (contentContainer) {
+            //         if (moduleData.containerStyles) {
+            //             contentContainer.innerHTML += `${moduleData.containerStyles}`;
+            //             debugLog(`模块 ${moduleName} 的样式已插入到模块内容容器`);
+            //         }
+            //         else {
+            //             // 创建模块数据元素
+            //             const moduleDataElement = document.createElement('div');
+            //             moduleDataElement.className = 'module-data-container';
+            //             let moduleStrings = moduleData?.data?.map(item => item.moduleString || JSON.stringify(item)).join('\n') || '';
+            //             // 添加处理后的模块数据
+            //             const moduleContent = `<details class="module-data"><summary>${moduleConfig.displayName || moduleConfig.name} (${moduleData.moduleCount})</summary><div class="module-data-content" style="white-space: pre-wrap;max-height: 200px;">${moduleStrings}</div></details>`;
+            //             moduleDataElement.innerHTML = moduleContent;
+            //             contentContainer.appendChild(moduleDataElement);
+            //             debugLog(`模块 ${moduleName} 的数据已插入到模块内容容器`);
+            //         }
+            //     }
+            //     debugLog('模块数据和样式已插入到模块内容容器');
+            // }
         });
         return processResult;
     } catch (error) {
@@ -678,7 +755,7 @@ export function renderCurrentMessageContext() {
         };
         // todo 可以获取的时候获取所有index，然后下面按messageIndex分组的时候过滤掉显示范围外的条目
 
-        const processResult = updateModulesDataAndStyles(null, extractParams, false);
+        const processResult = getProcessResult(null, extractParams, false);
         if (!processResult) {
             errorLog('更新上下文底部UI失败');
             isUpdatingRenderUI = false;
