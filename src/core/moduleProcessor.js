@@ -481,6 +481,7 @@ function processTimeBasedCompression(compressedModule, modules, backupIdentifier
                 }
             }
         });
+        pushToCompressed(compressedModule, compressedModule);
     }
     catch (error) {
         errorLog('[Level Processor] 处理时间压缩模块时出错:', error, compressedModule, modules);
