@@ -179,8 +179,8 @@ export async function openModuleConfigWindow() {
             $('#auto-inject-toggle').on('input', onAutoInjectToggle);
 
             // 绑定新提示词输入框事件
-            $('#core-principles-input').on('input', onPromptChange);
-            $('#format-description-input').on('input', onOrderPromptChange);
+            $('#global-prompt-input').on('input', onPromptChange);
+            $('#global-order-prompt-input').on('input', onOrderPromptChange);
 
             // 加载设置到UI（包括自动注入开关状态）
             loadSettingsToUI();
