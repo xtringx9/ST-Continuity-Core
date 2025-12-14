@@ -292,7 +292,6 @@
 .confirm-dialog-confirm:hover {
     background-color: #c0392b;
     cursor: pointer;
-    font-size: 13px;
     font-weight: 500;
     transition: all 0.2s;
 }
