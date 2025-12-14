@@ -9,6 +9,63 @@ let currentTemplateVersion = '1.0.0';
 let templateChangeDetected = false;
 
 /**
+ * 合并导入配置的启用状态到现有配置
+ * @param {Object} importConfig 导入的配置
+ * @returns {Object} 合并后的配置
+ */
+function mergeEnabledStates(importConfig) {
+    if (!importConfig || !importConfig.modules) return importConfig;
+
+    // 获取现有配置
+    const currentConfig = configManager.getModuleConfig();
+    if (!currentConfig || !currentConfig.modules) return importConfig;
+
+    // 创建模块名称到现有模块的映射
+    const currentModuleMap = new Map();
+    currentConfig.modules.forEach(module => {
+        if (module.name) {
+            currentModuleMap.set(module.name, module);
+        }
+    });
+
+    // 复制导入配置
+    const mergedConfig = JSON.parse(JSON.stringify(importConfig));
+
+    // 对导入的每个模块，如果现有配置中有同名模块，则使用现有模块的启用状态
+    mergedConfig.modules.forEach(module => {
+        if (module.name && currentModuleMap.has(module.name)) {
+            const currentModule = currentModuleMap.get(module.name);
+
+            // 合并模块的启用状态
+            module.enabled = currentModule.enabled !== false;
+
+            // 合并变量的启用状态（如果存在变量）
+            if (module.variables && Array.isArray(module.variables) &&
+                currentModule.variables && Array.isArray(currentModule.variables)) {
+
+                // 创建变量名称到现有变量的映射
+                const currentVariableMap = new Map();
+                currentModule.variables.forEach(variable => {
+                    if (variable.name) {
+                        currentVariableMap.set(variable.name, variable);
+                    }
+                });
+
+                // 合并每个变量的启用状态
+                module.variables.forEach(variable => {
+                    if (variable.name && currentVariableMap.has(variable.name)) {
+                        const currentVariable = currentVariableMap.get(variable.name);
+                        variable.enabled = currentVariable.enabled !== false;
+                    }
+                });
+            }
+        }
+    });
+
+    return mergedConfig;
+}
+
+/**
  * 初始化JSON导入导出功能
  */
 export function initJsonImportExport() {
@@ -272,6 +329,79 @@ export function bindSaveButtonEvent() {
 }
 
 /**
+ * 显示导入选项弹窗
+ * @param {File} file 选择的JSON文件
+ * @param {Object} config 解析后的配置对象
+ * @returns {Promise<Object|null>} 包含导入选项的配置对象或null
+ */
+export function showImportOptionsDialog(file, config) {
+    return new Promise((resolve) => {
+        // 创建导入选项弹窗HTML
+        const importOptionsDialog = $(`
+            <div id="continuity-import-options-dialog" class="continuity-confirm-dialog">
+                <div class="confirm-dialog-content">
+                    <h3 class="confirm-dialog-title">导入选项</h3>
+                    <div class="confirm-dialog-message">
+                                <p>请选择导入选项：</p>
+                                <div class="import-options-group">
+                                    <label class="import-option" style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" id="import-override-enabled" checked>
+                                        <span>覆盖模块开关状态</span>
+                                    </label>
+                                </div>
+                            </div>
+                    <div class="confirm-dialog-buttons">
+                        <button class="confirm-dialog-btn confirm-dialog-cancel">取消</button>
+                        <button class="confirm-dialog-btn confirm-dialog-confirm">确定导入</button>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        // 添加到页面
+        $('body').append(importOptionsDialog);
+
+        // 绑定按钮事件
+        importOptionsDialog.find('.confirm-dialog-confirm').on('click', function () {
+            const overrideEnabled = importOptionsDialog.find('#import-override-enabled').prop('checked');
+
+            let finalConfig = config;
+
+            // 如果用户选择不覆盖模块开关状态，则合并现有配置的启用状态
+            if (!overrideEnabled) {
+                finalConfig = mergeEnabledStates(config);
+            }
+
+            // 保存导入选项到配置对象
+            finalConfig.importOptions = {
+                overrideEnabled: overrideEnabled
+            };
+
+            resolve(finalConfig);
+            importOptionsDialog.remove();
+        });
+
+        importOptionsDialog.find('.confirm-dialog-cancel').on('click', function () {
+            resolve(null);
+            importOptionsDialog.remove();
+        });
+
+        // 点击背景关闭
+        importOptionsDialog.on('click', function (e) {
+            if (e.target === this) {
+                resolve(null);
+                importOptionsDialog.remove();
+            }
+        });
+
+        // 显示弹窗
+        setTimeout(() => {
+            importOptionsDialog.addClass('show');
+        }, 10);
+    });
+}
+
+/**
  * 导入模块配置并进行验证
  * @param {File} file 选择的JSON文件
  * @returns {Promise<Object|null>} 验证并规范化后的配置对象或null
@@ -317,10 +447,12 @@ export function importModuleConfigWithValidation(file) {
                         showCustomConfirmDialog(
                             '配置验证失败',
                             `配置验证失败，发现以下错误：<br><br>${validation.errors.join('<br>')}<br><br>是否继续导入？`,
-                            () => {
+                            async () => {
                                 // 用户选择继续导入，进行规范化处理
                                 const normalizedConfig = normalizeConfig(config);
-                                resolve(normalizedConfig);
+                                // 显示导入选项弹窗
+                                const configWithOptions = await showImportOptionsDialog(file, normalizedConfig);
+                                resolve(configWithOptions);
                             },
                             () => {
                                 // 用户选择取消导入
@@ -336,10 +468,12 @@ export function importModuleConfigWithValidation(file) {
                     showCustomConfirmDialog(
                         '配置验证警告',
                         `配置验证通过，但有以下警告：<br><br>${validation.warnings.join('<br>')}<br><br>是否继续导入？`,
-                        () => {
+                        async () => {
                             // 用户选择继续导入，进行规范化处理
                             const normalizedConfig = normalizeConfig(config);
-                            resolve(normalizedConfig);
+                            // 显示导入选项弹窗
+                            const configWithOptions = await showImportOptionsDialog(file, normalizedConfig);
+                            resolve(configWithOptions);
                         },
                         () => {
                             // 用户选择取消导入
@@ -352,7 +486,11 @@ export function importModuleConfigWithValidation(file) {
                 // 验证通过，进行规范化处理
                 const normalizedConfig = normalizeConfig(config);
                 debugLog('配置验证通过，已规范化:', normalizedConfig);
-                resolve(normalizedConfig);
+
+                // 显示导入选项弹窗
+                showImportOptionsDialog(file, normalizedConfig).then(configWithOptions => {
+                    resolve(configWithOptions);
+                });
 
             } catch (error) {
                 errorLog('解析JSON文件失败:', error);
