@@ -1,6 +1,7 @@
 // 样式组合器 - 用于组合模块级和变量级的customStyles
 import { debugLog, errorLog } from "../index.js";
 import { loadModuleConfig } from "./moduleConfigManager.js";
+import { getUserAndCharNames } from "../utils/variableReplacer.js"
 
 // /**
 //  * 样式组合器类
@@ -403,6 +404,15 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
         // 处理${count}和${length}变量
         if (variablePath === 'count' || variablePath === 'length') {
             return String(entryCount);
+        }
+
+        if (variablePath === 'user' || variablePath === 'char') {
+            const { userName, charName } = getUserAndCharNames();
+            return variablePath === 'user' ? userName : charName;
+        }
+
+        if (variablePath === 'mesid') {
+            return moduleData.messageIndex !== undefined ? String(moduleData.messageIndex) : '';
         }
 
         // 处理模块级别的简单变量，如${name}
