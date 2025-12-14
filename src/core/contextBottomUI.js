@@ -228,19 +228,15 @@ export async function updateUItoMsgBottom() {
             debugLog(messageIndex, `当前消息的模块数据:`, modulesForThisMessage);
 
             const { externalString, internalString } = renderSingleMessageContextBottomUI(modulesForThisMessage, container);
-            let finalString = configManager.getGlobalSettings().containerStyles || `
-            <div id="continuity-context-bottom-external-container">
-            ${externalCustomStyles}
-            </div>
-            <!-- 上下文底部UI模板 - 竖向按钮版本 -->
-            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">
-                <details class="bottom-summary">
-                    <summary class="summary-title">Modules</summary>
-                    <div class="modules-content-container">${customStyles}</div>
-                </details>
-            </div>`;
-            finalString = finalString.replace('${externalCustomStyles}', externalString);
-            finalString = finalString.replace('${customStyles}', internalString);
+            let finalString = '';
+            if (externalString) {
+                let externalStyles = configManager.getGlobalSettings().externalStyles || '<div id="continuity-context-bottom-external-container">\n                ${customStyles}\n            </div>';
+                finalString += externalStyles.replace('${customStyles}', externalString);
+            }
+            if (internalString) {
+                let containerStyles = configManager.getGlobalSettings().containerStyles || '<!-- 上下文底部UI模板 - 竖向按钮版本 -->\n            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">\n                <details class="bottom-summary">\n                    <summary class="summary-title">Modules</summary>\n                    <div class="modules-content-container">${customStyles}</div>\n                </details>\n            </div>';
+                finalString += containerStyles.replace('${customStyles}', internalString);
+            }
             container.innerHTML = finalString;
         }
 
@@ -381,18 +377,7 @@ export async function updateUItoContextBottom() {
         }
 
         const resultString = getModulesDataAndStyles(processResult);
-        let finalString = configManager.getGlobalSettings().containerStyles || `
-            <div id="continuity-context-bottom-external-container">
-            ${externalCustomStyles}
-            </div>
-            <!-- 上下文底部UI模板 - 竖向按钮版本 -->
-            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">
-                <details class="bottom-summary">
-                    <summary class="summary-title">Modules</summary>
-                    <div class="modules-content-container">${customStyles}</div>
-                </details>
-            </div>`;
-        finalString = finalString.replace('${externalCustomStyles}', '');
+        let finalString = configManager.getGlobalSettings().containerStyles || '<!-- 上下文底部UI模板 - 竖向按钮版本 -->\n            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">\n                <details class="bottom-summary">\n                    <summary class="summary-title">Modules</summary>\n                    <div class="modules-content-container">${customStyles}</div>\n                </details>\n            </div>';
         finalString = finalString.replace('${customStyles}', resultString);
         container.innerHTML = finalString;
 

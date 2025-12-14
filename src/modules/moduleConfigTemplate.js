@@ -58,8 +58,13 @@ export const MODULE_CONFIG_TEMPLATE = {
         },
         containerStyles: {
             type: 'string',
-            default: '',
+            default: '${customStyles}',
             description: '最外部的容器CSS/HTML样式'
+        },
+        externalStyles: {
+            type: 'string',
+            default: '${customStyles}',
+            description: '外部CSS/HTML样式'
         },
         timeFormat: {
             type: 'string',
@@ -411,7 +416,8 @@ export function normalizeConfig(config) {
             orderPrompt: config.globalSettings?.orderPrompt || '',
             usagePrompt: config.globalSettings?.usagePrompt || '',
             moduleDataPrompt: config.globalSettings?.moduleDataPrompt || '',
-            containerStyles: config.globalSettings?.containerStyles || '',
+            containerStyles: config.globalSettings?.containerStyles || '${customStyles}',
+            externalStyles: config.globalSettings?.externalStyles || '${customStyles}',
             timeFormat: config.globalSettings?.timeFormat || '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}',
         },
         modules: [],

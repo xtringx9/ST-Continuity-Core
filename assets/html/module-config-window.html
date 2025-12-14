@@ -79,6 +79,32 @@
             <p>示例：[seed|id:1|desc:伏笔描述|status:已植入]</p>
         </div>
     </div> -->
+        <!-- 提示词预览区域 -->
+        <div class="prompt-preview-section">
+            <div class="section-title">
+                <h3>提示词预览</h3>
+                <div class="header-actions">
+                    <button id="toggle-preview-btn" class="btn-small">
+                        <span class="toggle-arrow">▶</span> 展开预览
+                    </button>
+                    <button id="update-prompt-btn" class="btn-small">更新提示词</button>
+                    <button id="copy-prompt-btn" class="btn-small">复制提示词</button>
+                </div>
+            </div>
+
+            <div id="prompt-preview-content" class="preview-content" style="display: none;">
+                <div class="preview-section">
+                    <div class="preview-mode-selector">
+                        <label for="preview-mode-select">预览模式：</label>
+                        <select id="preview-mode-select" class="preview-mode-select">
+                            <!-- 选项将由JavaScript动态生成 -->
+                        </select>
+                        <button id="copy-macro-btn" class="btn-small copy-macro-btn" title="复制当前宏">复制宏</button>
+                    </div>
+                    <textarea id="prompt-preview-textarea" class="prompt-preview-textarea" readonly></textarea>
+                </div>
+            </div>
+        </div>
 
         <!-- 设置区域 -->
         <div class="settings-section">
@@ -164,10 +190,19 @@
                     </div>
                 </div>
 
+                <!-- 外部样式设置 -->
+                <div class="setting-group">
+                    <div class="setting-item">
+                        <label for="global-external-styles-input">外部CSS/HTML样式</label>
+                        <textarea id="global-external-styles-input" class="prompt-textarea"
+                            placeholder="输入CSS/HTML代码，支持多行"></textarea>
+                    </div>
+                </div>
+
                 <!-- 容器样式设置 -->
                 <div class="setting-group">
                     <div class="setting-item">
-                        <label for="global-container-styles-input">最外部的容器CSS/HTML样式</label>
+                        <label for="global-container-styles-input">容器CSS/HTML样式</label>
                         <textarea id="global-container-styles-input" class="prompt-textarea"
                             placeholder="输入CSS/HTML代码，支持多行"></textarea>
                     </div>
@@ -181,33 +216,6 @@
                             placeholder="例如：${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}"
                             value="${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}">
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 提示词预览区域 -->
-        <div class="prompt-preview-section">
-            <div class="section-title">
-                <h3>提示词预览</h3>
-                <div class="header-actions">
-                    <button id="toggle-preview-btn" class="btn-small">
-                        <span class="toggle-arrow">▶</span> 展开预览
-                    </button>
-                    <button id="update-prompt-btn" class="btn-small">更新提示词</button>
-                    <button id="copy-prompt-btn" class="btn-small">复制提示词</button>
-                </div>
-            </div>
-
-            <div id="prompt-preview-content" class="preview-content" style="display: none;">
-                <div class="preview-section">
-                    <div class="preview-mode-selector">
-                        <label for="preview-mode-select">预览模式：</label>
-                        <select id="preview-mode-select" class="preview-mode-select">
-                            <!-- 选项将由JavaScript动态生成 -->
-                        </select>
-                        <button id="copy-macro-btn" class="btn-small copy-macro-btn" title="复制当前宏">复制宏</button>
-                    </div>
-                    <textarea id="prompt-preview-textarea" class="prompt-preview-textarea" readonly></textarea>
                 </div>
             </div>
         </div>

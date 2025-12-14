@@ -931,7 +931,8 @@ class UIDataCollector {
             orderPrompt: $('#global-order-prompt-input').val() || '',
             usagePrompt: $('#global-usage-prompt-input').val() || '',
             moduleDataPrompt: $('#global-module-data-prompt-input').val() || '',
-            containerStyles: $('#global-container-styles-input').val() || '',
+            containerStyles: $('#global-container-styles-input').val() || '${customStyles}',
+            externalStyles: $('#global-external-styles-input').val() || '${customStyles}',
             timeFormat: $('#global-time-format-input').val() || '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}'
         };
     }

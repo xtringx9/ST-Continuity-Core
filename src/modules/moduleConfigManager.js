@@ -275,6 +275,9 @@ export function renderModulesFromConfig(config) {
         if (config.globalSettings.containerStyles) {
             $('#global-container-styles-input').val(config.globalSettings.containerStyles);
         }
+        if (config.globalSettings.externalStyles) {
+            $('#global-external-styles-input').val(config.globalSettings.externalStyles);
+        }
         if (config.globalSettings.timeFormat) {
             $('#global-time-format-input').val(config.globalSettings.timeFormat);
         }
