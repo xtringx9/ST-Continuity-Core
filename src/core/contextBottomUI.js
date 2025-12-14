@@ -190,10 +190,10 @@ export async function updateUItoMsgBottom() {
 
         for (let i = containers.length - 1; i >= 0; i--) {
             const message = $(containers[i]);
-            const isUser = message.attr('is_user') === 'true';
-            if (isUser) {
-                continue;
-            }
+            // const isUser = message.attr('is_user') === 'true';
+            // if (isUser) {
+            //     continue;
+            // }
 
             const messageText = message.find('.mes_text');
             // 从分组数据中获取当前消息的模块数据
