@@ -5,6 +5,45 @@ import { parseMultipleModules } from '../modules/parseModuleManager.js';
 import { processModuleData, htmlEscape } from './moduleProcessor.js';
 
 /**
+ * 复制文本到剪贴板
+ * @param {string} text 要复制的文本
+ */
+function copyToClipboard(text) {
+    try {
+        // 创建临时textarea元素
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+
+        // 选中并复制
+        textarea.select();
+        textarea.setSelectionRange(0, 99999); // 移动设备支持
+
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        if (successful) {
+            toastr.success('内容已复制到剪贴板');
+        } else {
+            toastr.error('复制失败，请手动复制内容');
+        }
+    } catch (err) {
+        // 使用现代 Clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                toastr.success('内容已复制到剪贴板');
+            }).catch(() => {
+                toastr.error('复制失败，请手动复制内容');
+            });
+        } else {
+            toastr.error('浏览器不支持剪贴板功能，请手动复制内容');
+        }
+    }
+}
+
+/**
  * 提取模块控制器类
  */
 export class ExtractModuleController {
@@ -264,12 +303,20 @@ export class ExtractModuleController {
                 <div class="processed-module-result">
                     <div class="module-header">
                         <span class="module-index">${processResult.displayTitle}</span>
+                        <button class="copy-button" title="复制内容" data-content="${htmlEscape(processResult.contentString)}">
+                            <i class="fa fa-copy"></i> 复制
+                        </button>
                     </div>
                     <div class="module-content">
                         <pre>${htmlEscape(processResult.contentString)}</pre>
                     </div>
                 </div>
             `);
+
+            // 添加复制按钮事件
+            resultDisplay.find('.copy-button').on('click', function () {
+                copyToClipboard($(this).data('content'));
+            });
 
             resultsContainer.append(resultDisplay);
             debugLog(`${processType}处理成功，共处理 ${processResult.moduleCount} 个模块`);

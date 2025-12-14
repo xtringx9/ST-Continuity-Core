@@ -1774,6 +1774,9 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
                 // 处理结构化条目数组
                 data.forEach(item => {
                     if (!item.shouldHide) {
+                        if (showProcessInfo) {
+                            result += `#${item.moduleData.messageIndex} `;
+                        }
                         result += `${item.moduleString || item}\n`;
                     }
                 });
