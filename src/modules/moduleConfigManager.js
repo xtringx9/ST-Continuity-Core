@@ -261,10 +261,10 @@ export function renderModulesFromConfig(config) {
         }
 
         if (config.globalSettings.prompt) {
-            $('#core-principles-input').val(config.globalSettings.prompt);
+            $('#global-prompt-input').val(config.globalSettings.prompt);
         }
         if (config.globalSettings.orderPrompt) {
-            $('#format-description-input').val(config.globalSettings.orderPrompt);
+            $('#global-order-prompt-input').val(config.globalSettings.orderPrompt);
         }
     }
 

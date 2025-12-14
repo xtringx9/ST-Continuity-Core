@@ -923,8 +923,8 @@ class UIDataCollector {
             compatibleModuleTags: IdentifierParser.parseMultiValues($('#module-compatible-tags').val() || ''),
             contentTag: IdentifierParser.parseMultiValues($('#content-tags').val() || ''),
             contentRemainLayers: parseInt($('#content-layers').val()) || 0,
-            prompt: $('#core-principles-input').val() || '',
-            orderPrompt: $('#format-description-input').val() || ''
+            prompt: $('#global-prompt-input').val() || '',
+            orderPrompt: $('#global-order-prompt-input').val() || ''
         };
     }
 }
