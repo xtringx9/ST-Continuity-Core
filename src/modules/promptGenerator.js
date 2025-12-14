@@ -45,7 +45,7 @@ export function generateFormalPrompt() {
         //     prompt += `${globalSettings.orderPrompt}\n\n`;
         // }
 
-        prompt += getOutputRulePrompt('core');
+        prompt += getOutputRulePrompt('prompt');
 
         prompt += '# 模块配置\n';
 
@@ -126,6 +126,9 @@ export function generateUsageGuide() {
 
         // 构建使用指导提示词
         let usageGuide = `<${promptTag}>\n`;
+
+        usageGuide += getOutputRulePrompt('usage');
+
         usageGuide += "# 模块内容使用指导\n\n";
 
         modulesWithUsagePrompt.forEach(module => {
@@ -201,7 +204,7 @@ export function generateModuleOrderPrompt() {
         let orderPrompt = `<${promptTag}>\n`;
         // orderPrompt += "模块生成顺序和配置：\n\n";
 
-        let formatPrompt = getOutputRulePrompt('format');
+        let formatPrompt = getOutputRulePrompt('order');
         if (formatPrompt) {
             orderPrompt += formatPrompt;
             // orderPrompt += "# 格式与顺序\n";
@@ -268,22 +271,34 @@ export function generateModuleOrderPrompt() {
     }
 }
 
-function getOutputRulePrompt(type) {
+function getOutputRulePrompt(type, title = "# 模块输出要求") {
     const globalSettings = configManager.getGlobalSettings();
 
-    let prompt = "# 模块输出要求\n";
+    // let prompt = title + '\n';
     let settingPrompt = '';
     switch (type) {
-        case 'core':
+        case 'prompt':
             // 添加核心原则提示词（如果设置了）
             if (globalSettings?.prompt) {
                 settingPrompt += `${globalSettings.prompt}\n\n`;
             }
             break;
-        case 'format':
+        case 'order':
             // 添加通用格式描述提示词（如果设置了）
             if (globalSettings?.orderPrompt) {
                 settingPrompt += `${globalSettings.orderPrompt}\n\n`;
+            }
+            break;
+        case 'usage':
+            // 添加使用说明提示词（如果设置了）
+            if (globalSettings?.usagePrompt) {
+                settingPrompt += `${globalSettings.usagePrompt}\n\n`;
+            }
+            break;
+        case 'moduleData':
+            // 添加模块数据提示词（如果设置了）
+            if (globalSettings?.moduleDataPrompt) {
+                settingPrompt += `${globalSettings.moduleDataPrompt}\n\n`;
             }
             break;
         case 'all':
@@ -304,8 +319,9 @@ function getOutputRulePrompt(type) {
     // prompt += "[OUTPUT PROTOCOL]\n";
     // prompt += "增量(INC): Initialize full. ALWAYS output keys marked * or ^ + ONLY changed fields.\n";
     // prompt += "全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
-    if (settingPrompt) return prompt + settingPrompt;
-    return '';
+    // if (settingPrompt) return prompt + settingPrompt;
+    return settingPrompt
+    // return '';
 }
 
 /**
@@ -438,7 +454,9 @@ export function generateModuleDataPrompt() {
             // false,
             // true
         );
-        const moduleDataPrompt = `<${promptTag}>\n# 最新模块数据\n\n${processResult.contentString}\n</${promptTag}>\n`;
+        let moduleDataPrompt = `<${promptTag}>\n`;
+        moduleDataPrompt += getOutputRulePrompt('moduleData');
+        moduleDataPrompt += `# 最新模块数据\n\n${processResult.contentString}\n</${promptTag}>\n`;
         // 替换提示词中的变量
         const replacedModuleDataPrompt = replaceVariables(moduleDataPrompt.trim());
         return replacedModuleDataPrompt;
