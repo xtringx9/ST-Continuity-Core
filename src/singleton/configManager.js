@@ -31,6 +31,7 @@ const DEFAULT_MODULE_CONFIG = {
         usagePrompt: '',
         moduleDataPrompt: '',
         containerStyles: '',
+        externalStyles: '',
         timeFormat: '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}'
     },
     modules: [],

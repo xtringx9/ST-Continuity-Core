@@ -229,6 +229,7 @@ export async function updateUItoMsgBottom() {
 
             const { externalString, internalString } = renderSingleMessageContextBottomUI(modulesForThisMessage, container);
             let finalString = '';
+            // todo 因为externalStyles和containerStyles有默认值${customStyles}所以永远不会走右边的样式，后面需要思考是否要优化
             if (externalString) {
                 let externalStyles = configManager.getGlobalSettings().externalStyles || '<div id="continuity-context-bottom-external-container">\n                ${customStyles}\n            </div>';
                 finalString += externalStyles.replace('${customStyles}', externalString);
