@@ -380,13 +380,6 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
     // 查找${variablePath}格式的变量引用
     const variableRegex = /\$\{([^}]+)\}/g;
 
-    // 计算模块条目数量（用于${count}和${length}变量）
-    let entryCount = moduleData.moduleCount !== undefined ? moduleData.moduleCount : 0;
-    // if (moduleData && moduleData.data !== undefined) {
-    //     entryCount = moduleData.data.filter(item => !item.shouldHide).length;
-    // }
-
-
     return styles.replace(variableRegex, (match, variablePath) => {
         // 特殊处理${customStyles}
         if (variablePath === 'customStyles') {
@@ -403,7 +396,7 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
 
         // 处理${count}和${length}变量
         if (variablePath === 'count' || variablePath === 'length') {
-            return String(entryCount);
+            return String(moduleData.moduleCount !== undefined ? moduleData.moduleCount : 0);
         }
 
         if (variablePath === 'user' || variablePath === 'char') {
