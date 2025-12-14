@@ -351,7 +351,10 @@ function resolveNestedCustomStyles(styles, moduleConfig) {
 
         if (targetVariable && targetVariable.customStyles) {
             // 递归处理嵌套的customStyles
-            const nestedStyles = resolveNestedCustomStyles(targetVariable.customStyles, moduleConfig);
+            let nestedStyles = resolveNestedCustomStyles(targetVariable.customStyles, moduleConfig);
+
+            // 处理${var.xxx}和${variable.xxx}变量替换，将var/variable替换为当前变量名
+            nestedStyles = replaceRelativeVariables(nestedStyles, varName);
 
             // 替换当前引用
             processedStyles = processedStyles.replace(match[0], nestedStyles);
@@ -367,6 +370,26 @@ function resolveNestedCustomStyles(styles, moduleConfig) {
     }
 
     return processedStyles;
+}
+
+/**
+ * 替换相对变量引用（${var.xxx}和${variable.xxx}）
+ * @param {string} styles 样式字符串
+ * @param {string} currentVarName 当前变量名
+ * @returns {string} 替换后的样式字符串
+ */
+function replaceRelativeVariables(styles, currentVarName) {
+    if (!styles || typeof styles !== 'string') {
+        return styles || '';
+    }
+
+    // 查找${var.xxx}和${variable.xxx}格式的引用
+    const relativeVarRegex = /\$\{(var|variable)\.([^}]+)\}/g;
+
+    return styles.replace(relativeVarRegex, (match, varType, propName) => {
+        // 将var/variable替换为当前变量名
+        return `\${${currentVarName}.${propName}}`;
+    });
 }
 
 /**
