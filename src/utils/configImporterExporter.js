@@ -92,6 +92,7 @@ export function initJsonImportExport() {
                 // 使用专门的函数重新绑定所有模块事件并更新预览
                 rebindAllModulesEvents();
                 updateAllModulesPreview();
+                configManager.autoSave();
                 toastr.success('模块配置导入成功！');
             }
             // 清空文件输入，允许重复选择同一文件
@@ -365,19 +366,12 @@ export function showImportOptionsDialog(file, config) {
         importOptionsDialog.find('.confirm-dialog-confirm').on('click', function () {
             const overrideEnabled = importOptionsDialog.find('#import-override-enabled').prop('checked');
 
-            let finalConfig = config;
-
-            // 如果用户选择不覆盖模块开关状态，则合并现有配置的启用状态
-            if (!overrideEnabled) {
-                finalConfig = mergeEnabledStates(config);
-            }
-
             // 保存导入选项到配置对象
-            finalConfig.importOptions = {
+            config.importOptions = {
                 overrideEnabled: overrideEnabled
             };
 
-            resolve(finalConfig);
+            resolve(config);
             importOptionsDialog.remove();
         });
 
@@ -452,7 +446,23 @@ export function importModuleConfigWithValidation(file) {
                                 const normalizedConfig = normalizeConfig(config);
                                 // 显示导入选项弹窗
                                 const configWithOptions = await showImportOptionsDialog(file, normalizedConfig);
-                                resolve(configWithOptions);
+                                if (!configWithOptions) {
+                                    resolve(null);
+                                    return;
+                                }
+
+                                // 根据用户的选择决定是否合并配置
+                                const overrideEnabled = configWithOptions.importOptions?.overrideEnabled ?? true;
+                                let finalConfig = configWithOptions;
+
+                                // 如果用户选择不覆盖模块开关状态，则合并现有配置的启用状态
+                                if (!overrideEnabled) {
+                                    finalConfig = mergeEnabledStates(configWithOptions);
+                                    // 重新设置导入选项
+                                    finalConfig.importOptions = configWithOptions.importOptions;
+                                }
+
+                                resolve(finalConfig);
                             },
                             () => {
                                 // 用户选择取消导入
@@ -473,7 +483,23 @@ export function importModuleConfigWithValidation(file) {
                             const normalizedConfig = normalizeConfig(config);
                             // 显示导入选项弹窗
                             const configWithOptions = await showImportOptionsDialog(file, normalizedConfig);
-                            resolve(configWithOptions);
+                            if (!configWithOptions) {
+                                resolve(null);
+                                return;
+                            }
+
+                            // 根据用户的选择决定是否合并配置
+                            const overrideEnabled = configWithOptions.importOptions?.overrideEnabled ?? true;
+                            let finalConfig = configWithOptions;
+
+                            // 如果用户选择不覆盖模块开关状态，则合并现有配置的启用状态
+                            if (!overrideEnabled) {
+                                finalConfig = mergeEnabledStates(configWithOptions);
+                                // 重新设置导入选项
+                                finalConfig.importOptions = configWithOptions.importOptions;
+                            }
+
+                            resolve(finalConfig);
                         },
                         () => {
                             // 用户选择取消导入
@@ -489,7 +515,23 @@ export function importModuleConfigWithValidation(file) {
 
                 // 显示导入选项弹窗
                 showImportOptionsDialog(file, normalizedConfig).then(configWithOptions => {
-                    resolve(configWithOptions);
+                    if (!configWithOptions) {
+                        resolve(null);
+                        return;
+                    }
+
+                    // 根据用户的选择决定是否合并配置
+                    const overrideEnabled = configWithOptions.importOptions?.overrideEnabled ?? true;
+                    let finalConfig = configWithOptions;
+
+                    // 如果用户选择不覆盖模块开关状态，则合并现有配置的启用状态
+                    if (!overrideEnabled) {
+                        finalConfig = mergeEnabledStates(configWithOptions);
+                        // 重新设置导入选项
+                        finalConfig.importOptions = configWithOptions.importOptions;
+                    }
+
+                    resolve(finalConfig);
                 });
 
             } catch (error) {
