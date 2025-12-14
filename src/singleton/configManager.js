@@ -27,7 +27,11 @@ const DEFAULT_MODULE_CONFIG = {
     lastUpdated: new Date().toISOString(),
     globalSettings: {
         prompt: '',
-        orderPrompt: ''
+        orderPrompt: '',
+        usagePrompt: '',
+        moduleDataPrompt: '',
+        containerStyles: '',
+        timeFormat: '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}'
     },
     modules: [],
 };
@@ -924,7 +928,11 @@ class UIDataCollector {
             contentTag: IdentifierParser.parseMultiValues($('#content-tags').val() || ''),
             contentRemainLayers: parseInt($('#content-layers').val()) || 0,
             prompt: $('#global-prompt-input').val() || '',
-            orderPrompt: $('#global-order-prompt-input').val() || ''
+            orderPrompt: $('#global-order-prompt-input').val() || '',
+            usagePrompt: $('#global-usage-prompt-input').val() || '',
+            moduleDataPrompt: $('#global-module-data-prompt-input').val() || '',
+            containerStyles: $('#global-container-styles-input').val() || '',
+            timeFormat: $('#global-time-format-input').val() || '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}'
         };
     }
 }

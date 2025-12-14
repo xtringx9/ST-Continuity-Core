@@ -52,7 +52,11 @@ export {
     updateInjectionSettingsVisibility,
     updateExtensionUIState,
     onPromptChange,
-    onOrderPromptChange
+    onOrderPromptChange,
+    onUsagePromptChange,
+    onModuleDataPromptChange,
+    onContainerStylesChange,
+    onTimeFormatChange,
 } from './ui/settingsManager.js';
 
 // 导出UI管理模块
