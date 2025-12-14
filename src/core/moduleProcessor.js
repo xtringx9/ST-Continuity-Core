@@ -247,14 +247,14 @@ export function normalizeModules(modules, selectedModuleNames = []) {
                     } else if (char === '|' && inNestedModule === 0) {
                         // 只在顶级管道符处分割
                         const varPart = content.substring(lastPipePos, i).trim();
-                        parseSingleVariableInProcess(varPart, normalizedVariables, variableNameMap, module);
+                        parseSingleVariableInProcess(varPart, normalizedVariables, variableNameMap, module, moduleConfig);
                         lastPipePos = i + 1;
                     }
                 }
 
                 // 处理最后一个变量部分
                 const lastPart = content.substring(lastPipePos).trim();
-                parseSingleVariableInProcess(lastPart, normalizedVariables, variableNameMap, module);
+                parseSingleVariableInProcess(lastPart, normalizedVariables, variableNameMap, module, moduleConfig);
 
                 // 构建标准化模块
                 const normalizedModule = {
@@ -1490,7 +1490,7 @@ export function completeIdVariables(modules) {
  * @param {Object} variablesMap 变量映射表
  * @param {Object} variableNameMap 变量名映射表（兼容变量名 -> 当前变量名）
  */
-export function parseSingleVariableInProcess(part, variablesMap, variableNameMap, module) {
+export function parseSingleVariableInProcess(part, variablesMap, variableNameMap, module, moduleConfig) {
     if (!part) return;
 
     let colonIndex = -1;
@@ -1519,26 +1519,32 @@ export function parseSingleVariableInProcess(part, variablesMap, variableNameMap
 
     if (varName && varValue) {
         // 检查变量名是否在映射表中
+        const currentVarName = variableNameMap[varName];
         if (variableNameMap.hasOwnProperty(varName)) {
-            const currentVarName = variableNameMap[varName];
-            let finalValue = (!isNestedVar && currentVarName !== 'time' && currentVarName !== 'id' && currentVarName !== 'log') ? removeHyphens(varValue) : varValue;
+            const isNoNormalize = configManager.getVariableByModuleConfig(moduleConfig, currentVarName)?.isNoNormalize;
+            let finalValue = (!isNoNormalize && !isNestedVar && currentVarName !== 'time' && currentVarName !== 'id' && currentVarName !== 'log') ? removeHyphens(varValue) : varValue;
             if (currentVarName === 'id') {
                 finalValue = tryParseNumber(varValue);
             }
             variablesMap[currentVarName] = finalValue;
-        } else {
-            // 处理兼容变量名的精确匹配
-            for (const [compatName, currentName] of Object.entries(variableNameMap)) {
-                let finalValue = (!isNestedVar && currentName !== 'time' && currentName !== 'id' && currentName !== 'log') ? removeHyphens(varValue) : varValue;
-                if (varName === compatName) {
-                    if (currentName === 'id') {
-                        finalValue = tryParseNumber(varValue);
-                    }
-                    variablesMap[currentName] = finalValue;
-                    break;
-                }
-            }
         }
+        else {
+            debugLog(`[parseSingleVariableInProcess] ${moduleConfig.name} 中变量 ${varName} 未映射到任何变量名`);
+        }
+        // else {
+        //     // 处理兼容变量名的精确匹配
+        //     for (const [compatName, currentName] of Object.entries(variableNameMap)) {
+        //         const isNoNormalize = configManager.getVariableByName(module.moduleName, currentName)?.isNoNormalize;
+        //         let finalValue = (!isNoNormalize && !isNestedVar && currentName !== 'time' && currentName !== 'id' && currentName !== 'log') ? removeHyphens(varValue) : varValue;
+        //         if (varName === compatName) {
+        //             if (currentName === 'id') {
+        //                 finalValue = tryParseNumber(varValue);
+        //             }
+        //             variablesMap[currentName] = finalValue;
+        //             break;
+        //         }
+        //     }
+        // }
     }
 }
 

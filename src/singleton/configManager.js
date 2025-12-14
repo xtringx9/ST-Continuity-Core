@@ -248,7 +248,7 @@ class ConfigManager {
      */
     getModuleByName(moduleName) {
         if (!moduleName || typeof moduleName !== 'string') {
-            errorLog('getModuleByName: 模块名参数无效');
+            debugLog('getModuleByName: 模块名参数无效');
             return null;
         }
 
@@ -264,7 +264,77 @@ class ConfigManager {
         return module;
     }
 
+    /**
+     * 按照模块名和变量名获取对应变量配置
+     * @param {string} moduleName 模块名称
+     * @param {string} variableName 变量名称
+     * @returns {Object|null} 变量配置对象，如果找不到则返回null
+     */
+    getVariableByName(moduleName, variableName) {
+        if (!variableName || typeof variableName !== 'string') {
+            errorLog('getVariableByName: 变量名参数无效');
+            return null;
+        }
 
+        // 先获取模块
+        const module = this.getModuleByName(moduleName);
+        if (!module) {
+            debugLog(`getVariableByName: 未找到模块"${moduleName}"`);
+            return null;
+        }
+
+        // 检查模块是否有变量数组
+        if (!module.variables || !Array.isArray(module.variables)) {
+            debugLog(`getVariableByName: 模块"${moduleName}"没有变量配置`);
+            return null;
+        }
+
+        // 查找变量
+        const variable = module.variables.find(v => v.name === variableName);
+
+        if (!variable) {
+            debugLog(`getVariableByName: 在模块"${moduleName}"中未找到变量"${variableName}"`);
+            return null;
+        }
+
+        debugLog(`getVariableByName: 成功找到变量"${variableName}"`);
+        return variable;
+    }
+
+    /**
+     * 按照模块配置和变量名获取对应变量配置
+     * @param {Object} moduleConfig 模块配置对象
+     * @param {string} variableName 变量名称
+     * @returns {Object|null} 变量配置对象，如果找不到则返回null
+     */
+    getVariableByModuleConfig(moduleConfig, variableName) {
+        // if (!moduleConfig || typeof moduleConfig !== 'object') {
+        //     errorLog('getVariableByModuleConfig: 模块配置参数无效');
+        //     return null;
+        // }
+
+        // if (!variableName || typeof variableName !== 'string') {
+        //     errorLog('getVariableByModuleConfig: 变量名参数无效');
+        //     return null;
+        // }
+
+        // // 检查模块是否有变量数组
+        // if (!moduleConfig.variables || !Array.isArray(moduleConfig.variables)) {
+        //     debugLog('getVariableByModuleConfig: 模块配置没有变量配置');
+        //     return null;
+        // }
+
+        // 查找变量
+        const variable = moduleConfig?.variables.find(v => v.name === variableName);
+
+        if (!variable) {
+            debugLog(`getVariableByModuleConfig: 在模块配置中未找到变量"${variableName}"`);
+            return null;
+        }
+
+        debugLog(`getVariableByModuleConfig: 成功找到变量"${variableName}"`);
+        return variable;
+    }
 
     /**
      * 设置模块配置
