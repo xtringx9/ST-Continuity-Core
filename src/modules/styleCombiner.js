@@ -191,6 +191,67 @@ import { getUserAndCharNames } from "../utils/variableReplacer.js"
 
 
 /**
+ * 自动生成样式内容
+ * @param {Object} moduleConfig 模块配置对象
+ * @param {Object} moduleData 模块数据对象
+ * @returns {string} 自动生成的样式字符串
+ */
+function generateAutoStyles(moduleConfig) {
+    try {
+        debugLog('[CUSTOM STYLES] 开始自动生成样式');
+
+        if (!moduleConfig || !moduleConfig.variables || !Array.isArray(moduleConfig.variables)) {
+            debugLog('[CUSTOM STYLES] 模块配置或变量数组为空，返回空样式');
+            return '';
+        }
+
+        const variables = moduleConfig.variables;
+        const moduleName = moduleConfig.displayName || moduleConfig.name || '模块';
+
+        // 生成微缩样式的占位符
+        let autoStyles = `<!-- ${moduleName} 模块 (自动生成样式) -->
+<style>
+  .auto-module-micro:empty { display: none; }
+</style>
+<div class="auto-module-micro" style="display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 0 0.8em; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 16px; padding: 4px 10px; margin: 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.5; color: #495057;">
+    
+    <!-- 模块名称 -->
+    <span style="font-size: 11px; font-weight: bold; color: #ffffff; background-color: #6D6A67; padding: 1px 6px; border-radius: 8px;">${moduleName}</span>`;
+
+        // 遍历所有变量，生成${变量名.displayName}:${变量名.value}格式的占位符
+        variables.forEach((variable, index) => {
+            if (variable.enabled !== false) {
+                // 在变量之间添加分隔符（第一个变量前不加，最后一个变量后不加）
+                if (index > 0) {
+                    autoStyles += `
+    
+    <!-- 分隔符 -->
+    <span style="color: #c0b8b3;">|</span>`;
+                }
+
+                autoStyles += `
+    
+    <!-- ${variable.displayName || variable.name} -->
+    <span style="white-space: nowrap;">
+        <span style="color: #6c757d; font-weight: 500;">${variable.displayName || variable.name}:</span>
+        <span style="color: #495057; margin-left: 0.3em;">\${${variable.name}.value}</span>
+    </span>`;
+            }
+        });
+
+        autoStyles += `
+
+</div>`;
+
+        debugLog('[CUSTOM STYLES] 自动生成样式完成');
+        return autoStyles;
+    } catch (error) {
+        errorLog('[CUSTOM STYLES] 自动生成样式失败:', error);
+        return '';
+    }
+}
+
+/**
  * 获取组合的自定义样式内容
  * @param {Object} moduleConfig 模块配置对象
 //  * @param {string} variableName 变量名称（可选），如果为'container'则获取容器样式
@@ -201,7 +262,8 @@ export function getCombinedCustomStyles(moduleConfig, moduleData) {
     try {
         debugLog('[CUSTOM STYLES] 开始单个条目的样式处理', moduleData);
 
-        moduleData.customStyles = moduleConfig.customStyles || '';
+        // 如果moduleConfig.customStyles为空，则使用自动生成的样式
+        moduleData.customStyles = moduleConfig.customStyles || generateAutoStyles(moduleConfig);
 
         if (!moduleConfig) {
             errorLog('获取组合样式失败：模块配置为空');
@@ -221,7 +283,8 @@ export function getCombinedCustomStyles(moduleConfig, moduleData) {
         // if (moduleData.moduleData.isIncremental) {
         if (moduleData.moduleData.timeline) {
             moduleData.moduleData.timeline.forEach((entry) => {
-                entry.customStyles = moduleConfig.customStyles || '';
+                // 如果moduleConfig.customStyles为空，则使用自动生成的样式
+                entry.customStyles = moduleConfig.customStyles || generateAutoStyles(moduleConfig);
                 // 如果有模块数据，进行变量替换
                 if (entry.customStyles && (moduleConfig || moduleData)) {
                     // 先处理嵌套的customStyles引用（优先替换${某变量.customStyles}）
