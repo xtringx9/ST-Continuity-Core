@@ -17,6 +17,33 @@ const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';
 const CONTEXT_MSG_CONTAINER_ID = 'CONTEXT_MSG_CONTAINER_ID';
 
 /**
+ * 注入HTML并执行其中的script代码
+ * 使用createContextualFragment来解析HTML并执行script标签
+ * @param {HTMLElement} targetElement - 目标容器元素
+ * @param {string} htmlString - 包含HTML和script的字符串
+ */
+function injectHtmlWithScript(targetElement, htmlString, clearContainer = false) {
+    try {
+        // infoLog('injectHtmlWithScript 开始注入HTML:', targetElement);
+        var domNode = targetElement.jquery ? targetElement[0] : targetElement;
+
+        if (clearContainer) {
+            // 先清空容器内容，避免叠加
+            domNode.innerHTML = '';
+        }
+
+        var range = document.createRange();
+        range.selectNode(domNode);
+        const fragment = range.createContextualFragment(htmlString);
+        domNode.appendChild(fragment);
+    } catch (error) {
+        errorLog('injectHtmlWithScript 错误:', error);
+        // 如果解析失败，回退到普通的innerHTML
+        targetElement.innerHTML = htmlString;
+    }
+}
+
+/**
  * 加载外部CSS样式文件
  */
 function loadContextUICSS() {
@@ -238,7 +265,7 @@ export async function updateUItoMsgBottom() {
                 let containerStyles = configManager.getGlobalSettings().containerStyles || '<!-- 上下文底部UI模板 - 竖向按钮版本 -->\n            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">\n                <details class="bottom-summary">\n                    <summary class="summary-title">Modules</summary>\n                    <div class="modules-content-container" style="max-height: 500px;">${customStyles}</div>\n                </details>\n            </div>';
                 finalString += containerStyles.replace('${customStyles}', internalString);
             }
-            container.innerHTML = finalString;
+            injectHtmlWithScript(container, finalString);
         }
 
         isUpdatingMsgUI = false;
@@ -380,7 +407,8 @@ export async function updateUItoContextBottom() {
         const resultString = getModulesDataAndStyles(processResult);
         let finalString = configManager.getGlobalSettings().containerStyles || '<!-- 上下文底部UI模板 - 竖向按钮版本 -->\n            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">\n                <details class="bottom-summary">\n                    <summary class="summary-title">Modules</summary>\n                    <div class="modules-content-container">${customStyles}</div>\n                </details>\n            </div>';
         finalString = finalString.replace('${customStyles}', resultString);
-        container.innerHTML = finalString;
+        // container.innerHTML = finalString;
+        injectHtmlWithScript(container, finalString);
 
         isUpdatingContextBottomUI = false;
         return true;
@@ -868,7 +896,8 @@ export function renderSingleMessageContext(messages, container, mes) {
                     }
                 }
             });
-            container.html(newHtml);
+            // 使用injectHtmlWithScript替换html()方法，确保script标签能执行
+            injectHtmlWithScript(container[0], newHtml, true);
             // 渲染成功后设置renderSwipe属性
             mes.attr('renderSwipe', swipeId);
             // debugLog(`messageIndex: ${mes.attr('mesid')} 成功渲染并设置renderSwipe属性`, {
