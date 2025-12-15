@@ -92,6 +92,26 @@
     pointer-events: none;
 }
 
+/* --- 嵌入按钮样式 --- */
+#continuity-embedded-button {
+    background-color: #7c89a4;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    width: var(--bottomFormBlockSize);
+    height: var(--bottomFormBlockSize);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+#continuity-embedded-button:hover {
+    background-color: #b4c0e8;
+}
+
 .continuity-fab-menu .continuity-fab-item {
     padding: 8px 12px;
     border-radius: 8px;

@@ -34,8 +34,12 @@ import {
     initPromptPreview,
     ExtractModuleController,
     initParseModule,
-    extensionName
+    extensionName,
+    configManager,
+    infoLog
 } from '../index.js';
+
+import { onButtonTypeChange } from './settingsManager.js';
 
 
 // 加载CSS文件
@@ -77,6 +81,7 @@ export async function loadSettingsPanel() {
         $('#continuity_enabled').on('input', onEnabledToggle);
         $('#continuity_backend_url').on('input', onBackendUrlChange);
         $('#continuity_debug_logs').on('input', onDebugLogsToggle);
+        $('#continuity_button_type').on('change', onButtonTypeChange);
 
         // 加载设置到UI
         loadSettingsToUI();
@@ -275,7 +280,26 @@ export function closeModuleConfigWindow() {
 /**
  * 创建FAB按钮和菜单
  */
-export function createFabMenu() {
+export function createMenu() {
+    // 获取按钮类型配置
+    const extensionConfig = configManager.getExtensionConfig();
+    if (!extensionConfig.enabled) {
+        infoLog('Continuity Core 已禁用，不创建按钮');
+        return;
+    }
+    const buttonType = extensionConfig.buttonType || 'embedded';
+
+    if (buttonType === 'floating') {
+        createFloatingButton();
+    } else if (buttonType === 'embedded') {
+        createEmbeddedButton();
+    }
+}
+
+/**
+ * 创建浮动按钮
+ */
+function createFloatingButton() {
     // 检查是否已经存在FAB菜单
     let fabContainer = $('#continuity-fab-container');
 
@@ -290,14 +314,15 @@ export function createFabMenu() {
     fabContainer = $(`
         <div id="continuity-fab-container">
             <div class="continuity-fab-menu">
-                <button id="send-to-backend-btn" class="continuity-fab-item">发送最新楼层</button>
+                <button id="send-to-backend-btn" class="continuity-fab-item" style="display: none;">发送最新楼层</button>
                 <button id="open-module-config-btn" class="continuity-fab-item">模块面板</button>
             </div>
             <button id="continuity-fab-main-btn" class="continuity-fab-item">
-                <span>&#43;</span>
+                <span>🔗</span>
             </button>
         </div>
     `);
+    //<span>&#43;</span>
 
     // 将整个容器添加到body
     $('body').append(fabContainer);
@@ -318,9 +343,47 @@ export function createFabMenu() {
         openModuleConfigWindow();
     });
 
+    debugLog('浮动按钮创建完成');
+}
 
+/**
+ * 创建嵌入按钮
+ */
+function createEmbeddedButton() {
+    // 检查是否已经存在嵌入按钮
+    let embeddedButton = $('#continuity-embedded-button');
 
-    debugLog('FAB菜单创建完成');
+    if (embeddedButton.length) {
+        // 如果已经存在，直接显示并返回
+        embeddedButton.show();
+        debugLog('嵌入按钮已存在，直接显示');
+        return;
+    }
+
+    // 创建嵌入按钮（使用CSS样式）
+    embeddedButton = $(`
+        <button id="continuity-embedded-button" title="Continuity Core" tabindex="0">
+            <span>🔗</span>
+        </button>
+    `);
+
+    // 查找目标插入位置
+    const leftSendForm = $('#form_sheld #send_form #nonQRFormItems #leftSendForm');
+
+    if (leftSendForm.length) {
+        // 插入到leftSendForm内的最后一个位置，使用CSS order确保显示在最后
+        embeddedButton.css('order', '9999'); // 设置较高的order值确保显示在最后
+        leftSendForm.append(embeddedButton);
+
+        // 为嵌入按钮绑定点击事件
+        embeddedButton.on('click', function () {
+            openModuleConfigWindow();
+        });
+
+        debugLog('嵌入按钮创建完成');
+    } else {
+        errorLog('无法找到嵌入按钮插入位置：form_sheld > send_form > nonQRFormItems > leftSendForm');
+    }
 }
 
 /**

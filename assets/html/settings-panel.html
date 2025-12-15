@@ -1,7 +1,7 @@
 <div class="continuity-core-settings">
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
-            <b>⭐Continuity Core⭐</b>
+            <b>[CCore]Continuity Core</b>
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
@@ -9,7 +9,7 @@
                 <input id="continuity_enabled" type="checkbox" />
                 <label for="continuity_enabled">启用插件</label>
             </div>
-            <div class="example-extension_block flex-container">
+            <div class="example-extension_block flex-container" style="display: none;">
                 <label for="continuity_backend_url">后端服务器地址:</label>
                 <input id="continuity_backend_url" type="text" style="width: 100%;"
                     placeholder="http://localhost:8888" />
@@ -18,8 +18,14 @@
                 <input id="continuity_debug_logs" type="checkbox" />
                 <label for="continuity_debug_logs">显示调试日志</label>
             </div>
-            <hr class="sysHR" />
-
+            <div class="example-extension_block flex-container">
+                <label for="continuity_button_type">按钮类型:</label>
+                <select id="continuity_button_type" style="width: 100%;">
+                    <option value="embedded">嵌入按钮</option>
+                    <option value="floating">浮动按钮</option>
+                </select>
+            </div>
+            <!-- <hr class="sysHR" /> -->
         </div>
     </div>
 </div>
