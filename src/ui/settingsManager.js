@@ -1,7 +1,7 @@
 // 设置管理模块 - 已重构为使用configManager单例
 import {
     configManager, loadModuleConfig, renderModulesFromConfig,
-    createFabMenu,
+    createMenu,
     infoLog,
     errorLog,
     removeUIfromContextBottom,
@@ -33,6 +33,8 @@ export function loadSettingsToUI() {
     $("#continuity_debug_logs").prop("checked", extensionConfig.debugLogs);
     // 更新自动注入开关
     $("#auto-inject-toggle").prop("checked", extensionConfig.autoInject);
+    // 更新按钮类型下拉框
+    $("#continuity_button_type").val(extensionConfig.buttonType || "none");
 
     // 根据设置启用或禁用扩展UI
     updateExtensionUIState(extensionConfig.enabled);
@@ -71,8 +73,8 @@ export function onEnabledToggle(event) {
  */
 function enableContinuityCore() {
     try {
-        // 创建FAB菜单
-        createFabMenu();
+        // 创建菜单
+        createMenu();
 
         // 自动加载模块配置到DOM（如果配置面板尚未打开）
         if ($('.module-item').length === 0) {
@@ -95,11 +97,12 @@ function enableContinuityCore() {
  */
 function disableContinuityCore() {
     try {
-        // 隐藏FAB菜单
-        const fabContainer = $("#continuity-fab-container");
-        if (fabContainer.length) {
-            fabContainer.hide();
-        }
+        removeAllButtonUI();
+        // // 隐藏FAB菜单
+        // const fabContainer = $("#continuity-fab-container");
+        // if (fabContainer.length) {
+        //     fabContainer.hide();
+        // }
 
         // 主动移除已插入的UI
         removeUIfromContextBottom();
@@ -137,6 +140,45 @@ export function onDebugLogsToggle(event) {
     configManager.setExtensionConfig(extensionConfig);
 
     // toastr.info(debugLogs ? "调试日志已启用" : "调试日志已禁用");
+}
+
+/**
+ * 移除所有按钮UI
+ */
+function removeAllButtonUI() {
+    // 移除浮动按钮容器
+    const fabContainer = $('#continuity-fab-container');
+    if (fabContainer.length) {
+        fabContainer.remove();
+    }
+
+    // 移除嵌入按钮
+    const embeddedButton = $('#continuity-embedded-button');
+    if (embeddedButton.length) {
+        embeddedButton.remove();
+    }
+}
+
+/**
+ * 处理按钮类型变更
+ * @param {Event} event 事件对象
+ */
+export function onButtonTypeChange(event) {
+    const buttonType = $(event.target).val();
+    const extensionConfig = configManager.getExtensionConfig();
+
+    extensionConfig.buttonType = buttonType;
+    configManager.setExtensionConfig(extensionConfig);
+
+    // 移除现有UI
+    removeAllButtonUI();
+
+    // 根据新的按钮类型重新创建UI
+    if (extensionConfig.enabled) {
+        createMenu();
+    }
+
+    // toastr.info("按钮类型已设置为: " + buttonType);
 }
 
 /**

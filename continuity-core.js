@@ -2,7 +2,7 @@
 // 使用src/index.js作为统一入口
 import {
     loadSettingsPanel,
-    createFabMenu,
+    createMenu,
     registerMacros,
     infoLog,
     debugLog,
@@ -39,6 +39,6 @@ jQuery(async function () {
     }
     infoLog("♥️ Continuity Core 已启用，开始完整初始化");
 
-    // 创建FAB菜单
-    createFabMenu();
+    // 创建菜单
+    createMenu();
 });

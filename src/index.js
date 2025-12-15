@@ -65,7 +65,7 @@ export {
     loadSettingsPanel,
     openModuleConfigWindow,
     closeModuleConfigWindow,
-    createFabMenu,
+    createMenu,
     showCustomConfirmDialog,
 } from './ui/uiManager.js';
 
