@@ -1730,51 +1730,7 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
             //     result += `## ${moduleName}`;
             // }
 
-            if (showModuleNames) {
-                result += `${configManager.MODULE_TITLE_LEFT}${moduleConfig.name} (${moduleConfig.displayName})${configManager.MODULE_TITLE_RIGHT}\n`;
-                result += `> stats:count=${moduleData.moduleCount}`;
-                const hasIdVariable = moduleConfig.variables && moduleConfig.variables.some(variable => variable.name === 'id');
-                if (moduleData.isIncremental && hasIdVariable && moduleData.maxId !== undefined) {
-                    result += `,next_id=${moduleData.maxId + 1}`;
-                }
-                if (showProcessInfo) {
-                    let processInfo = '';
-                    switch (processType) {
-                        case 'incremental':
-                            processInfo = ' (增量处理)';
-                            break;
-                        case 'full_without_config':
-                            processInfo = ' (全量处理 - 无配置)';
-                            break;
-                        default:
-                            processInfo = ' (全量处理)';
-                    }
-                    result += `${processInfo}`;
-                }
-                result += `\n`;
-                if (!showProcessInfo && showRule) {
-                    result += `> [INSTRUCTION]\n`;
-                    if (moduleConfig.contentPrompt) {
-                        result += `> usage:${moduleConfig.contentPrompt}\n`;
-                    }
-                    if (moduleConfig.prompt) {
-                        result += `> requirement:${moduleConfig.prompt}\n`;
-                    }
-
-                    let formatPrompt = '';
-                    if (moduleConfig.variables && moduleConfig.variables.length > 0) {
-                        const variableDescriptions = moduleConfig.variables.map(variable => {
-                            const variableName = variable.name;
-                            const variableDesc = variable.description ? `${variable.description}` : '';
-                            return `${module.outputMode === 'full' ? '' : variable.isIdentifier ? '*' : variable.isBackupIdentifier ? '^' : ''}${variableName}:${variableDesc}`;
-                        }).join('|');
-                        formatPrompt += `[${moduleConfig.name}|${variableDescriptions}]\n`;
-                    } else {
-                        formatPrompt += `[${moduleConfig.name}]\n`;
-                    }
-                    result += `> format:${formatPrompt}`;
-                }
-            }
+            result += getModuleDataRuleString(moduleConfig, moduleData, processType, showModuleNames, showProcessInfo, showRule);
 
             // 根据数据类型处理
             if (Array.isArray(data)) {
@@ -1787,43 +1743,76 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
                         result += `${item.moduleString || item}\n`;
                     }
                 });
+                result += '\n';
             } else if (typeof data === 'string') {
                 // 处理字符串
                 result += data + '\n\n';
             }
 
-            result += '\n';
-        } else if (showModuleNames && !showProcessInfo && showRule) {
-            // 处理structuredModules中不存在的模块（剩余模块）
-            result += `## ${moduleConfig.name} (${moduleConfig.displayName})\n`;
-            result += `> stats:count=0\n`;
-            if (!showProcessInfo) {
-                result += `> [INSTRUCTION]\n`;
-                if (moduleConfig.contentPrompt) {
-                    result += `> usage:${moduleConfig.contentPrompt}\n`;
-                }
-                if (moduleConfig.prompt) {
-                    result += `> requirement:${moduleConfig.prompt}\n`;
-                }
-
-                let formatPrompt = '';
-                if (moduleConfig.variables && moduleConfig.variables.length > 0) {
-                    const variableDescriptions = moduleConfig.variables.map(variable => {
-                        const variableName = variable.name;
-                        const variableDesc = variable.description ? `${variable.description}` : '';
-                        return `${variableName}:${variable.isIdentifier ? '(KEY)' : variable.isBackupIdentifier ? '(KEY)' : ''}${variableDesc}`;
-                    }).join('|');
-                    formatPrompt += `[${moduleConfig.name}|${variableDescriptions}]\n`;
-                } else {
-                    formatPrompt += `[${moduleConfig.name}]\n`;
-                }
-                result += `> format:${formatPrompt}`;
-            }
-            result += '\n';
+        } else if (!showProcessInfo) {
+            result += getModuleDataRuleString(moduleConfig, moduleData, null, showModuleNames, showProcessInfo, showRule);
         }
     });
 
     return result.trim();
+}
+
+function getModuleDataRuleString(moduleConfig, moduleData, processType, showModuleNames, showProcessInfo, showRule) {
+    let result = '';
+    const showAllRules = false; // todo 现在暂时代码上直接不输出正文内模块（面板获取除外）
+    if (showModuleNames) {
+        if (!showAllRules && (moduleConfig.outputPosition === 'body' || moduleConfig.outputPosition === 'specific_position')) {
+            return result;
+        }
+        result += `${configManager.MODULE_TITLE_LEFT}${moduleConfig.name} (${moduleConfig.displayName})${configManager.MODULE_TITLE_RIGHT}\n`;
+        result += `> stats:count=${moduleData?.moduleCount || 0}`;
+        const hasIdVariable = moduleConfig.variables && moduleConfig.variables.some(variable => variable.name === 'id');
+        if (moduleData && (moduleData.isIncremental && hasIdVariable && moduleData.maxId !== undefined)) {
+            result += `,next_id=${moduleData.maxId + 1}`;
+        }
+        else if (hasIdVariable) {
+            result += `,next_id=1`;
+        }
+        if (showProcessInfo && processType) {
+            let processInfo = '';
+            switch (processType) {
+                case 'incremental':
+                    processInfo = '(增量处理)';
+                    break;
+                case 'full_without_config':
+                    processInfo = '(全量处理 - 无配置)';
+                    break;
+                default:
+                    processInfo = '(全量处理)';
+            }
+            result += `${processInfo}`;
+        }
+        result += `\n`;
+        if (!showProcessInfo && showRule) {
+            result += `> [INSTRUCTION]\n`;
+            if (moduleConfig.contentPrompt) {
+                result += `> usage:${moduleConfig.contentPrompt}\n`;
+            }
+            if (moduleConfig.prompt) {
+                result += `> requirement:${moduleConfig.prompt}\n`;
+            }
+
+            let formatPrompt = '';
+            if (moduleConfig.variables && moduleConfig.variables.length > 0) {
+                const variableDescriptions = moduleConfig.variables.map(variable => {
+                    const variableName = variable.name;
+                    const variableDesc = variable.description ? `${variable.description}` : '';
+                    return `${module.outputMode === 'full' ? '' : variable.isIdentifier ? '*' : variable.isBackupIdentifier ? '^' : ''}${variableName}:${variableDesc}`;
+                }).join('|');
+                formatPrompt += `[${moduleConfig.name}|${variableDescriptions}]\n`;
+            } else {
+                formatPrompt += `[${moduleConfig.name}]\n`;
+            }
+            result += `> format:${formatPrompt}`;
+        }
+    }
+    result += moduleData ? '' : '\n';
+    return result;
 }
 
 /**

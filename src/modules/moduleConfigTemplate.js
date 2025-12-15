@@ -123,7 +123,7 @@ export const MODULE_CONFIG_TEMPLATE = {
             // 输出设置
             outputPosition: {
                 type: 'string',
-                enum: ['body', 'after_body', 'embedded', 'specific_position', 'custom'],
+                enum: ['body', 'after_body', 'embedded', 'specific_position', 'custom'], // todo custom可以考虑找个时间实现
                 default: 'after_body',
                 description: '输出位置'
             },
