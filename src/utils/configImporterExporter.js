@@ -542,9 +542,9 @@ export function showExportOptionsDialog() {
             });
         });
 
-        // 绑定作者输入框自动保存事件
-        authorInput.on('input', function () {
-            const authorName = $(this).val().trim();
+        // 保存作者信息的函数
+        const saveAuthorConfig = () => {
+            const authorName = authorInput.val().trim();
             const extensionConfig = configManager.getExtensionConfig();
 
             // 更新作者信息
@@ -554,15 +554,21 @@ export function showExportOptionsDialog() {
                 extensionConfig.moduleConfigAuthor = authorName;
             } else {
                 // 如果输入为空，删除作者字段
-                // delete extensionConfig.moduleConfigAuthor;
+                delete extensionConfig.moduleConfigAuthor;
             }
 
             // 保存配置
             configManager.setExtensionConfig(extensionConfig);
-        });
+        };
+
+        // 绑定作者输入框自动保存事件
+        // authorInput.on('input', saveAuthorConfig);
 
         // 绑定确定按钮事件
         exportOptionsDialog.find('.confirm-dialog-confirm').on('click', function () {
+            // 保存作者配置
+            saveAuthorConfig();
+
             const exportSettings = exportOptionsDialog.find('#export-settings').prop('checked');
             const exportModuleConfig = exportOptionsDialog.find('#export-module-config').prop('checked');
 
@@ -586,6 +592,9 @@ export function showExportOptionsDialog() {
         });
 
         exportOptionsDialog.find('.confirm-dialog-cancel').on('click', function () {
+            // 保存作者配置
+            saveAuthorConfig();
+
             resolve(null);
             exportOptionsDialog.remove();
         });
