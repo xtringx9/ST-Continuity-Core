@@ -210,9 +210,13 @@ class ConfigManager {
      * 获取模块配置
      * @returns {Array} 模块配置数组（只返回enabled为true的模块和变量）
      */
-    getModules() {
+    getModules(needAll = false) {
         const config = this.getModuleConfig();
         const modules = config.modules || [];
+
+        if (needAll) {
+            return modules;
+        }
 
         // 过滤掉enabled为false的模块
         const enabledModules = modules.filter(module => module.enabled !== false);
@@ -505,6 +509,75 @@ class ConfigManager {
     }
 
     /**
+     * 根据导出选项生成配置类型描述
+     * @param {Object} exportOptions 导出选项
+     * @param {Array} currentModules 当前所有模块
+     * @returns {string} 配置类型描述
+     */
+    generateConfigType(exportOptions, currentModules) {
+        infoLog('generateConfigType', exportOptions, currentModules);
+        const totalModules = currentModules ? currentModules.length : 0;
+
+        if (exportOptions.exportSettings && exportOptions.exportModuleConfig) {
+            // 同时导出设置和模块
+            if (exportOptions.selectedModules && exportOptions.selectedModules.length > 0) {
+                const moduleCount = exportOptions.selectedModules.length;
+                const isSelectAll = moduleCount === totalModules;
+
+                if (isSelectAll) {
+                    return 'full-config';
+                } else {
+                    // 如果只选择了一个模块，直接使用模块名
+                    if (moduleCount === 1) {
+                        return `settings+module-${exportOptions.selectedModules[0]}`;
+                    } else {
+                        // 如果选择了多个模块，使用前几个模块的缩写
+                        const maxModuleNames = 3;
+                        const moduleNames = exportOptions.selectedModules.slice(0, maxModuleNames).join('+');
+                        if (moduleCount > maxModuleNames) {
+                            return `settings+modules-${moduleNames}+${moduleCount - maxModuleNames}more`;
+                        } else {
+                            return `settings+modules-${moduleNames}`;
+                        }
+                    }
+                }
+            } else {
+                return 'full-config';
+            }
+        } else if (exportOptions.exportSettings) {
+            return 'settings-only';
+        } else if (exportOptions.exportModuleConfig) {
+            // 如果导出了特定模块，在文件名中体现
+            if (exportOptions.selectedModules && exportOptions.selectedModules.length > 0) {
+                const moduleCount = exportOptions.selectedModules.length;
+                const isSelectAll = moduleCount === totalModules;
+
+                if (isSelectAll) {
+                    return 'modules-only';
+                } else {
+                    // 如果只选择了一个模块，直接使用模块名
+                    if (moduleCount === 1) {
+                        return `module-${exportOptions.selectedModules[0]}`;
+                    } else {
+                        // 如果选择了多个模块，使用前几个模块的缩写
+                        const maxModuleNames = 3;
+                        const moduleNames = exportOptions.selectedModules.slice(0, maxModuleNames).join('+');
+                        if (moduleCount > maxModuleNames) {
+                            return `modules-${moduleNames}+${moduleCount - maxModuleNames}more`;
+                        } else {
+                            return `modules-${moduleNames}`;
+                        }
+                    }
+                }
+            } else {
+                return 'modules-only';
+            }
+        }
+
+        return 'unknown-config';
+    }
+
+    /**
  * 备份模块配置到本地文件
  */
     backupModuleConfig(exportOptions) {
@@ -524,7 +597,15 @@ class ConfigManager {
             }
 
             if (exportOptions.exportModuleConfig) {
-                exportConfig.modules = currentConfig.modules;
+                // 如果指定了选中的模块，则只导出选中的模块
+                if (exportOptions.selectedModules && exportOptions.selectedModules.length > 0) {
+                    exportConfig.modules = currentConfig.modules.filter(module =>
+                        exportOptions.selectedModules.includes(module.name)
+                    );
+                } else {
+                    // 如果没有指定选中的模块，则导出所有模块
+                    exportConfig.modules = currentConfig.modules;
+                }
             }
 
             const dataStr = JSON.stringify(exportConfig, null, 2);
@@ -532,16 +613,7 @@ class ConfigManager {
 
             // 根据导出选项生成描述性文件名
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -1); // 保留完整的时分秒
-            let configType = '';
-
-            if (exportOptions.exportSettings && exportOptions.exportModuleConfig) {
-                configType = 'full-config';
-            } else if (exportOptions.exportSettings) {
-                configType = 'settings-only';
-            } else if (exportOptions.exportModuleConfig) {
-                configType = 'modules-only';
-            }
-
+            const configType = this.generateConfigType(exportOptions, currentConfig.modules);
             const exportFileDefaultName = `${CONTINUITY_CORE_IDENTIFIER}${configType}_${timestamp}.json`;
 
 
