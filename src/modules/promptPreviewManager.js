@@ -395,3 +395,26 @@ export function initPromptPreview() {
         errorLog('初始化提示词预览功能失败:', error);
     }
 }
+
+/**
+ * 根据配置更新宏选项列表
+ * 当contentRemainLayers配置发生变化时调用此方法
+ */
+export function updateMacroOptionsFromConfig() {
+    try {
+        debugLog('开始根据配置更新宏选项列表');
+
+        // 重新生成预览模式选项
+        generatePreviewModeOptions();
+
+        // 如果预览区域是展开状态，自动更新预览内容
+        if ($('#prompt-preview-content').is(':visible')) {
+            updatePromptPreview();
+        }
+
+        debugLog('宏选项列表更新完成');
+
+    } catch (error) {
+        errorLog('更新宏选项列表失败:', error);
+    }
+}

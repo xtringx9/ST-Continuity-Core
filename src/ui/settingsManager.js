@@ -258,6 +258,13 @@ export function onExternalStylesChange(event) {
     configManager.setGlobalSettings(moduleConfig);
 }
 
+export function onBottomStylesChange(event) {
+    const bottomStyles = $(event.target).val();
+    const moduleConfig = configManager.getGlobalSettings();
+    moduleConfig.bottomStyles = bottomStyles;
+    configManager.setGlobalSettings(moduleConfig);
+}
+
 /**
  * 处理时间格式变更
  * @param {Event} event 事件对象
