@@ -4,7 +4,7 @@ import { debugLog, errorLog, infoLog } from "./logger.js";
 import { saveSettingsDebounced } from "../../../../../../script.js";
 
 
-// 世界书相关常量定义
+// 正则相关常量定义
 export const REGEX_CONSTANTS = {
     // 版本信息常量
     version: '1.0.0',

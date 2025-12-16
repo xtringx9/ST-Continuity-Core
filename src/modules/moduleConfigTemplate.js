@@ -1,5 +1,9 @@
 // 模块配置模板 - 定义标准的模块JSON配置结构
 // 所有保存、导入导出操作都基于此模板进行验证
+export const CONFIG_CONSTANTS = {
+    // 配置版本
+    version: '1.0.0',
+};
 
 /**
  * 模块配置模板对象
@@ -7,7 +11,7 @@
  */
 export const MODULE_CONFIG_TEMPLATE = {
     // 配置版本
-    version: '1.1.0',
+    version: CONFIG_CONSTANTS.version,
 
     // 最后更新时间
     lastUpdated: new Date().toISOString(),
@@ -285,17 +289,18 @@ export const MODULE_CONFIG_TEMPLATE = {
 
 /**
  * 默认配置值
- * 用于初始化新配置或填充缺失字段
  */
 export const DEFAULT_CONFIG_VALUES = {
-    version: '1.1.0',
-    lastUpdated: new Date().toISOString(),
+    metadata: {
+        version: CONFIG_CONSTANTS.version,
+        lastUpdated: new Date().toISOString(),
+        source: "ST-Continuity-Core",
+    },
     globalSettings: {
-        prompt: '',
-        orderPrompt: ''
     },
     modules: []
 };
+
 
 /**
  * 验证配置是否符合模板规范
@@ -312,85 +317,91 @@ export function validateConfig(config) {
         return { isValid: false, errors, warnings };
     }
 
-    if (!config.modules || !Array.isArray(config.modules)) {
+    // 根据导出选项判断是否需要验证modules
+    const exportOptions = config.metadata?.exportOptions;
+    const shouldValidateModules = !exportOptions || exportOptions.exportModuleConfig !== false;
+
+    if (shouldValidateModules && (!config.modules || !Array.isArray(config.modules))) {
         errors.push('配置缺少modules数组或modules不是数组');
         return { isValid: false, errors, warnings };
     }
 
-    // 验证每个模块
-    config.modules.forEach((module, index) => {
-        const modulePrefix = `模块${index + 1}`;
+    // 验证每个模块（仅在需要验证模块时执行）
+    if (shouldValidateModules && config.modules) {
+        config.modules.forEach((module, index) => {
+            const modulePrefix = `模块${index + 1}`;
 
-        // 检查模块必需字段
-        if (!module.name) {
-            errors.push(`${modulePrefix}: 缺少name字段`);
-        }
+            // 检查模块必需字段
+            if (!module.name) {
+                errors.push(`${modulePrefix}: 缺少name字段`);
+            }
 
-        if (!module.displayName) {
-            warnings.push(`${modulePrefix}: 缺少displayName字段，将使用name作为显示名称`);
-        }
+            if (!module.displayName) {
+                warnings.push(`${modulePrefix}: 缺少displayName字段，将使用name作为显示名称`);
+            }
 
-        // 验证字段类型
-        if (module.enabled !== undefined && typeof module.enabled !== 'boolean') {
-            warnings.push(`${modulePrefix}: enabled字段应为布尔值`);
-        }
+            // 验证字段类型
+            if (module.enabled !== undefined && typeof module.enabled !== 'boolean') {
+                warnings.push(`${modulePrefix}: enabled字段应为布尔值`);
+            }
 
-        if (module.retainLayers !== undefined && typeof module.retainLayers !== 'number') {
-            warnings.push(`${modulePrefix}: retainLayers字段应为数字`);
-        }
+            if (module.retainLayers !== undefined && typeof module.retainLayers !== 'number') {
+                warnings.push(`${modulePrefix}: retainLayers字段应为数字`);
+            }
 
-        if (module.timeReferenceStandard !== undefined && typeof module.timeReferenceStandard !== 'boolean') {
-            warnings.push(`${modulePrefix}: timeReferenceStandard字段应为布尔值`);
-        }
+            if (module.timeReferenceStandard !== undefined && typeof module.timeReferenceStandard !== 'boolean') {
+                warnings.push(`${modulePrefix}: timeReferenceStandard字段应为布尔值`);
+            }
 
-        if (module.isExternalDisplay !== undefined && typeof module.isExternalDisplay !== 'boolean') {
-            warnings.push(`${modulePrefix}: isExternalDisplay字段应为布尔值`);
-        }
+            if (module.isExternalDisplay !== undefined && typeof module.isExternalDisplay !== 'boolean') {
+                warnings.push(`${modulePrefix}: isExternalDisplay字段应为布尔值`);
+            }
 
-        // 验证枚举值
-        const validOutputPositions = ['body', 'after_body', 'embedded', 'specific_position', 'custom'];
-        if (module.outputPosition && !validOutputPositions.includes(module.outputPosition)) {
-            warnings.push(`${modulePrefix}: outputPosition应为 ${validOutputPositions.join(', ')} 之一`);
-        }
+            // 验证枚举值
+            const validOutputPositions = ['body', 'after_body', 'embedded', 'specific_position', 'custom'];
+            if (module.outputPosition && !validOutputPositions.includes(module.outputPosition)) {
+                warnings.push(`${modulePrefix}: outputPosition应为 ${validOutputPositions.join(', ')} 之一`);
+            }
 
-        const validOutputModes = ['full', 'incremental'];
-        if (module.outputMode && !validOutputModes.includes(module.outputMode)) {
-            warnings.push(`${modulePrefix}: outputMode应为 ${validOutputModes.join(', ')} 之一`);
-        }
+            const validOutputModes = ['full', 'incremental'];
+            if (module.outputMode && !validOutputModes.includes(module.outputMode)) {
+                warnings.push(`${modulePrefix}: outputMode应为 ${validOutputModes.join(', ')} 之一`);
+            }
 
-        const validRangeModes = ['unlimited', 'specified', 'range'];
-        if (module.rangeMode && !validRangeModes.includes(module.rangeMode)) {
-            warnings.push(`${modulePrefix}: rangeMode应为 ${validRangeModes.join(', ')} 之一`);
-        }
+            const validRangeModes = ['unlimited', 'specified', 'range'];
+            if (module.rangeMode && !validRangeModes.includes(module.rangeMode)) {
+                warnings.push(`${modulePrefix}: rangeMode应为 ${validRangeModes.join(', ')} 之一`);
+            }
 
-        // 验证变量
-        if (module.variables && Array.isArray(module.variables)) {
-            module.variables.forEach((variable, varIndex) => {
-                const varPrefix = `${modulePrefix} -> 变量${varIndex + 1}`;
+            // 验证变量
+            if (module.variables && Array.isArray(module.variables)) {
+                module.variables.forEach((variable, varIndex) => {
+                    const varPrefix = `${modulePrefix} -> 变量${varIndex + 1}`;
 
-                if (!variable.name) {
-                    warnings.push(`${varPrefix}: 缺少name字段`);
-                }
+                    if (!variable.name) {
+                        warnings.push(`${varPrefix}: 缺少name字段`);
+                    }
 
-                if (variable.isIdentifier !== undefined && typeof variable.isIdentifier !== 'boolean') {
-                    warnings.push(`${varPrefix}: isIdentifier字段应为布尔值`);
-                }
+                    if (variable.isIdentifier !== undefined && typeof variable.isIdentifier !== 'boolean') {
+                        warnings.push(`${varPrefix}: isIdentifier字段应为布尔值`);
+                    }
 
-                // 验证字段类型
-                if (variable.enabled !== undefined && typeof variable.enabled !== 'boolean') {
-                    warnings.push(`${varPrefix}: enabled字段应为布尔值`);
-                }
+                    // 验证字段类型
+                    if (variable.enabled !== undefined && typeof variable.enabled !== 'boolean') {
+                        warnings.push(`${varPrefix}: enabled字段应为布尔值`);
+                    }
 
-                if (variable.isBackupIdentifier !== undefined && typeof variable.isBackupIdentifier !== 'boolean') {
-                    warnings.push(`${varPrefix}: isBackupIdentifier字段应为布尔值`);
-                }
+                    if (variable.isBackupIdentifier !== undefined && typeof variable.isBackupIdentifier !== 'boolean') {
+                        warnings.push(`${varPrefix}: isBackupIdentifier字段应为布尔值`);
+                    }
 
-                if (variable.isHideCondition !== undefined && typeof variable.isHideCondition !== 'boolean') {
-                    warnings.push(`${varPrefix}: isHideCondition字段应为布尔值`);
-                }
-            });
-        }
-    });
+                    if (variable.isHideCondition !== undefined && typeof variable.isHideCondition !== 'boolean') {
+                        warnings.push(`${varPrefix}: isHideCondition字段应为布尔值`);
+                    }
+                });
+            }
+        });
+    }
 
     return {
         isValid: errors.length === 0,
@@ -410,8 +421,12 @@ export function normalizeConfig(config) {
     }
 
     const normalized = {
-        version: config.version || DEFAULT_CONFIG_VALUES.version,
-        lastUpdated: config.lastUpdated || new Date().toISOString(),
+        metadata: {
+            version: DEFAULT_CONFIG_VALUES.metadata.version,
+            // version: config.metadata?.version || config.version || DEFAULT_CONFIG_VALUES.metadata.version,
+            lastUpdated: config.metadata?.lastUpdated || config.lastUpdated || new Date().toISOString(),
+            source: config.metadata?.source || DEFAULT_CONFIG_VALUES.metadata.source
+        },
         globalSettings: {
             moduleTag: config.globalSettings?.moduleTag || 'module',
             compatibleModuleTags: config.globalSettings?.compatibleModuleTags || ['module', 'modules'],

@@ -73,8 +73,6 @@ export {
 export {
     saveModuleConfig,
     loadModuleConfig,
-    exportModuleConfig,
-    importModuleConfig,
     renderModulesFromConfig,
     setBindModuleEvents,
     setOnRenderComplete,
@@ -136,6 +134,7 @@ export {
     initJsonImportExport,
     // collectModulesForExport,
     bindSaveButtonEvent,
+    showExportOptionsDialog
 } from './utils/configImporterExporter.js';
 
 // 导出提示词注入管理器
