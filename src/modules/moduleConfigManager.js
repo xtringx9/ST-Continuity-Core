@@ -239,11 +239,14 @@ export function renderModulesFromConfig(config) {
         if (config.globalSettings.moduleDataPrompt) {
             $('#global-module-data-prompt-input').val(config.globalSettings.moduleDataPrompt);
         }
+        if (config.globalSettings.externalStyles) {
+            $('#global-external-styles-input').val(config.globalSettings.externalStyles);
+        }
         if (config.globalSettings.containerStyles) {
             $('#global-container-styles-input').val(config.globalSettings.containerStyles);
         }
-        if (config.globalSettings.externalStyles) {
-            $('#global-external-styles-input').val(config.globalSettings.externalStyles);
+        if (config.globalSettings.bottomStyles) {
+            $('#global-bottom-styles-input').val(config.globalSettings.bottomStyles);
         }
         if (config.globalSettings.timeFormat) {
             $('#global-time-format-input').val(config.globalSettings.timeFormat);

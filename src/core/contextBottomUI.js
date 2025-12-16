@@ -408,7 +408,7 @@ export async function updateUItoContextBottom() {
         }
 
         const resultString = getModulesDataAndStyles(processResult);
-        let finalString = configManager.getGlobalSettings().containerStyles || '<!-- 上下文底部UI模板 - 竖向按钮版本 -->\n            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">\n                <details class="bottom-summary">\n                    <summary class="summary-title">Modules</summary>\n                    <div class="modules-content-container">${customStyles}</div>\n                </details>\n            </div>';
+        let finalString = configManager.getGlobalSettings().bottomStyles || '<!-- 上下文底部UI模板 - 竖向按钮版本 -->\n            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">\n                <details class="bottom-summary">\n                    <summary class="summary-title">Modules</summary>\n                    <div class="modules-content-container">${customStyles}</div>\n                </details>\n            </div>';
         finalString = finalString.replace('${customStyles}', resultString);
         // container.innerHTML = finalString;
         injectHtmlWithScript(container, finalString);

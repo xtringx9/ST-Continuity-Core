@@ -733,6 +733,7 @@
 }
 
 #continuity-module-config-window .module-container-styles,
+#continuity-module-config-window .module-external-styles,
 #continuity-module-config-window .variable-custom-styles,
 #continuity-module-config-window .module-prompt-input,
 #continuity-module-config-window .module-timing-prompt-input,
@@ -760,6 +761,7 @@
 }
 
 #continuity-module-config-window .module-container-styles:focus,
+#continuity-module-config-window .module-external-styles:focus,
 #continuity-module-config-window .variable-custom-styles:focus,
 #continuity-module-config-window .module-content-prompt-input:focus,
 #continuity-module-config-window .module-custom-styles:focus {
