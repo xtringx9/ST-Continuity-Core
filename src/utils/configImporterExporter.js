@@ -444,6 +444,9 @@ export function showImportOptionsDialog(file, config) {
  */
 export function showExportOptionsDialog() {
     return new Promise((resolve) => {
+        // 获取所有模块数据
+        const modulesData = configManager.getModules(true) || [];
+
         // 创建导出选项弹窗HTML
         const exportOptionsDialog = $(`
             <div id="continuity-export-options-dialog" class="continuity-confirm-dialog">
@@ -461,6 +464,23 @@ export function showExportOptionsDialog() {
                                 <span>模块配置</span>
                             </label>
                         </div>
+                        <div id="module-selection-container" class="module-selector-container" style="margin-top: 15px; max-height: 200px; overflow-y: auto;">
+                            <div class="module-selector-header">
+                                <label>选择要导出的模块：</label>
+                                <div class="module-selector-actions">
+                                    <button type="button" id="select-all-modules" class="btn-tiny">全选</button>
+                                    <button type="button" id="deselect-all-modules" class="btn-tiny">清空</button>
+                                </div>
+                            </div>
+                            <div id="module-checkbox-container" class="module-checkbox-group">
+                                ${modulesData.map(module => `
+                                    <div class="module-checkbox-item">
+                                        <input type="checkbox" id="export-module-${module.name}" value="${module.name}" class="module-checkbox" checked>
+                                        <label for="export-module-${module.name}" class="module-checkbox-label">${module.name} (${module.displayName})</label>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
                     </div>
                     <div class="confirm-dialog-buttons">
                         <button class="confirm-dialog-btn confirm-dialog-cancel">取消</button>
@@ -473,15 +493,52 @@ export function showExportOptionsDialog() {
         // 添加到页面
         $('body').append(exportOptionsDialog);
 
-        // 绑定按钮事件
+        // 获取DOM元素
+        const exportModuleConfigCheckbox = exportOptionsDialog.find('#export-module-config');
+        const moduleSelectionContainer = exportOptionsDialog.find('#module-selection-container');
+
+        // 绑定模块配置复选框事件
+        exportModuleConfigCheckbox.on('change', function () {
+            if ($(this).prop('checked')) {
+                moduleSelectionContainer.slideDown(300);
+            } else {
+                moduleSelectionContainer.slideUp(300);
+            }
+        });
+
+        // 模块配置默认勾选，所以模块选择器默认显示
+        if (exportModuleConfigCheckbox.prop('checked')) {
+            moduleSelectionContainer.show();
+        }
+
+        // 绑定全选按钮事件
+        exportOptionsDialog.find('#select-all-modules').on('click', function () {
+            exportOptionsDialog.find('.module-checkbox').prop('checked', true);
+        });
+
+        // 绑定清空按钮事件
+        exportOptionsDialog.find('#deselect-all-modules').on('click', function () {
+            exportOptionsDialog.find('.module-checkbox').prop('checked', false);
+        });
+
+        // 绑定确定按钮事件
         exportOptionsDialog.find('.confirm-dialog-confirm').on('click', function () {
             const exportSettings = exportOptionsDialog.find('#export-settings').prop('checked');
             const exportModuleConfig = exportOptionsDialog.find('#export-module-config').prop('checked');
 
+            // 获取选中的模块
+            const selectedModules = [];
+            if (exportModuleConfig) {
+                exportOptionsDialog.find('.module-checkbox:checked').each(function () {
+                    selectedModules.push($(this).val());
+                });
+            }
+
             // 保存导出选项
             const exportOptions = {
                 exportSettings: exportSettings,
-                exportModuleConfig: exportModuleConfig
+                exportModuleConfig: exportModuleConfig,
+                selectedModules: selectedModules
             };
 
             resolve(exportOptions);
