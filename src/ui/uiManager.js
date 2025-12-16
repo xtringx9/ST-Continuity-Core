@@ -197,6 +197,9 @@ export async function openModuleConfigWindow() {
             $('#global-external-styles-input').on('input', onExternalStylesChange);
             $('#global-time-format-input').on('input', onTimeFormatChange);
 
+            // 绑定设置区域折叠/展开事件
+            $('#toggle-settings-btn').on('click', toggleSettings);
+
             // 加载设置到UI（包括自动注入开关状态）
             loadSettingsToUI();
 
@@ -314,7 +317,7 @@ function createFloatingButton() {
     fabContainer = $(`
         <div id="continuity-fab-container">
             <div class="continuity-fab-menu">
-                <button id="send-to-backend-btn" class="continuity-fab-item" style="display: none;">发送最新楼层</button>
+                <button id="send-to-backend-btn" class="continuity-fab-item" style="display: none;">测试最新楼层</button>
                 <button id="open-module-config-btn" class="continuity-fab-item">模块面板</button>
             </div>
             <button id="continuity-fab-main-btn" class="continuity-fab-item">
@@ -408,6 +411,31 @@ function initTabSwitching() {
     });
 }
 
+/**
+ * 切换设置区域的折叠/展开状态
+ */
+export function toggleSettings() {
+    try {
+        const settingsContent = $('#settings-content');
+        const toggleBtn = $('#toggle-settings-btn');
+
+        if (settingsContent.is(':visible')) {
+            // 如果当前是展开状态，则折叠
+            settingsContent.slideUp(300);
+            toggleBtn.removeClass('expanded');
+            toggleBtn.html('<span class="toggle-arrow">▶</span> 展开设置');
+            debugLog('设置区域已折叠');
+        } else {
+            // 如果当前是折叠状态，则展开
+            settingsContent.slideDown(300);
+            toggleBtn.addClass('expanded');
+            toggleBtn.html('<span class="toggle-arrow">▼</span> 收起设置');
+            debugLog('设置区域已展开');
+        }
+    } catch (error) {
+        errorLog('切换设置区域失败:', error);
+    }
+}
 
 
 
