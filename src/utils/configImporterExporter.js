@@ -548,9 +548,26 @@ export function importModuleConfig(file) {
                             async () => {
                                 // 用户选择继续导入，进行规范化处理
                                 const normalizedConfig = normalizeConfig(config);
-                                // 显示导入选项弹窗并返回包含选项的配置
-                                const configWithOptions = await showImportOptionsDialog(file, normalizedConfig);
-                                resolve(configWithOptions);
+                                // 根据导入的配置内容决定是否显示导入选项
+                                const hasModules = normalizedConfig.modules !== undefined &&
+                                    Array.isArray(normalizedConfig.modules) &&
+                                    normalizedConfig.modules.length > 0;
+
+                                if (hasModules) {
+                                    // 有模块数据，显示导入选项弹窗
+                                    const configWithOptions = await showImportOptionsDialog(file, normalizedConfig);
+                                    resolve(configWithOptions);
+                                } else {
+                                    // 没有模块数据，直接返回配置
+                                    const configWithOptions = {
+                                        ...normalizedConfig,
+                                        importOptions: {
+                                            overrideEnabled: false
+                                        }
+                                    };
+                                    resolve(configWithOptions);
+                                    debugLog('导入的配置没有模块数据，跳过导入选项弹窗');
+                                }
                             },
                             () => {
                                 // 用户选择取消导入
@@ -569,9 +586,26 @@ export function importModuleConfig(file) {
                         async () => {
                             // 用户选择继续导入，进行规范化处理
                             const normalizedConfig = normalizeConfig(config);
-                            // 显示导入选项弹窗并返回包含选项的配置
-                            const configWithOptions = await showImportOptionsDialog(file, normalizedConfig);
-                            resolve(configWithOptions);
+                            // 根据导入的配置内容决定是否显示导入选项
+                            const hasModules = normalizedConfig.modules !== undefined &&
+                                Array.isArray(normalizedConfig.modules) &&
+                                normalizedConfig.modules.length > 0;
+
+                            if (hasModules) {
+                                // 有模块数据，显示导入选项弹窗
+                                const configWithOptions = await showImportOptionsDialog(file, normalizedConfig);
+                                resolve(configWithOptions);
+                            } else {
+                                // 没有模块数据，直接返回配置
+                                const configWithOptions = {
+                                    ...normalizedConfig,
+                                    importOptions: {
+                                        overrideEnabled: false
+                                    }
+                                };
+                                resolve(configWithOptions);
+                                debugLog('导入的配置没有模块数据，跳过导入选项弹窗');
+                            }
                         },
                         () => {
                             // 用户选择取消导入
@@ -585,10 +619,28 @@ export function importModuleConfig(file) {
                 const normalizedConfig = normalizeConfig(config);
                 debugLog('配置验证通过，已规范化:', normalizedConfig);
 
-                // 显示导入选项弹窗并返回包含选项的配置
-                showImportOptionsDialog(file, normalizedConfig).then(configWithOptions => {
+                // 根据导入的配置内容决定是否显示导入选项
+                // 如果modules为空，则不需要询问是否覆盖启用状态
+                const hasModules = normalizedConfig.modules !== undefined &&
+                    Array.isArray(normalizedConfig.modules) &&
+                    normalizedConfig.modules.length > 0;
+
+                if (hasModules) {
+                    // 有模块数据，显示导入选项弹窗
+                    showImportOptionsDialog(file, normalizedConfig).then(configWithOptions => {
+                        resolve(configWithOptions);
+                    });
+                } else {
+                    // 没有模块数据，直接返回配置（默认不覆盖启用状态，因为没有模块需要处理）
+                    const configWithOptions = {
+                        ...normalizedConfig,
+                        importOptions: {
+                            overrideEnabled: false // 因为没有模块，所以不需要覆盖
+                        }
+                    };
                     resolve(configWithOptions);
-                });
+                    debugLog('导入的配置没有模块数据，跳过导入选项弹窗');
+                }
 
             } catch (error) {
                 errorLog('解析JSON文件失败:', error);
