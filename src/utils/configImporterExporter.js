@@ -425,11 +425,11 @@ export function showExportOptionsDialog() {
                         <div class="export-options-group">
                             <label class="export-option" style="display: flex; align-items: center; gap: 8px;">
                                 <input type="checkbox" id="export-settings" checked>
-                                <span>导出设置</span>
+                                <span>设置配置</span>
                             </label>
                             <label class="export-option" style="display: flex; align-items: center; gap: 8px;">
                                 <input type="checkbox" id="export-module-config" checked>
-                                <span>导出模块配置</span>
+                                <span>模块配置</span>
                             </label>
                         </div>
                     </div>

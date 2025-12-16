@@ -89,14 +89,14 @@ export class ExtractModuleController {
                     // 添加模块到下拉框（向后兼容）
                     moduleSelect.append($('<option>', {
                         value: module.name,
-                        text: module.name
+                        text: module.displayName
                     }));
 
                     // 添加模块到复选框组（移动友好）
                     const checkboxItem = $(`
                         <div class="module-checkbox-item">
                             <input type="checkbox" id="module-checkbox-${module.name}" value="${module.name}" class="module-checkbox">
-                            <label for="module-checkbox-${module.name}" class="module-checkbox-label">${module.name}</label>
+                            <label for="module-checkbox-${module.name}" class="module-checkbox-label">${module.name}(${module.displayName})</label>
                         </div>
                     `);
                     moduleCheckboxContainer.append(checkboxItem);
