@@ -5,6 +5,7 @@ import { MODULE_CONFIG_TEMPLATE, validateConfig, normalizeConfig, CONFIG_CONSTAN
 import { default as configManager, CONTINUITY_CORE_IDENTIFIER, extensionName } from "../singleton/configManager.js";
 import { checkAndInitializeWorldBook } from "./worldBookUtils.js";
 import { registerContinuityRegexPattern } from "./regexUtils.js";
+import { updateMacroOptionsFromConfig } from "../modules/promptPreviewManager.js";
 
 /**
  * 处理导入配置的逻辑
@@ -376,6 +377,13 @@ export function bindSaveButtonEvent() {
                     registerContinuityRegexPattern();
                 } catch (error) {
                     errorLog('调用registerConfigRegexPatterns失败:', error);
+                }
+
+                // 调用更新宏选项列表方法
+                try {
+                    updateMacroOptionsFromConfig();
+                } catch (error) {
+                    errorLog('调用updateMacroOptionsFromConfig失败:', error);
                 }
             } else {
                 toastr.error('保存模块配置失败');

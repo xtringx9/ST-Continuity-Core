@@ -39,7 +39,7 @@ import {
     infoLog
 } from '../index.js';
 
-import { onButtonTypeChange } from './settingsManager.js';
+import { onButtonTypeChange, onBottomStylesChange } from './settingsManager.js';
 
 
 // 加载CSS文件
@@ -195,6 +195,7 @@ export async function openModuleConfigWindow() {
             $('#global-module-data-prompt-input').on('input', onModuleDataPromptChange);
             $('#global-container-styles-input').on('input', onContainerStylesChange);
             $('#global-external-styles-input').on('input', onExternalStylesChange);
+            $('#global-bottom-styles-input').on('input', onBottomStylesChange);
             $('#global-time-format-input').on('input', onTimeFormatChange);
 
             // 绑定设置区域折叠/展开事件
