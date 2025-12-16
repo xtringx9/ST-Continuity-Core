@@ -11,8 +11,9 @@ class ModuleCacheManager {
     }
 
     updateModuleCache(isForce) {
+        if (!chat || chat.length < 1) return;
         // debugLog("[Module Cache]updateModuleCache 开始执行, isForce: ", isForce);
-        const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
+        const isUserMessage = chat[chat.length - 1].is_user !== undefined ? chat[chat.length - 1].is_user : chat[chat.length - 1].role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
 
         const extractParams = {

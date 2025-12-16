@@ -36,49 +36,36 @@ const REGEX_PATTERNS = {
 export async function registerContinuityRegexPattern() {
     try {
         debugLog('[REGEX]开始注册Continuity正则模式');
-        // 确保Regex扩展设置已初始化
-        if (!extension_settings.regex) {
-            extension_settings.regex = [];
-        }
-
-        const scripts = extension_settings.regex;
-
-        // 调用单独的方法处理正则模式注册
-        let isChange = registerRegexPatterns(REGEX_PATTERNS.patterns, scripts);
-
 
         if (configManager.isLoaded) {
-            const scripts = extension_settings.regex;
-            isChange = isChange || registerConfigRegexPatterns(scripts);
+            await registerCallback();
         }
         else {
             configManager.registerLoadCallback(async () => {
-                const scripts = extension_settings.regex;
-                const isChange = registerConfigRegexPatterns(scripts);
-                if (isChange) {
-                    await saveScriptsByType(scripts, SCRIPT_TYPES.GLOBAL);
-
-                    if (eventSource && event_types) {
-                        eventSource.emit(event_types.CHAT_CHANGED);
-                        debugLog('[REGEX]已触发事件刷新Regex扩展UI');
-                    }
-                }
+                await registerCallback();
             });
-        }
-
-        // 如果有变化，保存并刷新Regex扩展UI
-        if (isChange) {
-            await saveScriptsByType(scripts, SCRIPT_TYPES.GLOBAL);
-
-            if (eventSource && event_types) {
-                eventSource.emit(event_types.CHAT_CHANGED);
-                debugLog('[REGEX]已触发事件刷新Regex扩展UI');
-            }
         }
 
     } catch (error) {
         errorLog('[REGEX]注册Continuity正则模式失败:', error);
         return null;
+    }
+}
+
+async function registerCallback() {
+    // 确保Regex扩展设置已初始化
+    if (!extension_settings.regex) {
+        extension_settings.regex = [];
+    }
+    const scripts = extension_settings.regex;
+    const isChange = registerConfigRegexPatterns(scripts, configManager.isExtensionEnabled());
+    if (isChange) {
+        await saveScriptsByType(scripts, SCRIPT_TYPES.GLOBAL);
+
+        if (eventSource && event_types) {
+            eventSource.emit(event_types.CHAT_CHANGED);
+            debugLog('[REGEX]已触发事件刷新Regex扩展UI');
+        }
     }
 }
 
@@ -135,7 +122,7 @@ function registerRegexPatterns(patterns, scripts) {
  * @param {Array} scripts - Regex扩展的脚本数组
  * @returns {boolean} 是否有变化
  */
-export function registerConfigRegexPatterns(scripts) {
+export function registerConfigRegexPatterns(scripts, isEnabled = true) {
     const entryCount = configManager.getGlobalSettings().contentRemainLayers || 9;
     let patterns = [];
     const pattern = {
@@ -171,25 +158,31 @@ export function registerConfigRegexPatterns(scripts) {
             return existingScriptNameWithoutVersion === scriptNameWithoutVersion;
         });
 
-        // debugLog('[REGEX]Continuity正则:', scripts);
-        if (existingPatternIndex === -1) {
-            // 添加新的正则模式
-            const regexPattern = {
-                id: uuidv4(),
-                ...patternConfig
-            };
-            scripts.push(regexPattern);
+        if (isEnabled) {
+            // debugLog('[REGEX]Continuity正则:', scripts);
+            if (existingPatternIndex === -1) {
+                // 添加新的正则模式
+                const regexPattern = {
+                    id: uuidv4(),
+                    ...patternConfig
+                };
+                scripts.push(regexPattern);
+                isChange = true;
+                infoLog(`[REGEX]配置正则模式"${scriptName}"已成功注册到Regex扩展`);
+            } else if (scripts[existingPatternIndex].scriptName !== scriptName || scriptName === configPatternScriptName) {
+                // 更新现有的模式，保留原有的id
+                const existingPattern = scripts[existingPatternIndex];
+                scripts[existingPatternIndex] = {
+                    ...patternConfig,
+                    id: existingPattern.id // 保留原有的id
+                };
+                isChange = true;
+                debugLog(`[REGEX]配置正则模式"${scriptName}"已更新，保留原有ID: ${existingPattern.id}`);
+            }
+        }
+        else if (existingPatternIndex !== -1 && scriptName === configPatternScriptName) {
+            scripts[existingPatternIndex].disabled = !isEnabled;
             isChange = true;
-            infoLog(`[REGEX]配置正则模式"${scriptName}"已成功注册到Regex扩展`);
-        } else if (scripts[existingPatternIndex].scriptName !== scriptName || scriptName === configPatternScriptName) {
-            // 更新现有的模式，保留原有的id
-            const existingPattern = scripts[existingPatternIndex];
-            scripts[existingPatternIndex] = {
-                ...patternConfig,
-                id: existingPattern.id // 保留原有的id
-            };
-            isChange = true;
-            debugLog(`[REGEX]配置正则模式"${scriptName}"已更新，保留原有ID: ${existingPattern.id}`);
         }
     }
 

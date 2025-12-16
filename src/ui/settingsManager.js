@@ -7,6 +7,14 @@ import {
     removeUIfromContextBottom,
 } from "../index.js";
 
+import {
+    addWorldBookToGlobalSettings,
+    removeWorldBookFromGlobalSettings,
+    WORLD_BOOK_CONSTANTS
+} from "../utils/worldBookUtils.js"
+
+import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
+
 /**
  * 设置扩展启用状态（全局函数）
  * @param {boolean} enabled 是否启用
@@ -84,7 +92,8 @@ function enableContinuityCore() {
                 infoLog("已自动加载模块配置到DOM，共" + config.modules.length + "个模块");
             }
         }
-
+        addWorldBookToGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
+        registerContinuityRegexPattern();
         infoLog("♥️ Continuity Core 已启用，功能已激活");
     } catch (error) {
         errorLog("启用Continuity Core失败:", error);
@@ -106,6 +115,8 @@ function disableContinuityCore() {
 
         // 主动移除已插入的UI
         removeUIfromContextBottom();
+        removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
+        registerContinuityRegexPattern();
         infoLog("已移除上下文底部UI");
 
         infoLog("♥️ Continuity Core 已禁用，功能已停止（事件监听器仍存在）");
