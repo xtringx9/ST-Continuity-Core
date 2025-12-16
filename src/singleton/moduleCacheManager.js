@@ -1,4 +1,4 @@
-import { chat, processModuleData, chat_metadata, getContext, extension_settings, saveSettingsDebounced, infoLog, errorLog, debugLog } from "../index.js";
+import { configManager, chat, processModuleData, chat_metadata, getContext, extension_settings, saveSettingsDebounced, infoLog, errorLog, debugLog } from "../index.js";
 class ModuleCacheManager {
     constructor() {
         // 使用嵌套Map结构存储缓存数据
@@ -11,6 +11,7 @@ class ModuleCacheManager {
     }
 
     updateModuleCache(isForce) {
+        if (!configManager.isLoaded) return;
         if (!chat || chat.length < 1) return;
         // debugLog("[Module Cache]updateModuleCache 开始执行, isForce: ", isForce);
         const isUserMessage = chat[chat.length - 1].is_user !== undefined ? chat[chat.length - 1].is_user : chat[chat.length - 1].role === 'user';
