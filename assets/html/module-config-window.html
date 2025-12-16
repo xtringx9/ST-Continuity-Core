@@ -214,27 +214,27 @@
                 <!-- 外部样式设置 -->
                 <div class="setting-group">
                     <div class="setting-item">
-                        <label for="global-external-styles-input">外部自定样式</label>
+                        <label for="global-external-styles-input">消息内外部样式</label>
                         <textarea id="global-external-styles-input" class="prompt-textarea"
-                            placeholder="输入CSS/HTML代码，支持多行"></textarea>
+                            placeholder="使用${customStyles}注入模块样式"></textarea>
                     </div>
                 </div>
 
                 <!-- 容器样式设置 -->
                 <div class="setting-group">
                     <div class="setting-item">
-                        <label for="global-container-styles-input">消息内自定样式</label>
+                        <label for="global-container-styles-input">消息内容器样式</label>
                         <textarea id="global-container-styles-input" class="prompt-textarea"
-                            placeholder="输入CSS/HTML代码，支持多行"></textarea>
+                            placeholder="使用${customStyles}注入模块样式"></textarea>
                     </div>
                 </div>
 
                 <!-- 容器样式设置 -->
                 <div class="setting-group">
                     <div class="setting-item">
-                        <label for="global-bottom-styles-input">底部自定样式</label>
+                        <label for="global-bottom-styles-input">底部容器样式</label>
                         <textarea id="global-bottom-styles-input" class="prompt-textarea"
-                            placeholder="输入CSS/HTML代码，支持多行"></textarea>
+                            placeholder="使用${customStyles}注入模块样式"></textarea>
                     </div>
                 </div>
 
@@ -357,16 +357,16 @@
                         <!-- 第二行：自定样式输入框 -->
                         <div class="module-settings-inline" style="width: 100%; display: none;">
                             <div class="module-setting-item" style="width: 100%;">
-                                <label>容器样式</label>
-                                <textarea class="module-container-styles"
-                                    placeholder="输入CSS/HTML代码，支持多行，使用${customStyles}引用自定样式"
+                                <label>底部容器样式</label>
+                                <textarea class="module-container-styles" placeholder="使用${customStyles}注入每条模块样式"
                                     style="height: 32px;"></textarea>
                             </div>
                         </div>
                         <div class="module-settings-inline" style="width: 100%; display: none;">
                             <div class="module-setting-item" style="width: 100%;">
-                                <label>自定样式</label>
-                                <textarea class="module-custom-styles" placeholder="输入CSS/HTML代码，支持多行"
+                                <label>每条模块样式</label>
+                                <textarea class="module-custom-styles"
+                                    placeholder="使用${变量名.value}注入变量值,${变量名.customStyles}注入变量样式"
                                     style="height: 32px;"></textarea>
                             </div>
                         </div>
