@@ -469,13 +469,14 @@ export function showExportOptionsDialog() {
                                 <label>选择要导出的模块：</label>
                                 <div class="module-selector-actions">
                                     <button type="button" id="select-all-modules" class="btn-tiny">全选</button>
+                                    <button type="button" id="select-enabled-modules" class="btn-tiny">仅启用</button>
                                     <button type="button" id="deselect-all-modules" class="btn-tiny">清空</button>
                                 </div>
                             </div>
                             <div id="module-checkbox-container" class="module-checkbox-group">
                                 ${modulesData.map(module => `
                                     <div class="module-checkbox-item">
-                                        <input type="checkbox" id="export-module-${module.name}" value="${module.name}" class="module-checkbox" checked>
+                                        <input type="checkbox" id="export-module-${module.name}" value="${module.name}" class="module-checkbox" ${module.enabled ? 'checked' : ''}>
                                         <label for="export-module-${module.name}" class="module-checkbox-label">${module.name} (${module.displayName})</label>
                                     </div>
                                 `).join('')}
@@ -519,6 +520,15 @@ export function showExportOptionsDialog() {
         // 绑定清空按钮事件
         exportOptionsDialog.find('#deselect-all-modules').on('click', function () {
             exportOptionsDialog.find('.module-checkbox').prop('checked', false);
+        });
+
+        // 绑定仅启用按钮事件
+        exportOptionsDialog.find('#select-enabled-modules').on('click', function () {
+            exportOptionsDialog.find('.module-checkbox').each(function () {
+                const moduleName = $(this).val();
+                const module = modulesData.find(m => m.name === moduleName);
+                $(this).prop('checked', module && module.enabled);
+            });
         });
 
         // 绑定确定按钮事件
