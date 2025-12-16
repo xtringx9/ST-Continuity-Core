@@ -515,7 +515,6 @@ class ConfigManager {
      * @returns {string} 配置类型描述
      */
     generateConfigType(exportOptions, currentModules) {
-        infoLog('generateConfigType', exportOptions, currentModules);
         const totalModules = currentModules ? currentModules.length : 0;
 
         if (exportOptions.exportSettings && exportOptions.exportModuleConfig) {
@@ -639,6 +638,9 @@ class ConfigManager {
     processImportConfig(configWithOptions) {
         if (!configWithOptions) return null;
 
+        // 根据用户的选择决定是否覆盖模块和变量启用状态
+        const overrideEnabled = configWithOptions.importOptions?.overrideEnabled ?? true;
+
         // 对导入的配置进行规范化处理
         const normalizedConfig = normalizeConfig(configWithOptions);
         debugLog('导入配置已规范化:', normalizedConfig);
@@ -646,9 +648,6 @@ class ConfigManager {
         // 获取当前配置作为基础
         const currentConfig = this.getModuleConfig();
         if (!currentConfig) return normalizedConfig;
-
-        // 根据用户的选择决定是否覆盖模块和变量启用状态
-        const overrideEnabled = normalizedConfig.importOptions?.overrideEnabled ?? true;
 
         // 深拷贝当前配置作为基础
         let finalConfig = JSON.parse(JSON.stringify(currentConfig));
@@ -658,21 +657,27 @@ class ConfigManager {
             configWithOptions.globalSettings !== null &&
             Object.keys(configWithOptions.globalSettings).length > 0) {
             finalConfig.globalSettings = normalizedConfig.globalSettings;
-            infoLog("合并 globalSettings", normalizedConfig);
+            // infoLog("合并 globalSettings", normalizedConfig);
         }
 
         // 如果导入了modules且modules数组不为空，则合并modules
         if (configWithOptions.modules !== undefined &&
             Array.isArray(configWithOptions.modules) &&
             configWithOptions.modules.length > 0) {
+
+            // 使用统一的合并方法
+            const mergeOptions = {
+                overrideEnabled: overrideEnabled,
+                mergeAllFields: false, // 默认只合并启用状态
+                preserveExisting: true // 保留现有模块
+            };
+
+            const mergedConfig = this.mergeModules(normalizedConfig, mergeOptions);
+            finalConfig.modules = mergedConfig.modules;
+
             if (overrideEnabled) {
-                // 直接使用导入的modules
-                finalConfig.modules = normalizedConfig.modules;
                 debugLog("直接使用导入的 modules（覆盖启用状态）");
             } else {
-                // 合并启用状态
-                const mergedModules = this.mergeEnabledStates(normalizedConfig);
-                finalConfig.modules = mergedModules.modules;
                 debugLog("合并 modules 的启用状态");
             }
         }
@@ -692,16 +697,25 @@ class ConfigManager {
     }
 
     /**
-     * 合并导入配置的启用状态到现有配置
+     * 统一的模块合并方法
      * @param {Object} importConfig 导入的配置
+     * @param {Object} mergeOptions 合并选项
      * @returns {Object} 合并后的配置
      */
-    mergeEnabledStates(importConfig) {
+    mergeModules(importConfig, mergeOptions = {}) {
         if (!importConfig || !importConfig.modules) return importConfig;
 
         // 获取现有配置
         const currentConfig = this.getModuleConfig();
         if (!currentConfig || !currentConfig.modules) return importConfig;
+
+        // 合并选项默认值
+        // const options = {
+        //     overrideEnabled: mergeOptions.overrideEnabled ?? false, // 是否覆盖启用状态
+        //     mergeAllFields: mergeOptions.mergeAllFields ?? false,   // 是否合并所有字段
+        //     preserveExisting: mergeOptions.preserveExisting ?? true, // 是否保留现有模块
+        //     ...mergeOptions
+        // };
 
         // 创建模块名称到现有模块的映射
         const currentModuleMap = new Map();
@@ -711,67 +725,145 @@ class ConfigManager {
             }
         });
 
-        // 深拷贝导入配置
-        const mergedConfig = JSON.parse(JSON.stringify(importConfig));
+        // 深拷贝当前配置作为基础
+        const mergedConfig = JSON.parse(JSON.stringify(currentConfig));
 
-        // 对导入的每个模块进行处理
+        // 创建模块名称到合并模块的映射，用于快速查找
+        const mergedModuleMap = new Map();
         mergedConfig.modules.forEach(module => {
-            if (!module.name) return;
-
-            if (currentModuleMap.has(module.name)) {
-                // 情况1：模块在当前配置中存在 - 合并启用状态
-                const currentModule = currentModuleMap.get(module.name);
-
-                // 合并模块的启用状态
-                module.enabled = currentModule.enabled !== false;
-
-                // 处理变量的不一致情况
-                this.mergeModuleVariables(module, currentModule);
-            } else {
-                // 情况2：模块在当前配置中不存在 - 保持导入的启用状态
-                // 这是新模块，不需要修改启用状态
-                debugLog(`新模块 "${module.name}" 将保持导入的启用状态: ${module.enabled}`);
+            if (module.name) {
+                mergedModuleMap.set(module.name, module);
             }
         });
 
-        // 情况3：当前配置中有但导入配置中没有的模块 - 不需要处理，因为只处理导入的配置
+        // 对导入的每个模块进行处理
+        importConfig.modules.forEach(importModule => {
+            if (!importModule.name) return;
+
+            if (mergedModuleMap.has(importModule.name)) {
+                // 情况1：模块在当前配置中存在 - 合并配置
+                const existingModule = mergedModuleMap.get(importModule.name);
+                this.mergeSingleModule(existingModule, importModule, mergeOptions);
+            } else {
+                // 情况2：模块在当前配置中不存在 - 添加新模块
+                if (mergeOptions.preserveExisting) {
+                    mergedConfig.modules.push(JSON.parse(JSON.stringify(importModule)));
+                    mergedModuleMap.set(importModule.name, importModule);
+                }
+            }
+        });
 
         return mergedConfig;
     }
 
     /**
-     * 合并模块中的变量启用状态，处理变量不一致的情况
-     * @param {Object} importModule 导入的模块
-     * @param {Object} currentModule 当前配置中的模块
+     * 合并单个模块的配置
+     * @param {Object} targetModule 目标模块（将被修改）
+     * @param {Object} sourceModule 源模块
+     * @param {Object} options 合并选项
      */
-    mergeModuleVariables(importModule, currentModule) {
-        if (!importModule.variables || !Array.isArray(importModule.variables)) return;
-        if (!currentModule.variables || !Array.isArray(currentModule.variables)) return;
+    mergeSingleModule(targetModule, sourceModule, options) {
+        // infoLog(`开始合并模块 ${targetModule.name}`, options);
+        // 如果不覆盖启用状态，先处理启用状态的合并
+        if (!options.overrideEnabled) {
+            // infoLog(`合并模块 ${targetModule.name} 的启用状态: targetModule:${targetModule.enabled} , sourceModule:${sourceModule.enabled}`);
+            // 如果源模块有启用状态，用目标模块的状态覆盖
+            if (sourceModule.enabled !== undefined) {
+                sourceModule.enabled = targetModule.enabled;
+            }
 
-        // 创建变量名称到现有变量的映射
-        const currentVariableMap = new Map();
-        currentModule.variables.forEach(variable => {
+            // 处理变量启用状态的合并
+            this.preserveVariableEnabledStates(targetModule, sourceModule);
+        }
+
+        // 直接使用导入的模块配置覆盖目标模块
+        Object.assign(targetModule, sourceModule);
+    }
+
+    // /**
+    //  * 深度合并模块配置
+    //  * @param {Object} target 目标对象
+    //  * @param {Object} source 源对象
+    //  * @param {Object} options 合并选项
+    //  */
+    // deepMergeModule(target, source, options) {
+    //     for (const key in source) {
+    //         if (source.hasOwnProperty(key)) {
+    //             if (key === 'enabled' && !options.overrideEnabled) {
+    //                 // 跳过启用状态，除非明确要求覆盖
+    //                 continue;
+    //             }
+
+    //             if (key === 'variables' && Array.isArray(source[key])) {
+    //                 // 特殊处理变量数组
+    //                 this.mergeModuleVariables(target, source, options);
+    //             } else if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+    //                 // 递归合并对象
+    //                 if (!target[key]) target[key] = {};
+    //                 this.deepMergeModule(target[key], source[key], options);
+    //             } else {
+    //                 // 直接赋值
+    //                 target[key] = source[key];
+    //             }
+    //         }
+    //     }
+    // }
+
+    /**
+     * 在合并前保留变量启用状态
+     * @param {Object} targetModule 目标模块
+     * @param {Object} sourceModule 源模块
+     */
+    preserveVariableEnabledStates(targetModule, sourceModule) {
+        if (!sourceModule.variables || !Array.isArray(sourceModule.variables)) return;
+        if (!targetModule.variables || !Array.isArray(targetModule.variables)) return;
+
+        // 创建目标变量名称到变量的映射
+        const targetVariableMap = new Map();
+        targetModule.variables.forEach(variable => {
             if (variable.name) {
-                currentVariableMap.set(variable.name, variable);
+                targetVariableMap.set(variable.name, variable);
             }
         });
 
-        // 对导入模块中的每个变量进行处理
-        importModule.variables.forEach(variable => {
-            if (!variable.name) return;
+        // 对源模块中的每个变量，如果目标中存在，则保留启用状态
+        sourceModule.variables.forEach(sourceVariable => {
+            if (!sourceVariable.name) return;
 
-            if (currentVariableMap.has(variable.name)) {
-                // 情况1：变量在当前模块中存在 - 合并启用状态
-                const currentVariable = currentVariableMap.get(variable.name);
-                variable.enabled = currentVariable.enabled !== false;
-            } else {
-                // 情况2：变量在当前模块中不存在 - 保持导入的启用状态
-                // 这是新变量，不需要修改启用状态
-                debugLog(`新变量 "${variable.name}" 在模块 "${importModule.name}" 中将保持导入的启用状态: ${variable.enabled}`);
+            if (targetVariableMap.has(sourceVariable.name)) {
+                const targetVariable = targetVariableMap.get(sourceVariable.name);
+                // 用目标变量的启用状态覆盖源变量
+                sourceVariable.enabled = targetVariable.enabled;
             }
         });
+    }
 
-        // 情况3：当前模块中有但导入模块中没有的变量 - 不需要处理，因为只处理导入的变量
+
+
+    /**
+     * 深度合并变量配置
+     * @param {Object} target 目标变量
+     * @param {Object} source 源变量
+     * @param {Object} options 合并选项
+     */
+    deepMergeVariable(target, source, options) {
+        for (const key in source) {
+            if (source.hasOwnProperty(key)) {
+                if (key === 'enabled' && !options.overrideEnabled) {
+                    // 跳过启用状态，除非明确要求覆盖
+                    continue;
+                }
+
+                if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    // 递归合并对象
+                    if (!target[key]) target[key] = {};
+                    this.deepMergeVariable(target[key], source[key], options);
+                } else {
+                    // 直接赋值
+                    target[key] = source[key];
+                }
+            }
+        }
     }
 
 
