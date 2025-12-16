@@ -1,7 +1,7 @@
 // 统一配置管理类 - 实现配置的内存缓存、自动加载和保存
 import { extension_settings, saveSettingsDebounced, infoLog, errorLog, debugLog } from "../index.js";
 import { IdentifierParser } from '../utils/identifierParser.js';
-import { normalizeConfig } from '../modules/moduleConfigTemplate.js';
+import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../modules/moduleConfigTemplate.js';
 
 // 扩展基本信息
 export const extensionName = "ST-Continuity-Core";
@@ -10,8 +10,9 @@ export const extensionFolderPath = `scripts/extensions/third-party/${extensionNa
 // 默认设置，包含全局开关
 export const EXTENSION_CONFIG_KEY = 'extension_config';
 export const DEFAULT_EXTENSION_CONFIG = {
+    version: "1.0.0",
     enabled: true, // 全局开关默认开启
-    backendUrl: "", // 后端服务器地址 http://192.168.0.119:8888/simple-process
+    backendUrl: "", // 后端服务器地址
     debugLogs: false, // 调试日志开关，默认关闭
     autoInject: false, // 自动注入开关，默认开启
     buttonType: "embedded", // 按钮类型，默认嵌入按钮
@@ -21,22 +22,6 @@ export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";
 
 // 配置在扩展设置中的键名
 const MODULE_CONFIG_KEY = 'module_config';
-
-// 默认配置结构
-const DEFAULT_MODULE_CONFIG = {
-    version: '1.1.0',
-    lastUpdated: new Date().toISOString(),
-    globalSettings: {
-        prompt: '',
-        orderPrompt: '',
-        usagePrompt: '',
-        moduleDataPrompt: '',
-        containerStyles: '',
-        externalStyles: '',
-        timeFormat: '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}'
-    },
-    modules: [],
-};
 
 class ConfigManager {
     constructor() {
@@ -72,30 +57,30 @@ class ConfigManager {
                 return;
             }
 
-            // 检查是否有旧的配置格式（兼容性处理）
-            if (extension_settings[extensionName] && extension_settings[extensionName].modules) {
-                debugLog('检测到旧的配置格式，进行迁移');
-                this.moduleConfig = {
-                    modules: extension_settings[extensionName].modules || [],
-                    globalSettings: extension_settings[extensionName].globalSettings || DEFAULT_MODULE_CONFIG.globalSettings,
-                    lastUpdated: new Date().toISOString(),
-                    version: DEFAULT_MODULE_CONFIG.version
-                };
-                // 保存新格式
-                this.saveModuleConfigNow();
-                this.isModuleConfigLoaded = true;
-                debugLog('旧配置已迁移到新格式:', this.moduleConfig);
-                return;
-            }
+            // // 检查是否有旧的配置格式（兼容性处理）
+            // if (extension_settings[extensionName] && extension_settings[extensionName].modules) {
+            //     debugLog('检测到旧的配置格式，进行迁移');
+            //     this.moduleConfig = {
+            //         modules: extension_settings[extensionName].modules || [],
+            //         globalSettings: extension_settings[extensionName].globalSettings || DEFAULT_CONFIG_VALUES.globalSettings,
+            //         lastUpdated: new Date().toISOString(),
+            //         version: DEFAULT_CONFIG_VALUES.version
+            //     };
+            //     // 保存新格式
+            //     this.saveModuleConfigNow();
+            //     this.isModuleConfigLoaded = true;
+            //     debugLog('旧配置已迁移到新格式:', this.moduleConfig);
+            //     return;
+            // }
 
             // 如果没有配置，使用默认配置
-            this.moduleConfig = { ...DEFAULT_MODULE_CONFIG };
+            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES };
             this.isModuleConfigLoaded = true;
             debugLog('使用默认配置初始化内存缓存');
         } catch (error) {
             errorLog('加载模块配置失败:', error);
             // 加载失败时使用默认配置
-            this.moduleConfig = { ...DEFAULT_MODULE_CONFIG };
+            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES };
             this.isModuleConfigLoaded = true;
         }
     }
@@ -170,6 +155,7 @@ class ConfigManager {
             // 更新内存缓存
             this.extensionConfig = {
                 ...newConfig,
+                version: DEFAULT_EXTENSION_CONFIG.version,
                 lastUpdated: new Date().toISOString()
             };
 
@@ -345,7 +331,10 @@ class ConfigManager {
     setModules(modules) {
         const config = this.getModuleConfig();
         config.modules = modules;
-        config.lastUpdated = new Date().toISOString();
+        if (!config.metadata) {
+            config.metadata = {};
+        }
+        config.metadata.lastUpdated = new Date().toISOString();
         this.scheduleAutoSave();
         debugLog('模块配置已更新到内存缓存');
     }
@@ -414,7 +403,7 @@ class ConfigManager {
      */
     getGlobalSettings() {
         const config = this.getModuleConfig();
-        return config.globalSettings || DEFAULT_MODULE_CONFIG.globalSettings;
+        return config.globalSettings || DEFAULT_CONFIG_VALUES.globalSettings;
     }
 
     /**
@@ -427,7 +416,7 @@ class ConfigManager {
             ...config.globalSettings,
             ...globalSettings
         };
-        config.lastUpdated = new Date().toISOString();
+        config.metadata.lastUpdated = new Date().toISOString();
         this.scheduleAutoSave();
         debugLog('全局设置已更新到内存缓存');
     }
@@ -518,23 +507,43 @@ class ConfigManager {
     /**
  * 备份模块配置到本地文件
  */
-    backupModuleConfig() {
+    backupModuleConfig(exportOptions) {
         try {
             // 获取当前的完整配置（包括globalSettings）
             const currentConfig = normalizeConfig(this.getModuleConfig());
 
-            // const config = {
-            //     modules: currentConfig.modules,
-            //     globalSettings: currentConfig.globalSettings,
-            //     backupDate: new Date().toISOString(),
-            //     version: '1.1.0',
-            //     source: 'ST-Continuity-Core'
-            // };
+            let exportConfig = {};
 
-            const dataStr = JSON.stringify(currentConfig, null, 2);
+            exportConfig.metadata = {
+                ...currentConfig.metadata,
+                exportOptions: exportOptions
+            };
+
+            if (exportOptions.exportSettings) {
+                exportConfig.globalSettings = currentConfig.globalSettings;
+            }
+
+            if (exportOptions.exportModuleConfig) {
+                exportConfig.modules = currentConfig.modules;
+            }
+
+            const dataStr = JSON.stringify(exportConfig, null, 2);
             const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
 
-            const exportFileDefaultName = `continuity-modules-backup-${new Date().toISOString().split('T')[0]}.json`;
+            // 根据导出选项生成描述性文件名
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -1); // 保留完整的时分秒
+            let configType = '';
+
+            if (exportOptions.exportSettings && exportOptions.exportModuleConfig) {
+                configType = 'full-config';
+            } else if (exportOptions.exportSettings) {
+                configType = 'settings-only';
+            } else if (exportOptions.exportModuleConfig) {
+                configType = 'modules-only';
+            }
+
+            const exportFileDefaultName = `${CONTINUITY_CORE_IDENTIFIER}${configType}_${timestamp}.json`;
+
 
             const linkElement = document.createElement('a');
             linkElement.setAttribute('href', dataUri);
@@ -548,6 +557,141 @@ class ConfigManager {
             errorLog('备份模块配置失败:', error);
             return false;
         }
+    }
+
+    /**
+     * 根据导入选项处理配置合并
+     * @param {Object} configWithOptions 包含导入选项的配置
+     * @returns {Object} 处理后的最终配置
+     */
+    processImportConfig(configWithOptions) {
+        if (!configWithOptions) return null;
+
+        // 获取当前配置作为基础
+        const currentConfig = this.getModuleConfig();
+        if (!currentConfig) return configWithOptions;
+
+        // 根据用户的选择决定是否覆盖模块和变量启用状态
+        const overrideEnabled = configWithOptions.importOptions?.overrideEnabled ?? true;
+
+        // 深拷贝当前配置作为基础
+        let finalConfig = JSON.parse(JSON.stringify(currentConfig));
+
+        // 如果导入了globalSettings，则合并globalSettings
+        if (configWithOptions.globalSettings !== undefined) {
+            finalConfig.globalSettings = configWithOptions.globalSettings;
+            debugLog("合并 globalSettings");
+        }
+
+        // 如果导入了modules且modules数组不为空，则合并modules
+        if (configWithOptions.modules !== undefined &&
+            Array.isArray(configWithOptions.modules) &&
+            configWithOptions.modules.length > 0) {
+            if (overrideEnabled) {
+                // 直接使用导入的modules
+                finalConfig.modules = configWithOptions.modules;
+                debugLog("直接使用导入的 modules（覆盖启用状态）");
+            } else {
+                // 合并启用状态
+                const mergedModules = this.mergeEnabledStates(configWithOptions);
+                finalConfig.modules = mergedModules.modules;
+                debugLog("合并 modules 的启用状态");
+            }
+        }
+
+        // 如果导入了metadata，则合并metadata
+        if (configWithOptions.metadata !== undefined) {
+            finalConfig.metadata = configWithOptions.metadata;
+            debugLog("合并 metadata");
+        }
+
+        // 保留导入选项
+        finalConfig.importOptions = configWithOptions.importOptions;
+
+        return finalConfig;
+    }
+
+    /**
+     * 合并导入配置的启用状态到现有配置
+     * @param {Object} importConfig 导入的配置
+     * @returns {Object} 合并后的配置
+     */
+    mergeEnabledStates(importConfig) {
+        if (!importConfig || !importConfig.modules) return importConfig;
+
+        // 获取现有配置
+        const currentConfig = this.getModuleConfig();
+        if (!currentConfig || !currentConfig.modules) return importConfig;
+
+        // 创建模块名称到现有模块的映射
+        const currentModuleMap = new Map();
+        currentConfig.modules.forEach(module => {
+            if (module.name) {
+                currentModuleMap.set(module.name, module);
+            }
+        });
+
+        // 深拷贝导入配置
+        const mergedConfig = JSON.parse(JSON.stringify(importConfig));
+
+        // 对导入的每个模块进行处理
+        mergedConfig.modules.forEach(module => {
+            if (!module.name) return;
+
+            if (currentModuleMap.has(module.name)) {
+                // 情况1：模块在当前配置中存在 - 合并启用状态
+                const currentModule = currentModuleMap.get(module.name);
+
+                // 合并模块的启用状态
+                module.enabled = currentModule.enabled !== false;
+
+                // 处理变量的不一致情况
+                this.mergeModuleVariables(module, currentModule);
+            } else {
+                // 情况2：模块在当前配置中不存在 - 保持导入的启用状态
+                // 这是新模块，不需要修改启用状态
+                debugLog(`新模块 "${module.name}" 将保持导入的启用状态: ${module.enabled}`);
+            }
+        });
+
+        // 情况3：当前配置中有但导入配置中没有的模块 - 不需要处理，因为只处理导入的配置
+
+        return mergedConfig;
+    }
+
+    /**
+     * 合并模块中的变量启用状态，处理变量不一致的情况
+     * @param {Object} importModule 导入的模块
+     * @param {Object} currentModule 当前配置中的模块
+     */
+    mergeModuleVariables(importModule, currentModule) {
+        if (!importModule.variables || !Array.isArray(importModule.variables)) return;
+        if (!currentModule.variables || !Array.isArray(currentModule.variables)) return;
+
+        // 创建变量名称到现有变量的映射
+        const currentVariableMap = new Map();
+        currentModule.variables.forEach(variable => {
+            if (variable.name) {
+                currentVariableMap.set(variable.name, variable);
+            }
+        });
+
+        // 对导入模块中的每个变量进行处理
+        importModule.variables.forEach(variable => {
+            if (!variable.name) return;
+
+            if (currentVariableMap.has(variable.name)) {
+                // 情况1：变量在当前模块中存在 - 合并启用状态
+                const currentVariable = currentVariableMap.get(variable.name);
+                variable.enabled = currentVariable.enabled !== false;
+            } else {
+                // 情况2：变量在当前模块中不存在 - 保持导入的启用状态
+                // 这是新变量，不需要修改启用状态
+                debugLog(`新变量 "${variable.name}" 在模块 "${importModule.name}" 中将保持导入的启用状态: ${variable.enabled}`);
+            }
+        });
+
+        // 情况3：当前模块中有但导入模块中没有的变量 - 不需要处理，因为只处理导入的变量
     }
 
 
@@ -606,7 +750,7 @@ class ConfigManager {
      * 重置配置为默认值
      */
     resetModuleConfigToDefault() {
-        this.moduleConfig = { ...DEFAULT_MODULE_CONFIG };
+        this.moduleConfig = { ...DEFAULT_CONFIG_VALUES };
         this.scheduleAutoSave();
         infoLog('配置已重置为默认值');
     }
@@ -623,8 +767,8 @@ class ConfigManager {
         return {
             totalModules: modules.length,
             enabledModules: enabledModules,
-            lastUpdated: config.lastUpdated,
-            version: config.version || DEFAULT_MODULE_CONFIG.version
+            lastUpdated: config.metadata?.lastUpdated || config.lastUpdated,
+            version: config.metadata?.version || config.version || DEFAULT_CONFIG_VALUES.metadata.version
         };
     }
 

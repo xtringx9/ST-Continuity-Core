@@ -3,7 +3,7 @@ import { extensionFolderPath, debugLog, errorLog, infoLog, initParseModule } fro
 import { getVariableItemTemplate } from "./templateManager.js";
 import { updateModulePreview, restoreModuleCollapsedState, restoreCustomStylesVisibleState } from "./moduleManager.js";
 import { updateVariableOrderNumbers, bindVariableEvents } from "./variableManager.js";
-import configManager from "../singleton/configManager.js";
+import { default as configManager } from "../singleton/configManager.js";
 
 // 声明外部函数（在uiManager.js中定义）
 let bindModuleEvents = null;
@@ -62,99 +62,66 @@ export function loadModuleConfig() {
     }
 }
 
-/**
- * 导出模块配置为JSON文件
- */
-export function exportModuleConfig() {
-    try {
-        // 让backupModuleConfig使用完整配置
-        const success = configManager.backupModuleConfig();
-        if (success) {
-            toastr.success('模块配置已导出');
-            infoLog('模块配置已导出为JSON文件');
-        } else {
-            errorLog('导出模块配置失败');
-        }
-    } catch (error) {
-        toastr.error('模块配置导出失败');
-        errorLog('导出模块配置失败:', error);
+// /**
+//  * 导入模块配置从JSON文件
+//  * @param {File} file 选择的JSON文件
+//  * @returns {Promise<Object|null>} 解析后的配置对象或null
+//  */
+// export function importModuleConfig(file) {
+//     return new Promise((resolve) => {
+//         if (!file) {
+//             resolve(null);
+//             return;
+//         }
 
-        // // 降级处理：使用旧的导出方式
-        // const config = configManager.getModuleConfig();
-        // const dataStr = JSON.stringify(config, null, 2);
-        // const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+//         if (file.type && file.type !== 'application/json') {
+//             errorLog('文件类型错误，需要JSON文件');
+//             toastr.error('文件类型错误，请选择JSON文件');
+//             resolve(null);
+//             return;
+//         }
 
-        // const exportFileDefaultName = `continuity-modules-${new Date().toISOString().split('T')[0]}.json`;
+//         const reader = new FileReader();
+//         reader.onload = (e) => {
+//             try {
+//                 const result = e.target.result;
+//                 if (typeof result !== 'string') {
+//                     throw new Error('文件内容不是文本格式');
+//                 }
+//                 const config = JSON.parse(result);
+//                 if (!config.modules || !Array.isArray(config.modules)) {
+//                     throw new Error('无效的配置格式，缺少modules数组');
+//                 }
 
-        // const linkElement = document.createElement('a');
-        // linkElement.setAttribute('href', dataUri);
-        // linkElement.setAttribute('download', exportFileDefaultName);
-        // linkElement.click();
+//                 debugLog('成功导入模块配置:', config);
 
-        // infoLog('模块配置已导出为JSON文件（降级方式）');
-    }
-}
+//                 // 保存到配置管理器，包括globalSettings
+//                 configManager.setModules(config.modules);
+//                 if (config.globalSettings) {
+//                     configManager.setGlobalSettings(config.globalSettings);
+//                 }
 
-/**
- * 导入模块配置从JSON文件
- * @param {File} file 选择的JSON文件
- * @returns {Promise<Object|null>} 解析后的配置对象或null
- */
-export function importModuleConfig(file) {
-    return new Promise((resolve) => {
-        if (!file) {
-            resolve(null);
-            return;
-        }
-
-        if (file.type && file.type !== 'application/json') {
-            errorLog('文件类型错误，需要JSON文件');
-            toastr.error('文件类型错误，请选择JSON文件');
-            resolve(null);
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const result = e.target.result;
-                if (typeof result !== 'string') {
-                    throw new Error('文件内容不是文本格式');
-                }
-                const config = JSON.parse(result);
-                if (!config.modules || !Array.isArray(config.modules)) {
-                    throw new Error('无效的配置格式，缺少modules数组');
-                }
-
-                debugLog('成功导入模块配置:', config);
-
-                // 保存到配置管理器，包括globalSettings
-                configManager.setModules(config.modules);
-                if (config.globalSettings) {
-                    configManager.setGlobalSettings(config.globalSettings);
-                }
-
-                // 立即保存
-                if (configManager.saveModuleConfigNow()) {
-                    infoLog('导入的模块配置已保存到SillyTavern扩展设置');
-                    resolve(config);
-                } else {
-                    throw new Error('保存导入的配置失败');
-                }
-            } catch (error) {
-                errorLog('解析JSON文件失败:', error);
-                toastr.error('解析JSON文件失败，请检查文件格式');
-                resolve(null);
-            }
-        };
-        reader.onerror = () => {
-            errorLog('读取文件失败');
-            toastr.error('读取文件失败');
-            resolve(null);
-        };
-        reader.readAsText(file);
-    });
-}
+//                 // 立即保存
+//                 if (configManager.saveModuleConfigNow()) {
+//                     infoLog('导入的模块配置已保存到SillyTavern扩展设置');
+//                     resolve(config);
+//                 } else {
+//                     throw new Error('保存导入的配置失败');
+//                 }
+//             } catch (error) {
+//                 errorLog('解析JSON文件失败:', error);
+//                 toastr.error('解析JSON文件失败，请检查文件格式');
+//                 resolve(null);
+//             }
+//         };
+//         reader.onerror = () => {
+//             errorLog('读取文件失败');
+//             toastr.error('读取文件失败');
+//             resolve(null);
+//         };
+//         reader.readAsText(file);
+//     });
+// }
 
 /**
  * 获取模块配置统计信息
@@ -175,7 +142,7 @@ export function getModuleConfigStatsInfo() {
             moduleCount,
             enabledCount,
             variableCount,
-            lastUpdated: config.lastUpdated || new Date().toISOString()
+            lastUpdated: config.metadata?.lastUpdated || config.lastUpdated || new Date().toISOString()
         };
     } catch (error) {
         errorLog('获取模块配置统计信息失败:', error);

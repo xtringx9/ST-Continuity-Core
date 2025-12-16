@@ -1,7 +1,7 @@
 // 变量管理相关功能
 import { debugLog, errorLog, updateModulePreview } from "../index.js";
 import { getEmptyVariableItemTemplate } from "./templateManager.js";
-import configManager from "../singleton/configManager.js";
+import { default as configManager } from "../singleton/configManager.js";
 
 /**
  * 添加新变量到模块
