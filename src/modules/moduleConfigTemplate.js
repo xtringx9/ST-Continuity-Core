@@ -60,15 +60,20 @@ export const MODULE_CONFIG_TEMPLATE = {
             default: '',
             description: '{{CONTINUITY_MODULE_DATA}}头部提示词'
         },
-        containerStyles: {
-            type: 'string',
-            default: '${customStyles}',
-            description: '最外部的容器CSS/HTML样式'
-        },
         externalStyles: {
             type: 'string',
             default: '${customStyles}',
             description: '外部CSS/HTML样式'
+        },
+        containerStyles: {
+            type: 'string',
+            default: '${customStyles}',
+            description: '消息内CSS/HTML样式'
+        },
+        bottomStyles: {
+            type: 'string',
+            default: '${customStyles}',
+            description: '底部CSS/HTML样式'
         },
         timeFormat: {
             type: 'string',
@@ -176,6 +181,11 @@ export const MODULE_CONFIG_TEMPLATE = {
                 type: 'boolean',
                 default: false,
                 description: '是否在外部显示模块'
+            },
+            externalStyles: {
+                type: 'string',
+                default: '',
+                description: '外置容器CSS/HTML样式，用于包裹所有模块条目，支持多行代码和${customStyles}变量引用'
             },
             containerStyles: {
                 type: 'string',
@@ -437,8 +447,9 @@ export function normalizeConfig(config, extension_config = null) {
             orderPrompt: config.globalSettings?.orderPrompt || '',
             usagePrompt: config.globalSettings?.usagePrompt || '',
             moduleDataPrompt: config.globalSettings?.moduleDataPrompt || '',
-            containerStyles: config.globalSettings?.containerStyles || '${customStyles}',
             externalStyles: config.globalSettings?.externalStyles || '${customStyles}',
+            containerStyles: config.globalSettings?.containerStyles || '${customStyles}',
+            bottomStyles: config.globalSettings?.bottomStyles || '${customStyles}',
             timeFormat: config.globalSettings?.timeFormat || '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}',
         },
         modules: [],
@@ -465,6 +476,7 @@ export function normalizeConfig(config, extension_config = null) {
             itemMax: typeof module.itemMax === 'number' ? module.itemMax : 1,
             timeReferenceStandard: module.timeReferenceStandard || false,
             isExternalDisplay: module.isExternalDisplay || false,
+            externalStyles: module.externalStyles || '',
             containerStyles: module.containerStyles || '',
             customStyles: module.customStyles || '',
             variables: []

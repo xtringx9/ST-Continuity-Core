@@ -1081,7 +1081,7 @@ class UIDataCollector {
             'timingPrompt', 'contentPrompt', 'outputPosition', 'positionPrompt',
             'outputMode', 'retainLayers', 'compatibleModuleNames',
             'timeReferenceStandard', 'order', 'itemMin', 'itemMax', 'rangeMode',
-            'containerStyles', 'customStyles', 'isExternalDisplay'
+            'containerStyles', 'customStyles', 'isExternalDisplay', 'externalStyles'
         ];
         this.variableFields = [
             'name', 'displayName', 'description', 'compatibleVariableNames', 'enabled',
@@ -1207,6 +1207,8 @@ class UIDataCollector {
                 case 'compatibleModuleNames':
                     const names = container.find('.module-compatible-names').val() || '';
                     return IdentifierParser.parseMultiValues(names);
+                case 'externalStyles':
+                    return container.find('.module-external-styles').val() || '';
                 case 'containerStyles':
                     return container.find('.module-container-styles').val() || '';
                 case 'customStyles':
@@ -1323,8 +1325,9 @@ class UIDataCollector {
             orderPrompt: $('#global-order-prompt-input').val() || '',
             usagePrompt: $('#global-usage-prompt-input').val() || '',
             moduleDataPrompt: $('#global-module-data-prompt-input').val() || '',
-            containerStyles: $('#global-container-styles-input').val() || '${customStyles}',
             externalStyles: $('#global-external-styles-input').val() || '${customStyles}',
+            containerStyles: $('#global-container-styles-input').val() || '${customStyles}',
+            bottomStyles: $('#global-bottom-styles-input').val() || '${customStyles}',
             timeFormat: $('#global-time-format-input').val() || '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}'
         };
     }
