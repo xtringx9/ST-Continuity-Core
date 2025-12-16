@@ -3,6 +3,8 @@ import { infoLog, debugLog, errorLog, renderModulesFromConfig, showCustomConfirm
 import { clearAllModules, rebindAllModulesEvents, updateAllModulesPreview, bindModuleEvents, updateModulePreview, bindClearModulesButtonEvent, bindAddModuleButtonEvent } from "../modules/moduleManager.js";
 import { MODULE_CONFIG_TEMPLATE, validateConfig, normalizeConfig, CONFIG_CONSTANTS } from "../modules/moduleConfigTemplate.js";
 import { default as configManager, CONTINUITY_CORE_IDENTIFIER, extensionName } from "../singleton/configManager.js";
+import { checkAndInitializeWorldBook } from "./worldBookUtils.js";
+import { registerContinuityRegexPattern } from "./regexUtils.js";
 
 /**
  * 处理导入配置的逻辑
@@ -353,7 +355,7 @@ export function bindSaveButtonEvent() {
     // 移除现有的事件监听，避免重复绑定
     $("#module-save-btn").off('click');
 
-    $("#module-save-btn").on('click', function () {
+    $("#module-save-btn").on('click', async function () {
         try {
             // 使用统一的配置管理器进行保存
             const success = configManager.saveFromUI(true); // true表示立即保存
@@ -361,6 +363,20 @@ export function bindSaveButtonEvent() {
             // 根据保存结果显示提示信息
             if (success) {
                 toastr.success('模块配置已保存！');
+
+                // 调用createConfigEntry方法
+                try {
+                    await checkAndInitializeWorldBook();
+                } catch (error) {
+                    errorLog('调用createConfigEntry失败:', error);
+                }
+
+                // 调用registerConfigRegexPatterns方法
+                try {
+                    registerContinuityRegexPattern();
+                } catch (error) {
+                    errorLog('调用registerConfigRegexPatterns失败:', error);
+                }
             } else {
                 toastr.error('保存模块配置失败');
             }

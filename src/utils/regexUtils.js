@@ -135,7 +135,7 @@ function registerRegexPatterns(patterns, scripts) {
  * @param {Array} scripts - Regex扩展的脚本数组
  * @returns {boolean} 是否有变化
  */
-function registerConfigRegexPatterns(scripts) {
+export function registerConfigRegexPatterns(scripts) {
     const entryCount = configManager.getGlobalSettings().contentRemainLayers || 9;
     let patterns = [];
     const pattern = {
@@ -152,6 +152,7 @@ function registerConfigRegexPatterns(scripts) {
         minDepth: entryCount,
         maxDepth: NaN,
     }
+    const configPatternScriptName = pattern.scriptName;
     patterns.push(pattern);
 
     let isChange = false;
@@ -180,7 +181,7 @@ function registerConfigRegexPatterns(scripts) {
             scripts.push(regexPattern);
             isChange = true;
             infoLog(`[REGEX]配置正则模式"${scriptName}"已成功注册到Regex扩展`);
-        } else if (scripts[existingPatternIndex].scriptName !== scriptName) {
+        } else if (scripts[existingPatternIndex].scriptName !== scriptName || scriptName === configPatternScriptName) {
             // 更新现有的模式，保留原有的id
             const existingPattern = scripts[existingPatternIndex];
             scripts[existingPatternIndex] = {
