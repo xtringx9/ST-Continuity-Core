@@ -135,8 +135,8 @@ export async function checkAndInitializeWorldBook() {
     try {
         // debugLog('[WORLD BOOK]开始检查并初始化世界书', world_info); // 世界书设置
         // debugLog('[WORLD BOOK]开始检查并初始化世界书', world_names); // 所有世界书名
-        const testWorldBookData = await loadWorldInfo(world_names[0]);
-        debugLog('[WORLD BOOK]世界书', testWorldBookData);
+        // const testWorldBookData = await loadWorldInfo(world_names[0]);
+        // debugLog('[WORLD BOOK]世界书', testWorldBookData);
 
         const worldBookName = WORLD_BOOK_CONSTANTS.worldBookName;
         const worldBookData = await getWorldBook(worldBookName);
@@ -232,6 +232,37 @@ function entryExists(worldBookData, entryConfig) {
 }
 
 /**
+ * 从worldBookData.entries中获取以往创建的最大数字
+ * @param {Object} worldBookData 世界书数据
+ * @returns {number} 最大数字，如果没有找到则返回0
+ */
+function getMaxExistingEntryNumber(worldBookData) {
+    if (!worldBookData || !worldBookData.entries) {
+        return 0;
+    }
+
+    // 将entries对象转换为数组
+    const entriesArray = Object.keys(worldBookData.entries).map(key => worldBookData.entries[key]);
+
+    let maxNumber = 0;
+
+    // 遍历所有条目，查找以"CHAT_MODULE_"开头的comment
+    entriesArray.forEach(entry => {
+        if (entry.comment && entry.comment.startsWith('CHAT_MODULE_')) {
+            // 提取数字部分
+            const numberStr = entry.comment.replace('CHAT_MODULE_', '');
+            const number = parseInt(numberStr, 10);
+
+            if (!isNaN(number) && number > maxNumber) {
+                maxNumber = number;
+            }
+        }
+    });
+
+    return maxNumber;
+}
+
+/**
  * 创建世界书条目
  */
 async function createEntry(worldBookName, worldBookData) {
@@ -299,9 +330,12 @@ async function createEntry(worldBookName, worldBookData) {
     }
 }
 
-async function createConfigEntry(worldBookName, worldBookData) {
+export async function createConfigEntry(worldBookName, worldBookData) {
     try {
         const createdEntries = [];
+
+        // 获取以往创建的最大数字
+        const maxExistingNumber = getMaxExistingEntryNumber(worldBookData);
 
         const entryCount = configManager.getGlobalSettings().contentRemainLayers || 9;
 
@@ -349,6 +383,32 @@ async function createConfigEntry(worldBookName, worldBookData) {
                     debugLog(`[WORLD BOOK]配置条目"${entry.comment}"创建成功`);
                 }
             }
+        }
+
+        // 处理超出当前entryCount的旧条目，将它们设置为disabled: true
+        if (maxExistingNumber > entryCount) {
+            debugLog(`[WORLD BOOK]发现超出当前entryCount(${entryCount})的旧条目，最大编号为${maxExistingNumber}`);
+
+            // 将entries对象转换为数组
+            const entriesArray = Object.keys(worldBookData.entries).map(key => worldBookData.entries[key]);
+
+            let disabledCount = 0;
+            entriesArray.forEach(entry => {
+                if (entry.comment && entry.comment.startsWith('CHAT_MODULE_')) {
+                    // 提取数字部分
+                    const numberStr = entry.comment.replace('CHAT_MODULE_', '');
+                    const number = parseInt(numberStr, 10);
+
+                    if (!isNaN(number) && number >= entryCount) {
+                        // 超出当前entryCount的条目，设置为disabled
+                        entry.disable = true;
+                        disabledCount++;
+                        debugLog(`[WORLD BOOK]已禁用条目: ${entry.comment}`);
+                    }
+                }
+            });
+
+            debugLog(`[WORLD BOOK]共禁用了 ${disabledCount} 个超出范围的条目`);
         }
 
         // 保存世界书
