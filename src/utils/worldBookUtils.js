@@ -138,25 +138,28 @@ export async function checkAndInitializeWorldBook() {
         // const testWorldBookData = await loadWorldInfo(world_names[0]);
         // debugLog('[WORLD BOOK]世界书', testWorldBookData);
 
-        const worldBookName = WORLD_BOOK_CONSTANTS.worldBookName;
-        const worldBookData = await getWorldBook(worldBookName);
-
-        await createEntry(worldBookName, worldBookData);
-
         if (configManager.isLoaded) {
-            await createConfigEntry(worldBookName, worldBookData);
+            registerCallback();
         }
         else {
             configManager.registerLoadCallback(async () => {
-                await createConfigEntry(worldBookName, worldBookData);
-                await updateWorldInfoList();
+                registerCallback();
             });
         }
 
-        await updateWorldInfoList();
+        // await updateWorldInfoList();
     } catch (error) {
         errorLog('检查并初始化世界书失败:', error);
     }
+}
+
+async function registerCallback() {
+    const worldBookName = WORLD_BOOK_CONSTANTS.worldBookName;
+    const worldBookData = await getWorldBook(worldBookName);
+
+    await createEntry(worldBookName, worldBookData);
+    await createConfigEntry(worldBookName, worldBookData);
+    await updateWorldInfoList();
 }
 
 export async function updateCurrentCharWorldBookCache() {
@@ -172,12 +175,38 @@ function getCurrentCharWorldBookCache() {
 /**
  * 将世界书添加到全局设置
  */
-function addWorldBookToGlobalSettings(worldBookName) {
+export function addWorldBookToGlobalSettings(worldBookName, saveNow = false) {
     if (!selected_world_info.includes(worldBookName)) {
         debugLog(`[WORLD BOOK]世界书"${worldBookName}"未添加到selected_world_info，添加`);
         selected_world_info.push(worldBookName);
         Object.assign(world_info, { globalSelect: selected_world_info });
         saveSettingsDebounced();
+        if (saveNow) {
+            (async () => {
+                await updateWorldInfoList();
+            })();
+        }
+    }
+    else if (saveNow) {
+        checkAndInitializeWorldBook();
+    }
+}
+
+/**
+ * 将世界书从全局设置中移除
+ */
+export function removeWorldBookFromGlobalSettings(worldBookName, saveNow = false) {
+    const index = selected_world_info.indexOf(worldBookName);
+    if (index !== -1) {
+        debugLog(`[WORLD BOOK]世界书"${worldBookName}"已从selected_world_info中移除`);
+        selected_world_info.splice(index, 1);
+        Object.assign(world_info, { globalSelect: selected_world_info });
+        saveSettingsDebounced();
+        if (saveNow) {
+            (async () => {
+                await updateWorldInfoList();
+            })();
+        }
     }
 }
 
@@ -198,10 +227,16 @@ async function getWorldBook(worldBookName) {
             // 创建新的世界书
             debugLog(`[WORLD BOOK]世界书"${worldBookName}"不存在，开始创建`);
             result = await createNewWorldInfo(worldBookName);
-            if (result === true) {
-                // 只在第一次创建时将世界书添加到全局设置
-                addWorldBookToGlobalSettings(worldBookName);
-            }
+            // if (result === true) {
+            //     // 只在第一次创建时将世界书添加到全局设置
+            //     addWorldBookToGlobalSettings(worldBookName);
+            // }
+        }
+        if (configManager.isExtensionEnabled()) {
+            addWorldBookToGlobalSettings(worldBookName);
+        }
+        else {
+            removeWorldBookFromGlobalSettings(worldBookName);
         }
 
         if (result !== true) {

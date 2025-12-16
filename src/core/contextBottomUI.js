@@ -356,7 +356,10 @@ export async function updateUItoContextBottom() {
         let container = document.getElementById(CONTEXT_BOTTOM_CONTAINER_ID);
         const chatContainer = $('#chat');
         const lastMessageContainer = findSuitableMessageContainer();
-
+        if (!lastMessageContainer) {
+            isUpdatingContextBottomUI = false;
+            return false;
+        }
 
         // 提取全部聊天记录的所有模块数据（一次性获取）
         const extractParams = {
