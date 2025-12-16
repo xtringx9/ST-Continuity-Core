@@ -14,7 +14,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
     enabled: true, // 全局开关默认开启
     backendUrl: "", // 后端服务器地址
     debugLogs: false, // 调试日志开关，默认关闭
-    autoInject: false, // 自动注入开关，默认开启
+    autoInject: false, // 自动注入开关，默认关闭
     buttonType: "embedded", // 按钮类型，默认嵌入按钮
 };
 
@@ -567,20 +567,26 @@ class ConfigManager {
     processImportConfig(configWithOptions) {
         if (!configWithOptions) return null;
 
+        // 对导入的配置进行规范化处理
+        const normalizedConfig = normalizeConfig(configWithOptions);
+        debugLog('导入配置已规范化:', normalizedConfig);
+
         // 获取当前配置作为基础
         const currentConfig = this.getModuleConfig();
-        if (!currentConfig) return configWithOptions;
+        if (!currentConfig) return normalizedConfig;
 
         // 根据用户的选择决定是否覆盖模块和变量启用状态
-        const overrideEnabled = configWithOptions.importOptions?.overrideEnabled ?? true;
+        const overrideEnabled = normalizedConfig.importOptions?.overrideEnabled ?? true;
 
         // 深拷贝当前配置作为基础
         let finalConfig = JSON.parse(JSON.stringify(currentConfig));
 
-        // 如果导入了globalSettings，则合并globalSettings
-        if (configWithOptions.globalSettings !== undefined) {
-            finalConfig.globalSettings = configWithOptions.globalSettings;
-            debugLog("合并 globalSettings");
+        // 如果导入了globalSettings且不为空，则合并globalSettings
+        if (configWithOptions.globalSettings !== undefined &&
+            configWithOptions.globalSettings !== null &&
+            Object.keys(configWithOptions.globalSettings).length > 0) {
+            finalConfig.globalSettings = normalizedConfig.globalSettings;
+            infoLog("合并 globalSettings", normalizedConfig);
         }
 
         // 如果导入了modules且modules数组不为空，则合并modules
@@ -589,24 +595,26 @@ class ConfigManager {
             configWithOptions.modules.length > 0) {
             if (overrideEnabled) {
                 // 直接使用导入的modules
-                finalConfig.modules = configWithOptions.modules;
+                finalConfig.modules = normalizedConfig.modules;
                 debugLog("直接使用导入的 modules（覆盖启用状态）");
             } else {
                 // 合并启用状态
-                const mergedModules = this.mergeEnabledStates(configWithOptions);
+                const mergedModules = this.mergeEnabledStates(normalizedConfig);
                 finalConfig.modules = mergedModules.modules;
                 debugLog("合并 modules 的启用状态");
             }
         }
 
-        // 如果导入了metadata，则合并metadata
-        if (configWithOptions.metadata !== undefined) {
-            finalConfig.metadata = configWithOptions.metadata;
+        // 如果导入了metadata且不为空，则合并metadata
+        if (configWithOptions.metadata !== undefined &&
+            configWithOptions.metadata !== null &&
+            Object.keys(configWithOptions.metadata).length > 0) {
+            finalConfig.metadata = normalizedConfig.metadata;
             debugLog("合并 metadata");
         }
 
         // 保留导入选项
-        finalConfig.importOptions = configWithOptions.importOptions;
+        finalConfig.importOptions = normalizedConfig.importOptions;
 
         return finalConfig;
     }

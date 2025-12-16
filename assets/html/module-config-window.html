@@ -84,11 +84,11 @@
             <div class="section-title">
                 <h3>提示词预览</h3>
                 <div class="header-actions">
+                    <button id="update-prompt-btn" class="btn-small">更新提示词</button>
+                    <button id="copy-prompt-btn" class="btn-small">复制提示词</button>
                     <button id="toggle-preview-btn" class="btn-small">
                         <span class="toggle-arrow">▶</span> 展开预览
                     </button>
-                    <button id="update-prompt-btn" class="btn-small">更新提示词</button>
-                    <button id="copy-prompt-btn" class="btn-small">复制提示词</button>
                 </div>
             </div>
 
@@ -124,17 +124,24 @@
         <div class="settings-section">
             <div class="section-title">
                 <h3>设置配置</h3>
+                <div class="header-actions">
+                    <button id="import-config-btn" class="btn-small">导入JSON</button>
+                    <button id="export-config-btn" class="btn-small">导出JSON</button>
+                    <button id="toggle-settings-btn" class="btn-small">
+                        <span class="toggle-arrow">▼</span> 收起设置
+                    </button>
+                </div>
             </div>
 
-            <div class="settings-content">
-                <div class="setting-group">
+            <div id="settings-content" class="settings-content">
+                <div class="setting-group" style="display: none;">
                     <div class="flex-container">
                         <input id="auto-inject-toggle" type="checkbox" />
                         <label for="auto-inject-toggle">自动注入提示词</label>
                     </div>
                 </div>
 
-                <div id="injection-settings" class="injection-settings">
+                <div id="injection-settings" class="injection-settings" style="display: none;">
                     <div class="setting-group">
                         <div class="inline-settings-row">
                             <div class="setting-item">
@@ -238,12 +245,10 @@
             <div class="section-title">
                 <h3>模块配置</h3>
                 <div class="header-actions">
-                    <button id="import-config-btn" class="btn-small">导入JSON</button>
-                    <button id="export-config-btn" class="btn-small">导出JSON</button>
+                    <button id="clear-modules-btn" class="btn-small remove-module">- 清空模块</button>
                     <button id="add-module-btn" class="btn-small">
                         <span>+</span> 添加模块
                     </button>
-                    <button id="clear-modules-btn" class="btn-small remove-module">- 清空模块</button>
                 </div>
             </div>
 
@@ -275,8 +280,8 @@
                             </div>
                         </div>
                         <div class="module-actions">
-                            <button class="btn-small add-variable">+ 添加变量</button>
                             <button class="btn-small remove-module">- 删除模块</button>
+                            <button class="btn-small add-variable">+ 添加变量</button>
                             <button class="btn-small drag-handle" title="拖拽移动模块">⋮⋮</button>
                         </div>
                     </div>
