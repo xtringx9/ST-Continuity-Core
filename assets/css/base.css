@@ -158,7 +158,10 @@
 /* 基础表单元素样式 - 仅影响Continuity Core扩展内的表单元素 */
 #continuity-module-config-window input,
 #continuity-module-config-window select,
-#continuity-module-config-window textarea {
+#continuity-module-config-window textarea,
+.continuity-confirm-dialog input,
+.continuity-confirm-dialog select,
+.continuity-confirm-dialog textarea {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
@@ -171,7 +174,10 @@
 
 #continuity-module-config-window input:focus,
 #continuity-module-config-window select:focus,
-#continuity-module-config-window textarea:focus {
+#continuity-module-config-window textarea:focus,
+.continuity-confirm-dialog input:focus,
+.continuity-confirm-dialog select:focus,
+.continuity-confirm-dialog textarea:focus {
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);

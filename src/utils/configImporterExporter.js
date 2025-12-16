@@ -464,6 +464,10 @@ export function showExportOptionsDialog() {
                                 <span>模块配置</span>
                             </label>
                         </div>
+                        <div class="author-input-group" style="margin-top: 15px;">
+                            <label for="config-author" style="display: block; margin-bottom: 5px;">配置作者（可选）</label>
+                            <input type="text" id="config-author" class="module-parse-input" placeholder="请输入作者名称" style="width: 100%;">
+                        </div>
                         <div id="module-selection-container" class="module-selector-container" style="margin-top: 15px; max-height: 200px; overflow-y: auto;">
                             <div class="module-selector-header">
                                 <label>选择要导出的模块：</label>
@@ -497,6 +501,13 @@ export function showExportOptionsDialog() {
         // 获取DOM元素
         const exportModuleConfigCheckbox = exportOptionsDialog.find('#export-module-config');
         const moduleSelectionContainer = exportOptionsDialog.find('#module-selection-container');
+        const authorInput = exportOptionsDialog.find('#config-author');
+
+        // 加载已保存的作者名称
+        const extensionConfig = configManager.getExtensionConfig();
+        if (extensionConfig && extensionConfig.moduleConfigAuthor) {
+            authorInput.val(extensionConfig.moduleConfigAuthor);
+        }
 
         // 绑定模块配置复选框事件
         exportModuleConfigCheckbox.on('change', function () {
@@ -529,6 +540,25 @@ export function showExportOptionsDialog() {
                 const module = modulesData.find(m => m.name === moduleName);
                 $(this).prop('checked', module && module.enabled);
             });
+        });
+
+        // 绑定作者输入框自动保存事件
+        authorInput.on('input', function () {
+            const authorName = $(this).val().trim();
+            const extensionConfig = configManager.getExtensionConfig();
+
+            // 更新作者信息
+            if (!extensionConfig) return;
+
+            if (authorName) {
+                extensionConfig.moduleConfigAuthor = authorName;
+            } else {
+                // 如果输入为空，删除作者字段
+                // delete extensionConfig.moduleConfigAuthor;
+            }
+
+            // 保存配置
+            configManager.setExtensionConfig(extensionConfig);
         });
 
         // 绑定确定按钮事件

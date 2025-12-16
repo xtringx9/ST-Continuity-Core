@@ -16,6 +16,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
     debugLogs: false, // 调试日志开关，默认关闭
     autoInject: false, // 自动注入开关，默认关闭
     buttonType: "embedded", // 按钮类型，默认嵌入按钮
+    moduleConfigAuthor: "", // 模块配置作者，默认空字符串
 };
 
 export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";
@@ -582,7 +583,7 @@ class ConfigManager {
     backupModuleConfig(exportOptions) {
         try {
             // 获取当前的完整配置（包括globalSettings）
-            const currentConfig = normalizeConfig(this.getModuleConfig());
+            const currentConfig = normalizeConfig(this.getModuleConfig(), this.getExtensionConfig());
 
             let exportConfig = {};
 
@@ -609,11 +610,12 @@ class ConfigManager {
 
             const dataStr = JSON.stringify(exportConfig, null, 2);
             const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-
+            const extension_config = this.getExtensionConfig();
+            const author = (extension_config && extension_config.moduleConfigAuthor) ? extension_config.moduleConfigAuthor + '_' : '';
             // 根据导出选项生成描述性文件名
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -1); // 保留完整的时分秒
             const configType = this.generateConfigType(exportOptions, currentConfig.modules);
-            const exportFileDefaultName = `${CONTINUITY_CORE_IDENTIFIER}${configType}_${timestamp}.json`;
+            const exportFileDefaultName = `${CONTINUITY_CORE_IDENTIFIER}${author}${configType}_${timestamp}.json`;
 
 
             const linkElement = document.createElement('a');

@@ -415,13 +415,14 @@ export function validateConfig(config) {
  * @param {Object} config 要规范化的配置对象
  * @returns {Object} 规范化后的配置
  */
-export function normalizeConfig(config) {
+export function normalizeConfig(config, extension_config = null) {
     if (!config) {
         return { ...DEFAULT_CONFIG_VALUES };
     }
 
     const normalized = {
         metadata: {
+            author: (extension_config && extension_config.moduleConfigAuthor) ? extension_config.moduleConfigAuthor : '',
             version: DEFAULT_CONFIG_VALUES.metadata.version,
             // version: config.metadata?.version || config.version || DEFAULT_CONFIG_VALUES.metadata.version,
             lastUpdated: config.metadata?.lastUpdated || config.lastUpdated || new Date().toISOString(),
