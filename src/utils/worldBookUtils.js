@@ -505,6 +505,9 @@ async function getAllBooksData(books) {
 export function getCurrentCharBooksEnabledEntries() {
     const booksData = getCurrentCharWorldBookCache();
     let enabledEntries = [];
+    if (!Array.isArray(booksData)) {
+        return enabledEntries;
+    }
     for (const book of booksData) {
         // book.entries 是一个对象 { [uid: number]: entry }，需要转换为数组
         if (book.entries && typeof book.entries === 'object') {
@@ -518,6 +521,9 @@ export function getCurrentCharBooksEnabledEntries() {
 export function getCurrentCharBooksModuleEntries() {
     const booksData = getCurrentCharWorldBookCache();
     let enabledEntries = [];
+    if (!Array.isArray(booksData)) {
+        return enabledEntries;
+    }
     for (const book of booksData) {
         // book.entries 是一个对象 { [uid: number]: entry }，需要转换为数组
         if (book.entries && typeof book.entries === 'object') {

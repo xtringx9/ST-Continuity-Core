@@ -781,7 +781,7 @@ export function renderCurrentMessageContext() {
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, true);
-        infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
+        debugLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         for (let i = containers.length - 1; i >= 0; i--) {
             const message = $(containers[i]);
@@ -931,6 +931,7 @@ export function getCurrentMessageContainer() {
 // }
 
 export function checkUItoContextBottom() {
+    if (!configManager.isLoaded) return false;
     debugLog('[UI EVENTS]UpdateUI: 开始更新上下文底部UI');
     if (configManager.isExtensionEnabled()) {
         if (!isInChatPage()) {
@@ -956,6 +957,7 @@ export function checkUItoContextBottom() {
 
 
 export function checkUItoMsgBottom() {
+    if (!configManager.isLoaded) return false;
     debugLog('[UI EVENTS]UpdateUI: 开始更新消息底部UI');
     if (configManager.isExtensionEnabled()) {
         if (!isInChatPage()) {
@@ -980,6 +982,7 @@ export function checkUItoMsgBottom() {
 }
 
 export function checkRenderCurrentMessageContext() {
+    if (!configManager.isLoaded) return false;
     debugLog('[UI EVENTS]RenderUI: 开始渲染当前消息上下文');
     if (configManager.isExtensionEnabled()) {
         if (!isInChatPage()) {
