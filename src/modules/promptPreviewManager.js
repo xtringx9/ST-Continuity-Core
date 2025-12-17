@@ -1,6 +1,6 @@
 // 提示词预览区域管理模块
 import { configManager, debugLog, errorLog, infoLog } from '../index.js';
-import { generateModulePrompt, generatePromptWithInsertion, copyToClipboard } from './promptGenerator.js';
+import { copyToClipboard } from './promptGenerator.js';
 import { getContinuityPrompt, getContinuityConfig, getContinuityModules, getContinuityOrder, getContinuityUsageGuide, getContinuityModuleData, getContinuityChatModule } from '../core/macroManager.js';
 
 // 默认插入设置
@@ -8,6 +8,21 @@ const DEFAULT_INSERTION_SETTINGS = {
     depth: 1,
     role: 'system'
 };
+
+/**
+ * 保存预览区域折叠状态到localStorage
+ * @param {boolean} isCollapsed 是否折叠
+ */
+function savePreviewCollapsedState(isCollapsed) {
+    try {
+        const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
+        collapsedStates['previewArea'] = isCollapsed;
+        localStorage.setItem('settingsCollapsedStates', JSON.stringify(collapsedStates));
+        debugLog('预览区域折叠状态已保存:', isCollapsed);
+    } catch (error) {
+        errorLog('保存预览区域折叠状态失败:', error);
+    }
+}
 
 /**
  * 切换提示词预览区域的展开/折叠状态
@@ -23,6 +38,8 @@ export function togglePromptPreview() {
             toggleBtn.removeClass('expanded');
             toggleBtn.html('<span class="toggle-arrow">▶</span> 展开预览');
             debugLog('提示词预览区域已折叠');
+            // 保存折叠状态到localStorage
+            savePreviewCollapsedState(true);
         } else {
             // 如果当前是折叠状态，则展开并生成预览内容
             updatePromptPreview();
@@ -31,6 +48,8 @@ export function togglePromptPreview() {
             toggleBtn.addClass('expanded');
             toggleBtn.html('<span class="toggle-arrow">▶</span> 折叠预览');
             debugLog('提示词预览区域已展开');
+            // 保存展开状态到localStorage
+            savePreviewCollapsedState(false);
         }
 
     } catch (error) {
