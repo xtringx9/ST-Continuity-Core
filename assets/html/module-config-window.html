@@ -103,95 +103,97 @@
                     </div>
                 </div>
 
-                <div class="setting-group">
+                <div class="module-settings-row">
                     <div class="module-compatible-group">
                         <div>
                             <label>模块标签</label>
                             <input type="text" id="module-tags" class="module-tags" placeholder="默认为module">
                         </div>
-                        <div><label>兼容模块标签</label>
+                        <div>
+                            <label>兼容模块标签</label>
                             <input type="text" id="module-compatible-tags" class="module-compatible-tags"
                                 placeholder="兼容模块标签A,兼容模块标签B,...">
                         </div>
                         <div><label>正文标签</label>
                             <input type="text" id="content-tags" class="content-tags" placeholder="正文标签A,正文标签B,...">
                         </div>
-                        <div><label>正文保留层数</label>
+                        <div>
+                            <label>正文保留层数</label>
                             <input type="number" id="content-layers" class="content-layers" placeholder="保留正文层数 min=0">
+                        </div>
+                        <div class="setting-item" style="display: none;">
+                            <label for="global-time-format-input">时间格式(暂无用)</label>
+                            <input type="text" id="global-time-format-input" class="form-control"
+                                placeholder="例如：${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}"
+                                value="${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}">
                         </div>
                     </div>
                 </div>
 
-                <!-- 核心原则提示词设置 -->
-                <div class="setting-group">
-                    <div class="setting-item">
-                        <label for="global-prompt-input">{{CONTINUITY_PROMPT}}顶部提示词</label>
-                        <textarea id="global-prompt-input" class="prompt-textarea"
-                            placeholder="该提示词将会放在{{CONTINUITY_PROMPT}}顶部"></textarea>
+                <!-- 提示词设置组 -->
+                <div class="setting-group-container">
+                    <div class="setting-group-header">
+                        <button class="setting-group-toggle-btn" data-group="prompt-settings" title="折叠/展开提示词设置">
+                            <span class="toggle-icon">▼</span>
+                            <span class="group-title">提示词设置</span>
+                        </button>
+                    </div>
+                    <div class="setting-group-content" id="prompt-settings">
+                        <div class="setting-group">
+                            <div class="setting-item">
+                                <label for="global-prompt-input"
+                                    style="font-size: 12px;">{{CONTINUITY_PROMPT}}顶部提示词</label>
+                                <textarea id="global-prompt-input" class="prompt-textarea"
+                                    placeholder="该提示词将会放在{{CONTINUITY_PROMPT}}顶部"></textarea>
+                            </div>
+                            <div class="setting-item">
+                                <label for="global-order-prompt-input"
+                                    style="font-size: 12px;">{{CONTINUITY_ORDER}}顶部提示词</label>
+                                <textarea id="global-order-prompt-input" class="prompt-textarea"
+                                    placeholder="该提示词将会放在{{CONTINUITY_ORDER}}顶部"></textarea>
+                            </div>
+                            <div class="setting-item">
+                                <label for="global-usage-prompt-input"
+                                    style="font-size: 12px;">{{CONTINUITY_USAGE_GUIDE}}顶部提示词</label>
+                                <textarea id="global-usage-prompt-input" class="prompt-textarea"
+                                    placeholder="该提示词将会放在{{CONTINUITY_USAGE_GUIDE}}顶部"></textarea>
+                            </div>
+                            <div class="setting-item">
+                                <label for="global-module-data-prompt-input"
+                                    style="font-size: 12px;">{{CONTINUITY_MODULE_DATA}}顶部提示词</label>
+                                <textarea id="global-module-data-prompt-input" class="prompt-textarea"
+                                    placeholder="该提示词将会放在{{CONTINUITY_MODULE_DATA}}顶部"></textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 通用格式描述提示词设置 -->
-                <div class="setting-group">
-                    <div class="setting-item">
-                        <label for="global-order-prompt-input">{{CONTINUITY_ORDER}}顶部提示词</label>
-                        <textarea id="global-order-prompt-input" class="prompt-textarea"
-                            placeholder="该提示词将会放在{{CONTINUITY_ORDER}}顶部"></textarea>
+                <!-- 样式设置组 -->
+                <div class="setting-group-container">
+                    <div class="setting-group-header">
+                        <button class="setting-group-toggle-btn" data-group="style-settings" title="折叠/展开样式设置">
+                            <span class="toggle-icon">▼</span>
+                            <span class="group-title">样式设置</span>
+                        </button>
                     </div>
-                </div>
-
-                <!-- 使用指南提示词设置 -->
-                <div class="setting-group">
-                    <div class="setting-item">
-                        <label for="global-usage-prompt-input">{{CONTINUITY_USAGE_GUIDE}}顶部提示词</label>
-                        <textarea id="global-usage-prompt-input" class="prompt-textarea"
-                            placeholder="该提示词将会放在{{CONTINUITY_USAGE_GUIDE}}顶部"></textarea>
-                    </div>
-                </div>
-
-                <!-- 模块数据提示词设置 -->
-                <div class="setting-group">
-                    <div class="setting-item">
-                        <label for="global-module-data-prompt-input">{{CONTINUITY_MODULE_DATA}}顶部提示词</label>
-                        <textarea id="global-module-data-prompt-input" class="prompt-textarea"
-                            placeholder="该提示词将会放在{{CONTINUITY_MODULE_DATA}}顶部"></textarea>
-                    </div>
-                </div>
-
-                <!-- 外部样式设置 -->
-                <div class="setting-group">
-                    <div class="setting-item">
-                        <label for="global-external-styles-input">消息内外部样式</label>
-                        <textarea id="global-external-styles-input" class="prompt-textarea"
-                            placeholder="使用${customStyles}注入模块样式"></textarea>
-                    </div>
-                </div>
-
-                <!-- 容器样式设置 -->
-                <div class="setting-group">
-                    <div class="setting-item">
-                        <label for="global-container-styles-input">消息内容器样式</label>
-                        <textarea id="global-container-styles-input" class="prompt-textarea"
-                            placeholder="使用${customStyles}注入模块样式"></textarea>
-                    </div>
-                </div>
-
-                <!-- 容器样式设置 -->
-                <div class="setting-group">
-                    <div class="setting-item">
-                        <label for="global-bottom-styles-input">底部容器样式</label>
-                        <textarea id="global-bottom-styles-input" class="prompt-textarea"
-                            placeholder="使用${customStyles}注入模块样式"></textarea>
-                    </div>
-                </div>
-
-                <!-- 时间格式设置 -->
-                <div class="setting-group">
-                    <div class="setting-item">
-                        <label for="global-time-format-input">时间格式</label>
-                        <input type="text" id="global-time-format-input" class="form-control"
-                            placeholder="例如：${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}"
-                            value="${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}">
+                    <div class="setting-group-content" id="style-settings">
+                        <div class="setting-group">
+                            <div class="setting-item">
+                                <label for="global-external-styles-input" style="font-size: 12px;">消息内外部样式</label>
+                                <textarea id="global-external-styles-input" class="prompt-textarea"
+                                    placeholder="使用${customStyles}注入模块样式"></textarea>
+                            </div>
+                            <div class="setting-item">
+                                <label for="global-container-styles-input" style="font-size: 12px;">消息内容器样式</label>
+                                <textarea id="global-container-styles-input" class="prompt-textarea"
+                                    placeholder="使用${customStyles}注入模块样式"></textarea>
+                            </div>
+                            <div class="setting-item">
+                                <label for="global-bottom-styles-input" style="font-size: 12px;">底部容器样式</label>
+                                <textarea id="global-bottom-styles-input" class="prompt-textarea"
+                                    placeholder="使用${customStyles}注入模块样式"></textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
