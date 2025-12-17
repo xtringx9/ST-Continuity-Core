@@ -33,10 +33,10 @@ import {
     updateAllModulesPreview,
     initPromptPreview,
     ExtractModuleController,
-    initParseModule,
     extensionName,
     configManager,
-    infoLog
+    infoLog,
+    initParseModule
 } from '../index.js';
 
 import { onButtonTypeChange, onBottomStylesChange } from './settingsManager.js';
@@ -167,10 +167,11 @@ export async function openModuleConfigWindow() {
             // 初始化JSON导入导出功能
             initJsonImportExport();
 
+            initParseModule();
+
             // 初始化提示词预览功能
             initPromptPreview();
 
-            // 尝试从本地存储加载配置
             const savedConfig = loadModuleConfig();
             if (savedConfig) {
                 renderModulesFromConfig(savedConfig);
@@ -181,8 +182,6 @@ export async function openModuleConfigWindow() {
             } else {
                 // 如果没有保存的配置，绑定现有模块的事件
                 rebindAllModulesEvents();
-                // 初始化解析模块功能
-                initParseModule();
             }
 
             // 绑定自动注入开关事件

@@ -1,44 +1,62 @@
 // 模块解析管理器 - 纯基于配置的模块解析处理
-import { configManager, debugLog, errorLog, infoLog } from "../index.js";
+import { configManager, debugLog, errorLog, infoLog, renderModulesFromConfig } from "../index.js";
 import { parseModuleString, validateModuleString } from "./moduleParser.js";
+import { rebindAllModulesEvents, updateAllModulesPreview } from "./moduleManager.js";
 
 /**
  * 初始化模块解析功能
  * 注意：此函数已不再初始化UI事件，仅保留接口兼容性
  */
 export function initParseModule() {
-    debugLog('模块解析功能已初始化（纯配置模式）');
-    infoLog('模块解析功能初始化完成（纯配置模式）');
+    // infoLog('模块解析功能初始化完成（纯配置模式）');
+
+    // 绑定解析按钮事件
+    bindParseButtonEvent();
 }
 
 /**
- * 添加解析区域事件绑定
+ * 绑定解析按钮点击事件
  */
-// 不再需要addParseAreaEvents函数，因为现在使用纯配置解析API
+function bindParseButtonEvent() {
+    const parseButton = document.getElementById('parse-modules-btn');
+    // const parseInput = document.getElementById('module-parse-input');
 
+    if (!parseButton) {
+        debugLog('未找到解析按钮，稍后重试');
+        setTimeout(bindParseButtonEvent, 1000);
+        return;
+    }
 
+    // 绑定解析按钮点击事件
+    parseButton.addEventListener('click', function () {
+        parseMultipleModules();
+    });
+}
 
 /**
  * 批量解析多个模块
  */
 /**
  * 批量解析模块字符串并更新模块配置
- * @param {string} inputText 要解析的模块字符串
- * @param {Array} existingModules 现有的模块配置数组
- * @returns {Object} 包含更新后模块配置和处理信息的结果对象
+ * 优化版本：基于配置系统进行智能合并，并同步更新UI
+ * @returns {Object|null} 包含处理结果的对象或null（处理失败时）
  */
-export function parseMultipleModules(inputText, existingModules = []) {
-    debugLog('开始批量解析模块');
+export function parseMultipleModules() {
+    debugLog('开始批量解析模块（优化版本）');
+
+    // 获取解析输入框内容
+    const parseInput = document.getElementById('module-parse-input');
+    if (!parseInput) {
+        errorLog('未找到模块解析输入框');
+        toastr.error('未找到解析输入框');
+        return null;
+    }
+
+    const inputText = parseInput.value.trim();
 
     if (!inputText || inputText.trim() === '') {
-        errorLog('请输入要解析的模块字符串');
-        return {
-            modules: existingModules,
-            oldModules: [...existingModules],
-            createdCount: 0,
-            updatedCount: 0,
-            message: '请输入要解析的模块字符串'
-        };
+        toastr.warning('请输入要解析的模块字符串');
+        return null;
     }
 
     debugLog(`输入文本: ${inputText}`);
@@ -48,16 +66,11 @@ export function parseMultipleModules(inputText, existingModules = []) {
     debugLog(`找到的模块匹配: ${moduleMatches}`);
 
     if (!moduleMatches || moduleMatches.length === 0) {
-        errorLog('未找到有效的模块格式字符串');
-        return {
-            modules: existingModules,
-            oldModules: [...existingModules],
-            createdCount: 0,
-            updatedCount: 0,
-            message: '未找到有效的模块格式字符串'
-        };
+        toastr.error('未找到有效的模块格式字符串');
+        return null;
     }
 
+    // 解析所有模块字符串并生成新的模块配置
     const moduleMap = new Map(); // 用于去重，同模块名视为同一个模块
 
     moduleMatches.forEach(match => {
@@ -87,59 +100,99 @@ export function parseMultipleModules(inputText, existingModules = []) {
     });
 
     if (moduleMap.size === 0) {
-        errorLog('未找到有效的模块格式字符串');
-        return {
-            modules: existingModules,
-            oldModules: [...existingModules],
-            createdCount: 0,
-            updatedCount: 0,
-            message: '未找到有效的模块格式字符串'
-        };
+        toastr.error('未找到有效的模块格式字符串');
+        return null;
     }
 
     debugLog(`找到 ${moduleMap.size} 个不同的模块`);
 
-    // 创建或更新模块
-    let createdCount = 0;
-    let updatedCount = 0;
-    const updatedModules = [...existingModules];
-    const processingResults = [];
+    // 将Map转换为数组
+    const newModules = Array.from(moduleMap.values());
 
-    moduleMap.forEach((parsedModule, moduleName) => {
-        // 查找是否已存在同名模块
-        const existingModuleIndex = updatedModules.findIndex(module => module.name === moduleName);
+    // 智能合并配置并更新UI
+    return mergeAndUpdateModuleConfig(newModules, parseInput);
+}
 
-        if (existingModuleIndex !== -1) {
-            // 更新现有模块
-            const updateResult = updateModuleFromParse(updatedModules[existingModuleIndex], parsedModule);
-            updatedModules[existingModuleIndex] = updateResult.moduleConfig;
-            processingResults.push({
-                moduleName: moduleName,
-                action: 'updated',
-                oldVariables: updateResult.oldVariables,
-                newVariables: updateResult.moduleConfig.variables,
-                updatedVariables: updateResult.updatedVariables,
-                addedVariables: updateResult.addedVariables
-            });
-            updatedCount++;
-        } else {
-            // 创建新模块
-            const newModule = createModuleFromParse(parsedModule);
-            updatedModules.push(newModule);
-            processingResults.push({
-                moduleName: moduleName,
-                action: 'created',
-                oldVariables: [],
-                newVariables: newModule.variables,
-                updatedVariables: 0,
-                addedVariables: newModule.variables.length
-            });
-            createdCount++;
+/**
+ * 智能合并模块配置并更新UI
+ * @param {Array} newModules 新解析出的模块配置数组
+ * @param {HTMLElement} parseInput 解析输入框元素
+ * @returns {Object} 包含处理结果的对象
+ */
+function mergeAndUpdateModuleConfig(newModules, parseInput) {
+    // 获取当前配置
+    const currentConfig = configManager.getModuleConfig();
+    const currentModules = currentConfig.modules || [];
+
+    debugLog(`当前配置中的模块数量: ${currentModules.length}`);
+    debugLog(`新解析的模块数量: ${newModules.length}`);
+
+    // 创建模块名称映射，用于快速查找
+    const currentModuleMap = new Map();
+    currentModules.forEach(module => {
+        if (module.name) {
+            currentModuleMap.set(module.name, module);
         }
     });
 
-    // 记录结果
-    let message = `成功解析并处理了 ${moduleMap.size} 个模块`;
+    let createdCount = 0;
+    let updatedCount = 0;
+    const mergedModules = [...currentModules]; // 复制现有模块
+
+    // 处理每个新解析的模块
+    newModules.forEach(newModule => {
+        const existingModule = currentModuleMap.get(newModule.name);
+
+        if (existingModule) {
+            // 更新现有模块
+            const updateResult = updateModuleFromParse(existingModule, newModule);
+
+            // 找到并替换合并数组中的模块
+            const index = mergedModules.findIndex(m => m.name === newModule.name);
+            if (index !== -1) {
+                mergedModules[index] = updateResult.moduleConfig;
+            }
+
+            updatedCount++;
+            debugLog(`更新模块: ${newModule.name}, 新增变量: ${updateResult.addedVariables}, 更新变量: ${updateResult.updatedVariables}`);
+        } else {
+            // 创建新模块
+            const newModuleConfig = createModuleFromParse(newModule);
+            mergedModules.push(newModuleConfig);
+            createdCount++;
+            debugLog(`创建新模块: ${newModule.name}`);
+        }
+    });
+
+    // 更新配置管理器
+    const updatedConfig = {
+        ...currentConfig,
+        modules: mergedModules,
+        metadata: {
+            ...currentConfig.metadata,
+            lastUpdated: new Date().toISOString(),
+            source: "ST-Continuity-Core"
+        }
+    };
+
+    // 保存配置
+    configManager.setModuleConfig(updatedConfig);
+    configManager.autoSave();
+
+    // 重新渲染UI
+    renderModulesFromConfig(updatedConfig);
+
+    // 重新绑定所有模块事件
+    rebindAllModulesEvents();
+
+    // 更新所有模块预览
+    updateAllModulesPreview();
+
+    // 清空输入框
+    parseInput.value = '';
+
+    // 显示结果
+    let message = `成功解析并处理了 ${newModules.length} 个模块`;
     if (createdCount > 0) {
         message += `，创建了 ${createdCount} 个新模块`;
     }
@@ -147,17 +200,13 @@ export function parseMultipleModules(inputText, existingModules = []) {
         message += `，更新了 ${updatedCount} 个现有模块`;
     }
 
-    infoLog(message);
+    toastr.success(message);
 
-    // 返回包含更新后模块配置和处理信息的结果对象
     return {
-        modules: updatedModules,
-        oldModules: existingModules,
-        processingResults: processingResults,
-        createdCount: createdCount,
-        updatedCount: updatedCount,
-        totalModules: moduleMap.size,
-        message: message
+        totalModules: newModules.length,
+        createdCount,
+        updatedCount,
+        mergedConfig: updatedConfig
     };
 }
 
@@ -178,7 +227,7 @@ function findModuleByName(moduleName) {
  */
 function findModuleInConfigByName(moduleName) {
     try {
-        const config = configManager.getModuleConfig();
+        const config = configManager.getModules(true);
         if (!config || !Array.isArray(config)) return null;
 
         // 检查模块名是否匹配

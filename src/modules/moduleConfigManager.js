@@ -1,5 +1,5 @@
 // 模块配置管理模块
-import { extensionFolderPath, debugLog, errorLog, infoLog, initParseModule } from "../index.js";
+import { extensionFolderPath, debugLog, errorLog, infoLog } from "../index.js";
 import { getVariableItemTemplate } from "./templateManager.js";
 import { updateModulePreview, restoreModuleCollapsedState, restoreCustomStylesVisibleState } from "./moduleManager.js";
 import { updateVariableOrderNumbers, bindVariableEvents } from "./variableManager.js";
@@ -490,5 +490,5 @@ export function renderModulesFromConfig(config) {
     });
 
     // 初始化解析模块功能
-    initParseModule();
+    // initParseModule();
 }
