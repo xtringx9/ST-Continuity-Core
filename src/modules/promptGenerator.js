@@ -603,7 +603,7 @@ export function generateSingleChatModuleData(index) {
 
         const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
         const promptTag = `${moduleTag}_update`;
-
+        if (!chat || chat.length < 1) return `<${promptTag}>\n</${promptTag}>`;
         const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
 

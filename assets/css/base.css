@@ -38,6 +38,11 @@
     text-shadow: none !important;
 }
 
+/* 禁用窗口内所有元素的字体阴影 */
+#continuity-module-config-window * {
+    text-shadow: none !important;
+}
+
 #continuity-module-config-window.show {
     transform: translateX(0);
     opacity: 1;
