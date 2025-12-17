@@ -510,7 +510,7 @@ export function showExportOptionsDialog() {
                             <div id="module-checkbox-container" class="module-checkbox-group">
                                 ${modulesData.map(module => `
                                     <div class="module-checkbox-item">
-                                        <input type="checkbox" id="export-module-${module.name}" value="${module.name}" class="module-checkbox" ${module.enabled ? 'checked' : ''}>
+                                        <input type="checkbox" id="export-module-${module.name}" value="${module.name}" class="module-checkbox" checked>
                                         <label for="export-module-${module.name}" class="module-checkbox-label">${module.name} (${module.displayName})</label>
                                     </div>
                                 `).join('')}
