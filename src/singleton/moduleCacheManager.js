@@ -13,6 +13,8 @@ class ModuleCacheManager {
     updateModuleCache(isForce) {
         if (!configManager.isLoaded) return;
         if (!chat || chat.length < 1) return;
+        // infoLog("conetext:", getContext());
+        // infoLog("Chat Metadata:", chat_metadata);
         // debugLog("[Module Cache]updateModuleCache 开始执行, isForce: ", isForce);
         const isUserMessage = chat[chat.length - 1].is_user !== undefined ? chat[chat.length - 1].is_user : chat[chat.length - 1].role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
@@ -28,6 +30,7 @@ class ModuleCacheManager {
             undefined,
             isForce
         );
+
         extractParams.endIndex = null;
         processModuleData(
             extractParams,
@@ -35,7 +38,7 @@ class ModuleCacheManager {
             undefined,
             isForce
         );
-        infoLog("[Module Cache]updateModuleCache 执行完成, isForce:", isForce, this.cache);
+        infoLog("[Module Cache]updateModuleCache 执行完成, isForce:", isForce);
     }
 
     updateModuleCacheNoForce() {
@@ -61,7 +64,7 @@ class ModuleCacheManager {
      * @returns {string|number} 当前聊天的chat_id_hash
      */
     getCurrentChatIdHash() {
-        return chat_metadata?.chat_id_hash || '';
+        return getContext().chatId + '_' + chat_metadata?.chat_id_hash || '';
     }
 
     /**
@@ -130,6 +133,7 @@ class ModuleCacheManager {
      * @param {*} data 要缓存的数据
      */
     setData(chatIdHash, startIndex, endIndex, data) {
+        let haveData = this.hasData(chatIdHash, startIndex, endIndex);
         if (!this.cache.has(chatIdHash)) {
             this.cache.set(chatIdHash, new Map());
         }
@@ -138,7 +142,7 @@ class ModuleCacheManager {
         const rangeKey = this.generateRangeKey(startIndex, endIndex);
 
         chatCache.set(rangeKey, data);
-        debugLog(`[Module Cache]缓存数据已设置：chatIdHash=${chatIdHash}, range=${rangeKey}`);
+        infoLog(`[Module Cache]${haveData ? '更新缓存' : '存入缓存'},缓存数据已设置：chatIdHash=${chatIdHash}, range=${rangeKey}`, data);
     }
 
     /**

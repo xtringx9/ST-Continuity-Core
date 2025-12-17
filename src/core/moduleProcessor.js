@@ -2138,9 +2138,10 @@ export function processModuleData(extractParams, processType, selectedModuleName
 
         if (processType === 'auto' && isAllModule) {
             // 缓存提取结果
-            const hasOldData = moduleCacheManager.hasCurrentChatData(startIndex, checkEndIndex);
+            // const hasOldData = moduleCacheManager.hasCurrentChatData(startIndex, checkEndIndex);
             moduleCacheManager.setCurrentChatData(startIndex, checkEndIndex, moduleFinalData);
-            debugLog(`${hasOldData ? '更新缓存' : '存入缓存'}模块数据，范围：${startIndex} - ${checkEndIndex}`, moduleFinalData);
+            // debugLog(`${hasOldData ? '更新缓存' : '存入缓存'}模块数据，范围：${startIndex} - ${checkEndIndex}`, moduleFinalData);
+            // infoLog(`${hasOldData ? '更新缓存' : '存入缓存'}模块数据，范围：${startIndex} - ${checkEndIndex}`);
         }
 
         debugLog(`模块处理结果：`, moduleFinalData);

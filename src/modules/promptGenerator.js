@@ -542,7 +542,8 @@ export function generateModuleDataPrompt() {
     try {
         const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
         const promptTag = `${moduleTag}_data`;
-
+        if (!chat || chat.length < 1) return `<${promptTag}>\n</${promptTag}>`;
+        // infoLog("Chat:", chat);
         const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
         // 提取全部聊天记录的所有模块数据（一次性获取）
