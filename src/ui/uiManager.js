@@ -244,8 +244,8 @@ export function showCustomConfirmDialog(title, message, onConfirm, onCancel) {
                 <h3 class="confirm-dialog-title">${title}</h3>
                 <p class="confirm-dialog-message">${message}</p>
                 <div class="confirm-dialog-buttons">
-                    <button class="confirm-dialog-btn confirm-dialog-cancel">取消</button>
                     <button class="confirm-dialog-btn confirm-dialog-confirm">确定</button>
+                    <button class="confirm-dialog-btn confirm-dialog-cancel">取消</button>
                 </div>
             </div>
         </div>
@@ -473,7 +473,7 @@ function restoreSettingsCollapsedState() {
         const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
         const settingsContent = $('#settings-content');
         const toggleBtn = $('#toggle-settings-btn');
-        
+
         if (collapsedStates.hasOwnProperty('settingsArea') && collapsedStates['settingsArea']) {
             // 如果保存的状态是折叠的，则折叠设置区域
             settingsContent.hide();
@@ -518,7 +518,7 @@ function restoreSettingGroupCollapsedState(groupId) {
         const content = $(`#${groupId}`);
         const toggleBtn = $(`.setting-group-toggle-btn[data-group="${groupId}"]`);
         const toggleIcon = toggleBtn.find('.toggle-icon');
-        
+
         if (collapsedStates.hasOwnProperty(groupId) && collapsedStates[groupId]) {
             // 如果保存的状态是折叠的，则折叠设置组
             content.addClass('collapsed').hide();
@@ -560,19 +560,28 @@ function restorePreviewCollapsedState() {
         const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
         const previewContent = $('#prompt-preview-content');
         const toggleBtn = $('#toggle-preview-btn');
-        
-        if (collapsedStates.hasOwnProperty('previewArea') && collapsedStates['previewArea']) {
-            // 如果保存的状态是折叠的，则折叠预览区域
+
+        if (collapsedStates.hasOwnProperty('previewArea')) {
+            // 如果有保存的状态，则使用保存的状态
+            if (collapsedStates['previewArea']) {
+                // 如果保存的状态是折叠的，则折叠预览区域
+                previewContent.hide();
+                toggleBtn.removeClass('expanded');
+                toggleBtn.html('<span class="toggle-arrow">▶</span> 展开预览');
+                debugLog('预览区域已恢复为折叠状态');
+            } else {
+                // 如果保存的状态是展开的，则展开预览区域
+                previewContent.show();
+                toggleBtn.addClass('expanded');
+                toggleBtn.html('<span class="toggle-arrow">▶</span> 折叠预览');
+                debugLog('预览区域已恢复为展开状态');
+            }
+        } else {
+            // 默认折叠状态（没有保存的状态时）
             previewContent.hide();
             toggleBtn.removeClass('expanded');
             toggleBtn.html('<span class="toggle-arrow">▶</span> 展开预览');
-            debugLog('预览区域已恢复为折叠状态');
-        } else {
-            // 默认展开状态
-            previewContent.show();
-            toggleBtn.addClass('expanded');
-            toggleBtn.html('<span class="toggle-arrow">▶</span> 折叠预览');
-            debugLog('预览区域已恢复为展开状态');
+            debugLog('预览区域已设置为默认折叠状态');
         }
     } catch (error) {
         errorLog('恢复预览区域折叠状态失败:', error);
