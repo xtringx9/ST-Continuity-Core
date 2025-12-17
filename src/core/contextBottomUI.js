@@ -899,7 +899,7 @@ export function renderSingleMessageContext(messages, container, mes) {
                     }
                 }
             });
-            infoLog("消息替换", newHtml)
+            // infoLog("消息替换", newHtml)
             // 使用injectHtmlWithScript替换html()方法，确保script标签能执行
             injectHtmlWithScript(container[0], newHtml, true);
             // 渲染成功后设置renderSwipe属性
