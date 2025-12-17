@@ -7,70 +7,12 @@
 
     <!-- 分页标签 -->
     <div class="tab-container">
-        <div class="tab-item active" data-tab="extract">提取模块</div>
-        <div class="tab-item" data-tab="config">模块配置</div>
-    </div>
-
-    <!-- 提取模块页面 -->
-    <div id="extract-tab" class="tab-content active">
-        <!-- 提取模块区域 -->
-        <div class="module-extract-section">
-            <div class="section-title">
-                <h3>提取模块</h3>
-            </div>
-            <div class="extract-content">
-                <!-- <div class="extract-description">
-                    <p>从对话中提取Continuity模块。点击下方按钮开始提取。</p>
-                </div> -->
-                <div class="extract-actions">
-                    <div class="module-selector-container">
-                        <!-- 移动友好的模块选择器 -->
-                        <div class="module-selector-header">
-                            <label>选择模块：</label>
-                            <div class="module-selector-actions">
-                                <button type="button" id="select-all-modules" class="btn-tiny">全选</button>
-                                <button type="button" id="clear-all-modules" class="btn-tiny">清空</button>
-                            </div>
-                        </div>
-                        <div class="module-checkbox-group" id="module-checkbox-container">
-                            <!-- 模块复选框将通过JavaScript动态添加 -->
-                        </div>
-                        <!-- 保留原有的select元素用于向后兼容 -->
-                        <select id="module-select" class="module-range-mode" multiple size="4" style="display: none;">
-                            <option value="all">所有模块</option>
-                            <!-- 模块选项将通过JavaScript动态添加 -->
-                        </select>
-                    </div>
-                    <div class="extract-actions-row">
-                        <div class="floor-range-group">
-                            <input type="number" id="start-floor-input" class="floor-input" min="1" placeholder="起始楼层">
-                            <span class="range-separator">-</span>
-                            <input type="number" id="end-floor-input" class="floor-input" min="1" placeholder="结束楼层">
-                        </div>
-                        <div class="extract-buttons-group">
-                            <button id="extract-modules-btn" class="btn-small">提取原生模块</button>
-                            <button id="extract-processed-modules-btn" class="btn-small">提取模块并整理</button>
-                            <button id="extract-auto-modules-btn" class="btn-small">自动处理模块（根据配置智能选择）</button>
-                            <button id="extract-ui-modules-btn" class="btn-small">打印缓存数据</button>
-                            <button id="extract-ui-modules-config-btn" class="btn-small">打印配置数据</button>
-                        </div>
-                    </div>
-                    <div class="floor-range-group">
-                        <input type="number" id="floor-input" class="floor-input" min="1" placeholder="输入楼层号">
-                        <button id="show-floor-btn" class="btn-small">显示楼层消息内容</button>
-                    </div>
-                </div>
-                <div class="extract-results">
-                    <div id="extract-results-container" class="results-container">
-                        <!-- 提取结果将显示在这里 -->
-                    </div>
-                </div>
-            </div>
-        </div>
+        <div class="tab-item active" data-tab="config">模块配置</div>
+        <div class="tab-item" data-tab="extract">提取模块</div>
     </div>
 
     <!-- 模块配置页面 -->
-    <div id="config-tab" class="tab-content">
+    <div id="config-tab" class="tab-content active">
         <!--
     <div class="info-section">
         <p><strong>配置说明：</strong>在此页面可自定义模块，每个模块可设置名称、变量和变量解释。</p>
@@ -459,5 +401,61 @@
         </div>
     </div>
 
-
+    <!-- 提取模块页面 -->
+    <div id="extract-tab" class="tab-content">
+        <!-- 提取模块区域 -->
+        <div class="module-extract-section">
+            <div class="section-title">
+                <h3>提取模块</h3>
+            </div>
+            <div class="extract-content">
+                <!-- <div class="extract-description">
+                    <p>从对话中提取Continuity模块。点击下方按钮开始提取。</p>
+                </div> -->
+                <div class="extract-actions">
+                    <div class="module-selector-container">
+                        <!-- 移动友好的模块选择器 -->
+                        <div class="module-selector-header">
+                            <label>选择模块：</label>
+                            <div class="module-selector-actions">
+                                <button type="button" id="select-all-modules" class="btn-tiny">全选</button>
+                                <button type="button" id="clear-all-modules" class="btn-tiny">清空</button>
+                            </div>
+                        </div>
+                        <div class="module-checkbox-group" id="module-checkbox-container">
+                            <!-- 模块复选框将通过JavaScript动态添加 -->
+                        </div>
+                        <!-- 保留原有的select元素用于向后兼容 -->
+                        <select id="module-select" class="module-range-mode" multiple size="4" style="display: none;">
+                            <option value="all">所有模块</option>
+                            <!-- 模块选项将通过JavaScript动态添加 -->
+                        </select>
+                    </div>
+                    <div class="extract-actions-row">
+                        <div class="floor-range-group">
+                            <input type="number" id="start-floor-input" class="floor-input" min="1" placeholder="起始楼层">
+                            <span class="range-separator">-</span>
+                            <input type="number" id="end-floor-input" class="floor-input" min="1" placeholder="结束楼层">
+                        </div>
+                        <div class="extract-buttons-group">
+                            <button id="extract-modules-btn" class="btn-small">提取原生模块</button>
+                            <button id="extract-processed-modules-btn" class="btn-small">提取模块并整理</button>
+                            <button id="extract-auto-modules-btn" class="btn-small">自动处理模块（根据配置智能选择）</button>
+                            <button id="extract-ui-modules-btn" class="btn-small">打印缓存数据</button>
+                            <button id="extract-ui-modules-config-btn" class="btn-small">打印配置数据</button>
+                        </div>
+                    </div>
+                    <div class="floor-range-group">
+                        <input type="number" id="floor-input" class="floor-input" min="1" placeholder="输入楼层号">
+                        <button id="show-floor-btn" class="btn-small">显示楼层消息内容</button>
+                    </div>
+                </div>
+                <div class="extract-results">
+                    <div id="extract-results-container" class="results-container">
+                        <!-- 提取结果将显示在这里 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
