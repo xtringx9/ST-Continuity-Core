@@ -228,3 +228,7 @@ details.module-data[open]>summary::before {
 .continuity-context-bottom-ui * {
     text-shadow: none;
 }
+
+.continuity-custom-styles-container * {
+    text-shadow: none;
+}
