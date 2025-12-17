@@ -253,6 +253,10 @@
     transition: transform 0.3s ease;
 }
 
+.confirm-dialog-content * {
+    text-shadow: none;
+}
+
 .continuity-confirm-dialog.show .confirm-dialog-content {
     transform: translateY(0);
 }
