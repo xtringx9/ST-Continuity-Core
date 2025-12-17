@@ -2,6 +2,7 @@
 
 /* 手机设备响应式布局 */
 @media (max-width: 767px) {
+
     /* 模块头部响应式布局 */
     .module-header {
         flex-direction: column;
@@ -9,13 +10,13 @@
         gap: 8px;
         flex-wrap: wrap;
     }
-    
+
     .module-header-left {
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 8px;
     }
-    
+
     .module-actions {
         justify-content: flex-start;
         gap: 4px;
@@ -23,7 +24,7 @@
         flex-wrap: wrap;
         width: 100%;
     }
-    
+
     .module-actions .btn-small {
         flex: 1;
         min-width: 80px;
@@ -32,67 +33,67 @@
         white-space: nowrap;
         text-align: center;
     }
-    
+
     .drag-handle {
         flex: 0 0 auto;
         min-width: 24px;
         margin-left: 4px;
     }
-    
+
     /* 模块名称组响应式 */
     .module-name-group {
         flex-wrap: wrap;
         gap: 4px;
     }
-    
+
     .module-name-group label {
         white-space: nowrap;
     }
-    
+
     /* 模块设置行响应式布局 */
     .module-settings-row {
         flex-direction: column;
         align-items: stretch;
         gap: 8px;
     }
-    
+
     .module-settings-inline {
         justify-content: space-between;
         gap: 8px;
         flex-wrap: wrap;
     }
-    
+
     .module-actions-right {
         margin-left: 0;
         justify-content: center;
         width: 100%;
         margin-top: 4px;
     }
-    
+
     .module-actions-right .btn-small {
         flex: 1;
         min-width: 120px;
     }
-    
+
     /* 模块名称输入框响应式 */
     #continuity-module-config-window .module-name {
         width: 100px;
         font-size: 12px;
     }
-    
+
     /* 模块设置项响应式 */
     .module-setting-item {
-        flex: 1;
+        /* flex: 1; */
         justify-content: space-between;
         min-width: 120px;
     }
-    
+
     .module-output-position,
     .module-item-limit {
         width: auto;
         min-width: 60px;
     }
-    
+
     /* 确保按钮在手机端不会溢出 */
     .btn-small {
         word-break: keep-all;
@@ -107,11 +108,11 @@
         font-size: 10px;
         padding: 3px 5px;
     }
-    
+
     #continuity-module-config-window .module-name {
         width: 100px;
     }
-    
+
     .module-settings-inline {
         gap: 8px;
     }
