@@ -24,7 +24,7 @@
     box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
     width: 90%;
     max-width: 450px;
-    height: 100vh;
+    height: 100dvh;
     overflow-y: auto;
     transform: translateX(-100%);
     opacity: 0;
