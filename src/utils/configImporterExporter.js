@@ -418,6 +418,10 @@ export function showImportOptionsDialog(file, config) {
                                     </label>
                                 </div>
                             </div>
+                    <div class="confirm-dialog-message" style="margin-top: 15px;">
+                        <p style="color: #ff6b35; font-weight: bold; margin: 0;">⚠️ 安全提示：请务必确保配置来源可信，确认导入吗？</p>
+                        ${config.metadata && config.metadata.author ? `<p style="color: #666; font-size: 0.9em; margin: 5px 0 0 0;">配置作者：${config.metadata.author}</p>` : ''}
+                    </div>
                     <div class="confirm-dialog-buttons">
                         <button class="confirm-dialog-btn confirm-dialog-cancel">取消</button>
                         <button class="confirm-dialog-btn confirm-dialog-confirm">确定导入</button>
