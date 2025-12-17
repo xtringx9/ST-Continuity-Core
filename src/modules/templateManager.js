@@ -64,7 +64,7 @@ export function getVariableItemTemplate(variable = {}) {
             </div>
             <div class="variable-custom-styles-group" style="width: 100%;">
                 <label>变量样式</label>
-                <textarea class="variable-custom-styles" placeholder="输入CSS/HTML代码，支持多行">${customStyles}</textarea>
+                <textarea class="variable-custom-styles" placeholder="使用\$\{var.value\}注入变量值">${customStyles}</textarea>
             </div>
         </div>
     `;
