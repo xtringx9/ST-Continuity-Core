@@ -70,7 +70,7 @@ export const WORLD_BOOK_ENTRIES = {
         },
         {
             key: [],
-            comment: 'PROMPT',
+            comment: '{{CONTINUITY_PROMPT}}',
             content: '{{CONTINUITY_PROMPT}}',
             constant: true,
             order: 1,
@@ -84,7 +84,7 @@ export const WORLD_BOOK_ENTRIES = {
         },
         {
             key: [],
-            comment: 'ORDER',
+            comment: '{{CONTINUITY_ORDER}}',
             content: '{{CONTINUITY_ORDER}}',
             constant: true,
             order: 9999,
@@ -98,7 +98,7 @@ export const WORLD_BOOK_ENTRIES = {
         },
         {
             key: [],
-            comment: 'USAGE_GUIDE',
+            comment: '{{CONTINUITY_USAGE_GUIDE}}',
             content: '{{CONTINUITY_USAGE_GUIDE}}',
             constant: true,
             order: 9998,
@@ -112,7 +112,7 @@ export const WORLD_BOOK_ENTRIES = {
         },
         {
             key: [],
-            comment: 'MODULE_DATA',
+            comment: '{{CONTINUITY_MODULE_DATA}}',
             content: '{{CONTINUITY_MODULE_DATA}}',
             constant: true,
             order: 2,
@@ -283,9 +283,9 @@ function getMaxExistingEntryNumber(worldBookData) {
 
     // 遍历所有条目，查找以"CHAT_MODULE_"开头的comment
     entriesArray.forEach(entry => {
-        if (entry.comment && entry.comment.startsWith('CHAT_MODULE_')) {
+        if (entry.comment && entry.comment.startsWith('{{CONTINUITY_CHAT_MODULE_')) {
             // 提取数字部分
-            const numberStr = entry.comment.replace('CHAT_MODULE_', '');
+            const numberStr = entry.comment.replace('{{CONTINUITY_CHAT_MODULE_', '').replace('}}', '');
             const number = parseInt(numberStr, 10);
 
             if (!isNaN(number) && number > maxNumber) {
@@ -377,7 +377,7 @@ export async function createConfigEntry(worldBookName, worldBookData) {
         for (let i = 0; i < entryCount; i++) {
             // 只在奇数索引时判断条目是否存在
             if (i % 2 === 1) {
-                let tempEntry = { comment: `CHAT_MODULE_${i}` };
+                let tempEntry = { comment: `{{CONTINUITY_CHAT_MODULE_${i}}}` };
                 if (entryExists(worldBookData, tempEntry)) {
                     debugLog(`[WORLD BOOK]配置条目"${tempEntry.comment}"已存在，跳过创建`);
                     // todo 后续需要判断是否需要更新
@@ -429,9 +429,9 @@ export async function createConfigEntry(worldBookName, worldBookData) {
 
             let disabledCount = 0;
             entriesArray.forEach(entry => {
-                if (entry.comment && entry.comment.startsWith('CHAT_MODULE_')) {
+                if (entry.comment && entry.comment.startsWith('{{CONTINUITY_CHAT_MODULE_')) {
                     // 提取数字部分
-                    const numberStr = entry.comment.replace('CHAT_MODULE_', '');
+                    const numberStr = entry.comment.replace('{{CONTINUITY_CHAT_MODULE_', '').replace('}}', '');
                     const number = parseInt(numberStr, 10);
 
                     if (!isNaN(number) && number >= entryCount) {
@@ -440,6 +440,10 @@ export async function createConfigEntry(worldBookName, worldBookData) {
                         disabledCount++;
                         debugLog(`[WORLD BOOK]已禁用条目: ${entry.comment}`);
                     }
+                    // else {
+                    //     // 正常条目，保持disable: false
+                    //     entry.disable = false;
+                    // }
                 }
             });
 
