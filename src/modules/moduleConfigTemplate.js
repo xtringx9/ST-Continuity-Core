@@ -132,7 +132,7 @@ export const MODULE_CONFIG_TEMPLATE = {
             // 输出设置
             outputPosition: {
                 type: 'string',
-                enum: ['body', 'after_body', 'embedded', 'specific_position', 'custom'], // todo custom可以考虑找个时间实现
+                enum: ['body', 'body_surround', 'after_body', 'embedded', 'specific_position', 'custom'], // todo custom可以考虑找个时间实现
                 default: 'after_body',
                 description: '输出位置'
             },
@@ -368,7 +368,7 @@ export function validateConfig(config) {
             }
 
             // 验证枚举值
-            const validOutputPositions = ['body', 'after_body', 'embedded', 'specific_position', 'custom'];
+            const validOutputPositions = ['body', 'body_surround', 'after_body', 'embedded', 'specific_position', 'custom'];
             if (module.outputPosition && !validOutputPositions.includes(module.outputPosition)) {
                 warnings.push(`${modulePrefix}: outputPosition应为 ${validOutputPositions.join(', ')} 之一`);
             }
@@ -460,7 +460,7 @@ export function normalizeConfig(config, extension_config = null) {
         normalized.modules = config.modules.map(module => ({
             // id: module.id || generateId(),
             name: module.name || '',
-            displayName: module.displayName || module.name || '',
+            displayName: module.displayName || '',
             compatibleModuleNames: module.compatibleModuleNames || '',
             order: module.order !== undefined ? Number(module.order) : 0,
             enabled: module.enabled !== undefined ? module.enabled : true,
@@ -488,7 +488,7 @@ export function normalizeConfig(config, extension_config = null) {
                 module.variables = config.modules[index].variables.map(variable => ({
                     // id: variable.id || generateId(),
                     name: variable.name || '',
-                    displayName: variable.displayName || variable.name || '',
+                    displayName: variable.displayName || '',
                     compatibleVariableNames: variable.compatibleVariableNames || '',
                     description: variable.description || '',
                     enabled: variable.enabled !== undefined ? variable.enabled : true,

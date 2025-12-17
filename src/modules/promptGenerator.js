@@ -31,19 +31,6 @@ export function generateFormalPrompt() {
 
         let prompt = `<${promptTag}>\n`;
 
-        // 从模块配置中获取全局设置
-        // const moduleConfig = loadModuleConfig();
-        // const globalSettings = moduleConfig?.globalSettings;
-
-        // // 添加核心原则提示词（如果设置了）
-        // if (globalSettings?.prompt) {
-        //     prompt += `[CORE PRINCIPLE]\n${globalSettings.prompt}\n\n`;
-        // }
-
-        // // 添加通用格式描述提示词（如果设置了）
-        // if (globalSettings?.orderPrompt) {
-        //     prompt += `${globalSettings.orderPrompt}\n\n`;
-        // }
 
         prompt += getOutputRulePrompt('prompt');
 
@@ -51,9 +38,7 @@ export function generateFormalPrompt() {
 
         // 按模块顺序生成提示词，按照新格式组织
         enabledModules.forEach((module, index) => {
-            // 模块标题：使用【name (displayName)】格式，方便AI理解
-            const displayName = module.displayName || module.name;
-            prompt += `${configManager.MODULE_TITLE_LEFT}${module.name} (${displayName})${configManager.MODULE_TITLE_RIGHT}\n`;
+            prompt += `${configManager.MODULE_TITLE_LEFT}${module.name}${module.displayName ? ` (${module.displayName})` : ""}${configManager.MODULE_TITLE_RIGHT}\n`;
 
             prompt += getModuleRules(module, module.outputPosition === 'specific_position');
 
@@ -132,7 +117,7 @@ export function generateUsageGuide() {
         usageGuide += "# 模块内容使用指导\n\n";
 
         modulesWithUsagePrompt.forEach(module => {
-            usageGuide += `${configManager.MODULE_TITLE_LEFT}${module.name} (${module.displayName})${configManager.MODULE_TITLE_RIGHT}\n`;
+            usageGuide += `${configManager.MODULE_TITLE_LEFT}${module.name}${module.displayName ? ` (${module.displayName})` : ""}${configManager.MODULE_TITLE_RIGHT}\n`;
             usageGuide += `usage:${module.contentPrompt}\n\n`;
         });
 
@@ -147,6 +132,129 @@ export function generateUsageGuide() {
         return '生成提示词时发生错误：' + error.message;
     }
 }
+
+// export function generateModuleOrderPrompt() {
+//     try {
+//         const globalSettings = configManager.getGlobalSettings();
+//         const moduleTag = globalSettings.moduleTag || "module";
+//         const promptTag = `${moduleTag}_output_rule`;
+//         const contentTag = globalSettings.contentTag || "content";
+//         let contentTagString = Array.isArray(contentTag) ? contentTag.join(',') : contentTag;
+//         contentTagString = contentTagString + ",...";
+
+//         // 获取模块数据
+//         const modulesData = configManager.getModules() || [];
+
+//         if (!modulesData || modulesData.length === 0) {
+//             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
+//             return "";
+//         }
+
+//         // 过滤启用的模块
+//         const enabledModules = modulesData.filter(module => module.enabled !== false);
+
+//         if (enabledModules.length === 0) {
+//             debugLog("[Macro]宏管理器: 没有启用的模块，返回空提示词");
+//             return "";
+//         }
+
+//         // 按照生成位置和序号分组
+//         const embeddableModules = []; // 可嵌入模块
+//         const bodyModules = []; // 正文内模块
+//         const specificPositionModules = []; // 正文内特定位置模块
+//         const afterBodyModules = []; // 正文后模块
+
+//         // 分类模块
+//         enabledModules.forEach(module => {
+//             switch (module.outputPosition) {
+//                 case 'embedded':
+//                     embeddableModules.push(module);
+//                     break;
+//                 case 'body':
+//                     bodyModules.push(module);
+//                     break;
+//                 case 'specific_position':
+//                     specificPositionModules.push(module);
+//                     break;
+//                 case 'after_body':
+//                     afterBodyModules.push(module);
+//                     break;
+//                 default:
+//                     // 默认归为正文后模块
+//                     afterBodyModules.push(module);
+//             }
+//         });
+
+//         // 构建顺序提示词
+//         let orderPrompt = `<${promptTag}>\n`;
+//         // orderPrompt += "模块生成顺序和配置：\n\n";
+
+//         let formatPrompt = getOutputRulePrompt('order');
+//         if (formatPrompt) {
+//             orderPrompt += formatPrompt;
+//             // orderPrompt += "# 格式与顺序\n";
+//         }
+
+
+//         // orderPrompt += "Format: [Module]|Trigger|Qty|Mode|Pos/Note*\n\n";
+
+//         // 可嵌入模块（按序号排序）
+//         if (embeddableModules.length > 0) {
+//             embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+//             // orderPrompt += "[DURING GENERATION]\n";
+//             orderPrompt += "# 可嵌入模块，不限制位置，应积极插入正文内\n";
+//             embeddableModules.forEach(module => {
+//                 orderPrompt += buildModulePrompt(module);
+//             });
+//             orderPrompt += "\n\n";
+//         }
+
+//         // 正文内模块（按序号排序）
+//         if (bodyModules.length > 0) {
+//             bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+//             // orderPrompt += "[STRUCTURED IN-TEXT]\n";
+//             orderPrompt += `# 正文内模块(位于<${contentTagString}></${contentTagString}>内):\n`;
+//             bodyModules.forEach(module => {
+//                 orderPrompt += buildModulePrompt(module);
+//             });
+//             orderPrompt += "\n\n";
+//         }
+
+//         // 正文内特定位置模块（使用顺序提示词）
+//         if (specificPositionModules.length > 0) {
+//             specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+//             // orderPrompt += "[STRUCTURED IN-TEXT]\n";
+//             orderPrompt += `# 正文内特定位置模块(位于\`<${contentTagString}>\`后，被<${contentTagString}></${contentTagString}>包裹):\n`;
+//             orderPrompt += `<${contentTagString}>\n`;
+//             specificPositionModules.forEach(module => {
+//                 orderPrompt += buildModulePrompt(module, false, false, true);
+//             });
+//             orderPrompt += `</${contentTagString}>\n`;
+//             orderPrompt += "\n\n";
+//         }
+
+//         // 正文后模块（按序号排序）
+//         if (afterBodyModules.length > 0) {
+//             afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+//             // orderPrompt += "[AFTER TEXT GENERATION]\n";
+//             orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}></${moduleTag}>包裹):\n`;
+//             orderPrompt += `</${contentTagString}>\n`;
+//             orderPrompt += `<${moduleTag}_update>\n`;
+//             afterBodyModules.forEach(module => {
+//                 orderPrompt += buildModulePrompt(module, true);
+//             });
+//         }
+//         orderPrompt += `</${moduleTag}_update>\n\n`;
+//         orderPrompt += `</${promptTag}>\n`;
+
+//         // 替换提示词中的变量
+//         const replacedOrderPrompt = replaceVariables(orderPrompt.trim());
+//         return replacedOrderPrompt;
+//     } catch (error) {
+//         errorLog('生成模块顺序提示词失败:', error);
+//         return '生成提示词时发生错误：' + error.message;
+//     }
+// }
 
 export function generateModuleOrderPrompt() {
     try {
@@ -176,6 +284,7 @@ export function generateModuleOrderPrompt() {
         // 按照生成位置和序号分组
         const embeddableModules = []; // 可嵌入模块
         const bodyModules = []; // 正文内模块
+        const bodySurroundModules = []; // 正文内模块
         const specificPositionModules = []; // 正文内特定位置模块
         const afterBodyModules = []; // 正文后模块
 
@@ -187,6 +296,9 @@ export function generateModuleOrderPrompt() {
                     break;
                 case 'body':
                     bodyModules.push(module);
+                    break;
+                case 'body_surround':
+                    bodySurroundModules.push(module);
                     break;
                 case 'specific_position':
                     specificPositionModules.push(module);
@@ -225,35 +337,34 @@ export function generateModuleOrderPrompt() {
         }
 
         // 正文内模块（按序号排序）
-        if (bodyModules.length > 0) {
-            bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            // orderPrompt += "[STRUCTURED IN-TEXT]\n";
+        if (bodyModules.length > 0 || bodySurroundModules.length > 0 || specificPositionModules.length > 0) {
+            if (bodyModules.length > 0) bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            if (bodySurroundModules.length > 0) bodySurroundModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            if (specificPositionModules.length > 0) specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += `# 正文内模块(位于<${contentTagString}></${contentTagString}>内):\n`;
-            bodyModules.forEach(module => {
-                orderPrompt += buildModulePrompt(module);
-            });
-            orderPrompt += "\n\n";
-        }
-
-        // 正文内特定位置模块（使用顺序提示词）
-        if (specificPositionModules.length > 0) {
-            specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            // orderPrompt += "[STRUCTURED IN-TEXT]\n";
-            orderPrompt += `# 正文内特定位置模块(位于\`<${contentTagString}>\`后，被<${contentTagString}></${contentTagString}>包裹):\n`;
             orderPrompt += `<${contentTagString}>\n`;
+            bodySurroundModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module, false, false, true, "正文内首先输出");
+            });
             specificPositionModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true);
             });
+            bodyModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module);
+            });
+            bodySurroundModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module, false, false, true, "正文内最后输出");
+            });
             orderPrompt += `</${contentTagString}>\n`;
-            orderPrompt += "\n\n";
+            orderPrompt += "\n";
         }
 
         // 正文后模块（按序号排序）
         if (afterBodyModules.length > 0) {
             afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             // orderPrompt += "[AFTER TEXT GENERATION]\n";
-            orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}></${moduleTag}>包裹):\n`;
-            orderPrompt += `</${contentTagString}>\n`;
+            orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}_update></${moduleTag}_update>包裹):\n`;
+            // orderPrompt += `</${contentTagString}>\n`;
             orderPrompt += `<${moduleTag}_update>\n`;
             afterBodyModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, true);
@@ -330,18 +441,18 @@ function getOutputRulePrompt(type, title = "# 模块输出要求") {
  * @param {boolean} includePosition 是否包含位置提示词
  * @returns {string} 模块提示词字符串
  */
-function buildModulePrompt(module, needTitle = false, needRules = false, includePosition = false) {
+function buildModulePrompt(module, needTitle = false, needRules = false, includePosition = false, positionPrompt = "") {
     let prompt = needTitle ? `${configManager.MODULE_TITLE_LEFT}${module.name}${configManager.MODULE_TITLE_RIGHT}\n` : '';
     if (needRules) {
         prompt += `> ` + getModuleRules(module, includePosition, true);
     }
     if ((!needTitle || !needRules) && includePosition) {
-        prompt += `[${module.name}|...](${getModulePositionPrompt(module, includePosition)})\n`;
+        prompt += `[${module.name}|...](${positionPrompt || getModulePositionPrompt(module, includePosition)})\n`;
     }
     else {
         prompt += `[${module.name}|...]\n`;
     }
-    if (module.outputPosition !== 'embedded' && !(module.rangeMode === 'specified' || module.itemMax == 1)) {
+    if (module.outputPosition !== 'embedded' && module.outputPosition !== 'body' && module.outputPosition !== 'body_surround' && !(module.rangeMode === 'specified' || module.itemMax == 1)) {
         prompt += '...\n';
         prompt += `[${module.name}|...]\n`;
     }
