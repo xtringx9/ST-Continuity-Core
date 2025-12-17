@@ -222,5 +222,6 @@ details.module-data[open]>summary::before {
 }
 
 .continuity-context-bottom-ui {
+    text-shadow: none;
     width: 100%;
 }
