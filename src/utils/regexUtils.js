@@ -58,7 +58,8 @@ async function registerCallback() {
         extension_settings.regex = [];
     }
     const scripts = extension_settings.regex;
-    const isChange = registerConfigRegexPatterns(scripts, configManager.isExtensionEnabled());
+    let isChange = registerRegexPatterns(REGEX_PATTERNS.patterns, scripts);
+    isChange = isChange || registerConfigRegexPatterns(scripts, configManager.isExtensionEnabled());
     if (isChange) {
         await saveScriptsByType(scripts, SCRIPT_TYPES.GLOBAL);
 
