@@ -53,7 +53,7 @@ function getPreviewModes() {
         if (i % 2 === 1) {
             chatModuleModes.push({
                 value: `macro-chat-module-${i}`,
-                label: `{{CONTINUITY_CHAT_MODULE_${i}}} 宏`
+                label: `{{CONTINUITY_MSG_MODULE_${i}}} 宏`
             });
         }
     }
@@ -126,7 +126,7 @@ function getPreviewModeDescription() {
     if (mode.startsWith('macro-chat-module-')) {
         const index = parseInt(mode.split('-').pop());
         if (!isNaN(index)) {
-            return `{{CONTINUITY_CHAT_MODULE_${index}}} 宏会生成的聊天消息 ${index} 的模块数据`;
+            return `{{CONTINUITY_MSG_MODULE_${index}}} 宏会生成的聊天消息 ${index} 的模块数据`;
         }
     }
 
