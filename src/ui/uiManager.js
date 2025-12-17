@@ -209,6 +209,9 @@ export async function openModuleConfigWindow() {
             // 初始化提取模块功能
             const extractModuleController = new ExtractModuleController();
             extractModuleController.init();
+
+            // 初始化设置组折叠功能
+            initSettingGroupToggle();
         }
 
         // 显示窗口和背景
@@ -434,6 +437,38 @@ export function toggleSettings() {
         }
     } catch (error) {
         errorLog('切换设置区域失败:', error);
+    }
+}
+
+/**
+ * 初始化设置组折叠功能
+ */
+export function initSettingGroupToggle() {
+    try {
+        // 绑定设置组折叠/展开事件
+        $('.setting-group-toggle-btn').on('click', function () {
+            const groupId = $(this).data('group');
+            const content = $(`#${groupId}`);
+            const toggleIcon = $(this).find('.toggle-icon');
+
+            if (content.hasClass('collapsed')) {
+                // 展开设置组
+                content.removeClass('collapsed').slideDown(300);
+                $(this).removeClass('collapsed');
+                toggleIcon.text('▼');
+                debugLog(`设置组 ${groupId} 已展开`);
+            } else {
+                // 折叠设置组
+                content.addClass('collapsed').slideUp(300);
+                $(this).addClass('collapsed');
+                toggleIcon.text('▶');
+                debugLog(`设置组 ${groupId} 已折叠`);
+            }
+        });
+
+        debugLog('设置组折叠功能已初始化');
+    } catch (error) {
+        errorLog('初始化设置组折叠功能失败:', error);
     }
 }
 
