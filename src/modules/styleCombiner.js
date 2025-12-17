@@ -1,5 +1,5 @@
 // 样式组合器 - 用于组合模块级和变量级的customStyles
-import { debugLog, errorLog } from "../index.js";
+import { infoLog, debugLog, errorLog } from "../index.js";
 import { loadModuleConfig } from "./moduleConfigManager.js";
 import { getUserAndCharNames } from "../utils/variableReplacer.js"
 
@@ -214,7 +214,7 @@ function generateAutoStyles(moduleConfig) {
   .auto-module-micro:empty { display: none; }
 </style>
 <div class="auto-module-micro" style="display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 0 0.8em; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 16px; padding: 4px 10px; margin: 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.5; color: #495057;">
-    
+
     <!-- 模块名称 -->
     <span style="font-size: 11px; font-weight: bold; color: #ffffff; background-color: #6D6A67; padding: 1px 6px; border-radius: 8px;">${moduleName}</span>`;
 
@@ -224,13 +224,13 @@ function generateAutoStyles(moduleConfig) {
                 // 在变量之间添加分隔符（第一个变量前不加，最后一个变量后不加）
                 if (index > 0) {
                     autoStyles += `
-    
+
     <!-- 分隔符 -->
     <span style="color: #c0b8b3;">|</span>`;
                 }
 
                 autoStyles += `
-    
+
     <!-- ${variable.displayName || variable.name} -->
     <span style="white-space: nowrap;">
         <span style="color: #6c757d; font-weight: 500;">${variable.displayName || variable.name}:</span>
@@ -278,6 +278,8 @@ export function getCombinedCustomStyles(moduleConfig, moduleData) {
 
             // 再处理其他变量替换
             moduleData.customStyles = replaceVariablesInStyles(moduleData.customStyles, moduleConfig, moduleData.moduleData, false, moduleData.moduleData.isIncremental);
+
+            // moduleData.customStyles = wrapCustomStylesWithShadowNone(moduleData.customStyles);
         }
 
         // if (moduleData.moduleData.isIncremental) {
@@ -293,6 +295,7 @@ export function getCombinedCustomStyles(moduleConfig, moduleData) {
                     // 再处理其他变量替换
                     entry.customStyles = replaceVariablesInStyles(entry.customStyles, moduleConfig, entry, false, moduleData.moduleData.isIncremental);
                 }
+                // entry.customStyles = wrapCustomStylesWithShadowNone(entry.customStyles);
             })
         }
         // moduleData.customStyles = rawStyles;
@@ -667,7 +670,23 @@ export function insertCombinedStylesToDetails(moduleData) {
     }
 }
 
+// /**
+//  * 包裹自定义样式，添加禁用字体阴影的全局样式
+//  * @param {string} customStyles 原始自定义样式
+//  * @returns {string} 包裹后的样式字符串
+//  */
+// function wrapCustomStylesWithShadowNone(customStyles) {
+//     if (customStyles === undefined || customStyles.includes('continuity-custom-styles-container')) {
+//         return customStyles;
+//     }
 
+//     // 使用新的元素包裹customStyles，并在包裹元素上添加禁用字体阴影的样式
+//     const resultStyles = `<div class="continuity-custom-styles-container">${customStyles}</div>`;
+
+//     // infoLog('[CUSTOM STYLES] 包裹后的自定义样式:', resultStyles);
+
+//     return resultStyles;
+// }
 
 // /**
 //  * 处理并生成最终的模块样式

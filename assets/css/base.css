@@ -291,24 +291,24 @@
 }
 
 .confirm-dialog-cancel {
-    background-color: rgba(255, 255, 255, 0.2);
-    color: white;
-}
-
-.confirm-dialog-cancel:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-}
-
-.confirm-dialog-confirm {
     background-color: #e74c3c;
     color: white;
 }
 
-.confirm-dialog-confirm:hover {
+.confirm-dialog-cancel:hover {
     background-color: #c0392b;
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s;
+}
+
+.confirm-dialog-confirm {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.confirm-dialog-confirm:hover {
+    background-color: rgba(255, 255, 255, 0.3);
 }
 
 #module-cancel-btn:hover,

@@ -781,7 +781,7 @@ export function renderCurrentMessageContext() {
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, true);
-        debugLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
+        infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         for (let i = containers.length - 1; i >= 0; i--) {
             const message = $(containers[i]);
@@ -899,6 +899,7 @@ export function renderSingleMessageContext(messages, container, mes) {
                     }
                 }
             });
+            infoLog("消息替换", newHtml)
             // 使用injectHtmlWithScript替换html()方法，确保script标签能执行
             injectHtmlWithScript(container[0], newHtml, true);
             // 渲染成功后设置renderSwipe属性

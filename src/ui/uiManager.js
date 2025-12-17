@@ -244,8 +244,8 @@ export function showCustomConfirmDialog(title, message, onConfirm, onCancel) {
                 <h3 class="confirm-dialog-title">${title}</h3>
                 <p class="confirm-dialog-message">${message}</p>
                 <div class="confirm-dialog-buttons">
-                    <button class="confirm-dialog-btn confirm-dialog-cancel">确定</button>
-                    <button class="confirm-dialog-btn confirm-dialog-confirm">取消</button>
+                    <button class="confirm-dialog-btn confirm-dialog-confirm">确定</button>
+                    <button class="confirm-dialog-btn confirm-dialog-cancel">取消</button>
                 </div>
             </div>
         </div>
