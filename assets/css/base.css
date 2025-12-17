@@ -35,12 +35,11 @@
     color: white;
     display: block;
     z-index: 10000;
-    text-shadow: none !important;
 }
 
 /* 禁用窗口内所有元素的字体阴影 */
 #continuity-module-config-window * {
-    text-shadow: none !important;
+    text-shadow: none;
 }
 
 #continuity-module-config-window.show {
