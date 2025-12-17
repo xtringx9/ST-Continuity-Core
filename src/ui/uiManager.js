@@ -212,6 +212,12 @@ export async function openModuleConfigWindow() {
 
             // 初始化设置组折叠功能
             initSettingGroupToggle();
+
+            // 恢复所有折叠状态
+            restoreSettingsCollapsedState();
+            restorePreviewCollapsedState();
+            restoreSettingGroupCollapsedState('prompt-settings');
+            restoreSettingGroupCollapsedState('style-settings');
         }
 
         // 显示窗口和背景
@@ -428,15 +434,148 @@ export function toggleSettings() {
             toggleBtn.removeClass('expanded');
             toggleBtn.html('<span class="toggle-arrow">▶</span> 展开设置');
             debugLog('设置区域已折叠');
+            // 保存折叠状态到localStorage
+            saveSettingsCollapsedState(true);
         } else {
             // 如果当前是折叠状态，则展开
             settingsContent.slideDown(300);
             toggleBtn.addClass('expanded');
             toggleBtn.html('<span class="toggle-arrow">▼</span> 收起设置');
             debugLog('设置区域已展开');
+            // 保存展开状态到localStorage
+            saveSettingsCollapsedState(false);
         }
     } catch (error) {
         errorLog('切换设置区域失败:', error);
+    }
+}
+
+/**
+ * 保存设置区域折叠状态到localStorage
+ * @param {boolean} isCollapsed 是否折叠
+ */
+function saveSettingsCollapsedState(isCollapsed) {
+    try {
+        const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
+        collapsedStates['settingsArea'] = isCollapsed;
+        localStorage.setItem('settingsCollapsedStates', JSON.stringify(collapsedStates));
+        debugLog('设置区域折叠状态已保存:', isCollapsed);
+    } catch (error) {
+        errorLog('保存设置区域折叠状态失败:', error);
+    }
+}
+
+/**
+ * 恢复设置区域折叠状态
+ */
+function restoreSettingsCollapsedState() {
+    try {
+        const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
+        const settingsContent = $('#settings-content');
+        const toggleBtn = $('#toggle-settings-btn');
+        
+        if (collapsedStates.hasOwnProperty('settingsArea') && collapsedStates['settingsArea']) {
+            // 如果保存的状态是折叠的，则折叠设置区域
+            settingsContent.hide();
+            toggleBtn.removeClass('expanded');
+            toggleBtn.html('<span class="toggle-arrow">▶</span> 展开设置');
+            debugLog('设置区域已恢复为折叠状态');
+        } else {
+            // 默认展开状态
+            settingsContent.show();
+            toggleBtn.addClass('expanded');
+            toggleBtn.html('<span class="toggle-arrow">▼</span> 收起设置');
+            debugLog('设置区域已恢复为展开状态');
+        }
+    } catch (error) {
+        errorLog('恢复设置区域折叠状态失败:', error);
+    }
+}
+
+/**
+ * 保存设置组折叠状态到localStorage
+ * @param {string} groupId 设置组ID
+ * @param {boolean} isCollapsed 是否折叠
+ */
+function saveSettingGroupCollapsedState(groupId, isCollapsed) {
+    try {
+        const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
+        collapsedStates[groupId] = isCollapsed;
+        localStorage.setItem('settingsCollapsedStates', JSON.stringify(collapsedStates));
+        debugLog(`设置组 ${groupId} 折叠状态已保存:`, isCollapsed);
+    } catch (error) {
+        errorLog(`保存设置组 ${groupId} 折叠状态失败:`, error);
+    }
+}
+
+/**
+ * 恢复设置组折叠状态
+ * @param {string} groupId 设置组ID
+ */
+function restoreSettingGroupCollapsedState(groupId) {
+    try {
+        const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
+        const content = $(`#${groupId}`);
+        const toggleBtn = $(`.setting-group-toggle-btn[data-group="${groupId}"]`);
+        const toggleIcon = toggleBtn.find('.toggle-icon');
+        
+        if (collapsedStates.hasOwnProperty(groupId) && collapsedStates[groupId]) {
+            // 如果保存的状态是折叠的，则折叠设置组
+            content.addClass('collapsed').hide();
+            toggleBtn.addClass('collapsed');
+            toggleIcon.text('▶');
+            debugLog(`设置组 ${groupId} 已恢复为折叠状态`);
+        } else {
+            // 默认展开状态
+            content.removeClass('collapsed').show();
+            toggleBtn.removeClass('collapsed');
+            toggleIcon.text('▼');
+            debugLog(`设置组 ${groupId} 已恢复为展开状态`);
+        }
+    } catch (error) {
+        errorLog(`恢复设置组 ${groupId} 折叠状态失败:`, error);
+    }
+}
+
+/**
+ * 保存预览区域折叠状态到localStorage
+ * @param {boolean} isCollapsed 是否折叠
+ */
+function savePreviewCollapsedState(isCollapsed) {
+    try {
+        const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
+        collapsedStates['previewArea'] = isCollapsed;
+        localStorage.setItem('settingsCollapsedStates', JSON.stringify(collapsedStates));
+        debugLog('预览区域折叠状态已保存:', isCollapsed);
+    } catch (error) {
+        errorLog('保存预览区域折叠状态失败:', error);
+    }
+}
+
+/**
+ * 恢复预览区域折叠状态
+ */
+function restorePreviewCollapsedState() {
+    try {
+        const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
+        const previewContent = $('#prompt-preview-content');
+        const toggleBtn = $('#toggle-preview-btn');
+        
+        if (collapsedStates.hasOwnProperty('previewArea') && collapsedStates['previewArea']) {
+            // 如果保存的状态是折叠的，则折叠预览区域
+            previewContent.hide();
+            toggleBtn.removeClass('expanded');
+            toggleBtn.html('<span class="toggle-arrow">▶</span> 展开预览');
+            debugLog('预览区域已恢复为折叠状态');
+        } else {
+            // 默认展开状态
+            previewContent.show();
+            toggleBtn.addClass('expanded');
+            toggleBtn.html('<span class="toggle-arrow">▶</span> 折叠预览');
+            debugLog('预览区域已恢复为展开状态');
+        }
+    } catch (error) {
+        errorLog('恢复预览区域折叠状态失败:', error);
     }
 }
 
@@ -457,12 +596,16 @@ export function initSettingGroupToggle() {
                 $(this).removeClass('collapsed');
                 toggleIcon.text('▼');
                 debugLog(`设置组 ${groupId} 已展开`);
+                // 保存展开状态到localStorage
+                saveSettingGroupCollapsedState(groupId, false);
             } else {
                 // 折叠设置组
                 content.addClass('collapsed').slideUp(300);
                 $(this).addClass('collapsed');
                 toggleIcon.text('▶');
                 debugLog(`设置组 ${groupId} 已折叠`);
+                // 保存折叠状态到localStorage
+                saveSettingGroupCollapsedState(groupId, true);
             }
         });
 
