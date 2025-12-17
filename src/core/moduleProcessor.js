@@ -1761,10 +1761,10 @@ function getModuleDataRuleString(moduleConfig, moduleData, processType, showModu
     let result = '';
     const showAllRules = false; // todo 现在暂时代码上直接不输出正文内模块（面板获取除外）
     if (showModuleNames) {
-        if (!showAllRules && (moduleConfig.outputPosition === 'body' || moduleConfig.outputPosition === 'specific_position')) {
+        if (!showAllRules && (moduleConfig.outputPosition === 'body' || moduleConfig.outputPosition === 'body_surround' || moduleConfig.outputPosition === 'specific_position')) {
             return result;
         }
-        result += `${configManager.MODULE_TITLE_LEFT}${moduleConfig.name} (${moduleConfig.displayName})${configManager.MODULE_TITLE_RIGHT}\n`;
+        result += `${configManager.MODULE_TITLE_LEFT}${moduleConfig.name}${moduleConfig.displayName ? ` (${moduleConfig.displayName})` : ""}${configManager.MODULE_TITLE_RIGHT}\n`;
         result += `> stats:count=${moduleData?.moduleCount || 0}`;
         const hasIdVariable = moduleConfig.variables && moduleConfig.variables.some(variable => variable.name === 'id');
         if (moduleData && (moduleData.isIncremental && hasIdVariable && moduleData.maxId !== undefined)) {
