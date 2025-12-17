@@ -640,8 +640,12 @@ class ConfigManager {
     processImportConfig(configWithOptions) {
         if (!configWithOptions) return null;
 
-        // 根据用户的选择决定是否覆盖模块和变量启用状态
-        const overrideEnabled = configWithOptions.importOptions?.overrideEnabled ?? true;
+        // 获取导入选项
+        const importOptions = configWithOptions.importOptions || {};
+        const importSettings = importOptions.importSettings ?? true;
+        const importModuleConfig = importOptions.importModuleConfig ?? true;
+        const overrideEnabled = importOptions.overrideEnabled ?? true;
+        const selectedModules = importOptions.selectedModules || [];
 
         // 对导入的配置进行规范化处理
         const normalizedConfig = normalizeConfig(configWithOptions);
@@ -654,33 +658,57 @@ class ConfigManager {
         // 深拷贝当前配置作为基础
         let finalConfig = JSON.parse(JSON.stringify(currentConfig));
 
-        // 如果导入了globalSettings且不为空，则合并globalSettings
-        if (configWithOptions.globalSettings !== undefined &&
+        // 如果用户选择了导入设置配置，且导入了globalSettings且不为空，则合并globalSettings
+        if (importSettings &&
+            configWithOptions.globalSettings !== undefined &&
             configWithOptions.globalSettings !== null &&
             Object.keys(configWithOptions.globalSettings).length > 0) {
             finalConfig.globalSettings = normalizedConfig.globalSettings;
-            // infoLog("合并 globalSettings", normalizedConfig);
+            debugLog("合并 globalSettings");
         }
 
-        // 如果导入了modules且modules数组不为空，则合并modules
-        if (configWithOptions.modules !== undefined &&
+        // 如果用户选择了导入模块配置，且导入了modules且modules数组不为空，则合并modules
+        if (importModuleConfig &&
+            configWithOptions.modules !== undefined &&
             Array.isArray(configWithOptions.modules) &&
             configWithOptions.modules.length > 0) {
 
-            // 使用统一的合并方法
-            const mergeOptions = {
-                overrideEnabled: overrideEnabled,
-                mergeAllFields: false, // 默认只合并启用状态
-                preserveExisting: true // 保留现有模块
-            };
-
-            const mergedConfig = this.mergeModules(normalizedConfig, mergeOptions);
-            finalConfig.modules = mergedConfig.modules;
-
-            if (overrideEnabled) {
-                debugLog("直接使用导入的 modules（覆盖启用状态）");
+            // 如果用户选择了特定模块，则只处理选中的模块
+            let modulesToProcess = normalizedConfig.modules;
+            if (selectedModules.length > 0) {
+                modulesToProcess = normalizedConfig.modules.filter(module =>
+                    selectedModules.includes(module.name)
+                );
+                debugLog(`用户选择了 ${selectedModules.length} 个模块进行导入`, selectedModules);
             } else {
-                debugLog("合并 modules 的启用状态");
+                // 如果用户没有选择任何模块（selectedModules长度为0），则不导入任何模块
+                modulesToProcess = [];
+                debugLog("用户没有选择任何模块，跳过模块导入");
+            }
+
+            // 只有当有模块需要处理时才进行合并
+            if (modulesToProcess.length > 0) {
+                // 使用统一的合并方法
+                const mergeOptions = {
+                    overrideEnabled: overrideEnabled,
+                    mergeAllFields: false, // 默认只合并启用状态
+                    preserveExisting: true // 保留现有模块
+                };
+
+                // 创建一个只包含选中模块的临时配置对象
+                const tempConfig = {
+                    ...normalizedConfig,
+                    modules: modulesToProcess
+                };
+
+                const mergedConfig = this.mergeModules(tempConfig, mergeOptions);
+                finalConfig.modules = mergedConfig.modules;
+
+                if (overrideEnabled) {
+                    debugLog("直接使用导入的 modules（覆盖启用状态）");
+                } else {
+                    debugLog("合并 modules 的启用状态");
+                }
             }
         }
 

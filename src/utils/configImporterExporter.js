@@ -406,6 +406,15 @@ export function bindSaveButtonEvent() {
  */
 export function showImportOptionsDialog(file, config) {
     return new Promise((resolve) => {
+        // 获取导入配置中的所有模块
+        const importModules = config.modules || [];
+
+        // 判断导入配置中是否有设置配置和模块配置
+        const hasSettings = config.globalSettings !== undefined &&
+            config.globalSettings !== null &&
+            Object.keys(config.globalSettings).length > 0;
+        const hasModuleConfig = importModules.length > 0;
+
         // 创建导入选项弹窗HTML
         const importOptionsDialog = $(`
             <div id="continuity-import-options-dialog" class="continuity-confirm-dialog">
@@ -413,14 +422,50 @@ export function showImportOptionsDialog(file, config) {
                     <h3 class="confirm-dialog-title">导入选项</h3>
                     ${config.metadata && config.metadata.author ? `<p style="color: rgba(255, 255, 255, 0.9); font-size: 1em; margin: 0 0 10px 0;">配置作者/来源：${config.metadata.author}</p>` : ''}
                     <div class="confirm-dialog-message">
-                                <p>请选择导入选项：</p>
-                                <div class="import-options-group">
-                                    <label class="import-option" style="display: flex; align-items: center; gap: 8px;">
-                                        <input type="checkbox" id="import-override-enabled" checked>
-                                        <span>覆盖模块开关状态</span>
-                                    </label>
+                        <p>请选择导入内容：</p>
+                        ${hasSettings || hasModuleConfig ? `
+                        <div class="import-options-group">
+                            ${hasSettings ? `
+                            <label class="import-option" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="import-settings" checked>
+                                <span>设置配置</span>
+                            </label>
+                            ` : ''}
+                            ${hasModuleConfig ? `
+                            <label class="import-option" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="import-module-config" checked>
+                                <span>模块配置</span>
+                            </label>
+                            ` : ''}
+                        </div>
+                        ` : '<p style="color: #ff6b35;">⚠️ 导入的配置中没有可导入的内容</p>'}
+                        ${hasModuleConfig ? `
+                        <div id="module-selection-container" class="module-selector-container" style="margin-top: 15px; max-height: 200px; overflow-y: auto;">
+                            <div class="module-selector-header">
+                                <label>选择要导入的模块：</label>
+                                <div class="module-selector-actions">
+                                    <button type="button" id="select-all-modules" class="btn-tiny">全选</button>
+                                    <button type="button" id="select-enabled-modules" class="btn-tiny">仅启用</button>
+                                    <button type="button" id="deselect-all-modules" class="btn-tiny">清空</button>
                                 </div>
                             </div>
+                            <div id="module-checkbox-container" class="module-checkbox-group">
+                                ${importModules.map(module => `
+                                    <div class="module-checkbox-item">
+                                        <input type="checkbox" id="import-module-${module.name}" value="${module.name}" class="module-checkbox" checked>
+                                        <label for="import-module-${module.name}" class="module-checkbox-label">${module.name} (${module.displayName || '无显示名称'})</label>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div id="override-enabled-container" class="import-options-group" style="margin-top: 10px;">
+                            <label class="import-option" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="import-override-enabled" checked>
+                                <span>覆盖模块开关状态</span>
+                            </label>
+                        </div>
+                        ` : ''}
+                    </div>
                     <div class="confirm-dialog-message" style="margin-top: 15px;">
                         <p style="color: #ff6b35; font-weight: bold; margin: 0;">⚠️ 安全提示：请务必确保配置来源可信，确认导入吗？</p>
                     </div>
@@ -435,13 +480,81 @@ export function showImportOptionsDialog(file, config) {
         // 添加到页面
         $('body').append(importOptionsDialog);
 
+        // 获取DOM元素
+        const importModuleConfigCheckbox = importOptionsDialog.find('#import-module-config');
+        const moduleSelectionContainer = importOptionsDialog.find('#module-selection-container');
+        const overrideEnabledContainer = importOptionsDialog.find('#override-enabled-container');
+
+        // 只在有模块配置时才绑定相关事件
+        if (hasModuleConfig) {
+            // 绑定模块配置复选框事件
+            importModuleConfigCheckbox.on('change', function () {
+                if ($(this).prop('checked')) {
+                    moduleSelectionContainer.slideDown(300);
+                    overrideEnabledContainer.slideDown(300);
+                } else {
+                    moduleSelectionContainer.slideUp(300);
+                    overrideEnabledContainer.slideUp(300);
+                }
+            });
+
+            // 模块配置默认勾选，所以模块选择器和覆盖选项默认显示
+            if (importModuleConfigCheckbox.prop('checked')) {
+                moduleSelectionContainer.show();
+                overrideEnabledContainer.show();
+            }
+        }
+
+        // 绑定全选按钮事件
+        importOptionsDialog.find('#select-all-modules').on('click', function () {
+            importOptionsDialog.find('.module-checkbox').prop('checked', true);
+        });
+
+        // 绑定清空按钮事件
+        importOptionsDialog.find('#deselect-all-modules').on('click', function () {
+            importOptionsDialog.find('.module-checkbox').prop('checked', false);
+        });
+
+        // 绑定仅启用按钮事件
+        importOptionsDialog.find('#select-enabled-modules').on('click', function () {
+            importOptionsDialog.find('.module-checkbox').each(function () {
+                const moduleName = $(this).val();
+                const module = importModules.find(m => m.name === moduleName);
+                $(this).prop('checked', module && module.enabled);
+            });
+        });
+
         // 绑定按钮事件
         importOptionsDialog.find('.confirm-dialog-confirm').on('click', function () {
+            const importSettings = importOptionsDialog.find('#import-settings').prop('checked');
+            const importModuleConfig = importOptionsDialog.find('#import-module-config').prop('checked');
             const overrideEnabled = importOptionsDialog.find('#import-override-enabled').prop('checked');
+
+            // 获取选中的模块
+            const selectedModules = [];
+            if (importModuleConfig) {
+                importOptionsDialog.find('.module-checkbox:checked').each(function () {
+                    selectedModules.push($(this).val());
+                });
+            }
+
+            // 检查是否有实际要导入的内容
+            const hasContentToImport =
+                (importSettings && hasSettings) ||
+                (importModuleConfig && selectedModules.length > 0);
+
+            if (!hasContentToImport) {
+                // 没有选择任何导入内容，显示提示并取消操作
+                toastr.warning('请至少选择一项要导入的内容', '导入取消');
+                return;
+            }
 
             // 保存导入选项到配置对象
             config.importOptions = {
-                overrideEnabled: overrideEnabled
+                importSettings: importSettings,
+                importModuleConfig: importModuleConfig,
+                overrideEnabled: overrideEnabled,
+                selectedModules: selectedModules
             };
 
             resolve(config);
@@ -482,6 +595,10 @@ export function showExportOptionsDialog() {
             <div id="continuity-export-options-dialog" class="continuity-confirm-dialog">
                 <div class="confirm-dialog-content">
                     <h3 class="confirm-dialog-title">导出选项</h3>
+                    <div class="author-input-group" style="margin-bottom: 15px;">
+                        <label for="config-author" style="display: block; margin-bottom: 5px; color: rgba(255, 255, 255, 0.9);">配置作者（可选）</label>
+                        <input type="text" id="config-author" class="module-parse-input" placeholder="请输入作者名称" style="width: 100%; color: rgba(255, 255, 255, 0.9); background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);">
+                    </div>
                     <div class="confirm-dialog-message">
                         <p>请选择导出内容：</p>
                         <div class="export-options-group">
@@ -493,10 +610,6 @@ export function showExportOptionsDialog() {
                                 <input type="checkbox" id="export-module-config" checked>
                                 <span>模块配置</span>
                             </label>
-                        </div>
-                        <div class="author-input-group" style="margin-top: 15px;">
-                            <label for="config-author" style="display: block; margin-bottom: 5px;">配置作者（可选）</label>
-                            <input type="text" id="config-author" class="module-parse-input" placeholder="请输入作者名称" style="width: 100%;">
                         </div>
                         <div id="module-selection-container" class="module-selector-container" style="margin-top: 15px; max-height: 200px; overflow-y: auto;">
                             <div class="module-selector-header">
