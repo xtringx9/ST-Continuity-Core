@@ -281,11 +281,11 @@ function getMaxExistingEntryNumber(worldBookData) {
 
     let maxNumber = 0;
 
-    // 遍历所有条目，查找以"CHAT_MODULE_"开头的comment
+    // 遍历所有条目，查找以"MSG_MODULE_"开头的comment
     entriesArray.forEach(entry => {
-        if (entry.comment && entry.comment.startsWith('{{CONTINUITY_CHAT_MODULE_')) {
+        if (entry.comment && entry.comment.startsWith('{{CONTINUITY_MSG_MODULE_')) {
             // 提取数字部分
-            const numberStr = entry.comment.replace('{{CONTINUITY_CHAT_MODULE_', '').replace('}}', '');
+            const numberStr = entry.comment.replace('{{CONTINUITY_MSG_MODULE_', '').replace('}}', '');
             const number = parseInt(numberStr, 10);
 
             if (!isNaN(number) && number > maxNumber) {
@@ -377,7 +377,7 @@ export async function createConfigEntry(worldBookName, worldBookData) {
         for (let i = 0; i < entryCount; i++) {
             // 只在奇数索引时判断条目是否存在
             if (i % 2 === 1) {
-                let tempEntry = { comment: `{{CONTINUITY_CHAT_MODULE_${i}}}` };
+                let tempEntry = { comment: `{{CONTINUITY_MSG_MODULE_${i}}}` };
                 if (entryExists(worldBookData, tempEntry)) {
                     debugLog(`[WORLD BOOK]配置条目"${tempEntry.comment}"已存在，跳过创建`);
                     // todo 后续需要判断是否需要更新
@@ -389,7 +389,7 @@ export async function createConfigEntry(worldBookName, worldBookData) {
                         key: [], // 键值必须是数组
                         keysecondary: [], // 次要键值数组
                         comment: tempEntry.comment,
-                        content: `{{CONTINUITY_CHAT_MODULE_${i}}}`,
+                        content: `{{CONTINUITY_MSG_MODULE_${i}}}`,
                         constant: true, // 蓝灯
                         selective: false,
                         selectiveLogic: 0,
@@ -429,9 +429,9 @@ export async function createConfigEntry(worldBookName, worldBookData) {
 
             let disabledCount = 0;
             entriesArray.forEach(entry => {
-                if (entry.comment && entry.comment.startsWith('{{CONTINUITY_CHAT_MODULE_')) {
+                if (entry.comment && entry.comment.startsWith('{{CONTINUITY_MSG_MODULE_')) {
                     // 提取数字部分
-                    const numberStr = entry.comment.replace('{{CONTINUITY_CHAT_MODULE_', '').replace('}}', '');
+                    const numberStr = entry.comment.replace('{{CONTINUITY_MSG_MODULE_', '').replace('}}', '');
                     const number = parseInt(numberStr, 10);
 
                     if (!isNaN(number) && number >= entryCount) {

@@ -230,8 +230,8 @@ export function registerMacros() {
                 if (i % 2 === 1) {
                     // 创建包装函数来传递索引值
                     const getContinuityChatModuleWithIndex = () => getContinuityChatModule(i);
-                    context.registerMacro(`CONTINUITY_CHAT_MODULE_${i}`, getContinuityChatModuleWithIndex);
-                    debugLog(`[Macro]宏管理器: 注册 {{CONTINUITY_CHAT_MODULE_${i}}} 宏，索引值: ${i}`);
+                    context.registerMacro(`CONTINUITY_MSG_MODULE_${i}`, getContinuityChatModuleWithIndex);
+                    debugLog(`[Macro]宏管理器: 注册 {{CONTINUITY_MSG_MODULE_${i}}} 宏，索引值: ${i}`);
                 }
             }
 
