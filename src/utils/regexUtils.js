@@ -127,10 +127,11 @@ export function registerConfigRegexPatterns(scripts, isEnabled = true) {
     const globalSettings = configManager.getGlobalSettings();
     const entryCount = globalSettings.contentRemainLayers;
     const moduleTag = globalSettings.moduleTag;
+    const compatibleModuleTags = globalSettings.compatibleModuleTags.join('|');
     let patterns = [
         {
             scriptName: CONTINUITY_CORE_IDENTIFIER + '隐藏正文后模块数据_' + REGEX_CONSTANTS.version,
-            findRegex: '/(?<!<details>\\s*)<(modules?|module_update|' + moduleTag + '|' + moduleTag + '_update' + ')>([\\s\\S]*?)<\\/\\1>/g',
+            findRegex: '/(?<!<details>\\s*)<(modules?|module_update|' + moduleTag + '|' + moduleTag + '_update|' + compatibleModuleTags + ')>([\\s\\S]*?)<\\/\\1>/g',
             replaceString: '',
             trimStrings: [],
             placement: [1, 2], // AI输出 (regex_placement.AI_OUTPUT = 2)
