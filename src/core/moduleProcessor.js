@@ -2396,7 +2396,7 @@ export function attachStructuredTimeData(modules) {
  * @param {boolean} moveIncrementalEmbeddedToLast 是否将可嵌入模块排到最后
  * @returns {Object} 按messageIndex分组的条目数据
  */
-export function groupProcessResultByMessageIndex(processResult, moveIncrementalEmbeddedToLast = false) {
+export function groupProcessResultByMessageIndex(processResult, moveIncrementalEmbeddedToLast = false, needAllIndex = false) {
     try {
         if (!processResult || !processResult.content || typeof processResult.content !== 'object') {
             errorLog('[Module Processor] processResult格式无效');
@@ -2440,7 +2440,7 @@ export function groupProcessResultByMessageIndex(processResult, moveIncrementalE
                         }
                     });
                 }
-                else {
+                if (!entry.moduleData.timeline || needAllIndex) {
                     const messageIndexHistory = entry.moduleData.messageIndexHistory;
 
                     if (!entry.moduleData.messageIndexHistory || !Array.isArray(entry.moduleData.messageIndexHistory)) {
