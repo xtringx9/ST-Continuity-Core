@@ -59,7 +59,7 @@ async function registerCallback() {
     }
     const scripts = extension_settings.regex;
     // let isChange = registerRegexPatterns(REGEX_PATTERNS.patterns, scripts);
-    isChange = registerConfigRegexPatterns(scripts, configManager.isExtensionEnabled());
+    let isChange = registerConfigRegexPatterns(scripts, configManager.isExtensionEnabled());
     if (isChange) {
         await saveScriptsByType(scripts, SCRIPT_TYPES.GLOBAL);
 
