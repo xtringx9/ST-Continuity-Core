@@ -1,5 +1,5 @@
 // 模块配置管理器 - 用于管理模块的添加、编辑、删除等操作
-import { debugLog, errorLog, addVariable, showCustomConfirmDialog, bindVariableEvents } from "../index.js";
+import { debugLog, errorLog, addVariable, showCustomConfirmDialog, bindVariableEvents, registerContinuityRegexPattern } from "../index.js";
 import { default as configManager } from "../singleton/configManager.js";
 
 /**
@@ -281,8 +281,18 @@ export function bindModuleEvents(moduleElement) {
 
         updateModulePreview(moduleItem);
         debugLog('模块启用状态改变:', moduleItem.find('.module-name').val(), isEnabled);
+        const sumModuleEnabled = configManager.getModuleByName('sum')?.enabled ?? false;
         // 自动保存配置
-        configManager.autoSave();
+        configManager.saveFromUI(true);
+        const newSumModuleEnabled = configManager.getModuleByName('sum')?.enabled ?? false;
+        if (sumModuleEnabled !== newSumModuleEnabled) {
+            // 调用registerConfigRegexPatterns方法
+            try {
+                registerContinuityRegexPattern();
+            } catch (error) {
+                errorLog('调用registerConfigRegexPatterns失败:', error);
+            }
+        }
     });
 
     // 时间参考标准按钮点击事件
