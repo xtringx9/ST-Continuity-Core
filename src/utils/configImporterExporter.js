@@ -367,7 +367,7 @@ export function bindSaveButtonEvent() {
                 toastr.success('模块配置已保存！');
                 const newContentRemainLayers = configManager.getGlobalSettings().contentRemainLayers;
                 const newModuleTag = configManager.getGlobalSettings().moduleTag;
-                if (contentRemainLayers != newContentRemainLayers) {
+                if (contentRemainLayers !== newContentRemainLayers) {
                     // 调用createConfigEntry方法
                     try {
                         await checkAndInitializeWorldBook();
@@ -381,7 +381,7 @@ export function bindSaveButtonEvent() {
                         errorLog('调用updateMacroOptionsFromConfig失败:', error);
                     }
                 }
-                if (contentRemainLayers != newContentRemainLayers || moduleTag != newModuleTag) {
+                if (contentRemainLayers !== newContentRemainLayers || moduleTag !== newModuleTag) {
                     // 调用registerConfigRegexPatterns方法
                     try {
                         registerContinuityRegexPattern();

@@ -128,6 +128,7 @@ export function registerConfigRegexPatterns(scripts, isEnabled = true) {
     const entryCount = globalSettings.contentRemainLayers;
     const moduleTag = globalSettings.moduleTag;
     const compatibleModuleTags = globalSettings.compatibleModuleTags.join('|');
+    const sumModuleEnabled = configManager.getModuleByName('sum')?.enabled ?? false;
     let patterns = [
         {
             scriptName: CONTINUITY_CORE_IDENTIFIER + '隐藏正文后模块数据_' + REGEX_CONSTANTS.version,
@@ -149,7 +150,7 @@ export function registerConfigRegexPatterns(scripts, isEnabled = true) {
             replaceString: '',
             trimStrings: [],
             placement: [1, 2], // AI输出 (regex_placement.AI_OUTPUT = 2)
-            disabled: false,
+            disabled: !sumModuleEnabled,
             markdownOnly: false, // 仅格式显示
             promptOnly: true, // 仅格式提示词
             runOnEdit: true, // 在编辑时运行
@@ -200,7 +201,7 @@ export function registerConfigRegexPatterns(scripts, isEnabled = true) {
             }
         }
         else if (existingPatternIndex !== -1 && scriptName === configPatternScriptName) {
-            scripts[existingPatternIndex].disabled = !isEnabled;
+            scripts[existingPatternIndex].disabled = isEnabled ? !sumModuleEnabled : true;
             isChange = true;
         }
     }
