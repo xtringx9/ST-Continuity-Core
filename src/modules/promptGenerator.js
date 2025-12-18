@@ -284,9 +284,13 @@ export function generateModuleOrderPrompt() {
         // 按照生成位置和序号分组
         const embeddableModules = []; // 可嵌入模块
         const bodyModules = []; // 正文内模块
+        const bodyStartModules = []; // 正文内开头模块
+        const bodyEndModules = []; // 正文内结尾模块
         const bodySurroundModules = []; // 正文内模块
         const specificPositionModules = []; // 正文内特定位置模块
         const afterBodyModules = []; // 正文后模块
+
+        const inBodyModules = []; // 正文内模块
 
         // 分类模块
         enabledModules.forEach(module => {
@@ -296,12 +300,23 @@ export function generateModuleOrderPrompt() {
                     break;
                 case 'body':
                     bodyModules.push(module);
+                    inBodyModules.push(module);
+                    break;
+                case 'body_start':
+                    bodyStartModules.push(module);
+                    inBodyModules.push(module);
+                    break;
+                case 'body_end':
+                    bodyEndModules.push(module);
+                    inBodyModules.push(module);
                     break;
                 case 'body_surround':
                     bodySurroundModules.push(module);
+                    inBodyModules.push(module);
                     break;
                 case 'specific_position':
                     specificPositionModules.push(module);
+                    inBodyModules.push(module);
                     break;
                 case 'after_body':
                     afterBodyModules.push(module);
@@ -343,6 +358,9 @@ export function generateModuleOrderPrompt() {
             if (specificPositionModules.length > 0) specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += `# 正文内模块(位于<${contentTagString}></${contentTagString}>内):\n`;
             orderPrompt += `<${contentTagString}>\n`;
+            bodyStartModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module, false, false, true, "正文内首先输出");
+            });
             bodySurroundModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true, "正文内首先输出");
             });
@@ -352,7 +370,13 @@ export function generateModuleOrderPrompt() {
             bodyModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module);
             });
+            // inBodyModules.forEach(module => {
+            //     orderPrompt += buildModulePrompt(module, false, false, specificPositionModules.includes(module) ? true : false);
+            // });
             bodySurroundModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module, false, false, true, "正文内最后输出");
+            });
+            bodyEndModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true, "正文内最后输出");
             });
             orderPrompt += `</${contentTagString}>\n`;
