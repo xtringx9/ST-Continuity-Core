@@ -45,6 +45,13 @@ details.bottom-summary {
     color: #6D6A67;
 }
 
+/* 在iPhone上隐藏通用三角符号，避免重复显示 */
+@media only screen and (max-width: 768px) {
+    .summary-title::before {
+        content: none;
+    }
+}
+
 /* 4. 主容器summary - 完全独立的竖向按钮（右侧） */
 #continuity-context-bottom-container>details.bottom-summary[open]>.summary-title {
     /* 完全独立的竖向按钮样式，不受任何内部样式影响 */
