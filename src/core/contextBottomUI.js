@@ -265,6 +265,7 @@ export async function updateUItoMsgBottom() {
                 let containerStyles = configManager.getGlobalSettings().containerStyles || '<!-- 上下文底部UI模板 - 竖向按钮版本 -->\n            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">\n                <details class="bottom-summary">\n                    <summary class="summary-title">Modules</summary>\n                    <div class="modules-content-container" style="max-height: 500px;">${customStyles}</div>\n                </details>\n            </div>';
                 finalString += containerStyles.replace('${customStyles}', internalString);
             }
+            finalString = finalString.replace('${mesid}', messageIndex);
             injectHtmlWithScript(container, finalString);
         }
 
