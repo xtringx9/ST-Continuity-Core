@@ -387,7 +387,8 @@ export function generateModuleOrderPrompt() {
         if (afterBodyModules.length > 0) {
             afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             // orderPrompt += "[AFTER TEXT GENERATION]\n";
-            orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}_update></${moduleTag}_update>包裹):\n`;
+            // orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}_update></${moduleTag}_update>包裹):\n`;
+            orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}></${moduleTag}>包裹):\n`;
             // orderPrompt += `</${contentTagString}>\n`;
             // orderPrompt += `<${moduleTag}_update>\n`;
             orderPrompt += `<${moduleTag}>\n`;
@@ -628,7 +629,8 @@ export function generateSingleChatModuleData(index) {
         debugLog('[MACRO] 模块内容索引:', index);
 
         const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
-        const promptTag = `${moduleTag}_update`;
+        // const promptTag = `${moduleTag}_update`;
+        const promptTag = `${moduleTag}`;
         if (!chat || chat.length < 1) return `<${promptTag}>\n</${promptTag}>`;
         const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
