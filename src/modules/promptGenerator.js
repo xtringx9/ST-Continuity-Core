@@ -263,7 +263,7 @@ export function generateModuleOrderPrompt() {
         const promptTag = `${moduleTag}_output_rule`;
         const contentTag = globalSettings.contentTag || "content";
         let contentTagString = Array.isArray(contentTag) ? contentTag.join(',') : contentTag;
-        contentTagString = contentTagString + ",...";
+        if (Array.isArray(contentTag) && contentTag.length > 1) contentTagString = contentTagString + ",...";
 
         // 获取模块数据
         const modulesData = configManager.getModules() || [];
@@ -389,12 +389,14 @@ export function generateModuleOrderPrompt() {
             // orderPrompt += "[AFTER TEXT GENERATION]\n";
             orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}_update></${moduleTag}_update>包裹):\n`;
             // orderPrompt += `</${contentTagString}>\n`;
-            orderPrompt += `<${moduleTag}_update>\n`;
+            // orderPrompt += `<${moduleTag}_update>\n`;
+            orderPrompt += `<${moduleTag}>\n`;
             afterBodyModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, true);
             });
         }
-        orderPrompt += `</${moduleTag}_update>\n\n`;
+        orderPrompt += `</${moduleTag}>\n\n`;
+        // orderPrompt += `</${moduleTag}_update>\n\n`;
         orderPrompt += `</${promptTag}>\n`;
 
         // 替换提示词中的变量

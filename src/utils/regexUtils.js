@@ -58,8 +58,8 @@ async function registerCallback() {
         extension_settings.regex = [];
     }
     const scripts = extension_settings.regex;
-    let isChange = registerRegexPatterns(REGEX_PATTERNS.patterns, scripts);
-    isChange = isChange || registerConfigRegexPatterns(scripts, configManager.isExtensionEnabled());
+    // let isChange = registerRegexPatterns(REGEX_PATTERNS.patterns, scripts);
+    isChange = registerConfigRegexPatterns(scripts, configManager.isExtensionEnabled());
     if (isChange) {
         await saveScriptsByType(scripts, SCRIPT_TYPES.GLOBAL);
 
@@ -124,24 +124,40 @@ function registerRegexPatterns(patterns, scripts) {
  * @returns {boolean} 是否有变化
  */
 export function registerConfigRegexPatterns(scripts, isEnabled = true) {
-    const entryCount = configManager.getGlobalSettings().contentRemainLayers || 9;
-    let patterns = [];
-    const pattern = {
-        scriptName: CONTINUITY_CORE_IDENTIFIER + '不发送保留层数前任何内容_' + REGEX_CONSTANTS.version,
-        findRegex: '[\\s\\S]*',
-        replaceString: '',
-        trimStrings: [],
-        placement: [1, 2], // AI输出 (regex_placement.AI_OUTPUT = 2)
-        disabled: false,
-        markdownOnly: false, // 仅格式显示
-        promptOnly: true, // 仅格式提示词
-        runOnEdit: true, // 在编辑时运行
-        substituteRegex: 0,
-        minDepth: entryCount,
-        maxDepth: NaN,
-    }
-    const configPatternScriptName = pattern.scriptName;
-    patterns.push(pattern);
+    const globalSettings = configManager.getGlobalSettings();
+    const entryCount = globalSettings.contentRemainLayers;
+    const moduleTag = globalSettings.moduleTag;
+    let patterns = [
+        {
+            scriptName: CONTINUITY_CORE_IDENTIFIER + '隐藏正文后模块数据_' + REGEX_CONSTANTS.version,
+            findRegex: '/(?<!<details>\\s*)<(modules?|module_update|' + moduleTag + '|' + moduleTag + '_update' + ')>([\\s\\S]*?)<\\/\\1>/g',
+            replaceString: '',
+            trimStrings: [],
+            placement: [1, 2], // AI输出 (regex_placement.AI_OUTPUT = 2)
+            disabled: false,
+            markdownOnly: true, // 仅格式显示
+            promptOnly: true, // 仅格式提示词
+            runOnEdit: true, // 在编辑时运行
+            substituteRegex: 0,
+            minDepth: NaN,
+            maxDepth: NaN,
+        },
+        {
+            scriptName: CONTINUITY_CORE_IDENTIFIER + '不发送保留层数前任何内容_' + REGEX_CONSTANTS.version,
+            findRegex: '[\\s\\S]*',
+            replaceString: '',
+            trimStrings: [],
+            placement: [1, 2], // AI输出 (regex_placement.AI_OUTPUT = 2)
+            disabled: false,
+            markdownOnly: false, // 仅格式显示
+            promptOnly: true, // 仅格式提示词
+            runOnEdit: true, // 在编辑时运行
+            substituteRegex: 0,
+            minDepth: entryCount,
+            maxDepth: NaN,
+        }
+    ];
+    const configPatternScriptName = CONTINUITY_CORE_IDENTIFIER + '不发送保留层数前任何内容_' + REGEX_CONSTANTS.version;
 
     let isChange = false;
 
@@ -170,7 +186,8 @@ export function registerConfigRegexPatterns(scripts, isEnabled = true) {
                 scripts.push(regexPattern);
                 isChange = true;
                 infoLog(`[REGEX]配置正则模式"${scriptName}"已成功注册到Regex扩展`);
-            } else if (scripts[existingPatternIndex].scriptName !== scriptName || scriptName === configPatternScriptName) {
+            } else {
+                // } else if (scripts[existingPatternIndex].scriptName !== scriptName || scriptName === configPatternScriptName) {
                 // 更新现有的模式，保留原有的id
                 const existingPattern = scripts[existingPatternIndex];
                 scripts[existingPatternIndex] = {

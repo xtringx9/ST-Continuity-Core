@@ -359,12 +359,14 @@ export function bindSaveButtonEvent() {
     $("#module-save-btn").on('click', async function () {
         try {
             const contentRemainLayers = configManager.getGlobalSettings().contentRemainLayers;
+            const moduleTag = configManager.getGlobalSettings().moduleTag;
             // 使用统一的配置管理器进行保存
             const success = configManager.saveFromUI(true); // true表示立即保存
             // 根据保存结果显示提示信息
             if (success) {
                 toastr.success('模块配置已保存！');
                 const newContentRemainLayers = configManager.getGlobalSettings().contentRemainLayers;
+                const newModuleTag = configManager.getGlobalSettings().moduleTag;
                 if (contentRemainLayers != newContentRemainLayers) {
                     // 调用createConfigEntry方法
                     try {
@@ -372,19 +374,19 @@ export function bindSaveButtonEvent() {
                     } catch (error) {
                         errorLog('调用createConfigEntry失败:', error);
                     }
-
-                    // 调用registerConfigRegexPatterns方法
-                    try {
-                        registerContinuityRegexPattern();
-                    } catch (error) {
-                        errorLog('调用registerConfigRegexPatterns失败:', error);
-                    }
-
                     // 调用更新宏选项列表方法
                     try {
                         updateMacroOptionsFromConfig();
                     } catch (error) {
                         errorLog('调用updateMacroOptionsFromConfig失败:', error);
+                    }
+                }
+                if (contentRemainLayers != newContentRemainLayers || moduleTag != newModuleTag) {
+                    // 调用registerConfigRegexPatterns方法
+                    try {
+                        registerContinuityRegexPattern();
+                    } catch (error) {
+                        errorLog('调用registerConfigRegexPatterns失败:', error);
                     }
                 }
             } else {
