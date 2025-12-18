@@ -465,7 +465,12 @@ function processMessageWithContentTags(messageContent) {
     try {
         // 获取全局设置中的contentTag，如果没有则使用默认值
         const globalSettings = configManager.getGlobalSettings();
-        const contentTags = globalSettings.contentTag || ["content", "game"];
+        const contentTags = globalSettings.contentTag;
+
+        // 如果contentTags为空或长度为0，直接返回原内容
+        if (!contentTags || !Array.isArray(contentTags) || contentTags.length === 0) {
+            return messageContent;
+        }
 
         // debugLog(`[CONTENT TAG PROCESSOR] 使用的正文标签: ${JSON.stringify(contentTags)}`);
 

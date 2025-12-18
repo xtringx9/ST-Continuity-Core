@@ -261,7 +261,7 @@ export function generateModuleOrderPrompt() {
         const globalSettings = configManager.getGlobalSettings();
         const moduleTag = globalSettings.moduleTag || "module";
         const promptTag = `${moduleTag}_output_rule`;
-        const contentTag = globalSettings.contentTag || "content";
+        const contentTag = globalSettings.contentTag;
         let contentTagString = Array.isArray(contentTag) ? contentTag.join(',') : contentTag;
         if (Array.isArray(contentTag) && contentTag.length > 1) contentTagString = contentTagString + ",...";
 
@@ -351,13 +351,14 @@ export function generateModuleOrderPrompt() {
             orderPrompt += "\n\n";
         }
 
+        const contentTagPrompt = contentTagString ? `(位于<${contentTagString}></${contentTagString}>内)` : "";
         // 正文内模块（按序号排序）
         if (bodyModules.length > 0 || bodySurroundModules.length > 0 || specificPositionModules.length > 0) {
             if (bodyModules.length > 0) bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             if (bodySurroundModules.length > 0) bodySurroundModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             if (specificPositionModules.length > 0) specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
-            orderPrompt += `# 正文内模块(位于<${contentTagString}></${contentTagString}>内):\n`;
-            orderPrompt += `<${contentTagString}>\n`;
+            orderPrompt += `# 正文内模块${contentTagPrompt}:\n`;
+            if (contentTagString) { orderPrompt += `<${contentTagString}>\n`; }
             bodyStartModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true, "正文内首先输出");
             });
@@ -379,16 +380,17 @@ export function generateModuleOrderPrompt() {
             bodyEndModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true, "正文内最后输出");
             });
-            orderPrompt += `</${contentTagString}>\n`;
+            if (contentTagString) { orderPrompt += `</${contentTagString}>\n`; }
             orderPrompt += "\n";
         }
 
+        const afterContentTagPrompt = contentTagString ? `位于\`</${contentTagString}>\`后，` : "";
         // 正文后模块（按序号排序）
         if (afterBodyModules.length > 0) {
             afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             // orderPrompt += "[AFTER TEXT GENERATION]\n";
             // orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}_update></${moduleTag}_update>包裹):\n`;
-            orderPrompt += `# 正文后的模块(位于\`</${contentTagString}>\`后，被<${moduleTag}></${moduleTag}>包裹):\n`;
+            orderPrompt += `# 正文后的模块(${afterContentTagPrompt}被<${moduleTag}></${moduleTag}>包裹):\n`;
             // orderPrompt += `</${contentTagString}>\n`;
             // orderPrompt += `<${moduleTag}_update>\n`;
             orderPrompt += `<${moduleTag}>\n`;
