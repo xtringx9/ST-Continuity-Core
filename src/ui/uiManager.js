@@ -32,6 +32,7 @@ import {
     rebindAllModulesEvents,
     updateAllModulesPreview,
     initPromptPreview,
+    updatePromptPreview,
     ExtractModuleController,
     extensionName,
     configManager,
@@ -570,11 +571,14 @@ function restorePreviewCollapsedState() {
                 toggleBtn.html('<span class="toggle-arrow">▶</span> 展开预览');
                 debugLog('预览区域已恢复为折叠状态');
             } else {
-                // 如果保存的状态是展开的，则展开预览区域
+                // 如果保存的状态是展开的，则展开预览区域并生成内容
                 previewContent.show();
                 toggleBtn.addClass('expanded');
                 toggleBtn.html('<span class="toggle-arrow">▶</span> 折叠预览');
-                debugLog('预览区域已恢复为展开状态');
+
+                // 生成预览内容
+                updatePromptPreview();
+                debugLog('预览区域已恢复为展开状态并生成提示词');
             }
         } else {
             // 默认折叠状态（没有保存的状态时）

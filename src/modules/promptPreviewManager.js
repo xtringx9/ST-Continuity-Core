@@ -397,37 +397,7 @@ function bindCopyMacroEvents() {
 // 标记是否已经初始化过提示词预览功能
 let isPromptPreviewInitialized = false;
 
-/**
- * 恢复预览区域的展开状态
- */
-function restorePreviewState() {
-    try {
-        const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
-        const isPreviewCollapsed = collapsedStates['previewArea'];
 
-        const previewContent = $('#prompt-preview-content');
-        const toggleBtn = $('#toggle-preview-btn');
-
-        if (isPreviewCollapsed === false) {
-            // 如果之前是展开状态，则展开预览区域并生成内容
-            previewContent.show();
-            toggleBtn.addClass('expanded');
-            toggleBtn.html('<span class="toggle-arrow">▶</span> 折叠预览');
-
-            // 生成预览内容
-            updatePromptPreview();
-            debugLog('恢复预览区域展开状态并生成提示词');
-        } else {
-            // 如果之前是折叠状态，保持折叠
-            previewContent.hide();
-            toggleBtn.removeClass('expanded');
-            toggleBtn.html('<span class="toggle-arrow">▶</span> 展开预览');
-            debugLog('恢复预览区域折叠状态');
-        }
-    } catch (error) {
-        errorLog('恢复预览状态失败:', error);
-    }
-}
 
 /**
  * 初始化提示词预览功能
@@ -447,9 +417,6 @@ export function initPromptPreview() {
 
         // 绑定复制宏事件
         bindCopyMacroEvents();
-
-        // 恢复预览区域的展开状态
-        restorePreviewState();
 
         // 标记为已初始化
         isPromptPreviewInitialized = true;
