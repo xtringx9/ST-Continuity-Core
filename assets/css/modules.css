@@ -501,7 +501,7 @@
     align-items: center;
     /* gap: 5px;
     margin-bottom: 5px; */
-    margin-top: -6px;
+    /* margin-top: -6px; */
     width: 100%;
 }
 
@@ -720,7 +720,7 @@
 
 /* 模块提示词样式 */
 .module-prompt {
-    /* margin-top: 6px; */
+    margin-top: 4px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -741,6 +741,7 @@
 #continuity-module-config-window .module-timing-prompt-input,
 #continuity-module-config-window .module-content-prompt-input,
 #continuity-module-config-window .module-custom-styles {
+    margin: 0px 0px !important;
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 3px;
