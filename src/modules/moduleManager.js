@@ -1,6 +1,7 @@
 // 模块配置管理器 - 用于管理模块的添加、编辑、删除等操作
 import { debugLog, errorLog, addVariable, showCustomConfirmDialog, bindVariableEvents, registerContinuityRegexPattern } from "../index.js";
 import { default as configManager } from "../singleton/configManager.js";
+import { generateModuleFormat } from "./promptGenerator.js";
 
 /**
  * 添加新模块
@@ -433,6 +434,12 @@ export function bindModuleEvents(moduleElement) {
         }
     });
 
+    // 复制模块按钮事件
+    moduleItem.find('.module-copy-btn').off('click');
+    moduleItem.find('.module-copy-btn').on('click', function () {
+        copyModuleFormat(moduleItem);
+    });
+
     // 添加变量按钮事件
     moduleItem.find('.add-variable').on('click', function () {
         // debugLog('添加变量按钮被点击');
@@ -790,6 +797,34 @@ function updateVariableOrderNumbers(variablesContainer) {
         // 只更新变量项最左侧的序号，不影响标识符按钮中的emoji
         $(this).find('.variable-order-group > .variable-order-number:first-child').text(orderNumber);
     });
+}
+
+/**
+ * 复制模块格式到剪贴板
+ * @param {JQuery<HTMLElement>} moduleItem 模块项jQuery对象
+ */
+export function copyModuleFormat(moduleItem) {
+    try {
+        // 从模块项中提取模块数据
+        const name = moduleItem.find('.module-name').val() || '';
+
+        const config = configManager.getModuleByName(name);
+        // 使用generateModuleFormat生成模块格式字符串
+        const moduleFormat = generateModuleFormat(config);
+
+        // 复制到剪贴板
+        navigator.clipboard.writeText(moduleFormat).then(() => {
+            toastr.success('模块格式已复制到剪贴板');
+            debugLog('模块格式已复制:', moduleFormat);
+        }).catch(err => {
+            errorLog('复制到剪贴板失败:', err);
+            toastr.error('复制失败，请手动复制文本');
+        });
+
+    } catch (error) {
+        errorLog('复制模块格式失败:', error);
+        toastr.error('复制模块格式时发生错误');
+    }
 }
 
 /**

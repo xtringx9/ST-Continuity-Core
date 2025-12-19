@@ -190,7 +190,7 @@ export function copyPromptToClipboard() {
     try {
         const promptText = $('#prompt-preview-textarea').val();
         if (promptText) {
-            copyToClipboard(promptText);
+            copyToClipboard(promptText, '提示词已复制到剪贴板');
         } else {
             toastr.info('请先展开预览生成提示词');
         }
@@ -358,9 +358,9 @@ export function copyMacroToClipboard() {
         }
 
         if (macroText) {
-            copyToClipboard(macroText);
-            toastr.success(`已复制宏: ${macroText}`);
-            debugLog(`复制宏成功: ${macroText}`);
+            copyToClipboard(macroText, `已复制宏: ${macroText}`);
+            // toastr.success(`已复制宏: ${macroText}`);
+            // debugLog(`复制宏成功: ${macroText}`);
         }
     } catch (error) {
         errorLog('复制宏失败:', error);

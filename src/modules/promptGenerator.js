@@ -836,11 +836,11 @@ export function generateStructurePreview() {
  * 复制提示词到剪贴板
  * @param {string} text 要复制的文本
  */
-export function copyToClipboard(text) {
+export function copyToClipboard(text, info) {
     try {
         navigator.clipboard.writeText(text).then(() => {
-            infoLog('提示词已复制到剪贴板');
-            toastr.success('提示词已复制到剪贴板');
+            infoLog(info);
+            toastr.success(info);
         }).catch(err => {
             errorLog('复制到剪贴板失败:', err);
             toastr.error('复制失败，请手动复制');
@@ -854,8 +854,8 @@ export function copyToClipboard(text) {
         textarea.select();
         try {
             document.execCommand('copy');
-            infoLog('提示词已复制到剪贴板（备用方法）');
-            toastr.success('提示词已复制到剪贴板');
+            infoLog(info + '（备用方法）');
+            toastr.success(info);
         } catch (err) {
             errorLog('备用复制方法也失败:', err);
             toastr.error('复制失败，请手动复制');
