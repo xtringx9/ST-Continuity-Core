@@ -47,18 +47,7 @@ export function generateFormalPrompt() {
                 prompt += `requirement:${module.prompt}\n`;
             }
 
-            // 格式：生成变量描述格式
-            if (module.variables && module.variables.length > 0) {
-                const variableDescriptions = module.variables.map(variable => {
-                    const variableName = variable.name;
-                    const variableDesc = variable.description ? `${variable.description}` : '';
-                    return `${module.outputMode === 'full' ? '' : variable.isIdentifier ? '*' : variable.isBackupIdentifier ? '^' : ''}${variableName}:${variableDesc}`;
-                }).join('|');
-
-                prompt += `format:[${module.name}|${variableDescriptions}]\n`;
-            } else {
-                prompt += `format:[${module.name}]\n`;
-            }
+            prompt += 'format:' + generateModuleFormat(module);
 
             // 模块之间添加空行分隔
             prompt += '\n';
@@ -82,6 +71,23 @@ export function generateFormalPrompt() {
         errorLog('生成正式提示词失败:', error);
         return '生成提示词时发生错误：' + error.message;
     }
+}
+
+export function generateModuleFormat(module, needIdentifier = true) {
+    let result = '';
+    // 格式：生成变量描述格式
+    if (module.variables && module.variables.length > 0) {
+        const variableDescriptions = module.variables.map(variable => {
+            const variableName = variable.name;
+            const variableDesc = variable.description ? `${variable.description}` : '';
+            return `${module.outputMode === 'full' ? '' : needIdentifier && variable.isIdentifier ? '*' : needIdentifier && variable.isBackupIdentifier ? '^' : ''}${variableName}:${variableDesc}`;
+        }).join('|');
+
+        result = `[${module.name}|${variableDescriptions}]\n`;
+    } else {
+        result = `[${module.name}]\n`;
+    }
+    return result;
 }
 
 export function generateUsageGuide() {
