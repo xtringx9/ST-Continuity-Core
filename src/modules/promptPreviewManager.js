@@ -338,23 +338,34 @@ export function copyMacroToClipboard() {
         const mode = getCurrentPreviewMode();
         let macroText = '';
 
-        switch (mode) {
-            case 'macro-config':
-                macroText = '{{CONTINUITY_CONFIG}}';
-                break;
-            case 'macro-modules':
-                macroText = '{{CONTINUITY_MODULES}}';
-                break;
-            case 'macro-order':
-                macroText = '{{CONTINUITY_ORDER}}';
-                break;
-            case 'macro-usage-guide':
-                macroText = '{{CONTINUITY_USAGE_GUIDE}}';
-                break;
-            case 'macro':
-            default:
-                macroText = '{{CONTINUITY_PROMPT}}';
-                break;
+        // 处理聊天模块宏（格式：macro-chat-module-{index}）
+        if (mode.startsWith('macro-chat-module-')) {
+            const index = parseInt(mode.split('-').pop());
+            if (!isNaN(index)) {
+                macroText = `{{CONTINUITY_MSG_MODULE_${index}}}`;
+            }
+        } else {
+            switch (mode) {
+                case 'macro-config':
+                    macroText = '{{CONTINUITY_CONFIG}}';
+                    break;
+                case 'macro-modules':
+                    macroText = '{{CONTINUITY_MODULES}}';
+                    break;
+                case 'macro-order':
+                    macroText = '{{CONTINUITY_ORDER}}';
+                    break;
+                case 'macro-usage-guide':
+                    macroText = '{{CONTINUITY_USAGE_GUIDE}}';
+                    break;
+                case 'macro-module-data':
+                    macroText = '{{CONTINUITY_MODULE_DATA}}';
+                    break;
+                case 'macro':
+                default:
+                    macroText = '{{CONTINUITY_PROMPT}}';
+                    break;
+            }
         }
 
         if (macroText) {
@@ -387,6 +398,38 @@ function bindCopyMacroEvents() {
 let isPromptPreviewInitialized = false;
 
 /**
+ * 恢复预览区域的展开状态
+ */
+function restorePreviewState() {
+    try {
+        const collapsedStates = JSON.parse(localStorage.getItem('settingsCollapsedStates') || '{}');
+        const isPreviewCollapsed = collapsedStates['previewArea'];
+
+        const previewContent = $('#prompt-preview-content');
+        const toggleBtn = $('#toggle-preview-btn');
+
+        if (isPreviewCollapsed === false) {
+            // 如果之前是展开状态，则展开预览区域并生成内容
+            previewContent.show();
+            toggleBtn.addClass('expanded');
+            toggleBtn.html('<span class="toggle-arrow">▶</span> 折叠预览');
+
+            // 生成预览内容
+            updatePromptPreview();
+            debugLog('恢复预览区域展开状态并生成提示词');
+        } else {
+            // 如果之前是折叠状态，保持折叠
+            previewContent.hide();
+            toggleBtn.removeClass('expanded');
+            toggleBtn.html('<span class="toggle-arrow">▶</span> 展开预览');
+            debugLog('恢复预览区域折叠状态');
+        }
+    } catch (error) {
+        errorLog('恢复预览状态失败:', error);
+    }
+}
+
+/**
  * 初始化提示词预览功能
  */
 export function initPromptPreview() {
@@ -404,6 +447,9 @@ export function initPromptPreview() {
 
         // 绑定复制宏事件
         bindCopyMacroEvents();
+
+        // 恢复预览区域的展开状态
+        restorePreviewState();
 
         // 标记为已初始化
         isPromptPreviewInitialized = true;
