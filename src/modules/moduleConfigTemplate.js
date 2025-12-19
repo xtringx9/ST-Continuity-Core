@@ -438,8 +438,8 @@ export function normalizeConfig(config, extension_config = null) {
     const normalized = {
         metadata: {
             author: (extension_config && extension_config.moduleConfigAuthor) ? extension_config.moduleConfigAuthor : '',
+            authorConfigVersion: (extension_config && extension_config.moduleConfigVersion) ? extension_config.moduleConfigVersion : '',
             version: DEFAULT_CONFIG_VALUES.metadata.version,
-            // version: config.metadata?.version || config.version || DEFAULT_CONFIG_VALUES.metadata.version,
             lastUpdated: config.metadata?.lastUpdated || config.lastUpdated || new Date().toISOString(),
             source: config.metadata?.source || DEFAULT_CONFIG_VALUES.metadata.source
         },

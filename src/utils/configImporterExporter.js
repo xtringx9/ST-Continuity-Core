@@ -422,7 +422,15 @@ export function showImportOptionsDialog(file, config) {
             <div id="continuity-import-options-dialog" class="continuity-confirm-dialog">
                 <div class="confirm-dialog-content">
                     <h3 class="confirm-dialog-title">导入选项</h3>
-                    ${config.metadata && config.metadata.author ? `<p style="color: rgba(255, 255, 255, 0.9); font-size: 1em; margin: 0 0 10px 0;">配置作者/来源：${config.metadata.author}</p>` : ''}
+                    ${(config.metadata && (config.metadata.author || config.metadata.authorConfigVersion || config.metadata.version)) ? `
+                    <div class="config-info-panel" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 8px 12px; margin: 0 0 12px 0;">
+                        ${config.metadata && config.metadata.author ? `<div style="display: flex; align-items: center; margin-bottom: 4px;"><span style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-right: 8px;">配置作者：</span><span style="color: rgba(255, 255, 255, 0.9); font-size: 0.9em; font-weight: 500;">${config.metadata.author}</span></div>` : ''}
+                        ${(config.metadata && (config.metadata.authorConfigVersion || config.metadata.version)) ? `<div style="display: flex; align-items: center; justify-content: space-between;">
+                            ${config.metadata && config.metadata.authorConfigVersion ? `<div style="display: flex; align-items: center;"><span style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-right: 8px;">配置版本：</span><span style="color: rgba(255, 255, 255, 0.9); font-size: 0.9em; font-weight: 500;">${config.metadata.authorConfigVersion}</span></div>` : '<div></div>'}
+                            ${config.metadata && config.metadata.version ? `<div style="display: flex; align-items: center;"><span style="color: rgba(255, 255, 255, 0.5); font-size: 0.8em; margin-right: 8px;">插件配置版本：</span><span style="color: rgba(255, 255, 255, 0.5); font-size: 0.8em;">${config.metadata.version}</span></div>` : ''}
+                        </div>` : ''}
+                    </div>
+                    ` : ''}
                     <div class="confirm-dialog-message">
                         <p>请选择导入内容：</p>
                         ${hasSettings || hasModuleConfig ? `
@@ -597,9 +605,15 @@ export function showExportOptionsDialog() {
             <div id="continuity-export-options-dialog" class="continuity-confirm-dialog">
                 <div class="confirm-dialog-content">
                     <h3 class="confirm-dialog-title">导出选项</h3>
-                    <div class="author-input-group" style="margin-bottom: 15px;">
-                        <label for="config-author" style="display: block; margin-bottom: 5px; color: rgba(255, 255, 255, 0.9);">配置作者（可选）</label>
-                        <input type="text" id="config-author" class="module-parse-input" placeholder="请输入作者名称" style="width: 100%; color: rgba(255, 255, 255, 0.9); background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);">
+                    <div class="export-info-panel" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 8px 12px; margin: 0 0 12px 0;">
+                        <div class="author-input-group" style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <label for="config-author" style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-right: 8px; white-space: nowrap;">配置作者：</label>
+                            <input type="text" id="config-author" class="module-parse-input" placeholder="可选" style="flex: 1; color: rgba(255, 255, 255, 0.9); background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); font-size: 0.9em; padding: 6px 8px;">
+                        </div>
+                        <div class="version-input-group" style="display: flex; align-items: center;">
+                            <label for="config-version" style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-right: 8px; white-space: nowrap;">配置版本：</label>
+                            <input type="text" id="config-version" class="module-parse-input" placeholder="可选" style="flex: 1; color: rgba(255, 255, 255, 0.9); background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); font-size: 0.9em; padding: 6px 8px;">
+                        </div>
                     </div>
                     <div class="confirm-dialog-message">
                         <p>请选择导出内容：</p>
@@ -647,11 +661,17 @@ export function showExportOptionsDialog() {
         const exportModuleConfigCheckbox = exportOptionsDialog.find('#export-module-config');
         const moduleSelectionContainer = exportOptionsDialog.find('#module-selection-container');
         const authorInput = exportOptionsDialog.find('#config-author');
+        const versionInput = exportOptionsDialog.find('#config-version');
 
-        // 加载已保存的作者名称
+        // 加载已保存的作者名称和版本号
         const extensionConfig = configManager.getExtensionConfig();
-        if (extensionConfig && extensionConfig.moduleConfigAuthor) {
-            authorInput.val(extensionConfig.moduleConfigAuthor);
+        if (extensionConfig) {
+            if (extensionConfig.moduleConfigAuthor) {
+                authorInput.val(extensionConfig.moduleConfigAuthor);
+            }
+            if (extensionConfig.moduleConfigVersion) {
+                versionInput.val(extensionConfig.moduleConfigVersion);
+            }
         }
 
         // 绑定模块配置复选框事件
@@ -687,12 +707,13 @@ export function showExportOptionsDialog() {
             });
         });
 
-        // 保存作者信息的函数
+        // 保存作者和版本信息的函数
         const saveAuthorConfig = () => {
             const authorName = authorInput.val().trim();
+            const versionName = versionInput.val().trim();
             const extensionConfig = configManager.getExtensionConfig();
 
-            // 更新作者信息
+            // 更新作者和版本信息
             if (!extensionConfig) return;
 
             if (authorName) {
@@ -700,6 +721,13 @@ export function showExportOptionsDialog() {
             } else {
                 // 如果输入为空，删除作者字段
                 delete extensionConfig.moduleConfigAuthor;
+            }
+
+            if (versionName) {
+                extensionConfig.moduleConfigVersion = versionName;
+            } else {
+                // 如果输入为空，删除版本字段
+                delete extensionConfig.moduleConfigVersion;
             }
 
             // 保存配置
