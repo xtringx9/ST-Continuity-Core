@@ -218,6 +218,10 @@ export function renderModulesFromConfig(config) {
         if (config.globalSettings.compatibleModuleTags && config.globalSettings.compatibleModuleTags.length > 0) {
             $('#module-compatible-tags').val(config.globalSettings.compatibleModuleTags.join(','));
         }
+        // 更新思维链标签输入框
+        if (config.globalSettings.cotTags && config.globalSettings.cotTags.length > 0) {
+            $('#cot-tags').val(config.globalSettings.cotTags.join(','));
+        }
         // 更新内容标签输入框
         if (config.globalSettings.contentTag && config.globalSettings.contentTag.length > 0) {
             $('#content-tags').val(config.globalSettings.contentTag.join(','));

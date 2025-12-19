@@ -28,6 +28,11 @@ export const MODULE_CONFIG_TEMPLATE = {
             default: ['module', 'modules'],
             description: '兼容模块标签，从左到右'
         },
+        cotTags: {
+            type: 'array',
+            default: [],
+            description: '思维链标签，从左到右'
+        },
         contentTag: {
             type: 'array',
             default: [],
@@ -441,6 +446,7 @@ export function normalizeConfig(config, extension_config = null) {
         globalSettings: {
             moduleTag: config.globalSettings?.moduleTag || 'module',
             compatibleModuleTags: config.globalSettings?.compatibleModuleTags || ['module', 'modules'],
+            cotTags: config.globalSettings?.cotTags || [],
             contentTag: config.globalSettings?.contentTag || [],
             contentRemainLayers: config.globalSettings?.contentRemainLayers || 6,
             prompt: config.globalSettings?.prompt || '',

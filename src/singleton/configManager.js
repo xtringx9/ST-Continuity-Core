@@ -1347,6 +1347,7 @@ class UIDataCollector {
         return {
             moduleTag: $('#module-tags').val() || '',
             compatibleModuleTags: IdentifierParser.parseMultiValues($('#module-compatible-tags').val() || ''),
+            cotTags: IdentifierParser.parseMultiValues($('#cot-tags').val() || ''),
             contentTag: IdentifierParser.parseMultiValues($('#content-tags').val() || ''),
             contentRemainLayers: parseInt($('#content-layers').val()) || 0,
             prompt: $('#global-prompt-input').val() || '',

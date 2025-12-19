@@ -465,14 +465,14 @@ function processMessageWithContentTags(messageContent) {
     try {
         // 获取全局设置中的contentTag，如果没有则使用默认值
         const globalSettings = configManager.getGlobalSettings();
-        const contentTags = globalSettings.contentTag;
+        const cotTags = globalSettings.cotTags;
 
-        // 如果contentTags为空或长度为0，直接返回原内容
-        if (!contentTags || !Array.isArray(contentTags) || contentTags.length === 0) {
+        // 如果cotTags为空或长度为0，直接返回原内容
+        if (!cotTags || !Array.isArray(cotTags) || cotTags.length === 0) {
             return messageContent;
         }
 
-        // debugLog(`[CONTENT TAG PROCESSOR] 使用的正文标签: ${JSON.stringify(contentTags)}`);
+        // debugLog(`[CONTENT TAG PROCESSOR] 使用的思维链标签: ${JSON.stringify(cotTags)}`);
 
         // 如果消息内容为空，直接返回
         if (!messageContent || messageContent.trim() === '') {
@@ -482,14 +482,14 @@ function processMessageWithContentTags(messageContent) {
         let lastContentTagIndex = -1;
         let foundTag = null;
 
-        // 从上到下遍历标签数组，寻找最后一个匹配的标签
-        for (const tag of contentTags) {
-            const fullTag = `<${tag}>`;
-            const tagIndex = messageContent.lastIndexOf(fullTag);
+        // 从上到下遍历标签数组，寻找最后一个匹配的结束标签
+        for (const tag of cotTags) {
+            const endTag = `</${tag}>`;
+            const tagIndex = messageContent.lastIndexOf(endTag);
 
             if (tagIndex !== -1 && tagIndex > lastContentTagIndex) {
                 lastContentTagIndex = tagIndex;
-                foundTag = fullTag;
+                foundTag = endTag;
             }
         }
 
