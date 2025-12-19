@@ -792,7 +792,7 @@ export function renderCurrentMessageContext() {
             const messageIndex = message.attr('mesid');
             const modulesForThisMessage = groupedByMessageIndex[messageIndex] || [];
 
-            debugLog(messageIndex, `当前消息的模块数据:`, modulesForThisMessage);
+            // infoLog(messageIndex, `当前消息的模块数据:`, modulesForThisMessage);
 
             renderSingleMessageContext(modulesForThisMessage, messageText, message)
         }
@@ -825,16 +825,17 @@ export function renderSingleMessageContext(messages, container, mes) {
         // 检查是否已渲染过
         if (renderSwipe === swipeId) {
             if (messages.length > 0) {
-                // 检测第一条消息的processedRaw是否能匹配上原始HTML内容
-                const firstMessage = messages[0];
+                // 检测中间消息的processedRaw是否能匹配上原始HTML内容
+                const firstMessage = messages[Math.floor(messages.length / 2)];
                 if (firstMessage && firstMessage.moduleData && firstMessage.moduleData.processedRaw) {
                     const processedRaw = firstMessage.moduleData.processedRaw;
                     const rawPattern = new RegExp(processedRaw.replace(REGEX_ESCAPE_PATTERN, '\\$&') + '(?:<br>)*', 'g');
 
                     // 检查是否能匹配上原始HTML内容
-                    const matchResult = rawPattern.exec(originalText);
-                    if (!matchResult) {
-                        debugLog('renderSingleMessageContext: 第一条消息的processedRaw无法匹配原始HTML内容，可能已渲染过，跳过渲染');
+                    const matchResults = originalText.match(rawPattern);
+                    // const matchResult = rawPattern.exec(originalText);
+                    if (!matchResults || matchResults.length === 0) {
+                        debugLog('renderSingleMessageContext: processedRaw无法匹配原始HTML内容，可能已渲染过，跳过渲染');
                         return;
                     }
                 }
@@ -871,6 +872,7 @@ export function renderSingleMessageContext(messages, container, mes) {
                             const matchedText = matchResult.replace(processedRaw + '<br>', processedRaw);
                             // 如果匹配上了，用customStyles替换匹配到的内容（包括后面的<br>标签）
                             newHtml = newHtml.replace(matchedText, entry.customStyles);
+                            // infoLog(`messageIndex: ${mes.attr('mesid')} renderSingleMessageContext: 成功匹配并替换了mes_text内容`, entry, matchedText, processedRaw);
                         });
                         // debugLog('renderSingleMessageContext: 成功匹配并替换了mes_text内容', entry, matchedText, processedRaw);
                         // }
@@ -885,6 +887,7 @@ export function renderSingleMessageContext(messages, container, mes) {
                             matchResults.forEach(matchResult => {
                                 const matchedText = matchResult.replace(raw + '<br>', raw);
                                 newHtml = newHtml.replace(matchedText, entry.customStyles);
+                                // infoLog(`messageIndex: ${mes.attr('mesid')} renderSingleMessageContext: 成功匹配并替换了mes_text内容`, entry, matchedText, processedRaw);
                             });
                         }
                         else {
