@@ -17,6 +17,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
     autoInject: false, // 自动注入开关，默认关闭
     buttonType: "embedded", // 按钮类型，默认嵌入按钮
     moduleConfigAuthor: "", // 模块配置作者，默认空字符串
+    moduleConfigVersion: "", // 模块配置版本，默认1.0.0
 };
 
 export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";
@@ -612,10 +613,11 @@ class ConfigManager {
             const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
             const extension_config = this.getExtensionConfig();
             const author = (extension_config && extension_config.moduleConfigAuthor) ? extension_config.moduleConfigAuthor + '_' : '';
+            const version = (extension_config && extension_config.moduleConfigVersion) ? 'v' + extension_config.moduleConfigVersion + '_' : '';
             // 根据导出选项生成描述性文件名
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -1); // 保留完整的时分秒
             const configType = this.generateConfigType(exportOptions, currentConfig.modules);
-            const exportFileDefaultName = `${CONTINUITY_CORE_IDENTIFIER}${author}${configType}_${timestamp}.json`;
+            const exportFileDefaultName = `${CONTINUITY_CORE_IDENTIFIER}${author}${version}${configType}_${timestamp}.json`;
 
 
             const linkElement = document.createElement('a');
