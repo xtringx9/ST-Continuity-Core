@@ -855,6 +855,13 @@
     margin: 0;
 }
 
+.module-preview-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
 #continuity-module-config-window .module-preview-text {
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.3);
@@ -866,6 +873,29 @@
     min-height: 24px;
     resize: vertical;
     flex: 1;
+    margin-right: auto;
+}
+
+.module-copy-btn {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.module-copy-btn:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.module-copy-btn:active {
+    background-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(1px);
 }
 
 .module-preview-text:focus {
