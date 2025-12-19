@@ -485,6 +485,7 @@
 #continuity-module-config-window .module-tags,
 #continuity-module-config-window .module-compatible-tags,
 #continuity-module-config-window .content-tags,
+#continuity-module-config-window .cot-tags,
 #continuity-module-config-window .content-layers,
 #continuity-module-config-window .module-compatible-names {
     width: 120px;
@@ -1047,6 +1048,15 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     padding: 10px;
+    margin: 0;
+    overflow-x: auto;
+    font-family: 'Courier New',
+        monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #ddd;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 
 /* 设置组容器样式 */
@@ -1144,15 +1154,4 @@
     outline: none;
     border-color: #ffffff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
-}
-
-margin: 0;
-overflow-x: auto;
-font-family: 'Courier New',
-monospace;
-font-size: 12px;
-line-height: 1.4;
-color: #ddd;
-white-space: pre-wrap;
-word-wrap: break-word;
 }
