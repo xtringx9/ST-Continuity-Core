@@ -210,8 +210,8 @@ export async function updateUItoMsgBottom() {
         }
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
-        const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, false, true);
-        // infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
+        const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, false, false);
+        infoLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         const containers = getCurrentMessageContainer();
 
