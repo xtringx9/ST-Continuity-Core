@@ -117,7 +117,7 @@ function disableContinuityCore() {
         removeUIfromContextBottom();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
-        infoLog("已移除上下文底部UI");
+        // infoLog("已移除上下文底部UI");
 
         infoLog("♥️ Continuity Core 已禁用，功能已停止（事件监听器仍存在）");
     } catch (error) {

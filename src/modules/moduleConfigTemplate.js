@@ -23,10 +23,15 @@ export const MODULE_CONFIG_TEMPLATE = {
             default: 'module',
             description: '模块标签'
         },
+        moduleUpdateTag: {
+            type: 'string',
+            default: 'module_update',
+            description: '模块更新标签'
+        },
         compatibleModuleTags: {
             type: 'array',
             default: ['module', 'modules'],
-            description: '兼容模块标签，从左到右'
+            description: '兼容更新标签，从左到右'
         },
         cotTags: {
             type: 'array',
@@ -445,6 +450,7 @@ export function normalizeConfig(config, extension_config = null) {
         },
         globalSettings: {
             moduleTag: config.globalSettings?.moduleTag || 'module',
+            moduleUpdateTag: config.globalSettings?.moduleUpdateTag || 'module_update',
             compatibleModuleTags: config.globalSettings?.compatibleModuleTags || ['module', 'modules'],
             cotTags: config.globalSettings?.cotTags || [],
             contentTag: config.globalSettings?.contentTag || [],
