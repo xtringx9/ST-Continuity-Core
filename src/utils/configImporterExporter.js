@@ -360,6 +360,7 @@ export function bindSaveButtonEvent() {
         try {
             const contentRemainLayers = configManager.getGlobalSettings().contentRemainLayers;
             const moduleTag = configManager.getGlobalSettings().moduleTag;
+            const moduleUpdateTag = configManager.getGlobalSettings().moduleUpdateTag;
             // 使用统一的配置管理器进行保存
             const success = configManager.saveFromUI(true); // true表示立即保存
             // 根据保存结果显示提示信息
@@ -367,6 +368,7 @@ export function bindSaveButtonEvent() {
                 toastr.success('模块配置已保存！');
                 const newContentRemainLayers = configManager.getGlobalSettings().contentRemainLayers;
                 const newModuleTag = configManager.getGlobalSettings().moduleTag;
+                const newModuleUpdateTag = configManager.getGlobalSettings().moduleUpdateTag;
                 if (contentRemainLayers !== newContentRemainLayers) {
                     // 调用createConfigEntry方法
                     try {
@@ -381,7 +383,7 @@ export function bindSaveButtonEvent() {
                         errorLog('调用updateMacroOptionsFromConfig失败:', error);
                     }
                 }
-                if (contentRemainLayers !== newContentRemainLayers || moduleTag !== newModuleTag) {
+                if (contentRemainLayers !== newContentRemainLayers || moduleTag !== newModuleTag || moduleUpdateTag !== newModuleUpdateTag) {
                     // 调用registerConfigRegexPatterns方法
                     try {
                         registerContinuityRegexPattern();

@@ -126,13 +126,14 @@ function registerRegexPatterns(patterns, scripts) {
 export function registerConfigRegexPatterns(scripts, isEnabled = true) {
     const globalSettings = configManager.getGlobalSettings();
     const entryCount = globalSettings.contentRemainLayers;
-    const moduleTag = globalSettings.moduleTag;
+    // const moduleTag = globalSettings.moduleTag;
+    const moduleUpdateTag = globalSettings.moduleUpdateTag;
     const compatibleModuleTags = globalSettings.compatibleModuleTags.join('|');
     const sumModuleEnabled = configManager.getModuleByName('sum')?.enabled ?? false;
     let patterns = [
         {
             scriptName: CONTINUITY_CORE_IDENTIFIER + '隐藏正文后模块数据_' + REGEX_CONSTANTS.version,
-            findRegex: '/(?<!<details>\\s*)<(modules?|module_update|' + moduleTag + '|' + moduleTag + '_update|' + compatibleModuleTags + ')>([\\s\\S]*?)<\\/\\1>/g',
+            findRegex: '/(?<!<details>\\s*)<(modules?|module_update|' + moduleUpdateTag + '|' + compatibleModuleTags + ')>([\\s\\S]*?)<\\/\\1>/g',
             replaceString: '',
             trimStrings: [],
             placement: [1, 2], // AI输出 (regex_placement.AI_OUTPUT = 2)

@@ -218,6 +218,11 @@ export function renderModulesFromConfig(config) {
         if (config.globalSettings.compatibleModuleTags && config.globalSettings.compatibleModuleTags.length > 0) {
             $('#module-compatible-tags').val(config.globalSettings.compatibleModuleTags.join(','));
         }
+
+        if (config.globalSettings.moduleUpdateTag) {
+            $('#module-update-tags').val(config.globalSettings.moduleUpdateTag);
+        }
+
         // 更新思维链标签输入框
         if (config.globalSettings.cotTags && config.globalSettings.cotTags.length > 0) {
             $('#cot-tags').val(config.globalSettings.cotTags.join(','));

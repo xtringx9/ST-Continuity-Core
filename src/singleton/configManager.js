@@ -1347,7 +1347,8 @@ class UIDataCollector {
      */
     collectGlobalSettingsFromUI() {
         return {
-            moduleTag: $('#module-tags').val() || '',
+            moduleTag: $('#module-tags').val() || 'module',
+            moduleUpdateTag: $('#module-update-tags').val() || 'module_update',
             compatibleModuleTags: IdentifierParser.parseMultiValues($('#module-compatible-tags').val() || ''),
             cotTags: IdentifierParser.parseMultiValues($('#cot-tags').val() || ''),
             contentTag: IdentifierParser.parseMultiValues($('#content-tags').val() || ''),
