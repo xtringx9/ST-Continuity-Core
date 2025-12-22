@@ -610,7 +610,9 @@ class ConfigManager {
             }
 
             const dataStr = JSON.stringify(exportConfig, null, 2);
-            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            const bom = '\uFEFF';
+            const blob = new Blob([bom + dataStr], { type: 'application/json;charset=utf-8' });
+            const dataUri = URL.createObjectURL(blob);
             const extension_config = this.getExtensionConfig();
             const author = (extension_config && extension_config.moduleConfigAuthor) ? extension_config.moduleConfigAuthor + '_' : '';
             const version = (extension_config && extension_config.moduleConfigVersion) ? 'v' + extension_config.moduleConfigVersion + '_' : '';
@@ -624,6 +626,9 @@ class ConfigManager {
             linkElement.setAttribute('href', dataUri);
             linkElement.setAttribute('download', exportFileDefaultName);
             linkElement.click();
+
+            // 释放URL对象，避免内存泄漏
+            URL.revokeObjectURL(dataUri);
 
             infoLog('模块配置已备份到本地文件');
             return true;
