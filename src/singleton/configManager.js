@@ -610,7 +610,9 @@ class ConfigManager {
             }
 
             const dataStr = JSON.stringify(exportConfig, null, 2);
-            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            const dataUri = 'data:application/json;charset=utf-8;base64,' + btoa(encodeURIComponent(dataStr).replace(/%([0-9A-F]{2})/g, function (match, p1) {
+                return String.fromCharCode('0x' + p1);
+            }));
             const extension_config = this.getExtensionConfig();
             const author = (extension_config && extension_config.moduleConfigAuthor) ? extension_config.moduleConfigAuthor + '_' : '';
             const version = (extension_config && extension_config.moduleConfigVersion) ? 'v' + extension_config.moduleConfigVersion + '_' : '';
