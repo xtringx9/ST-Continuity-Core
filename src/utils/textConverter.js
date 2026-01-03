@@ -83,6 +83,9 @@ export function processTextForMatching(text) {
     // 处理引号转换
     result = convertQuotesToQTags(result);
 
+    // 将三个点...转换为水平省略号…，以匹配HTML中的显示
+    result = result.replace(/\.\.\./g, '…');
+
     return result;
 }
 
