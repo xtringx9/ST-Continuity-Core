@@ -1,12 +1,12 @@
 // 后端服务模块
-import { chat, extension_settings, extensionName, isDebugLogsEnabled, debugLog, errorLog, infoLog } from "../index.js";
+import { configManager, chat, extension_settings, extensionName, isDebugLogsEnabled, debugLog, errorLog, infoLog } from "../index.js";
 
 /**
  * 发送消息到后端服务器
  * @returns {Promise<void>}
  */
 export async function sendToBackend() {
-    const settings = extension_settings[extensionName];
+    const settings = configManager.getExtensionConfig();
 
     // 检查是否启用
     if (!settings.enabled) {
@@ -30,12 +30,12 @@ export async function sendToBackend() {
     toastr.info(`准备发送: "${lastMessageContent.substring(0, 50)}..."`);
 
     try {
-        const response = await fetch(settings.backendUrl, {
+        const response = await fetch(`${settings.backendUrl}/v1/st-extension/data`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ last_message: lastMessageContent }),
+            body: JSON.stringify({ raw_text: lastMessageContent }),
         });
 
         if (!response.ok) {

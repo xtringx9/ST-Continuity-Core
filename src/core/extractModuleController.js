@@ -1,5 +1,5 @@
 // 提取模块控制器 - 独立管理提取模块功能
-import { chat, configManager, infoLog, debugLog, errorLog, moduleCacheManager } from '../index.js';
+import { getContext, chat, configManager, infoLog, debugLog, errorLog, moduleCacheManager } from '../index.js';
 import { parseCompatibleNames } from '../modules/moduleParser.js';
 import { parseMultipleModules } from '../modules/parseModuleManager.js';
 import { processModuleData, htmlEscape } from './moduleProcessor.js';
@@ -139,6 +139,10 @@ export class ExtractModuleController {
 
         $('#extract-ui-modules-config-btn').on('click', async () => {
             await this.extractUIModulesConfig();
+        });
+
+        $('#extract-context-data-btn').on('click', async () => {
+            await this.extractContextData();
         });
     }
 
@@ -476,6 +480,10 @@ export class ExtractModuleController {
 
     async extractUIModulesConfig() {
         configManager.outputCache();
+    }
+
+    async extractContextData() {
+        infoLog('[Module Cache]打印当前上下文数据:', getContext());
     }
 
     /**

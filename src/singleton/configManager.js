@@ -12,7 +12,7 @@ export const EXTENSION_CONFIG_KEY = 'extension_config';
 export const DEFAULT_EXTENSION_CONFIG = {
     version: "1.0.0",
     enabled: true, // 全局开关默认开启
-    backendUrl: "", // 后端服务器地址
+    backendUrl: "http://localhost:8888", // 后端服务器地址
     debugLogs: false, // 调试日志开关，默认关闭
     autoInject: false, // 自动注入开关，默认关闭
     buttonType: "embedded", // 按钮类型，默认嵌入按钮

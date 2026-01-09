@@ -83,6 +83,7 @@ export async function loadSettingsPanel() {
         $('#continuity_backend_url').on('input', onBackendUrlChange);
         $('#continuity_debug_logs').on('input', onDebugLogsToggle);
         $('#continuity_button_type').on('change', onButtonTypeChange);
+        $('#continuity_test_backend').on('click', sendToBackend);
 
         // 加载设置到UI
         loadSettingsToUI();
