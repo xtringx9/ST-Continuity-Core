@@ -3,7 +3,10 @@
  * 统一导出所有核心模块和外部依赖，便于外部引用
  */
 
-// 导入外部依赖
+// ==========================================
+// 1. 外部依赖导入与导出
+// ==========================================
+
 import { extension_settings, loadExtensionSettings, getContext, getApiUrl } from '../../../../extensions.js';
 import {
     chat_metadata, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid
@@ -22,8 +25,12 @@ import {
 } from '../../../../world-info.js';
 import { getRegexScripts, saveScriptsByType, SCRIPT_TYPES } from '../../../regex/engine.js';
 
-// 导出外部依赖
-export { chat_metadata, findChar, getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4, extension_settings, loadExtensionSettings, getContext, getApiUrl, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid };
+export {
+    chat_metadata, findChar, getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4,
+    extension_settings, loadExtensionSettings, getContext, getApiUrl,
+    chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid
+};
+
 export {
     METADATA_KEY,
     world_info,
@@ -36,13 +43,35 @@ export {
     onWorldInfoChange, convertCharacterBook, getWorldInfoPrompt, loadWorldInfo, reloadEditor, saveWorldInfo, updateWorldInfoList
 };
 
-// 导出核心模块
+// ==========================================
+// 2. Singleton 模块
+// ==========================================
+
 export { default as configManager, extensionName, extensionFolderPath, CONTINUITY_CORE_IDENTIFIER, EXTENSION_CONFIG_KEY } from './singleton/configManager.js';
-export { ExtractModuleController } from './core/extractModuleController.js';
 export { default as moduleCacheManager } from './singleton/moduleCacheManager.js';
 
+// ==========================================
+// 3. Core 核心模块
+// ==========================================
 
-// 导出设置管理模块
+export { ExtractModuleController } from './core/extractModuleController.js';
+export { PromptInjector } from './core/promptInjector.js';
+export { EventHandler } from './core/eventHandler.js';
+export { groupProcessResultByMessageIndex, processModuleData, htmlEscape } from './core/moduleProcessor.js';
+export { extractModulesFromChat } from './core/moduleExtractor.js';
+export { removeUIfromContextBottom, isInChatPage } from './core/contextBottomUI.js';
+export {
+    getContinuityPrompt,
+    getContinuityConfig,
+    getContinuityModules,
+    registerMacros,
+    areMacrosRegistered,
+} from './core/macroManager.js';
+
+// ==========================================
+// 4. UI 模块
+// ==========================================
+
 export {
     loadSettingsToUI,
     onEnabledToggle,
@@ -60,7 +89,6 @@ export {
     onTimeFormatChange,
 } from './ui/settingsManager.js';
 
-// 导出UI管理模块
 export {
     loadSettingsPanel,
     openModuleConfigWindow,
@@ -69,7 +97,10 @@ export {
     showCustomConfirmDialog,
 } from './ui/uiManager.js';
 
-// 导出模块配置管理模块
+// ==========================================
+// 5. Modules 功能模块
+// ==========================================
+
 export {
     saveModuleConfig,
     loadModuleConfig,
@@ -81,7 +112,6 @@ export {
     clearModuleConfigData,
 } from './modules/moduleConfigManager.js';
 
-// 导出模块管理模块
 export {
     addModule,
     updateModulePreview,
@@ -93,14 +123,12 @@ export {
     updateAllModulesPreview,
 } from './modules/moduleManager.js';
 
-// 导出提示词生成模块
 export {
     generateFormalPrompt,
     generateStructurePreview,
     copyToClipboard,
 } from './modules/promptGenerator.js';
 
-// 导出提示词预览管理模块
 export {
     togglePromptPreview,
     updatePromptPreview,
@@ -109,13 +137,30 @@ export {
     initPromptPreview,
 } from './modules/promptPreviewManager.js';
 
-// 导出变量管理模块
 export {
     addVariable,
     bindVariableEvents,
 } from './modules/variableManager.js';
 
-// 导出日志管理模块
+export {
+    getVariableItemTemplate,
+    getEmptyVariableItemTemplate,
+} from './modules/templateManager.js';
+
+export {
+    parseModuleString,
+    validateModuleString,
+    generateModulePreview,
+} from './modules/moduleParser.js';
+
+export {
+    initParseModule,
+} from './modules/parseModuleManager.js';
+
+// ==========================================
+// 6. Utils 工具模块
+// ==========================================
+
 export {
     isDebugLogsEnabled,
     debugLog,
@@ -124,62 +169,23 @@ export {
     infoLog,
 } from './utils/logger.js';
 
-// 导出后端服务模块
-export {
-    sendToBackend,
-} from './utils/backendService.js';
+export { sendToBackend } from './utils/backendService.js';
 
-// 导出配置导入导出模块
 export {
     initJsonImportExport,
-    // collectModulesForExport,
     bindSaveButtonEvent,
     showExportOptionsDialog
 } from './utils/configImporterExporter.js';
 
-// 导出提示词注入管理器
-export { PromptInjector } from './core/promptInjector.js';
-
-// 导出事件处理器
-export { EventHandler } from './core/eventHandler.js';
-
-// 导出宏管理器
 export {
-    getContinuityPrompt,
-    getContinuityConfig,
-    getContinuityModules,
-    registerMacros,
-    areMacrosRegistered,
-} from './core/macroManager.js';
+    updateCurrentCharWorldBookCache,
+    getCurrentCharBooksModuleEntries,
+    getCurrentCharBooksEnabledEntries,
+    checkAndInitializeWorldBook,
+    getTestData,
+    getCurrentCharBooks
+} from './utils/worldBookUtils.js';
 
-// 导出模板管理模块
-export {
-    getVariableItemTemplate,
-    getEmptyVariableItemTemplate,
-} from './modules/templateManager.js';
-
-// 导出模块解析器模块
-export {
-    parseModuleString,
-    validateModuleString,
-    generateModulePreview,
-} from './modules/moduleParser.js';
-
-// 导出模块解析管理模块
-export {
-    initParseModule,
-} from './modules/parseModuleManager.js';
-
-export { groupProcessResultByMessageIndex, processModuleData, htmlEscape } from './core/moduleProcessor.js';
-export { extractModulesFromChat } from './core/moduleExtractor.js';
-
-// 导出上下文底部UI管理模块
-export {
-    removeUIfromContextBottom,
-    isInChatPage
-} from './core/contextBottomUI.js';
-
-export { updateCurrentCharWorldBookCache, getCurrentCharBooksModuleEntries, getCurrentCharBooksEnabledEntries, checkAndInitializeWorldBook, getTestData, getCurrentCharBooks } from './utils/worldBookUtils.js';
 export { registerContinuityRegexPattern } from './utils/regexUtils.js';
 
 
