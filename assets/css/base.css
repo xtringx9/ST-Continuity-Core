@@ -468,10 +468,3 @@
     padding: 20px;
 }
 
-/* 响应式样式 */
-@media (max-width: 768px) {
-    #continuity-settings-panel {
-        width: 100%;
-        height: 100%;
-    }
-}

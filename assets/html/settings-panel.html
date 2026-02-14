@@ -1,35 +1,62 @@
 <div class="continuity-core-settings">
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
-            <b>[CCore]Continuity Core</b>
+            <b>
+                <span class="ccore-badge">CCore</span>
+                <span style="margin-left: 5px; font-size: 0.95em;">模块中心</span>
+            </b>
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
-            <div class="example-extension_block flex-container">
-                <input id="continuity_enabled" type="checkbox" />
-                <label for="continuity_enabled">启用插件</label>
+            <div class="continuity-settings-container">
+                <div class="continuity-header-row">
+                    <div class="continuity-toggle-row">
+                        <label class="continuity-toggle-switch">
+                            <input id="continuity_enabled" type="checkbox" />
+                            <span class="continuity-toggle-slider"></span>
+                        </label>
+                        <label for="continuity_enabled">启用插件</label>
+                    </div>
+                    <div class="continuity-version-info">
+                        Continuity Core v1.0.0
+                    </div>
+                </div>
+                
+                <div class="continuity-tabs">
+                    <button class="continuity-tab-btn active" data-tab="interface">界面设置</button>
+                    <button class="continuity-tab-btn" data-tab="backend">后端配置</button>
+                    <button class="continuity-tab-btn" data-tab="debug">调试设置</button>
+                </div>
+                
+                <div class="continuity-tab-content active" id="tab-interface">
+                    <div class="continuity-form-row">
+                        <label for="continuity_button_type" class="continuity-form-label">按钮类型:</label>
+                        <select id="continuity_button_type" class="continuity-form-input">
+                            <option value="embedded">嵌入按钮</option>
+                            <option value="floating">浮动按钮</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="continuity-tab-content" id="tab-backend">
+                    <div class="continuity-form-row">
+                        <label for="continuity_backend_url" class="continuity-form-label">服务器地址:</label>
+                        <input id="continuity_backend_url" type="text" class="continuity-form-input"
+                            placeholder="http://localhost:8888" />
+                    </div>
+                    <div class="example-extension_block">
+                        <button id="continuity_test_backend" type="button" class="menu_button"
+                            style="width:auto;">测试后端连接</button>
+                    </div>
+                </div>
+                
+                <div class="continuity-tab-content" id="tab-debug">
+                    <div class="example-extension_block flex-container">
+                        <input id="continuity_debug_logs" type="checkbox" />
+                        <label for="continuity_debug_logs">显示调试日志</label>
+                    </div>
+                </div>
             </div>
-            <div class="example-extension_block flex-container">
-                <label for="continuity_backend_url">后端服务器地址:</label>
-                <input id="continuity_backend_url" type="text" style="width: 100%;"
-                    placeholder="http://localhost:8888" />
-            </div>
-            <div class="example-extension_block flex-container">
-                <input id="continuity_debug_logs" type="checkbox" />
-                <label for="continuity_debug_logs">显示调试日志</label>
-            </div>
-            <div class="example-extension_block flex-container">
-                <label for="continuity_button_type">按钮类型:</label>
-                <select id="continuity_button_type" style="width: 100%;">
-                    <option value="embedded">嵌入按钮</option>
-                    <option value="floating">浮动按钮</option>
-                </select>
-            </div>
-            <div class="example-extension_block">
-                <button id="continuity_test_backend" type="button" class="menu_button"
-                    style="width:auto;">测试后端连接</button>
-            </div>
-            <!-- <hr class="sysHR" /> -->
         </div>
     </div>
 </div>

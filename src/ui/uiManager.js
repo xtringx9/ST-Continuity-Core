@@ -48,6 +48,7 @@ function loadCSS() {
     // 加载所有拆分后的CSS文件
     const cssFiles = [
         'base.css',        // 基础样式
+        'settings-panel.css', // 设置面板样式
         'modules.css',     // 模块样式
         'variables.css',   // 变量样式
         'buttons.css',     // 按钮样式
@@ -84,6 +85,15 @@ export async function loadSettingsPanel() {
         $('#continuity_debug_logs').on('input', onDebugLogsToggle);
         $('#continuity_button_type').on('change', onButtonTypeChange);
         $('#continuity_test_backend').on('click', sendToBackend);
+
+        // 绑定Tab切换事件
+        $('.continuity-tab-btn').on('click', function() {
+            const tabId = $(this).data('tab');
+            $('.continuity-tab-btn').removeClass('active');
+            $('.continuity-tab-content').removeClass('active');
+            $(this).addClass('active');
+            $('#tab-' + tabId).addClass('active');
+        });
 
         // 加载设置到UI
         loadSettingsToUI();

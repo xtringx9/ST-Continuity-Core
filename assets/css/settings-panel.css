@@ -1,0 +1,151 @@
+
+/* 开关样式 - 简洁小巧 */
+.continuity-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.continuity-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.continuity-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #e74c3c;
+    border-radius: 20px;
+}
+
+.continuity-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+}
+
+.continuity-toggle-switch input:checked + .continuity-toggle-slider {
+    background-color: #27ae60;
+}
+
+.continuity-toggle-switch input:checked + .continuity-toggle-slider:before {
+    transform: translateX(16px);
+}
+
+/* 主容器 */
+.continuity-settings-container {
+    border: 1px solid var(--SmartThemeEmColor);
+    border-radius: 6px;
+    padding: 10px;
+    background-color: var(--SmartThemeBackgroundColor);
+}
+
+/* CCore 徽章 */
+.ccore-badge {
+    font-size: 0.95em;
+    padding: 1px 6px;
+    border: 1px solid var(--SmartThemeEmColor);
+    border-radius: 3px;
+    background-color: var(--SmartThemeBackgroundColor);
+}
+
+/* 头部行 */
+.continuity-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.continuity-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.continuity-version-info {
+    color: var(--SmartThemeBorderColor);
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+/* Tab 样式 */
+.continuity-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--SmartThemeEmColor);
+}
+
+.continuity-tab-btn {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--SmartThemeEmColor);
+    font-size: 0.9em;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: none;
+}
+
+.continuity-tab-btn:hover {
+    background-color: rgba(var(--SmartThemeEmColorRGB), 0.08);
+}
+
+.continuity-tab-btn.active {
+    border-bottom-color: var(--SmartThemeEmColor);
+    background-color: rgba(var(--SmartThemeEmColorRGB), 0.1);
+    font-weight: 600;
+}
+
+.continuity-tab-content {
+    display: none;
+    padding: 4px 0;
+}
+
+.continuity-tab-content.active {
+    display: block;
+}
+
+/* 表单行样式 */
+.continuity-form-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.continuity-form-label {
+    flex-shrink: 0;
+    min-width: 75px;
+    font-size: 0.92em;
+}
+
+.continuity-form-input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 设置面板容器样式 */
+.continuity-settings-container .flex-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.continuity-settings-container .flex-container label {
+    margin: 0;
+}
+
