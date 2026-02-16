@@ -9,60 +9,8 @@ import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
 import { getContext } from '../../index.js';
 
-// === Mock 数据 (模拟模块) ===
-const mockModules = [
-    {
-        id: 'mod_1',
-        name: 'summary',
-        displayName: '剧情摘要',
-        enabled: true,
-        tags: ['external'], // 外部显示
-        description: '显示当前剧情的简要总结',
-        outputPos: 'after_body',
-        outputMode: 'full',
-        rangeMode: 'unlimited',
-        variables: [
-            { name: 'content', displayName: '内容', description: '摘要的具体内容', enabled: true },
-            { name: 'importance', displayName: '重要性', description: '摘要的重要性等级', enabled: true, isIdentifier: true }
-        ]
-    },
-    {
-        id: 'mod_2',
-        name: 'inventory',
-        displayName: '背包物品',
-        enabled: true,
-        tags: ['time_ref'],
-        description: '记录角色当前持有的物品',
-        outputPos: 'body',
-        outputMode: 'incremental',
-        rangeMode: 'specified',
-        variables: [
-            { name: 'item_name', displayName: '物品名', enabled: true, isIdentifier: true },
-            { name: 'count', displayName: '数量', enabled: true }
-        ]
-    },
-    {
-        id: 'mod_3',
-        name: 'time_system',
-        displayName: '时间系统',
-        enabled: true,
-        tags: [], // 时间基准
-        description: '管理当前日期和时间',
-        outputPos: 'body_start',
-        outputMode: 'full',
-        variables: []
-    },
-    {
-        id: 'mod_4',
-        name: 'quest_log',
-        displayName: '任务日志',
-        enabled: false, // 已禁用
-        tags: ['disabled'],
-        description: '追踪当前任务进度',
-        variables: []
-    }
-];
-
+// === 状态管理 ===
+let currentModules = []; // 当前编辑的模块列表副本
 let selectedModuleId = null; // 记录当前选中的模块 ID
 
 // === 渲染逻辑 ===
@@ -84,6 +32,10 @@ export function initModuleEditor(iframeDocument) {
 
     // 应用静态文本翻译
     i18n.apply(doc, 'module_editor');
+
+    // 加载真实数据 (深拷贝以避免直接修改引用，直到保存)
+    const modules = configManager.getModules(true); // true 表示获取所有模块(包括禁用的)
+    currentModules = JSON.parse(JSON.stringify(modules));
 
     // 初始化视图
     renderModuleList();
@@ -136,14 +88,14 @@ function renderModuleList() {
     // 指定使用 'module_editor' 功能区的翻译
     const section = 'module_editor';
 
-    mockModules.forEach((mod, index) => {
+    currentModules.forEach((mod, index) => {
         const item = doc.createElement('div');
         item.className = 'module-list-item';
         item.setAttribute('draggable', 'true'); // 启用拖拽
         item.dataset.index = index; // 存储索引
         if (!mod.enabled) item.classList.add('disabled');
         // 如果是当前选中的模块，添加 active 类
-        if (mod.id === selectedModuleId) {
+        if (mod.name === selectedModuleId) { // 使用 name 作为 ID
             item.classList.add('active');
         }
 
@@ -161,8 +113,8 @@ function renderModuleList() {
             doc.querySelectorAll('.module-list-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
 
-            selectedModuleId = mod.id;
-            renderModuleDetail(mod);
+            selectedModuleId = mod.name;
+            renderModuleDetail(mod, index);
 
             // 移动端适配：点击后切换到详情视图
             if (window.innerWidth <= 768) {
@@ -175,18 +127,35 @@ function renderModuleList() {
         item.addEventListener('dragenter', handleDragEnter);
         item.addEventListener('dragover', handleDragOver);
         item.addEventListener('dragleave', handleDragLeave);
-        item.addEventListener('drop', (e) => handleDrop(e, item, 'module', mockModules, renderModuleList));
+        item.addEventListener('drop', (e) => handleDrop(e, item, 'module', currentModules, () => {
+            renderModuleList();
+            saveChanges(); // 拖拽排序后自动保存
+        }));
         item.addEventListener('dragend', handleDragEnd);
 
         listContainer.appendChild(item);
     });
+
+    // 绑定添加模块按钮 (列表底部的 + 号)
+    // 注意：原来的 HTML 中可能没有 ID，我们需要在 HTML 中给那个按钮加个 ID 或者在这里查找
+    const addBtn = listContainer.parentElement.querySelector('.list-toolbar button');
+    if (addBtn) {
+        // 移除旧监听器 (简单粗暴的方法是克隆节点，或者确保只绑定一次)
+        const newAddBtn = addBtn.cloneNode(true);
+        addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+
+        newAddBtn.addEventListener('click', () => {
+            createNewModule();
+        });
+    }
 }
 
 /**
  * 渲染模块详情表单 (右侧)
  * @param {Object} module 模块数据对象
+ * @param {number} index 模块在数组中的索引
  */
-function renderModuleDetail(module) {
+function renderModuleDetail(module, index) {
     const container = doc.querySelector('.module-detail-panel .detail-content');
     const section = 'module_editor';
 
@@ -204,6 +173,9 @@ function renderModuleDetail(module) {
                     <input type="checkbox" id="edit-enabled" ${module.enabled ? 'checked' : ''}>
                     <span style="font-size: 12px; font-weight: 600;">${i18n.t('label_enabled', section)}</span>
                 </label>
+                <button id="btn-delete-module" style="margin-left: 10px; background: none; border: none; color: var(--danger-color); cursor: pointer;" title="删除模块">
+                    🗑️
+                </button>
             </div>
             
             <div class="form-grid">
@@ -262,8 +234,8 @@ function renderModuleDetail(module) {
                 <!-- 高级开关 -->
                 <div class="form-group form-full-width" style="display: flex; gap: 20px; margin-top: 5px;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="edit-external" ${module.tags && module.tags.includes('external') ? 'checked' : ''}>
-                        <span style="font-size: 0.9em;">${i18n.t('label_external', section)}</span>
+                        <input type="checkbox" id="edit-external" ${module.isExternalDisplay ? 'checked' : ''}>
+                        <span style="font-size: 0.9em;">${i18n.t('label_external', section)} (isExternalDisplay)</span>
                     </label>
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="edit-time-ref" ${module.tags && module.tags.includes('time_ref') ? 'checked' : ''}>
@@ -317,6 +289,14 @@ function renderModuleDetail(module) {
         });
     }
 
+    // 绑定删除模块按钮
+    const deleteBtn = doc.getElementById('btn-delete-module');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            deleteModule(index);
+        });
+    }
+
     // 绑定添加变量按钮
     doc.getElementById('btn-add-variable').addEventListener('click', () => {
         if (!module.variables) module.variables = [];
@@ -337,26 +317,67 @@ function renderModuleDetail(module) {
 
     // 绑定保存按钮事件
     doc.getElementById('btn-save-module').addEventListener('click', () => {
-        // 1. 更新数据 (Mock数据)
+        // 1. 收集表单数据更新到当前模块对象
         module.name = doc.getElementById('edit-name').value;
         module.displayName = doc.getElementById('edit-display-name').value;
         module.enabled = doc.getElementById('edit-enabled').checked;
         module.description = doc.getElementById('edit-description').value;
 
-        // 更新标签
-        module.tags = [];
-        if (doc.getElementById('edit-external').checked) module.tags.push('external');
-        if (doc.getElementById('edit-time-ref').checked) module.tags.push('time_ref');
+        module.outputPos = doc.getElementById('edit-output-pos').value;
+        module.outputMode = doc.getElementById('edit-output-mode').value;
+        module.rangeMode = doc.getElementById('edit-range-mode').value;
+        module.retainLayers = parseInt(doc.getElementById('edit-retain-layers').value) || -1;
 
-        // 2. 刷新左侧列表以反映更改 (如名称、启用状态)
+        module.isExternalDisplay = doc.getElementById('edit-external').checked;
+
+        // 处理 tags (time_ref)
+        if (!module.tags) module.tags = [];
+        const isTimeRef = doc.getElementById('edit-time-ref').checked;
+        if (isTimeRef && !module.tags.includes('time_ref')) {
+            module.tags.push('time_ref');
+        } else if (!isTimeRef && module.tags.includes('time_ref')) {
+            module.tags = module.tags.filter(t => t !== 'time_ref');
+        }
+
+        module.promptGen = doc.getElementById('edit-prompt-gen').value;
+        module.stylesContainer = doc.getElementById('edit-styles-container').value;
+
+        // 2. 刷新左侧列表
         renderModuleList();
 
-        // 3. 简单的反馈动画
+        // 3. 保存到 configManager
+        saveChanges();
+
+        // 4. 反馈动画
         const btn = doc.getElementById('btn-save-module');
         const originalText = btn.textContent;
         btn.textContent = "✔ OK";
         setTimeout(() => btn.textContent = originalText, 1000);
     });
+}
+
+/**
+ * 创建新模块
+ */
+function createNewModule() {
+    const newModule = {
+        name: `new_module_${Date.now()}`,
+        displayName: '新模块',
+        enabled: true,
+        description: '',
+        variables: []
+    };
+    currentModules.push(newModule);
+    renderModuleList();
+    // 自动选中新模块
+    const lastIndex = currentModules.length - 1;
+    selectedModuleId = newModule.name;
+    // 触发点击以显示详情
+    const items = doc.querySelectorAll('.module-list-item');
+    if (items[lastIndex]) items[lastIndex].click();
+
+    // 自动保存
+    saveChanges();
 }
 
 /**
@@ -584,6 +605,27 @@ function handleDragEnd(e) {
     });
 }
 
+/**
+ * 删除模块
+ * @param {number} index 索引
+ */
+function deleteModule(index) {
+    if (confirm('确定要删除这个模块吗？此操作不可恢复。')) {
+        currentModules.splice(index, 1);
+        selectedModuleId = null;
+        // 清空详情页或显示占位符
+        doc.querySelector('.module-detail-panel .detail-content').innerHTML = `
+            <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
+                <p>模块已删除</p>
+            </div>
+        `;
+        renderModuleList();
+        saveChanges();
+        // 如果在移动端，返回列表
+        doc.body.classList.remove('mobile-view-detail');
+    }
+}
+
 // === 初始化 ===
 // 移除 DOMContentLoaded 监听，改为由 initModuleEditor 显式调用
 
@@ -602,7 +644,7 @@ function renderToolbox() {
 
     container.innerHTML = '';
 
-    mockModules.forEach(mod => {
+    currentModules.forEach(mod => {
         const label = doc.createElement('label');
         label.style.display = 'flex';
         label.style.alignItems = 'center';
@@ -684,4 +726,12 @@ function renderToolbox() {
     } else {
         errorLog("renderToolbox: 未找到 btn-debug-context");
     }
+}
+
+/**
+ * 保存更改到 ConfigManager
+ */
+function saveChanges() {
+    configManager.setModules(currentModules);
+    infoLog("[ModuleEditor] 模块配置已保存");
 }
