@@ -69,7 +69,7 @@ header.app-header {
 
 .nav-item {
     width: 100%;
-    height: 40px;
+    height: 36px;
     margin-bottom: 10px;
     border-radius: 8px;
     display: flex;
@@ -80,7 +80,7 @@ header.app-header {
     cursor: pointer;
     color: var(--text-secondary);
     transition: all 0.2s;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
 }
 
@@ -155,7 +155,7 @@ aside.module-list-panel {
 
 /* 列表项样式 (新增) */
 .module-list-item {
-    padding: 8px 12px;
+    padding: 6px 10px;
     margin-bottom: 0;
     /* 去除间距 */
     background-color: transparent;
@@ -291,13 +291,9 @@ section.module-detail-panel {
 .detail-content {
     flex: 1;
     overflow-y: auto;
-    /* 详情内部滚动 */
-    padding: 30px 40px;
-    /* 增加内边距 */
-    max-width: 900px;
-    /* 内容不要太宽，保持可读性 */
-    margin: 0 auto;
     width: 100%;
+    padding: 0;
+    /* 移除内边距，由子容器控制 */
 }
 
 /* 表单网格布局 */
@@ -305,8 +301,9 @@ section.module-detail-panel {
     display: grid;
     grid-template-columns: 1fr 1fr;
     /* 两列布局 */
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 8px 30px;
+    /* 增加列间距，区分左右两组 */
+    margin-bottom: 10px;
 }
 
 .form-full-width {
@@ -318,18 +315,30 @@ section.module-detail-panel {
     display: flex;
     align-items: center;
     width: 100%;
+    margin-bottom: 8px;
+    /* 非网格项增加底部间距 */
+}
+
+/* 网格内的项不需要底部间距，由 gap 控制 */
+.form-grid .form-group {
+    margin-bottom: 0;
 }
 
 .form-group label {
-    width: 110px;
-    min-width: 110px;
-    margin-right: 15px;
+    width: 130px;
+    /* 增加宽度以容纳长标签 */
+    min-width: 130px;
+    margin-right: 8px;
     margin-bottom: 0 !important;
     /* 覆盖可能的内联样式 */
     color: var(--text-secondary);
-    font-size: 0.9em;
+    font-size: 12px;
     line-height: 1.3;
     flex-shrink: 0;
+    word-break: break-word;
+    text-align: right;
+    /* 标签右对齐，紧贴输入框 */
+    /* 允许长单词换行 */
 }
 
 /* 针对多行文本框，标签顶对齐 */
@@ -338,7 +347,7 @@ section.module-detail-panel {
 }
 
 .form-group:has(textarea) label {
-    margin-top: 8px;
+    margin-top: 5px;
 }
 
 /* 输入控件统一样式 */
@@ -349,11 +358,12 @@ section.module-detail-panel {
     flex: 1;
     width: 100%;
     /* 确保填满 flex 容器 */
-    padding: 8px;
+    padding: 4px 8px;
     background: var(--bg-input);
     border: 1px solid var(--border-color);
     color: var(--text-input);
     border-radius: 4px;
+    font-size: 13px;
     font-family: inherit;
 }
 
@@ -372,6 +382,7 @@ section.module-detail-panel {
     font-weight: 600;
     color: var(--accent-color);
     margin-top: 20px;
+    /* 增加组间距 */
     margin-bottom: 10px;
     border-bottom: 1px solid var(--border-light);
     padding-bottom: 5px;
@@ -381,15 +392,24 @@ section.module-detail-panel {
 /* 详情页内 Tab 样式 */
 .detail-tabs {
     display: flex;
+    position: sticky;
+    /* 粘性定位 */
+    top: 0;
+    z-index: 10;
+    background-color: var(--bg-app);
     border-bottom: 1px solid var(--border-color);
-    margin-bottom: 20px;
+    margin: 0 -20px 15px -20px;
+    /* 负边距抵消容器内边距 */
+    padding: 10px 20px 0 20px;
+    /* 增加顶部呼吸空间 */
+    margin-bottom: 15px;
 }
 
 .detail-tab-item {
-    padding: 10px 15px;
+    padding: 8px 12px;
     cursor: pointer;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
@@ -455,7 +475,7 @@ section.module-detail-panel {
     }
 
     .detail-content {
-        padding: 20px 15px;
+        padding: 15px;
     }
 
     .main-nav {
@@ -505,7 +525,7 @@ section.module-detail-panel {
     .form-group label {
         width: auto;
         min-width: 0;
-        margin-bottom: 6px !important;
+        margin-bottom: 4px !important;
     }
 }
 
@@ -516,7 +536,7 @@ section.module-detail-panel {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
 }
@@ -585,7 +605,7 @@ section.module-detail-panel {
 
 .form-actions {
     text-align: right;
-    margin-top: 30px;
+    margin-top: 20px;
 }
 
 .spacer-bottom {
@@ -625,7 +645,7 @@ section.module-detail-panel {
 .checkbox-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 15px;
+    gap: 10px;
 }
 
 .checkbox-label {
@@ -679,7 +699,7 @@ section.module-detail-panel {
 .toolbox-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 15px;
+    gap: 10px;
     padding: 10px;
     background: var(--bg-card);
     border-radius: 4px;
@@ -689,7 +709,7 @@ section.module-detail-panel {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
 .btn-debug {
@@ -702,7 +722,7 @@ section.module-detail-panel {
 }
 
 .results-title {
-    margin-top: 30px;
+    margin-top: 20px;
 }
 
 .results-textarea {
@@ -718,6 +738,9 @@ section.module-detail-panel {
 .settings-container {
     max-width: 800px;
     margin: 0 auto;
+    padding: 15px 20px;
+    /* 内容容器内边距 */
+    position: relative;
 }
 
 /* 5. Modal (变量编辑弹窗) */
@@ -775,8 +798,8 @@ section.module-detail-panel {
 
 /* 变量编辑卡片样式 */
 .variable-edit-item {
-    margin-bottom: 15px;
-    padding: 15px;
+    margin-bottom: 10px;
+    padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
     background-color: var(--bg-card);

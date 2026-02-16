@@ -185,7 +185,7 @@ function renderModuleDetail(module, index) {
 
     // 生成表单 HTML
     container.innerHTML = `
-        <div class="settings-container" style="max-width: 600px;">
+        <div class="settings-container">
             <!-- 移动端返回按钮 -->
             <button id="btn-back-to-list" class="mobile-only btn-back">
                 <span>←</span> 返回列表
