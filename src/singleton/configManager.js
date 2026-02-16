@@ -25,6 +25,9 @@ export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";
 // 配置在扩展设置中的键名
 const MODULE_CONFIG_KEY = 'module_config';
 
+// 开发用保存开关（仅开发/重构时使用，不保存到配置）
+const ENABLE_DEV_SAVE_GUARD = false; // true=允许保存，false=禁止保存
+
 class ConfigManager {
     constructor() {
         this.isLoaded = false;
@@ -148,6 +151,10 @@ class ConfigManager {
      * @param {Object} newConfig 新的扩展配置对象
      */
     setExtensionConfig(newConfig) {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，setExtensionConfig 阻止保存。');
+            return;
+        }
         try {
             // 验证配置结构
             if (typeof newConfig !== 'object' || newConfig === null) {
@@ -186,6 +193,10 @@ class ConfigManager {
      * @param {Object} newConfig 新的配置对象
      */
     setModuleConfig(newConfig) {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，setModuleConfig 阻止自动保存。');
+            return;
+        }
         try {
             // 验证配置结构
             if (!newConfig.modules || !Array.isArray(newConfig.modules)) {
@@ -335,6 +346,10 @@ class ConfigManager {
      * @param {Array} modules 模块配置数组
      */
     setModules(modules) {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，setModules 阻止自动保存。');
+            return;
+        }
         const config = this.getModuleConfig();
         config.modules = modules;
         if (!config.metadata) {
@@ -417,6 +432,10 @@ class ConfigManager {
      * @param {Object} globalSettings 全局设置对象
      */
     setGlobalSettings(globalSettings) {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，setGlobalSettings 阻止自动保存。');
+            return;
+        }
         const config = this.getModuleConfig();
         config.globalSettings = {
             ...config.globalSettings,
@@ -441,6 +460,10 @@ class ConfigManager {
      * @deprecated 使用configManager.resetToDefault()替代
      */
     clearModuleConfig() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，clearModuleConfig 阻止保存。');
+            return false;
+        }
         this.resetModuleConfigToDefault();
         return this.saveModuleConfigNow();
     }
@@ -451,6 +474,10 @@ class ConfigManager {
      * @returns {boolean} 是否保存成功
      */
     saveModuleConfigNow() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，已阻止配置保存。');
+            return false;
+        }
         try {
             // 确保配置已加载
             if (!this.isModuleConfigLoaded) {
@@ -499,6 +526,10 @@ class ConfigManager {
      * 安排自动保存
      */
     scheduleAutoSave() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，已阻止自动保存。');
+            return;
+        }
         // 清除之前的超时
         if (this.autoSaveTimeout) {
             clearTimeout(this.autoSaveTimeout);
@@ -959,6 +990,10 @@ class ConfigManager {
      * 重置配置为默认值
      */
     resetModuleConfigToDefault() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，resetModuleConfigToDefault 阻止自动保存。');
+            return;
+        }
         this.moduleConfig = { ...DEFAULT_CONFIG_VALUES };
         this.scheduleAutoSave();
         infoLog('配置已重置为默认值');
@@ -987,6 +1022,10 @@ class ConfigManager {
      * @returns {boolean} 是否保存成功
      */
     saveFromUI(immediate = false) {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，saveFromUI 阻止保存。');
+            return false;
+        }
         try {
             // 收集模块数据
             const modules = this.uiDataCollector.collectModulesDataFromUI();
