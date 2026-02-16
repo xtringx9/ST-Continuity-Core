@@ -297,11 +297,16 @@ section.module-detail-panel {
     }
 
     body.mobile-view-detail section.module-detail-panel {
-        display: block;
+        display: flex;
+        flex-direction: column;
         height: 100%;
         /* 确保占满高度 */
         overflow: hidden;
         /* 防止双重滚动 */
+    }
+
+    .detail-content {
+        padding: 20px 15px;
     }
 
     .main-nav {
@@ -394,6 +399,15 @@ section.module-detail-panel {
 
 .drag-handle:hover {
     opacity: 1;
+}
+
+/* 变量编辑卡片样式 */
+.variable-edit-item {
+    margin-bottom: 15px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-card);
 }
 
 .module-list-item.dragging,

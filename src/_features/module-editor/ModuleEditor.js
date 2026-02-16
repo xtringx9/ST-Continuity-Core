@@ -386,6 +386,10 @@ function createNewModule() {
  * @param {HTMLElement} container 容器元素
  */
 function renderVariableList(module, container) {
+    if (!container) {
+        errorLog("renderVariableList: 容器不存在");
+        return;
+    }
     container.innerHTML = '';
     const section = 'module_editor';
 
@@ -399,11 +403,6 @@ function renderVariableList(module, container) {
         item.className = 'variable-edit-item';
         item.setAttribute('draggable', 'true'); // 启用拖拽
         item.dataset.index = index;
-        item.style.marginBottom = '15px';
-        item.style.padding = '15px';
-        item.style.border = '1px solid var(--border-color)';
-        item.style.borderRadius = '4px';
-        item.style.backgroundColor = 'var(--bg-card)';
 
         item.innerHTML = `
             <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
