@@ -11,6 +11,7 @@ import { getContext } from '../../index.js';
 
 // === 状态管理 ===
 let currentModules = []; // 当前编辑的模块列表副本
+let currentGlobalSettings = {}; // 当前编辑的全局设置副本
 let selectedModuleId = null; // 记录当前选中的模块 ID
 
 // === 渲染逻辑 ===
@@ -37,9 +38,13 @@ export function initModuleEditor(iframeDocument) {
     const modules = configManager.getModules(true); // true 表示获取所有模块(包括禁用的)
     currentModules = JSON.parse(JSON.stringify(modules));
 
+    // 加载全局设置
+    currentGlobalSettings = JSON.parse(JSON.stringify(configManager.getGlobalSettings()));
+
     // 初始化视图
     renderModuleList();
     renderToolbox();
+    renderGlobalSettings();
 
     // 绑定顶部栏事件 (主题切换等)
     bindHeaderEvents();
@@ -101,9 +106,17 @@ function renderModuleList() {
 
         // 列表项简化：只显示名字和ID
         item.innerHTML = `
-            <div class="module-item-header">
-                <span class="module-item-name">${mod.displayName || mod.name}</span>
-                <small style="opacity: 0.5; font-size: 0.8em;">#${mod.name}</small>
+            <div class="module-item-content">
+                <div class="module-item-header">
+                    <span class="module-item-name">${mod.displayName || mod.name}</span>
+                    <small style="opacity: 0.5; font-size: 0.8em;">#${mod.name}</small>
+                </div>
+            </div>
+            <div class="module-item-actions">
+                <label class="toggle-switch" title="启用/禁用">
+                    <input type="checkbox" class="module-enable-toggle" ${mod.enabled ? 'checked' : ''}>
+                    <span class="slider round"></span>
+                </label>
             </div>
         `;
 
@@ -120,6 +133,17 @@ function renderModuleList() {
             if (window.innerWidth <= 768) {
                 doc.body.classList.add('mobile-view-detail');
             }
+        });
+
+        // 绑定启用/禁用开关事件
+        const toggle = item.querySelector('.module-enable-toggle');
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止冒泡，防止触发选中
+            mod.enabled = e.target.checked;
+            if (!mod.enabled) item.classList.add('disabled');
+            else item.classList.remove('disabled');
+
+            saveChanges(); // 自动保存
         });
 
         // 绑定拖拽事件
@@ -169,10 +193,6 @@ function renderModuleDetail(module, index) {
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
                 <h2 style="margin: 0;">${module.displayName || module.name}</h2>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; background: var(--bg-input); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">
-                    <input type="checkbox" id="edit-enabled" ${module.enabled ? 'checked' : ''}>
-                    <span style="font-size: 12px; font-weight: 600;">${i18n.t('label_enabled', section)}</span>
-                </label>
                 <button id="btn-delete-module" style="margin-left: 10px; background: none; border: none; color: var(--danger-color); cursor: pointer;" title="删除模块">
                     🗑️
                 </button>
@@ -320,7 +340,6 @@ function renderModuleDetail(module, index) {
         // 1. 收集表单数据更新到当前模块对象
         module.name = doc.getElementById('edit-name').value;
         module.displayName = doc.getElementById('edit-display-name').value;
-        module.enabled = doc.getElementById('edit-enabled').checked;
         module.description = doc.getElementById('edit-description').value;
 
         module.outputPos = doc.getElementById('edit-output-pos').value;
@@ -728,9 +747,112 @@ function renderToolbox() {
 }
 
 /**
+ * 渲染全局设置界面
+ */
+function renderGlobalSettings() {
+    const container = doc.getElementById('view-settings');
+    if (!container) return;
+
+    const settings = currentGlobalSettings;
+    const section = 'module_editor'; // 复用翻译
+
+    container.innerHTML = `
+        <div class="detail-content">
+            <div style="max-width: 800px; margin: 0 auto;">
+                <div class="form-section-title">全局提示词配置</div>
+                
+                <div class="form-group form-full-width">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">{{CONTINUITY_PROMPT}}顶部提示词</label>
+                    <textarea id="global-prompt" rows="3" placeholder="该提示词将会放在{{CONTINUITY_PROMPT}}顶部" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.prompt || ''}</textarea>
+                </div>
+
+                <div class="form-group form-full-width">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">{{CONTINUITY_ORDER}}顶部提示词</label>
+                    <textarea id="global-order-prompt" rows="3" placeholder="该提示词将会放在{{CONTINUITY_ORDER}}顶部" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.orderPrompt || ''}</textarea>
+                </div>
+
+                <div class="form-group form-full-width">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">{{CONTINUITY_USAGE_GUIDE}}顶部提示词</label>
+                    <textarea id="global-usage-prompt" rows="3" placeholder="该提示词将会放在{{CONTINUITY_USAGE_GUIDE}}顶部" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.usagePrompt || ''}</textarea>
+                </div>
+
+                <div class="form-group form-full-width">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">{{CONTINUITY_MODULE_DATA}}顶部提示词</label>
+                    <textarea id="global-module-data-prompt" rows="3" placeholder="该提示词将会放在{{CONTINUITY_MODULE_DATA}}顶部" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.moduleDataPrompt || ''}</textarea>
+                </div>
+
+                <div class="form-section-title">全局样式配置</div>
+
+                <div class="form-group form-full-width">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">消息内容器样式</label>
+                    <textarea id="global-container-styles" rows="2" placeholder="使用\${customStyles}注入模块样式" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.containerStyles || ''}</textarea>
+                </div>
+
+                <div class="form-group form-full-width">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">消息内外部样式</label>
+                    <textarea id="global-external-styles" rows="2" placeholder="使用\${customStyles}注入模块样式" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.externalStyles || ''}</textarea>
+                </div>
+
+                <div class="form-group form-full-width">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">底部容器样式</label>
+                    <textarea id="global-bottom-styles" rows="2" placeholder="使用\${customStyles}注入模块样式" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.bottomStyles || ''}</textarea>
+                </div>
+
+                <div class="form-section-title">其他设置</div>
+
+                <div class="form-group">
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">时间格式 (Time Format)</label>
+                    <input type="text" id="global-time-format" value="${settings.timeFormat || ''}" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                </div>
+
+                <div style="text-align: right; margin-top: 30px;">
+                    <button id="btn-save-global" style="padding: 8px 20px; background: var(--accent-color); color: var(--bg-app); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; transition: opacity 0.2s;">
+                        保存全局设置
+                    </button>
+                </div>
+                
+                <div style="height: 50px;"></div>
+            </div>
+        </div>
+    `;
+
+    // 绑定保存按钮
+    const btnSave = doc.getElementById('btn-save-global');
+    if (btnSave) {
+        btnSave.addEventListener('click', () => {
+            // 收集数据
+            currentGlobalSettings.prompt = doc.getElementById('global-prompt').value;
+            currentGlobalSettings.orderPrompt = doc.getElementById('global-order-prompt').value;
+            currentGlobalSettings.usagePrompt = doc.getElementById('global-usage-prompt').value;
+            currentGlobalSettings.moduleDataPrompt = doc.getElementById('global-module-data-prompt').value;
+            currentGlobalSettings.containerStyles = doc.getElementById('global-container-styles').value;
+            currentGlobalSettings.externalStyles = doc.getElementById('global-external-styles').value;
+            currentGlobalSettings.bottomStyles = doc.getElementById('global-bottom-styles').value;
+            currentGlobalSettings.timeFormat = doc.getElementById('global-time-format').value;
+
+            // 保存
+            saveGlobalSettings();
+
+            // 反馈动画
+            const originalText = btnSave.textContent;
+            btnSave.textContent = "✔ 已保存";
+            setTimeout(() => btnSave.textContent = originalText, 1000);
+        });
+    }
+}
+
+/**
  * 保存更改到 ConfigManager
  */
 function saveChanges() {
     configManager.setModules(currentModules);
     infoLog("[ModuleEditor] 模块配置已保存");
+}
+
+/**
+ * 保存全局设置到 ConfigManager
+ */
+function saveGlobalSettings() {
+    configManager.setGlobalSettings(currentGlobalSettings);
+    infoLog("[ModuleEditor] 全局设置已保存");
 }
