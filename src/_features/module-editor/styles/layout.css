@@ -105,7 +105,6 @@ header.app-header {
 
 /* 视图：模块编辑器 (Master-Detail) */
 #view-modules {
-    display: grid;
     grid-template-columns: 200px 1fr;
     /* 列表栏缩小到 200px */
     width: 100%;

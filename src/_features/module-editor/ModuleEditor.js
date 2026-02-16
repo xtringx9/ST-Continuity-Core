@@ -543,12 +543,15 @@ function renderToolbox() {
     });
 
     // 绑定提取按钮 (Mock 演示)
-    document.getElementById('btn-extract').addEventListener('click', () => {
-        const start = document.getElementById('tool-floor-start').value;
-        const end = document.getElementById('tool-floor-end').value || 'Latest';
-        const selected = Array.from(container.querySelectorAll('input:checked')).map(cb => cb.value);
+    const btnExtract = document.getElementById('btn-extract');
+    if (btnExtract) {
+        btnExtract.addEventListener('click', () => {
+            const start = document.getElementById('tool-floor-start').value;
+            const end = document.getElementById('tool-floor-end').value || 'Latest';
+            const selected = Array.from(container.querySelectorAll('input:checked')).map(cb => cb.value);
 
-        const resultArea = document.getElementById('tool-results');
-        resultArea.value = `[模拟提取结果]\n范围: ${start} - ${end}\n选中模块: ${selected.join(', ')}\n\n[summary|content:这是一个模拟的剧情摘要...]\n[inventory|item_name:长剑|count:1]`;
-    });
+            const resultArea = document.getElementById('tool-results');
+            resultArea.value = `[模拟提取结果]\n范围: ${start} - ${end}\n选中模块: ${selected.join(', ')}\n\n[summary|content:这是一个模拟的剧情摘要...]\n[inventory|item_name:长剑|count:1]`;
+        });
+    }
 }
