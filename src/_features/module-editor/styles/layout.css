@@ -313,6 +313,60 @@ section.module-detail-panel {
     grid-column: span 2;
 }
 
+/* 表单项布局 (横向排列) */
+.form-group {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.form-group label {
+    width: 110px;
+    min-width: 110px;
+    margin-right: 15px;
+    margin-bottom: 0 !important;
+    /* 覆盖可能的内联样式 */
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    line-height: 1.3;
+    flex-shrink: 0;
+}
+
+/* 针对多行文本框，标签顶对齐 */
+.form-group:has(textarea) {
+    align-items: flex-start;
+}
+
+.form-group:has(textarea) label {
+    margin-top: 8px;
+}
+
+/* 输入控件统一样式 */
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
+    flex: 1;
+    width: 100%;
+    /* 确保填满 flex 容器 */
+    padding: 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-input);
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.form-group textarea {
+    font-family: var(--font-mono);
+    resize: vertical;
+}
+
+/* 复杂输入组合 (如范围选择) */
+.form-group>div {
+    flex: 1;
+}
+
 .form-section-title {
     font-size: 14px;
     font-weight: 600;
@@ -441,6 +495,229 @@ section.module-detail-panel {
         /* 文字变小 */
         line-height: 1;
     }
+
+    /* 移动端表单恢复纵向排列 */
+    .form-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-group label {
+        width: auto;
+        min-width: 0;
+        margin-bottom: 6px !important;
+    }
+}
+
+/* === 提取的通用样式 === */
+
+/* 模块详情头部 */
+.module-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.module-title {
+    margin: 0;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-delete {
+    color: var(--danger-color);
+    margin-left: 10px;
+}
+
+/* 移动端返回按钮 */
+.btn-back {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 16px;
+    cursor: pointer;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* 区域头部操作栏 */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 按钮样式 */
+.btn-secondary {
+    padding: 4px 8px;
+    font-size: 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-input);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-primary {
+    padding: 8px 20px;
+    background: var(--accent-color);
+    color: var(--bg-app);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: opacity 0.2s;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.form-actions {
+    text-align: right;
+    margin-top: 30px;
+}
+
+.spacer-bottom {
+    height: 50px;
+}
+
+/* 变量列表项内部样式 */
+.variable-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.variable-drag-handle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.variable-index {
+    font-weight: bold;
+}
+
+.btn-variable-delete {
+    color: var(--danger-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2em;
+}
+
+.variable-form-grid {
+    gap: 10px;
+    margin-bottom: 0;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.hide-condition-wrapper {
+    border-top: 1px solid var(--border-light);
+    padding-top: 10px;
+}
+
+.hide-condition-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.hide-condition-input {
+    width: 100%;
+    padding: 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-input);
+    border-radius: 4px;
+}
+
+/* 工具箱样式 */
+.toolbox-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.toolbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.toolbox-checkbox {
+    transform: scale(1.1);
+}
+
+.toolbox-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 10px;
+    background: var(--bg-card);
+    border-radius: 4px;
+}
+
+.debug-tools {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 30px;
+}
+
+.btn-debug {
+    padding: 8px 15px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.results-title {
+    margin-top: 30px;
+}
+
+.results-textarea {
+    width: 100%;
+    padding: 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-input);
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 /* 5. Modal (变量编辑弹窗) */
