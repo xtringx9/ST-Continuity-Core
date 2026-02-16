@@ -198,85 +198,130 @@ function renderModuleDetail(module, index) {
                 </button>
             </div>
             
-            <div class="form-grid">
-                <!-- 基础信息 -->
-                <div class="form-section-title">${i18n.t('title_edit_module', section)}</div>
-                
-                <div class="form-group">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_name', section)}</label>
-                    <input type="text" id="edit-name" value="${module.name}" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+            <!-- Tab Navigation -->
+            <div class="detail-tabs">
+                <div class="detail-tab-item active" data-target="module-detail-settings">模块设置</div>
+                <div class="detail-tab-item" data-target="module-detail-variables">变量管理</div>
+            </div>
+
+            <!-- Tab Panel: Settings -->
+            <div id="module-detail-settings" class="detail-tab-panel active">
+                <div class="form-grid">
+                    <!-- 基础信息 -->
+                    <div class="form-section-title">${i18n.t('title_edit_module', section)}</div>
+                    
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_name', section)}</label>
+                        <input type="text" id="edit-name" value="${module.name}" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_display_name', section)}</label>
+                        <input type="text" id="edit-display-name" value="${module.displayName}" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+
+                    <!-- 行为设置 -->
+                    <div class="form-section-title">行为设置</div>
+
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_output_pos', section)}</label>
+                        <select id="edit-output-pos" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                            <option value="after_body" ${module.outputPosition === 'after_body' ? 'selected' : ''}>正文后输出</option>
+                            <option value="body" ${module.outputPosition === 'body' ? 'selected' : ''}>正文内输出</option>
+                            <option value="body_start" ${module.outputPosition === 'body_start' ? 'selected' : ''}>正文内开头</option>
+                            <option value="body_end" ${module.outputPosition === 'body_end' ? 'selected' : ''}>正文内结尾</option>
+                            <option value="body_surround" ${module.outputPosition === 'body_surround' ? 'selected' : ''}>正文内首末</option>
+                            <option value="specific_position" ${module.outputPosition === 'specific_position' ? 'selected' : ''}>正文内特定位置</option>
+                            <option value="embedded" ${module.outputPosition === 'embedded' ? 'selected' : ''}>可嵌入</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_output_mode', section)}</label>
+                        <select id="edit-output-mode" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                            <option value="full" ${module.outputMode === 'full' ? 'selected' : ''}>全量输出</option>
+                            <option value="incremental" ${module.outputMode === 'incremental' ? 'selected' : ''}>增量更新</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_range_mode', section)}</label>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="edit-range-mode" style="flex: 1; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                                <option value="unlimited" ${module.rangeMode === 'unlimited' ? 'selected' : ''}>无限制</option>
+                                <option value="specified" ${module.rangeMode === 'specified' ? 'selected' : ''}>指定数量</option>
+                                <option value="range" ${module.rangeMode === 'range' ? 'selected' : ''}>指定范围</option>
+                            </select>
+                            <input type="number" id="edit-item-min" value="${module.itemMin || 0}" placeholder="${i18n.t('label_item_min', section)}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
+                            <input type="number" id="edit-item-max" value="${module.itemMax || 1}" placeholder="${i18n.t('label_item_max', section)}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_retain_layers', section)}</label>
+                        <input type="number" id="edit-retain-layers" value="${module.retainLayers || -1}" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+
+                    <div class="form-group form-full-width">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_compatible_modules', section)}</label>
+                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+
+                    <!-- 高级开关 -->
+                    <div class="form-group form-full-width" style="display: flex; gap: 20px; margin-top: 5px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="edit-external" ${module.isExternalDisplay ? 'checked' : ''}>
+                            <span style="font-size: 0.9em;">${i18n.t('label_external', section)}</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="edit-time-reference-standard" ${module.timeReferenceStandard ? 'checked' : ''}>
+                            <span style="font-size: 0.9em;">${i18n.t('label_time_ref', section)}</span>
+                        </label>
+                    </div>
+
+                    <!-- 提示词设置 -->
+                    <div class="form-section-title">提示词配置</div>
+
+                    <div class="form-group form-full-width">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_prompt_timing', section)}</label>
+                        <textarea id="edit-prompt-timing" rows="2" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${module.timingPrompt || ''}</textarea>
+                    </div>
+
+                    <div class="form-group form-full-width">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_prompt_gen', section)}</label>
+                        <textarea id="edit-prompt" rows="3" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${module.prompt || ''}</textarea>
+                    </div>
+
+                    <div class="form-group form-full-width">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_prompt_usage', section)}</label>
+                        <textarea id="edit-prompt-content" rows="2" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${module.contentPrompt || ''}</textarea>
+                    </div>
+
+                    <div class="form-group form-full-width">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_prompt_position', section)}</label>
+                        <textarea id="edit-prompt-position" rows="2" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${module.positionPrompt || ''}</textarea>
+                    </div>
+
+                    <!-- 样式设置 -->
+                    <div class="form-section-title">样式配置</div>
+
+                    <div class="form-group form-full-width">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_styles_container', section)}</label>
+                        <textarea id="edit-styles-container" rows="2" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${module.stylesContainer || ''}</textarea>
+                    </div>
+                    <div class="form-group form-full-width">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_styles_external', section)}</label>
+                        <textarea id="edit-styles-external" rows="2" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${module.externalStyles || ''}</textarea>
+                    </div>
+                    <div class="form-group form-full-width">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_styles_custom', section)}</label>
+                        <textarea id="edit-styles-custom" rows="2" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${module.customStyles || ''}</textarea>
+                    </div>
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_display_name', section)}</label>
-                    <input type="text" id="edit-display-name" value="${module.displayName}" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
-                </div>
-
-                <div class="form-group form-full-width">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_description', section)}</label>
-                    <textarea id="edit-description" rows="2" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">${module.description || ''}</textarea>
-                </div>
-
-                <!-- 行为设置 -->
-                <div class="form-section-title">行为设置</div>
-
-                <div class="form-group">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_output_pos', section)}</label>
-                    <select id="edit-output-pos" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
-                        <option value="after_body" ${module.outputPos === 'after_body' ? 'selected' : ''}>正文后输出</option>
-                        <option value="body" ${module.outputPos === 'body' ? 'selected' : ''}>正文内输出</option>
-                        <option value="body_start" ${module.outputPos === 'body_start' ? 'selected' : ''}>正文内开头</option>
-                        <option value="embedded" ${module.outputPos === 'embedded' ? 'selected' : ''}>可嵌入</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_output_mode', section)}</label>
-                    <select id="edit-output-mode" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
-                        <option value="full" ${module.outputMode === 'full' ? 'selected' : ''}>全量输出</option>
-                        <option value="incremental" ${module.outputMode === 'incremental' ? 'selected' : ''}>增量更新</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_range_mode', section)}</label>
-                    <select id="edit-range-mode" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
-                        <option value="unlimited" ${module.rangeMode === 'unlimited' ? 'selected' : ''}>无限制</option>
-                        <option value="specified" ${module.rangeMode === 'specified' ? 'selected' : ''}>指定数量</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_retain_layers', section)}</label>
-                    <input type="number" id="edit-retain-layers" value="${module.retainLayers || -1}" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
-                </div>
-
-                <!-- 高级开关 -->
-                <div class="form-group form-full-width" style="display: flex; gap: 20px; margin-top: 5px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="edit-external" ${module.isExternalDisplay ? 'checked' : ''}>
-                        <span style="font-size: 0.9em;">${i18n.t('label_external', section)} (isExternalDisplay)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="edit-time-ref" ${module.tags && module.tags.includes('time_ref') ? 'checked' : ''}>
-                        <span style="font-size: 0.9em;">${i18n.t('label_time_ref', section)}</span>
-                    </label>
-                </div>
-
-                <!-- 提示词设置 -->
-                <div class="form-section-title">提示词配置</div>
-
-                <div class="form-group form-full-width">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_prompt_gen', section)}</label>
-                    <textarea id="edit-prompt-gen" rows="3" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${module.promptGen || ''}</textarea>
-                </div>
-
-                <div class="form-group form-full-width">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">${i18n.t('label_styles_container', section)}</label>
-                    <textarea id="edit-styles-container" rows="2" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${module.stylesContainer || ''}</textarea>
-                </div>
-
-                <!-- 变量管理 -->
+            <!-- Tab Panel: Variables -->
+            <div id="module-detail-variables" class="detail-tab-panel">
                 <div class="form-section-title" style="display:flex; justify-content:space-between; align-items:center;">
                     <span>${i18n.t('title_variables', section)}</span>
                     <button id="btn-add-variable" style="padding: 4px 8px; font-size: 12px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; cursor: pointer;">
@@ -300,6 +345,40 @@ function renderModuleDetail(module, index) {
 
     // 渲染变量列表
     renderVariableList(module, doc.getElementById('variable-list-container'));
+
+    // 绑定 Tab 切换事件
+    const tabs = doc.querySelectorAll('.detail-tab-item');
+    const panels = doc.querySelectorAll('.detail-tab-panel');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // 移除所有 active
+            tabs.forEach(t => t.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+
+            // 激活当前
+            tab.classList.add('active');
+            const targetId = tab.getAttribute('data-target');
+            const targetPanel = doc.getElementById(targetId);
+            if (targetPanel) targetPanel.classList.add('active');
+        });
+    });
+
+    // 处理 Range Mode 联动
+    const rangeModeSelect = doc.getElementById('edit-range-mode');
+    const itemMinInput = doc.getElementById('edit-item-min');
+    const itemMaxInput = doc.getElementById('edit-item-max');
+
+    const updateRangeInputs = () => {
+        const mode = rangeModeSelect.value;
+        itemMinInput.style.display = mode === 'range' ? 'block' : 'none';
+        itemMaxInput.style.display = (mode === 'specified' || mode === 'range') ? 'block' : 'none';
+    };
+
+    // 初始化状态
+    updateRangeInputs();
+
+    // 绑定变更事件
+    rangeModeSelect.addEventListener('change', updateRangeInputs);
 
     // 绑定返回按钮事件
     const backBtn = doc.getElementById('btn-back-to-list');
@@ -340,26 +419,27 @@ function renderModuleDetail(module, index) {
         // 1. 收集表单数据更新到当前模块对象
         module.name = doc.getElementById('edit-name').value;
         module.displayName = doc.getElementById('edit-display-name').value;
-        module.description = doc.getElementById('edit-description').value;
 
-        module.outputPos = doc.getElementById('edit-output-pos').value;
+        module.outputPosition = doc.getElementById('edit-output-pos').value;
         module.outputMode = doc.getElementById('edit-output-mode').value;
         module.rangeMode = doc.getElementById('edit-range-mode').value;
+        module.itemMin = parseInt(doc.getElementById('edit-item-min').value) || 0;
+        module.itemMax = parseInt(doc.getElementById('edit-item-max').value) || 1;
+
         module.retainLayers = parseInt(doc.getElementById('edit-retain-layers').value) || -1;
 
         module.isExternalDisplay = doc.getElementById('edit-external').checked;
+        module.timeReferenceStandard = doc.getElementById('edit-time-reference-standard').checked;
 
-        // 处理 tags (time_ref)
-        if (!module.tags) module.tags = [];
-        const isTimeRef = doc.getElementById('edit-time-ref').checked;
-        if (isTimeRef && !module.tags.includes('time_ref')) {
-            module.tags.push('time_ref');
-        } else if (!isTimeRef && module.tags.includes('time_ref')) {
-            module.tags = module.tags.filter(t => t !== 'time_ref');
-        }
+        module.compatibleModuleNames = doc.getElementById('edit-compatible-modules').value.split(',').map(s => s.trim()).filter(s => s);
 
-        module.promptGen = doc.getElementById('edit-prompt-gen').value;
+        module.prompt = doc.getElementById('edit-prompt').value;
+        module.timingPrompt = doc.getElementById('edit-prompt-timing').value;
+        module.contentPrompt = doc.getElementById('edit-prompt-content').value;
+        module.positionPrompt = doc.getElementById('edit-prompt-position').value;
         module.stylesContainer = doc.getElementById('edit-styles-container').value;
+        module.externalStyles = doc.getElementById('edit-styles-external').value;
+        module.customStyles = doc.getElementById('edit-styles-custom').value;
 
         // 2. 刷新左侧列表
         renderModuleList();
@@ -383,7 +463,6 @@ function createNewModule() {
         name: `new_module_${Date.now()}`,
         displayName: '新模块',
         enabled: true,
-        description: '',
         variables: []
     };
     currentModules.push(newModule);
@@ -784,24 +863,24 @@ function renderGlobalSettings() {
                 <div class="form-section-title">全局样式配置</div>
 
                 <div class="form-group form-full-width">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">消息内容器样式</label>
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">容器样式</label>
                     <textarea id="global-container-styles" rows="2" placeholder="使用\${customStyles}注入模块样式" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.containerStyles || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">消息内外部样式</label>
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">外部样式</label>
                     <textarea id="global-external-styles" rows="2" placeholder="使用\${customStyles}注入模块样式" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.externalStyles || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">底部容器样式</label>
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">底部样式</label>
                     <textarea id="global-bottom-styles" rows="2" placeholder="使用\${customStyles}注入模块样式" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;">${settings.bottomStyles || ''}</textarea>
                 </div>
 
                 <div class="form-section-title">其他设置</div>
 
                 <div class="form-group">
-                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">时间格式 (Time Format)</label>
+                    <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">时间格式</label>
                     <input type="text" id="global-time-format" value="${settings.timeFormat || ''}" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
                 </div>
 
