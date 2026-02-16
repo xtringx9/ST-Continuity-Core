@@ -17,7 +17,7 @@ import { default as configManager } from "./src/singleton/configManager.js";
 import { EventHandler } from "./src/core/eventHandler.js";
 
 // 导入新版 Iframe 入口按钮
-import { ChatBarButton } from "./src/_features/entry/ChatBarButton.js";
+import { EntryButton } from "./src/_features/entry/EntryButton.js";
 
 infoLog("♥️ Continuity Core LOADED!");
 
@@ -44,9 +44,9 @@ jQuery(async function () {
     infoLog("♥️ Continuity Core 已启用，开始完整初始化");
 
     // 创建菜单
-    createMenu();
+    // createMenu();
 
     // 初始化新的 Iframe 入口按钮 (平行开发测试用)
-    const chatBarButton = new ChatBarButton(extensionFolderPath);
-    chatBarButton.init();
+    const entryButton = new EntryButton(extensionFolderPath);
+    entryButton.init();
 });

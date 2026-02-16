@@ -1,0 +1,118 @@
+/* === 布局与基础样式 === */
+
+/* 1. Reset & Base */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    height: 100vh;
+    overflow: hidden;
+    /* 禁止 body 滚动，滚动在内部区域处理 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 2. Header (Top Bar) */
+header.app-header {
+    height: 50px;
+    background-color: var(--bg-panel);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    flex-shrink: 0;
+}
+
+.header-title {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* 3. Main Layout (Master-Detail Grid) */
+main.app-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    /* 左侧固定宽，右侧自适应 */
+    height: calc(100vh - 50px);
+    overflow: hidden;
+}
+
+/* 左侧：模块列表 */
+aside.module-list-panel {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.list-toolbar {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    gap: 8px;
+}
+
+.list-content {
+    flex: 1;
+    overflow-y: auto;
+    /* 列表内部滚动 */
+    padding: 10px;
+}
+
+/* 右侧：详情编辑区 */
+section.module-detail-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--bg-app);
+}
+
+.detail-content {
+    flex: 1;
+    overflow-y: auto;
+    /* 详情内部滚动 */
+    padding: 20px;
+    max-width: 800px;
+    /* 内容不要太宽，保持可读性 */
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* 4. Responsive (Mobile) */
+@media (max-width: 768px) {
+    main.app-body {
+        grid-template-columns: 1fr;
+        /* 单列 */
+    }
+
+    /* 默认隐藏详情页，只显示列表 (JS控制切换类名) */
+    section.module-detail-panel {
+        display: none;
+    }
+
+    /* 当处于"编辑模式"时，隐藏列表，显示详情 */
+    body.mobile-view-detail aside.module-list-panel {
+        display: none;
+    }
+
+    body.mobile-view-detail section.module-detail-panel {
+        display: block;
+    }
+}

@@ -6,120 +6,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Continuity Module Editor</title>
-    <style>
-        /* === 独立的主题系统 (不依赖 ST) === */
-        :root {
-            --bg-primary: #1e1e2e;
-            --bg-secondary: #252535;
-            --text-primary: #e0e0e0;
-            --accent-color: #89b4fa;
-            --border-color: #45475a;
-            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
 
-        /* 基础重置 */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: var(--font-family);
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* 简单的布局测试 */
-        header {
-            height: 50px;
-            background-color: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-        }
-
-        h1 {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            color: var(--text-primary);
-            font-size: 24px;
-            cursor: pointer;
-            padding: 0 10px;
-        }
-
-        .close-btn:hover {
-            color: #ff6b6b;
-        }
-
-        main {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            /* 左侧列表，右侧内容 */
-            height: calc(100vh - 50px);
-        }
-
-        aside {
-            background-color: rgba(0, 0, 0, 0.2);
-            border-right: 1px solid var(--border-color);
-            padding: 20px;
-        }
-
-        .content {
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .test-card {
-            background-color: var(--bg-secondary);
-            padding: 30px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            text-align: center;
-        }
-    </style>
+    <!-- 引入样式表 -->
+    <link rel="stylesheet" href="styles/themes.css">
+    <link rel="stylesheet" href="styles/layout.css">
 </head>
 
 <body>
-    <header>
-        <h1>Continuity Core <small>(Iframe Mode)</small></h1>
-        <button id="close-btn" class="close-btn" title="关闭">×</button>
+    <header class="app-header">
+        <div class="header-title">
+            <span>Continuity Core</span>
+            <small style="opacity: 0.6; font-weight: normal;">v1.0</small>
+        </div>
+        <div class="header-actions">
+            <!-- 主题切换器 -->
+            <select id="theme-select"
+                style="background: var(--bg-input); color: var(--text-input); border: 1px solid var(--border-color); padding: 4px; border-radius: 4px; margin-right: 10px;">
+                <option value="default">默认 (蓝灰)</option>
+                <option value="light">亮色 (Light)</option>
+                <option value="midnight">午夜 (Midnight)</option>
+                <option value="forest">森林 (Forest)</option>
+            </select>
+            <button id="close-btn"
+                style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
+        </div>
     </header>
 
-    <main>
-        <aside>
-            <p>这里是侧边栏</p>
-            <br>
-            <small>不受 ST 样式影响</small>
-        </aside>
-        <div class="content">
-            <div class="test-card">
-                <h2>环境测试成功</h2>
-                <p>这是一个完全隔离的 Iframe 页面。</p>
-                <p>你可以在这里自由定义主题和交互。</p>
+    <main class="app-body">
+        <!-- 左侧：模块列表 -->
+        <aside class="module-list-panel">
+            <div class="list-toolbar">
+                <input type="text" placeholder="搜索模块..."
+                    style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
+                <button style="padding: 6px 10px; cursor: pointer;">+</button>
             </div>
-        </div>
+            <div class="list-content" id="module-list">
+                <!-- 列表项将由 JS 生成 -->
+                <div style="padding: 10px; text-align: center; color: var(--text-secondary);">
+                    加载中...
+                </div>
+            </div>
+        </aside>
+        <!-- 右侧：详情编辑 -->
+        <section class="module-detail-panel">
+            <div class="detail-content">
+                <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
+                    <p>请从左侧选择一个模块进行编辑</p>
+                    <p>或者点击 + 号创建新模块</p>
+                </div>
+            </div>
+        </section>
     </main>
 
     <script>
         // 简单的关闭逻辑，发送消息给父窗口
         document.getElementById('close-btn').addEventListener('click', () => {
             window.parent.postMessage({ type: 'CLOSE_CONTINUITY_MODAL' }, '*');
+        });
+
+        // 主题切换逻辑
+        document.getElementById('theme-select').addEventListener('change', (e) => {
+            const theme = e.target.value;
+            document.documentElement.setAttribute('data-theme', theme);
         });
     </script>
 </body>
