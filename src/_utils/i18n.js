@@ -28,7 +28,25 @@ const resources = {
             "label_prompt_timing": "生成时机提示词",
             "label_prompt_gen": "生成内容提示词",
             "label_prompt_usage": "使用方法提示词",
-            "label_styles_container": "容器样式 (CSS)"
+            "label_styles_container": "容器样式 (CSS)",
+            "title_variables": "变量管理",
+            "btn_add_variable": "添加变量",
+            "label_var_name": "变量名 (ID)",
+            "label_var_display_name": "显示名称",
+            "label_var_description": "描述",
+            "label_var_enabled": "启用",
+            "label_var_identifier": "设为主标识符",
+            "label_var_backup_identifier": "设为备用标识符",
+            "label_var_hide_condition": "设为隐藏条件",
+            "label_var_hide_values": "隐藏条件值 (逗号分隔)",
+            "label_var_no_normalize": "不进行规范化处理",
+            "label_var_custom_styles": "自定义样式 (CSS/HTML)",
+            "label_source_settings": "来源设置",
+            "label_floor_start": "起始楼层",
+            "label_floor_end": "结束楼层",
+            "label_select_modules": "选择模块",
+            "btn_extract": "开始提取",
+            "label_results": "提取结果"
         }
         // 未来可以添加其他模块的翻译，例如 "settings": { ... }
     },
@@ -57,7 +75,25 @@ const resources = {
             "label_prompt_timing": "Timing Prompt",
             "label_prompt_gen": "Generation Prompt",
             "label_prompt_usage": "Usage Prompt",
-            "label_styles_container": "Container Styles"
+            "label_styles_container": "Container Styles",
+            "title_variables": "Variables",
+            "btn_add_variable": "Add Variable",
+            "label_var_name": "Variable Name",
+            "label_var_display_name": "Display Name",
+            "label_var_description": "Description",
+            "label_var_enabled": "Enabled",
+            "label_var_identifier": "Main Identifier",
+            "label_var_backup_identifier": "Backup Identifier",
+            "label_var_hide_condition": "Hide Condition",
+            "label_var_hide_values": "Hide Values (comma separated)",
+            "label_var_no_normalize": "No Normalize",
+            "label_var_custom_styles": "Custom Styles",
+            "label_source_settings": "Source Settings",
+            "label_floor_start": "Start Floor",
+            "label_floor_end": "End Floor",
+            "label_select_modules": "Select Modules",
+            "btn_extract": "Start Extraction",
+            "label_results": "Results"
         }
     }
 };

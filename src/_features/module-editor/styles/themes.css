@@ -1,79 +1,69 @@
 /* === 主题变量定义 === */
 
-/* 默认主题 (Dark / SillyTavern 风格) */
+/* 默认主题 (Light / 现代简洁风格) */
 :root {
     /* 背景色 */
-    --bg-app: #7c89a4;
-    /* 应用主背景 (原版经典蓝灰) */
-    --bg-panel: rgba(0, 0, 0, 0.1);
-    --bg-nav: rgba(0, 0, 0, 0.2);
-    /* 主导航栏背景 (更深一点) */
-    /* 侧边栏背景 (半透明深色) */
-    --bg-card: rgba(255, 255, 255, 0.15);
-    /* 卡片背景 */
-    --bg-input: rgba(255, 255, 255, 0.95);
-    /* 输入框背景 (原版是亮色输入框) */
-    --bg-hover: rgba(255, 255, 255, 0.25);
-    /* 悬停背景 */
+    --bg-app: #ffffff;
+    --bg-panel: #f9fafb;
+    /* Slate-50 */
+    --bg-nav: #f9fafb;
+    --bg-card: #ffffff;
+    --bg-input: #ffffff;
+    --bg-hover: #f3f4f6;
+    /* Slate-100 */
     --bg-modal-backdrop: rgba(0, 0, 0, 0.5);
-    /* 模态框遮罩 */
 
     /* 文字色 */
-    --text-primary: #ffffff;
-    /* 主文字 (白色) */
-    --text-secondary: rgba(255, 255, 255, 0.8);
-    --text-muted: rgba(255, 255, 255, 0.6);
-    --text-input: #333333;
-    /* 输入框内文字 (深色) */
+    --text-primary: #111827;
+    /* Slate-900 */
+    --text-secondary: #4b5563;
+    /* Slate-600 */
+    --text-muted: #9ca3af;
+    /* Slate-400 */
+    --text-input: #111827;
 
     /* 边框与分割线 */
-    --border-color: rgba(255, 255, 255, 0.2);
-    --border-light: rgba(255, 255, 255, 0.15);
+    --border-color: #e5e7eb;
+    /* Slate-200 */
+    --border-light: #f3f4f6;
 
     /* 强调色 */
-    --accent-color: #b4c0e8;
-    /* 强调色 (原版亮蓝紫) */
-    --accent-hover: #ffffff;
-    --danger-color: #ff6b6b;
-    --success-color: #a6e3a1;
+    --accent-color: #2563eb;
+    /* Blue-600 */
+    --accent-hover: #3b82f6;
+    --danger-color: #ef4444;
+    --success-color: #22c55e;
 
     /* 字体 */
-    --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    --font-mono: 'Consolas', 'Monaco', monospace;
+    --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* 亮色主题 (示例) */
-[data-theme="light"] {
-    --bg-app: #f0f2f5;
-    --bg-panel: #ffffff;
-    --bg-nav: #e0e2e5;
-    --text-primary: #333333;
-    --text-secondary: #666666;
-    --text-muted: #999999;
-    --text-input: #333333;
-    --bg-input: #ffffff;
-    --border-color: #e0e0e0;
-    --accent-color: #007bff;
-    /* ... 其他变量重写 */
-}
+/* 深色主题 (Dark) */
+[data-theme="dark"] {
+    --bg-app: #18181b;
+    /* Zinc-900 */
+    --bg-panel: #27272a;
+    /* Zinc-800 */
+    --bg-nav: #27272a;
+    --bg-card: #27272a;
+    --bg-input: #3f3f46;
+    /* Zinc-700 */
+    --bg-hover: #3f3f46;
+    --bg-modal-backdrop: rgba(0, 0, 0, 0.7);
 
-/* 午夜主题 (Midnight / Amoled) */
-[data-theme="midnight"] {
-    --bg-app: #000000;
-    --bg-panel: #111111;
-    --bg-nav: #0a0a0a;
-    --bg-card: #1a1a1a;
-    --bg-input: #222222;
-    --text-input: #e0e0e0;
-    --border-color: #333333;
-    --accent-color: #bb86fc;
-}
+    --text-primary: #f4f4f5;
+    /* Zinc-100 */
+    --text-secondary: #a1a1aa;
+    /* Zinc-400 */
+    --text-muted: #71717a;
+    /* Zinc-500 */
+    --text-input: #f4f4f5;
 
-/* 森林主题 (Forest) */
-[data-theme="forest"] {
-    --bg-app: #1b2b24;
-    --bg-panel: #243b31;
-    --bg-nav: #15221d;
-    --accent-color: #a6e3a1;
-    --border-color: #455a4e;
+    --border-color: #3f3f46;
+    --border-light: #52525b;
+
+    --accent-color: #3b82f6;
+    /* Blue-500 */
+    --accent-hover: #60a5fa;
 }

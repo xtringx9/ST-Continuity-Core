@@ -22,10 +22,8 @@
             <!-- 主题切换器 -->
             <select id="theme-select"
                 style="background: var(--bg-input); color: var(--text-input); border: 1px solid var(--border-color); padding: 4px; border-radius: 4px; margin-right: 10px;">
-                <option value="default">默认 (蓝灰)</option>
-                <option value="light">亮色 (Light)</option>
-                <option value="midnight">午夜 (Midnight)</option>
-                <option value="forest">森林 (Forest)</option>
+                <option value="light">浅色 (Light)</option>
+                <option value="dark">深色 (Dark)</option>
             </select>
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
@@ -86,7 +84,42 @@
 
             <!-- 视图 C: 工具箱 (占位) -->
             <div id="view-tools" class="view-section">
-                <div style="padding: 20px;">工具箱开发中...</div>
+                <div class="detail-content">
+                    <div style="max-width: 800px; margin: 0 auto;">
+                        <div class="form-section-title" data-i18n="label_source_settings">来源设置</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label data-i18n="label_floor_start"
+                                    style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">起始楼层</label>
+                                <input type="number" id="tool-floor-start" value="1"
+                                    style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="label_floor_end"
+                                    style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.9em;">结束楼层</label>
+                                <input type="number" id="tool-floor-end" placeholder="最新"
+                                    style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                            </div>
+                        </div>
+
+                        <div class="form-section-title" data-i18n="label_select_modules">选择模块</div>
+                        <div id="tool-module-list" class="form-group form-full-width"
+                            style="display: flex; flex-wrap: wrap; gap: 15px; padding: 10px; background: var(--bg-card); border-radius: 4px;">
+                            <!-- 模块复选框将由 JS 生成 -->
+                        </div>
+
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button id="btn-extract"
+                                style="padding: 8px 20px; background: var(--accent-color); color: var(--bg-app); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;"
+                                data-i18n="btn_extract">开始提取</button>
+                        </div>
+
+                        <div class="form-section-title" data-i18n="label_results" style="margin-top: 30px;">提取结果</div>
+                        <textarea id="tool-results" rows="10"
+                            style="width: 100%; padding: 10px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; font-family: monospace;"
+                            readonly></textarea>
+                    </div>
+                </div>
             </div>
 
             <!-- 视图 D: 设置 (占位) -->
@@ -94,33 +127,6 @@
                 <div style="padding: 20px;">全局设置开发中...</div>
             </div>
         </main>
-    </div>
-
-    <!-- 3. 变量编辑模态框 (Modal) -->
-    <div id="variable-modal" class="modal-backdrop">
-        <div class="modal-content">
-            <div
-                style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between;">
-                <h3>编辑变量</h3>
-                <button id="close-modal-btn"
-                    style="background:none; border:none; color:var(--text-primary); cursor:pointer;">✕</button>
-            </div>
-            <div class="modal-body" style="padding: 20px; flex: 1; overflow-y: auto;">
-                <!-- 变量表单将在这里渲染 -->
-                <p>这里将显示去抽象化后的变量编辑表单</p>
-                <div style="margin-top: 10px;">
-                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                        <input type="checkbox"> 设为主标识符 (原 🔑)
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox"> 设为隐藏条件 (原 👁️)
-                    </label>
-                </div>
-            </div>
-            <div style="padding: 15px 20px; border-top: 1px solid var(--border-color); text-align: right;">
-                <button style="padding: 8px 16px; cursor: pointer;">保存</button>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -154,9 +160,6 @@
         //     document.getElementById('variable-modal').classList.add('open');
         // });
 
-        document.getElementById('close-modal-btn').addEventListener('click', () => {
-            document.getElementById('variable-modal').classList.remove('open');
-        });
     </script>
 
     <!-- 引入主逻辑脚本 -->

@@ -337,3 +337,31 @@ section.module-detail-panel {
 .modal-backdrop.open .modal-content {
     transform: translateY(0);
 }
+
+/* === 拖拽排序样式 === */
+.drag-handle {
+    cursor: grab;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    padding: 0 4px;
+    user-select: none;
+}
+
+.drag-handle:hover {
+    opacity: 1;
+}
+
+.module-list-item.dragging,
+.variable-edit-item.dragging {
+    opacity: 0;
+    /* 拖拽时原位置完全透明，模拟"被拿走"的效果 */
+    border: 1px dashed var(--accent-color);
+}
+
+.over-top {
+    border-top: 2px solid var(--accent-color) !important;
+}
+
+.over-bottom {
+    border-bottom: 2px solid var(--accent-color) !important;
+}
