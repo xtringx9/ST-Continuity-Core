@@ -43,14 +43,84 @@ header.app-header {
     gap: 8px;
 }
 
-/* 3. Main Layout (Master-Detail Grid) */
-main.app-body {
+/* 3. App Container (Nav + Content) */
+.app-container {
     flex: 1;
+    display: flex;
+    overflow: hidden;
+    height: calc(100vh - 50px);
+}
+
+/* 左侧主导航栏 (一级菜单) */
+.main-nav {
+    width: 140px;
+    /* 加宽以容纳文字 */
+    background-color: var(--bg-nav);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    flex-shrink: 0;
+}
+
+.nav-item {
+    width: 100%;
+    height: 40px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    /* 左对齐 */
+    padding-left: 12px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.nav-item:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.nav-item.active {
+    background-color: var(--accent-color);
+    color: var(--bg-app);
+    /* 选中时文字反色，适应亮色强调色 */
+}
+
+/* 内容区域容器 */
+.content-area {
+    flex: 1;
+    position: relative;
+    /* 用于绝对定位子视图 */
+    overflow: hidden;
+}
+
+/* 视图：模块编辑器 (Master-Detail) */
+#view-modules {
     display: grid;
     grid-template-columns: 280px 1fr;
-    /* 左侧固定宽，右侧自适应 */
-    height: calc(100vh - 50px);
+    width: 100%;
+    height: 100%;
+}
+
+/* 其他视图默认隐藏 */
+.view-section {
+    display: none;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
+}
+
+.view-section.active {
+    display: grid;
+    /* 或者 block, flex，视具体视图而定 */
 }
 
 /* 左侧：模块列表 */
@@ -76,6 +146,65 @@ aside.module-list-panel {
     padding: 10px;
 }
 
+/* 列表项样式 (新增) */
+.module-list-item {
+    padding: 10px;
+    margin-bottom: 8px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.module-list-item:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--accent-color);
+}
+
+.module-list-item.active {
+    background-color: var(--bg-hover);
+    border-left: 3px solid var(--accent-color);
+}
+
+.module-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.module-item-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.module-item-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* 状态标签样式 (去抽象化) */
+.status-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.tag-external {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.tag-disabled {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
 /* 右侧：详情编辑区 */
 section.module-detail-panel {
     display: flex;
@@ -97,7 +226,7 @@ section.module-detail-panel {
 
 /* 4. Responsive (Mobile) */
 @media (max-width: 768px) {
-    main.app-body {
+    #view-modules {
         grid-template-columns: 1fr;
         /* 单列 */
     }
@@ -115,4 +244,60 @@ section.module-detail-panel {
     body.mobile-view-detail section.module-detail-panel {
         display: block;
     }
+
+    /* 移动端导航栏变到底部? 或者保持左侧变窄? 这里暂时保持左侧 */
+    .main-nav {
+        width: 60px;
+        /* 手机上变窄，只显示图标 */
+    }
+
+    .nav-text {
+        display: none;
+        /* 手机上隐藏文字 */
+    }
+
+    .nav-item {
+        justify-content: center;
+        padding-left: 0;
+    }
+}
+
+/* 5. Modal (变量编辑弹窗) */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-modal-backdrop);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.modal-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content {
+    background-color: var(--bg-app);
+    width: 90%;
+    max-width: 600px;
+    max-height: 85vh;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(20px);
+    transition: transform 0.2s;
+}
+
+.modal-backdrop.open .modal-content {
+    transform: translateY(0);
 }

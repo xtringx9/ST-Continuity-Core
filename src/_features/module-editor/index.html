@@ -32,31 +32,96 @@
         </div>
     </header>
 
-    <main class="app-body">
-        <!-- 左侧：模块列表 -->
-        <aside class="module-list-panel">
-            <div class="list-toolbar">
-                <input type="text" placeholder="搜索模块..."
-                    style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
-                <button style="padding: 6px 10px; cursor: pointer;">+</button>
+    <div class="app-container">
+        <!-- 1. 主导航栏 (Sidebar) -->
+        <nav class="main-nav">
+            <div class="nav-item active" data-target="view-modules">
+                <span class="nav-text" data-i18n="nav_modules">模块定义</span>
             </div>
-            <div class="list-content" id="module-list">
-                <!-- 列表项将由 JS 生成 -->
-                <div style="padding: 10px; text-align: center; color: var(--text-secondary);">
-                    加载中...
+            <div class="nav-item" data-target="view-profiles">
+                <span class="nav-text" data-i18n="nav_profiles">角色覆盖</span>
+            </div>
+            <div class="nav-item" data-target="view-tools">
+                <span class="nav-text" data-i18n="nav_tools">工具箱</span>
+            </div>
+            <div class="nav-item" data-target="view-settings">
+                <span class="nav-text" data-i18n="nav_settings">全局设置</span>
+            </div>
+        </nav>
+
+        <!-- 2. 内容区域 -->
+        <main class="content-area">
+
+            <!-- 视图 A: 模块定义 (Master-Detail) -->
+            <div id="view-modules" class="view-section active">
+                <!-- 左侧：模块列表 -->
+                <aside class="module-list-panel">
+                    <div class="list-toolbar">
+                        <input type="text" placeholder="搜索模块..."
+                            style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
+                        <button style="padding: 6px 10px; cursor: pointer;">+</button>
+                    </div>
+                    <div class="list-content" id="module-list">
+                        <!-- 列表项将由 JS 生成 -->
+                        <div style="padding: 10px; text-align: center; color: var(--text-secondary);">
+                            加载中...
+                        </div>
+                    </div>
+                </aside>
+                <!-- 右侧：详情编辑 -->
+                <section class="module-detail-panel">
+                    <div class="detail-content">
+                        <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
+                            <p>请从左侧选择一个模块进行编辑</p>
+                            <p>或者点击 + 号创建新模块</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 视图 B: 角色覆盖 (占位) -->
+            <div id="view-profiles" class="view-section">
+                <div style="padding: 20px;">角色覆盖功能开发中...</div>
+            </div>
+
+            <!-- 视图 C: 工具箱 (占位) -->
+            <div id="view-tools" class="view-section">
+                <div style="padding: 20px;">工具箱开发中...</div>
+            </div>
+
+            <!-- 视图 D: 设置 (占位) -->
+            <div id="view-settings" class="view-section">
+                <div style="padding: 20px;">全局设置开发中...</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 3. 变量编辑模态框 (Modal) -->
+    <div id="variable-modal" class="modal-backdrop">
+        <div class="modal-content">
+            <div
+                style="padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between;">
+                <h3>编辑变量</h3>
+                <button id="close-modal-btn"
+                    style="background:none; border:none; color:var(--text-primary); cursor:pointer;">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 20px; flex: 1; overflow-y: auto;">
+                <!-- 变量表单将在这里渲染 -->
+                <p>这里将显示去抽象化后的变量编辑表单</p>
+                <div style="margin-top: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <input type="checkbox"> 设为主标识符 (原 🔑)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox"> 设为隐藏条件 (原 👁️)
+                    </label>
                 </div>
             </div>
-        </aside>
-        <!-- 右侧：详情编辑 -->
-        <section class="module-detail-panel">
-            <div class="detail-content">
-                <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
-                    <p>请从左侧选择一个模块进行编辑</p>
-                    <p>或者点击 + 号创建新模块</p>
-                </div>
+            <div style="padding: 15px 20px; border-top: 1px solid var(--border-color); text-align: right;">
+                <button style="padding: 8px 16px; cursor: pointer;">保存</button>
             </div>
-        </section>
-    </main>
+        </div>
+    </div>
 
     <script>
         // 简单的关闭逻辑，发送消息给父窗口
@@ -69,7 +134,33 @@
             const theme = e.target.value;
             document.documentElement.setAttribute('data-theme', theme);
         });
+
+        // 导航切换逻辑
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                // 1. 移除所有 active 状态
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+
+                // 2. 激活当前项
+                item.classList.add('active');
+                const targetId = item.getAttribute('data-target');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+
+        // 模态框测试逻辑 (点击内容区任意处打开，仅用于测试布局)
+        // document.querySelector('.detail-content').addEventListener('click', () => {
+        //     document.getElementById('variable-modal').classList.add('open');
+        // });
+
+        document.getElementById('close-modal-btn').addEventListener('click', () => {
+            document.getElementById('variable-modal').classList.remove('open');
+        });
     </script>
+
+    <!-- 引入主逻辑脚本 -->
+    <script type="module" src="ModuleEditor.js"></script>
 </body>
 
 </html>

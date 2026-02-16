@@ -6,6 +6,8 @@
     --bg-app: #7c89a4;
     /* 应用主背景 (原版经典蓝灰) */
     --bg-panel: rgba(0, 0, 0, 0.15);
+    --bg-nav: rgba(0, 0, 0, 0.25);
+    /* 主导航栏背景 (更深一点) */
     /* 侧边栏背景 (半透明深色) */
     --bg-card: rgba(255, 255, 255, 0.1);
     /* 卡片背景 */
@@ -13,6 +15,8 @@
     /* 输入框背景 (原版是亮色输入框) */
     --bg-hover: rgba(255, 255, 255, 0.2);
     /* 悬停背景 */
+    --bg-modal-backdrop: rgba(0, 0, 0, 0.5);
+    /* 模态框遮罩 */
 
     /* 文字色 */
     --text-primary: #ffffff;
@@ -42,6 +46,7 @@
 [data-theme="light"] {
     --bg-app: #f0f2f5;
     --bg-panel: #ffffff;
+    --bg-nav: #e0e2e5;
     --text-primary: #333333;
     --text-secondary: #666666;
     --text-muted: #999999;
@@ -56,6 +61,7 @@
 [data-theme="midnight"] {
     --bg-app: #000000;
     --bg-panel: #111111;
+    --bg-nav: #0a0a0a;
     --bg-card: #1a1a1a;
     --bg-input: #222222;
     --text-input: #e0e0e0;
@@ -67,6 +73,7 @@
 [data-theme="forest"] {
     --bg-app: #1b2b24;
     --bg-panel: #243b31;
+    --bg-nav: #15221d;
     --accent-color: #a6e3a1;
     --border-color: #455a4e;
 }
