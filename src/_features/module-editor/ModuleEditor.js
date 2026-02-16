@@ -838,6 +838,35 @@ function renderGlobalSettings() {
     container.innerHTML = `
         <div class="detail-content">
             <div style="max-width: 800px; margin: 0 auto;">
+                <div class="form-section-title">标签设置</div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">${i18n.t('label_module_tag', section)}</label>
+                        <input type="text" id="global-module-tag" value="${settings.moduleTag || 'module'}" placeholder="默认为 module" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">${i18n.t('label_module_update_tag', section)}</label>
+                        <input type="text" id="global-module-update-tag" value="${settings.moduleUpdateTag || 'module_update'}" placeholder="默认为 module_update" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">${i18n.t('label_compatible_module_tags', section)}</label>
+                        <input type="text" id="global-compatible-module-tags" value="${(settings.compatibleModuleTags || []).join(',')}" placeholder="兼容更新标签A,兼容更新标签B,..." style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">${i18n.t('label_cot_tags', section)}</label>
+                        <input type="text" id="global-cot-tags" value="${(settings.cotTags || []).join(',')}" placeholder="标签A,标签B,..." style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">${i18n.t('label_content_tag', section)}</label>
+                        <input type="text" id="global-content-tag" value="${(settings.contentTag || []).join(',')}" placeholder="标签A,标签B,..." style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom: 5px; color: var(--text-secondary); font-size: 12px;">${i18n.t('label_content_remain_layers', section)}</label>
+                        <input type="number" id="global-content-remain-layers" value="${settings.contentRemainLayers !== undefined ? settings.contentRemainLayers : 6}" placeholder="保留正文层数 min=0" style="width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                    </div>
+                </div>
+
                 <div class="form-section-title">全局提示词配置</div>
                 
                 <div class="form-group form-full-width">
@@ -900,6 +929,13 @@ function renderGlobalSettings() {
     if (btnSave) {
         btnSave.addEventListener('click', () => {
             // 收集数据
+            currentGlobalSettings.moduleTag = doc.getElementById('global-module-tag').value;
+            currentGlobalSettings.moduleUpdateTag = doc.getElementById('global-module-update-tag').value;
+            currentGlobalSettings.compatibleModuleTags = doc.getElementById('global-compatible-module-tags').value.split(',').map(s => s.trim()).filter(s => s);
+            currentGlobalSettings.cotTags = doc.getElementById('global-cot-tags').value.split(',').map(s => s.trim()).filter(s => s);
+            currentGlobalSettings.contentTag = doc.getElementById('global-content-tag').value.split(',').map(s => s.trim()).filter(s => s);
+            currentGlobalSettings.contentRemainLayers = parseInt(doc.getElementById('global-content-remain-layers').value) || 0;
+
             currentGlobalSettings.prompt = doc.getElementById('global-prompt').value;
             currentGlobalSettings.orderPrompt = doc.getElementById('global-order-prompt').value;
             currentGlobalSettings.usagePrompt = doc.getElementById('global-usage-prompt').value;
