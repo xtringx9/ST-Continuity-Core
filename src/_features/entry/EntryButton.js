@@ -1,5 +1,7 @@
 import { IframeModal } from '../../_utils/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
+import { initModuleEditor } from '../module-editor/ModuleEditor.js';
+import { warnLog } from '../../utils/logger.js';
 
 export class EntryButton {
     /**
@@ -56,7 +58,7 @@ export class EntryButton {
         const targetContainer = document.querySelector('#form_sheld #send_form #nonQRFormItems #leftSendForm');
 
         if (!targetContainer) {
-            console.warn('[Continuity] 无法找到按钮注入容器 (#leftSendForm)');
+            warnLog('[Continuity] 无法找到按钮注入容器 (#leftSendForm)');
             return;
         }
 
@@ -138,7 +140,20 @@ export class EntryButton {
         const pageUrl = `${this.extensionPath}/src/_features/module-editor/index.html`;
 
         this.iframeModal.open(pageUrl, 'Continuity Editor', {
-            variant: 'drawer-left' // 显式指定样式，以后可以改成 'center' 或 'drawer-right'
+            variant: 'drawer-left', // 显式指定样式，以后可以改成 'center' 或 'drawer-right'
+            onLoad: (iframe) => {
+                const doc = iframe.contentDocument;
+                if (doc) {
+                    // 初始化编辑器逻辑 (传入 iframe 的 document)
+                    initModuleEditor(doc);
+
+                    // 绑定内部关闭按钮
+                    const closeBtn = doc.getElementById('close-btn');
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', () => this.iframeModal.close());
+                    }
+                }
+            }
         });
     }
 }

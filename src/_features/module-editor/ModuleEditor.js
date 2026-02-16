@@ -1,8 +1,13 @@
 /**
  * 模块编辑器主逻辑
+ * 注意：此脚本现在运行在主窗口上下文中，直接操作 Iframe 的 DOM
  */
 
 import { i18n } from '../../_utils/i18n.js';
+import configManager from '../../singleton/configManager.js';
+import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
+import moduleCacheManager from '../../singleton/moduleCacheManager.js';
+import { getContext } from '../../index.js';
 
 // === Mock 数据 (模拟模块) ===
 const mockModules = [
@@ -66,18 +71,73 @@ let dragSrcEl = null;
 let dragType = null; // 'module' or 'variable'
 let dropPosition = null; // 'before' or 'after'
 
+// 全局文档引用 (指向 Iframe 的 document)
+let doc = null;
+
+/**
+ * 初始化模块编辑器
+ * @param {Document} iframeDocument Iframe 的文档对象
+ */
+export function initModuleEditor(iframeDocument) {
+    doc = iframeDocument;
+    debugLog("ModuleEditor initialized with document context");
+
+    // 应用静态文本翻译
+    i18n.apply(doc, 'module_editor');
+
+    // 初始化视图
+    renderModuleList();
+    renderToolbox();
+
+    // 绑定顶部栏事件 (主题切换等)
+    bindHeaderEvents();
+
+    // 绑定导航事件
+    bindNavigationEvents();
+}
+
+function bindHeaderEvents() {
+    const themeSelect = doc.getElementById('theme-select');
+    if (themeSelect) {
+        themeSelect.addEventListener('change', (e) => {
+            doc.documentElement.setAttribute('data-theme', e.target.value);
+        });
+    }
+}
+
+function bindNavigationEvents() {
+    const navItems = doc.querySelectorAll('.nav-item');
+    const sections = doc.querySelectorAll('.view-section');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // 1. 移除所有 active 状态
+            navItems.forEach(n => n.classList.remove('active'));
+            sections.forEach(s => s.classList.remove('active'));
+
+            // 2. 激活当前项
+            item.classList.add('active');
+            const targetId = item.getAttribute('data-target');
+            const targetSection = doc.getElementById(targetId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+        });
+    });
+}
+
 /**
  * 渲染模块列表
  */
 function renderModuleList() {
-    const listContainer = document.getElementById('module-list');
+    const listContainer = doc.getElementById('module-list');
     listContainer.innerHTML = ''; // 清空
 
     // 指定使用 'module_editor' 功能区的翻译
     const section = 'module_editor';
 
     mockModules.forEach((mod, index) => {
-        const item = document.createElement('div');
+        const item = doc.createElement('div');
         item.className = 'module-list-item';
         item.setAttribute('draggable', 'true'); // 启用拖拽
         item.dataset.index = index; // 存储索引
@@ -98,7 +158,7 @@ function renderModuleList() {
         // 点击事件
         item.addEventListener('click', () => {
             // 移除其他选中状态
-            document.querySelectorAll('.module-list-item').forEach(i => i.classList.remove('active'));
+            doc.querySelectorAll('.module-list-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
 
             selectedModuleId = mod.id;
@@ -122,7 +182,7 @@ function renderModuleList() {
  * @param {Object} module 模块数据对象
  */
 function renderModuleDetail(module) {
-    const container = document.querySelector('.module-detail-panel .detail-content');
+    const container = doc.querySelector('.module-detail-panel .detail-content');
     const section = 'module_editor';
 
     // 生成表单 HTML
@@ -237,10 +297,10 @@ function renderModuleDetail(module) {
     `;
 
     // 渲染变量列表
-    renderVariableList(module, document.getElementById('variable-list-container'));
+    renderVariableList(module, doc.getElementById('variable-list-container'));
 
     // 绑定添加变量按钮
-    document.getElementById('btn-add-variable').addEventListener('click', () => {
+    doc.getElementById('btn-add-variable').addEventListener('click', () => {
         if (!module.variables) module.variables = [];
         module.variables.push({
             name: 'new_var',
@@ -254,27 +314,27 @@ function renderModuleDetail(module) {
             isNoNormalize: false,
             customStyles: ''
         });
-        renderVariableList(module, document.getElementById('variable-list-container'));
+        renderVariableList(module, doc.getElementById('variable-list-container'));
     });
 
     // 绑定保存按钮事件
-    document.getElementById('btn-save-module').addEventListener('click', () => {
+    doc.getElementById('btn-save-module').addEventListener('click', () => {
         // 1. 更新数据 (Mock数据)
-        module.name = document.getElementById('edit-name').value;
-        module.displayName = document.getElementById('edit-display-name').value;
-        module.enabled = document.getElementById('edit-enabled').checked;
-        module.description = document.getElementById('edit-description').value;
+        module.name = doc.getElementById('edit-name').value;
+        module.displayName = doc.getElementById('edit-display-name').value;
+        module.enabled = doc.getElementById('edit-enabled').checked;
+        module.description = doc.getElementById('edit-description').value;
 
         // 更新标签
         module.tags = [];
-        if (document.getElementById('edit-external').checked) module.tags.push('external');
-        if (document.getElementById('edit-time-ref').checked) module.tags.push('time_ref');
+        if (doc.getElementById('edit-external').checked) module.tags.push('external');
+        if (doc.getElementById('edit-time-ref').checked) module.tags.push('time_ref');
 
         // 2. 刷新左侧列表以反映更改 (如名称、启用状态)
         renderModuleList();
 
         // 3. 简单的反馈动画
-        const btn = document.getElementById('btn-save-module');
+        const btn = doc.getElementById('btn-save-module');
         const originalText = btn.textContent;
         btn.textContent = "✔ OK";
         setTimeout(() => btn.textContent = originalText, 1000);
@@ -296,7 +356,7 @@ function renderVariableList(module, container) {
     }
 
     module.variables.forEach((variable, index) => {
-        const item = document.createElement('div');
+        const item = doc.createElement('div');
         item.className = 'variable-edit-item';
         item.setAttribute('draggable', 'true'); // 启用拖拽
         item.dataset.index = index;
@@ -500,21 +560,14 @@ function handleDragEnd(e) {
 
     // 清除所有项的 over 样式
     const selector = dragType === 'module' ? '.module-list-item' : '.variable-edit-item';
-    document.querySelectorAll(selector).forEach(el => {
+    doc.querySelectorAll(selector).forEach(el => {
         el.classList.remove('over-top');
         el.classList.remove('over-bottom');
     });
 }
 
 // === 初始化 ===
-document.addEventListener('DOMContentLoaded', () => {
-    // 应用静态文本翻译
-    i18n.apply(document, 'module_editor');
-
-    // 初始化各个视图
-    renderModuleList();
-    renderToolbox(); // 初始化工具箱
-});
+// 移除 DOMContentLoaded 监听，改为由 initModuleEditor 显式调用
 
 // === 工具箱逻辑 ===
 
@@ -522,13 +575,17 @@ document.addEventListener('DOMContentLoaded', () => {
  * 渲染工具箱界面 (模块选择器)
  */
 function renderToolbox() {
-    const container = document.getElementById('tool-module-list');
-    if (!container) return;
+    debugLog("renderToolbox: 初始化工具箱界面");
+    const container = doc.getElementById('tool-module-list');
+    if (!container) {
+        errorLog("renderToolbox: 未找到 tool-module-list 容器");
+        return;
+    }
 
     container.innerHTML = '';
 
     mockModules.forEach(mod => {
-        const label = document.createElement('label');
+        const label = doc.createElement('label');
         label.style.display = 'flex';
         label.style.alignItems = 'center';
         label.style.gap = '8px';
@@ -543,15 +600,70 @@ function renderToolbox() {
     });
 
     // 绑定提取按钮 (Mock 演示)
-    const btnExtract = document.getElementById('btn-extract');
+    const btnExtract = doc.getElementById('btn-extract');
     if (btnExtract) {
-        btnExtract.addEventListener('click', () => {
-            const start = document.getElementById('tool-floor-start').value;
-            const end = document.getElementById('tool-floor-end').value || 'Latest';
+        // 移除旧的监听器以防重复绑定
+        const newBtn = btnExtract.cloneNode(true);
+        btnExtract.parentNode.replaceChild(newBtn, btnExtract);
+
+        newBtn.addEventListener('click', () => {
+            const start = doc.getElementById('tool-floor-start').value;
+            const end = doc.getElementById('tool-floor-end').value || 'Latest';
             const selected = Array.from(container.querySelectorAll('input:checked')).map(cb => cb.value);
 
-            const resultArea = document.getElementById('tool-results');
+            const resultArea = doc.getElementById('tool-results');
             resultArea.value = `[模拟提取结果]\n范围: ${start} - ${end}\n选中模块: ${selected.join(', ')}\n\n[summary|content:这是一个模拟的剧情摘要...]\n[inventory|item_name:长剑|count:1]`;
+            infoLog("执行模拟提取");
         });
+    }
+
+    // === 调试按钮绑定 ===
+    // 1. 打印缓存数据
+    const btnDebugCache = doc.getElementById('btn-debug-cache');
+    if (btnDebugCache) {
+        const newBtn = btnDebugCache.cloneNode(true);
+        btnDebugCache.parentNode.replaceChild(newBtn, btnDebugCache);
+
+        newBtn.addEventListener('click', () => {
+            infoLog("[Debug] 打印缓存数据");
+            if (moduleCacheManager) moduleCacheManager.outputCache();
+            else warnLog('moduleCacheManager not found');
+        });
+    } else {
+        errorLog("renderToolbox: 未找到 btn-debug-cache");
+    }
+
+    // 2. 打印配置数据
+    const btnDebugConfig = doc.getElementById('btn-debug-config');
+    if (btnDebugConfig) {
+        const newBtn = btnDebugConfig.cloneNode(true);
+        btnDebugConfig.parentNode.replaceChild(newBtn, btnDebugConfig);
+
+        newBtn.addEventListener('click', () => {
+            infoLog("[Debug] 打印配置数据");
+            if (configManager) configManager.outputCache();
+            else warnLog('configManager not found');
+        });
+    } else {
+        errorLog("renderToolbox: 未找到 btn-debug-config");
+    }
+
+    // 3. 打印上下文数据
+    const btnDebugContext = doc.getElementById('btn-debug-context');
+    if (btnDebugContext) {
+        const newBtn = btnDebugContext.cloneNode(true);
+        btnDebugContext.parentNode.replaceChild(newBtn, btnDebugContext);
+
+        newBtn.addEventListener('click', () => {
+            infoLog("[Debug] 打印上下文数据");
+            if (getContext) {
+                const context = getContext();
+                infoLog('[Module Cache]打印当前上下文数据:', context);
+            } else {
+                warnLog('getContext not found');
+            }
+        });
+    } else {
+        errorLog("renderToolbox: 未找到 btn-debug-context");
     }
 }

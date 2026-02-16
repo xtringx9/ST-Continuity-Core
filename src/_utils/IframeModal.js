@@ -102,6 +102,12 @@ export class IframeModal {
         iframe.id = this.iframeId;
         iframe.src = url;
         iframe.title = title;
+
+        // 支持 onLoad 回调 (用于注入逻辑)
+        if (typeof options.onLoad === 'function') {
+            iframe.onload = () => options.onLoad(iframe);
+        }
+
         Object.assign(iframe.style, {
             width: '100%',
             height: '100%',
