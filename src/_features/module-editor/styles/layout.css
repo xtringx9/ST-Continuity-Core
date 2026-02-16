@@ -95,6 +95,12 @@ header.app-header {
     /* 选中时文字反色，适应亮色强调色 */
 }
 
+.nav-icon {
+    font-size: 18px;
+    margin-right: 8px;
+    line-height: 1;
+}
+
 /* 内容区域容器 */
 .content-area {
     flex: 1;
@@ -259,11 +265,25 @@ section.module-detail-panel {
     grid-column: span 2;
 }
 
+/* 通用工具类 */
+.mobile-only {
+    display: none !important;
+}
+
 /* 4. Responsive (Mobile) */
 @media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+        /* 上下布局 */
+    }
+
     #view-modules {
         grid-template-columns: 1fr;
         /* 单列 */
+    }
+
+    .mobile-only {
+        display: flex !important;
     }
 
     /* 默认隐藏详情页，只显示列表 (JS控制切换类名) */
@@ -278,22 +298,48 @@ section.module-detail-panel {
 
     body.mobile-view-detail section.module-detail-panel {
         display: block;
+        height: 100%;
+        /* 确保占满高度 */
+        overflow: hidden;
+        /* 防止双重滚动 */
     }
 
-    /* 移动端导航栏变到底部? 或者保持左侧变窄? 这里暂时保持左侧 */
     .main-nav {
-        width: 60px;
-        /* 手机上变窄，只显示图标 */
-    }
-
-    .nav-text {
-        display: none;
-        /* 手机上隐藏文字 */
+        width: 100%;
+        height: 60px;
+        /* 底部导航高度 */
+        flex-direction: row;
+        /* 水平排列 */
+        border-right: none;
+        border-top: 1px solid var(--border-color);
+        padding: 0;
+        order: 10;
+        /* 放到最底部 */
+        justify-content: space-around;
+        background-color: var(--bg-panel);
+        z-index: 100;
     }
 
     .nav-item {
+        flex-direction: column;
+        /* 图标在上，文字在下 */
         justify-content: center;
+        margin-bottom: 0;
+        height: 100%;
+        border-radius: 0;
         padding-left: 0;
+        gap: 4px;
+    }
+
+    .nav-icon {
+        margin-right: 0;
+        font-size: 20px;
+    }
+
+    .nav-text {
+        font-size: 10px;
+        /* 文字变小 */
+        line-height: 1;
     }
 }
 

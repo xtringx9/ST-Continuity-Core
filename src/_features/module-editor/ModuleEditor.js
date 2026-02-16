@@ -163,6 +163,11 @@ function renderModuleList() {
 
             selectedModuleId = mod.id;
             renderModuleDetail(mod);
+
+            // 移动端适配：点击后切换到详情视图
+            if (window.innerWidth <= 768) {
+                doc.body.classList.add('mobile-view-detail');
+            }
         });
 
         // 绑定拖拽事件
@@ -188,6 +193,11 @@ function renderModuleDetail(module) {
     // 生成表单 HTML
     container.innerHTML = `
         <div style="max-width: 600px; margin: 0 auto;">
+            <!-- 移动端返回按钮 -->
+            <button id="btn-back-to-list" class="mobile-only" style="background: none; border: none; color: var(--text-primary); font-size: 16px; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; gap: 5px;">
+                <span>←</span> 返回列表
+            </button>
+
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
                 <h2 style="margin: 0;">${module.displayName || module.name}</h2>
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; background: var(--bg-input); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">
@@ -298,6 +308,14 @@ function renderModuleDetail(module) {
 
     // 渲染变量列表
     renderVariableList(module, doc.getElementById('variable-list-container'));
+
+    // 绑定返回按钮事件
+    const backBtn = doc.getElementById('btn-back-to-list');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            doc.body.classList.remove('mobile-view-detail');
+        });
+    }
 
     // 绑定添加变量按钮
     doc.getElementById('btn-add-variable').addEventListener('click', () => {
