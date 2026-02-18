@@ -13,6 +13,7 @@ import { getContext } from '../../index.js';
 let currentModules = []; // 当前编辑的模块列表副本
 let currentGlobalSettings = {}; // 当前编辑的全局设置副本
 let selectedModuleId = null; // 记录当前选中的模块 ID
+let activeDetailTab = 'module-detail-settings'; // 记录当前详情页的活动Tab
 
 // === 渲染逻辑 ===
 // 拖拽状态变量
@@ -51,6 +52,7 @@ export function initModuleEditor(iframeDocument) {
 
     // 绑定导航事件
     bindNavigationEvents();
+    createFloatingSaveButton(); // 创建浮动保存按钮
 }
 
 function bindHeaderEvents() {
@@ -147,7 +149,10 @@ function renderModuleList() {
         });
 
         // 绑定拖拽事件
-        item.addEventListener('dragstart', (e) => handleDragStart(e, item, 'module'));
+        // 模块列表项：整个项可拖拽，但为了防止输入框干扰，通常模块列表没有输入框，所以可以直接绑定
+        // 但为了统一，我们也可以只绑定手柄。不过模块列表目前设计是整个可点选，手柄用于拖拽。
+        // 这里我们保持原样，因为模块列表项主要是文本和开关，没有文本输入框。
+        item.addEventListener('dragstart', (e) => handleDragStart(e, item, 'module', item));
         item.addEventListener('dragenter', handleDragEnter);
         item.addEventListener('dragover', handleDragOver);
         item.addEventListener('dragleave', handleDragLeave);
@@ -200,12 +205,12 @@ function renderModuleDetail(module, index) {
             
             <!-- Tab Navigation -->
             <div class="detail-tabs">
-                <div class="detail-tab-item active" data-target="module-detail-settings">模块设置</div>
-                <div class="detail-tab-item" data-target="module-detail-variables">变量管理</div>
+                <div class="detail-tab-item ${activeDetailTab === 'module-detail-settings' ? 'active' : ''}" data-target="module-detail-settings">模块设置</div>
+                <div class="detail-tab-item ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}" data-target="module-detail-variables">变量管理</div>
             </div>
 
             <!-- Tab Panel: Settings -->
-            <div id="module-detail-settings" class="detail-tab-panel active">
+            <div id="module-detail-settings" class="detail-tab-panel ${activeDetailTab === 'module-detail-settings' ? 'active' : ''}">
                 <div class="form-grid">
                     <!-- 基础信息 -->
                     <div class="form-section-title">${i18n.t('title_edit_module', section)}</div>
@@ -218,6 +223,11 @@ function renderModuleDetail(module, index) {
                     <div class="form-group">
                         <label>${i18n.t('label_display_name', section)}</label>
                         <input type="text" id="edit-display-name" value="${module.displayName}">
+                    </div>
+
+                    <div class="form-group form-full-width">
+                        <label>${i18n.t('label_compatible_modules', section)}</label>
+                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="兼容模块名A,兼容模块名B...">
                     </div>
 
                     <!-- 行为设置 -->
@@ -262,21 +272,14 @@ function renderModuleDetail(module, index) {
                         <input type="number" id="edit-retain-layers" value="${module.retainLayers || -1}">
                     </div>
 
-                    <div class="form-group form-full-width">
-                        <label>${i18n.t('label_compatible_modules', section)}</label>
-                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="兼容模块名A,兼容模块名B...">
-                    </div>
-
                     <!-- 高级开关 -->
-                    <div class="form-group form-full-width" style="display: flex; gap: 20px; margin-top: 5px;">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="edit-external" ${module.isExternalDisplay ? 'checked' : ''}>
-                            <span style="font-size: 0.9em;">${i18n.t('label_external', section)}</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="edit-time-reference-standard" ${module.timeReferenceStandard ? 'checked' : ''}>
-                            <span style="font-size: 0.9em;">${i18n.t('label_time_ref', section)}</span>
-                        </label>
+                    <div class="form-group form-full-width module-toggles">
+                        <button id="btn-edit-external" class="btn-text-toggle ${module.isExternalDisplay ? 'active' : ''}">
+                            ${i18n.t('label_external', section)}
+                        </button>
+                        <button id="btn-edit-time-reference-standard" class="btn-text-toggle ${module.timeReferenceStandard ? 'active' : ''}">
+                            ${i18n.t('label_time_ref', section)}
+                        </button>
                     </div>
 
                     <!-- 提示词设置 -->
@@ -321,7 +324,7 @@ function renderModuleDetail(module, index) {
             </div>
 
             <!-- Tab Panel: Variables -->
-            <div id="module-detail-variables" class="detail-tab-panel">
+            <div id="module-detail-variables" class="detail-tab-panel ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}">
                 <div class="form-section-title section-header">
                     <span>${i18n.t('title_variables', section)}</span>
                     <button id="btn-add-variable" class="btn-secondary">
@@ -351,13 +354,15 @@ function renderModuleDetail(module, index) {
     const panels = doc.querySelectorAll('.detail-tab-panel');
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
+            const targetId = tab.getAttribute('data-target');
+            activeDetailTab = targetId; // 更新状态
+
             // 移除所有 active
             tabs.forEach(t => t.classList.remove('active'));
             panels.forEach(p => p.classList.remove('active'));
 
             // 激活当前
             tab.classList.add('active');
-            const targetId = tab.getAttribute('data-target');
             const targetPanel = doc.getElementById(targetId);
             if (targetPanel) targetPanel.classList.add('active');
         });
@@ -379,6 +384,14 @@ function renderModuleDetail(module, index) {
 
     // 绑定变更事件
     rangeModeSelect.addEventListener('change', updateRangeInputs);
+
+    // 绑定模块高级开关按钮
+    doc.getElementById('btn-edit-external').addEventListener('click', function () {
+        this.classList.toggle('active');
+    });
+    doc.getElementById('btn-edit-time-reference-standard').addEventListener('click', function () {
+        this.classList.toggle('active');
+    });
 
     // 绑定返回按钮事件
     const backBtn = doc.getElementById('btn-back-to-list');
@@ -428,8 +441,8 @@ function renderModuleDetail(module, index) {
 
         module.retainLayers = parseInt(doc.getElementById('edit-retain-layers').value) || -1;
 
-        module.isExternalDisplay = doc.getElementById('edit-external').checked;
-        module.timeReferenceStandard = doc.getElementById('edit-time-reference-standard').checked;
+        module.isExternalDisplay = doc.getElementById('btn-edit-external').classList.contains('active');
+        module.timeReferenceStandard = doc.getElementById('btn-edit-time-reference-standard').classList.contains('active');
 
         module.compatibleModuleNames = doc.getElementById('edit-compatible-modules').value.split(',').map(s => s.trim()).filter(s => s);
 
@@ -499,84 +512,97 @@ function renderVariableList(module, container) {
     module.variables.forEach((variable, index) => {
         const item = doc.createElement('div');
         item.className = 'variable-edit-item';
-        item.setAttribute('draggable', 'true'); // 启用拖拽
         item.dataset.index = index;
 
         item.innerHTML = `
-            <div class="variable-header">
-                <div class="variable-drag-handle-wrapper">
-                    <span class="drag-handle" title="拖拽排序">⋮⋮</span>
-                    <div class="variable-index">#${index + 1}</div>
-                </div>
-                <button class="btn-delete-variable btn-variable-delete">✕</button>
-            </div>
-            <div class="form-grid variable-form-grid">
-                <div class="form-group">
+            <div class="variable-header-compact">
+                <span class="drag-handle" draggable="true" title="拖拽排序">⋮⋮</span>
+                <label class="toggle-switch" title="启用/禁用">
+                    <input type="checkbox" class="var-enabled" ${variable.enabled !== false ? 'checked' : ''}>
+                    <span class="slider round"></span>
+                </label>
+                
+                <div class="compact-input-group var-name-group">
                     <label>${i18n.t('label_var_name', section)}</label>
                     <input type="text" class="var-name" value="${variable.name || ''}">
                 </div>
-                <div class="form-group">
+                <div class="compact-input-group var-display-name-group">
                     <label>${i18n.t('label_var_display_name', section)}</label>
                     <input type="text" class="var-display-name" value="${variable.displayName || ''}">
                 </div>
-                <div class="form-group form-full-width">
+                <div class="compact-input-group var-compatible-names-group">
+                    <label>${i18n.t('label_compatible_variables', section)}</label>
+                    <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="兼容变量名A...">
+                </div>
+
+                <button class="btn-delete-variable btn-variable-delete">✕</button>
+            </div>
+
+            <div class="variable-toggles">
+                <button class="btn-text-toggle var-identifier ${variable.isIdentifier ? 'active' : ''}">
+                    ${i18n.t('label_var_identifier', section)}
+                </button>
+                <button class="btn-text-toggle var-backup-identifier ${variable.isBackupIdentifier ? 'active' : ''}">
+                    ${i18n.t('label_var_backup_identifier', section)}
+                </button>
+                <button class="btn-text-toggle var-hide-condition ${variable.isHideCondition ? 'active' : ''}">
+                    ${i18n.t('label_var_hide_condition', section)}
+                </button>
+                <button class="btn-text-toggle var-no-normalize ${variable.isNoNormalize ? 'active' : ''}">
+                    ${i18n.t('label_var_no_normalize', section)}
+                </button>
+            </div>
+
+            <div class="variable-details">
+                <div class="form-group">
                     <label>${i18n.t('label_var_description', section)}</label>
                     <input type="text" class="var-description" value="${variable.description || ''}">
                 </div>
-                
-                <div class="form-group form-full-width checkbox-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" class="var-enabled" ${variable.enabled !== false ? 'checked' : ''}> ${i18n.t('label_var_enabled', section)}
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" class="var-identifier" ${variable.isIdentifier ? 'checked' : ''}> ${i18n.t('label_var_identifier', section)}
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" class="var-backup-identifier" ${variable.isBackupIdentifier ? 'checked' : ''}> ${i18n.t('label_var_backup_identifier', section)}
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" class="var-no-normalize" ${variable.isNoNormalize ? 'checked' : ''}> ${i18n.t('label_var_no_normalize', section)}
-                    </label>
+                <div class="form-group var-hide-values-group" style="display: ${variable.isHideCondition ? 'flex' : 'none'};">
+                    <label>${i18n.t('label_var_hide_values', section)}</label>
+                    <input type="text" class="var-hide-values" value="${Array.isArray(variable.hideConditionValues) ? variable.hideConditionValues.join(',') : variable.hideConditionValues || ''}">
                 </div>
-
-                <div class="form-group form-full-width hide-condition-wrapper">
-                    <label class="hide-condition-label">
-                        <input type="checkbox" class="var-hide-condition" ${variable.isHideCondition ? 'checked' : ''}> ${i18n.t('label_var_hide_condition', section)}
-                    </label>
-                    <input type="text" class="var-hide-values hide-condition-input" value="${Array.isArray(variable.hideConditionValues) ? variable.hideConditionValues.join(',') : variable.hideConditionValues || ''}" placeholder="${i18n.t('label_var_hide_values', section)}" style="display: ${variable.isHideCondition ? 'block' : 'none'};">
-                </div>
-
-                <div class="form-group form-full-width">
+                <div class="form-group">
                     <label>${i18n.t('label_var_custom_styles', section)}</label>
                     <textarea class="var-custom-styles" rows="2">${variable.customStyles || ''}</textarea>
                 </div>
             </div>
         `;
 
-        // 绑定输入事件，实时更新数据
+        // Data collection function
         const updateVariable = () => {
             variable.name = item.querySelector('.var-name').value;
             variable.displayName = item.querySelector('.var-display-name').value;
             variable.description = item.querySelector('.var-description').value;
             variable.enabled = item.querySelector('.var-enabled').checked;
-            variable.isIdentifier = item.querySelector('.var-identifier').checked;
-            variable.isBackupIdentifier = item.querySelector('.var-backup-identifier').checked;
-            variable.isNoNormalize = item.querySelector('.var-no-normalize').checked;
-            variable.isHideCondition = item.querySelector('.var-hide-condition').checked;
+            variable.isIdentifier = item.querySelector('.var-identifier').classList.contains('active');
+            variable.isBackupIdentifier = item.querySelector('.var-backup-identifier').classList.contains('active');
+            variable.isNoNormalize = item.querySelector('.var-no-normalize').classList.contains('active');
+            variable.isHideCondition = item.querySelector('.var-hide-condition').classList.contains('active');
             variable.hideConditionValues = item.querySelector('.var-hide-values').value.split(',').map(s => s.trim()).filter(s => s);
+            variable.compatibleVariableNames = item.querySelector('.var-compatible-names').value.split(',').map(s => s.trim()).filter(s => s);
             variable.customStyles = item.querySelector('.var-custom-styles').value;
         };
 
+        // Bind input/textarea for live updates
         item.querySelectorAll('input, textarea').forEach(input => {
             input.addEventListener('input', updateVariable);
             input.addEventListener('change', updateVariable);
         });
 
-        // 隐藏条件输入框显隐逻辑
-        const hideCheck = item.querySelector('.var-hide-condition');
-        const hideInput = item.querySelector('.var-hide-values');
-        hideCheck.addEventListener('change', (e) => {
-            hideInput.style.display = e.target.checked ? 'block' : 'none';
+        // Bind toggle buttons
+        const hideValuesGroup = item.querySelector('.var-hide-values-group');
+        item.querySelectorAll('.btn-text-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('active');
+
+                // Special logic for hide condition
+                if (btn.classList.contains('var-hide-condition')) {
+                    hideValuesGroup.style.display = btn.classList.contains('active') ? 'flex' : 'none';
+                }
+
+                updateVariable(); // Update data on toggle
+            });
         });
 
         // 删除按钮事件
@@ -588,7 +614,8 @@ function renderVariableList(module, container) {
         });
 
         // 绑定拖拽事件
-        item.addEventListener('dragstart', (e) => handleDragStart(e, item, 'variable'));
+        const handle = item.querySelector('.drag-handle');
+        handle.addEventListener('dragstart', (e) => handleDragStart(e, item, 'variable', item));
         item.addEventListener('dragenter', handleDragEnter);
         item.addEventListener('dragover', handleDragOver);
         item.addEventListener('dragleave', handleDragLeave);
@@ -601,11 +628,17 @@ function renderVariableList(module, container) {
 
 // === 通用拖拽处理函数 ===
 
-function handleDragStart(e, item, type) {
+function handleDragStart(e, item, type, dragImageElement) {
     dragSrcEl = item;
     dragType = type;
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', item.innerHTML);
+
+    // 设置拖拽图像为整个项目元素
+    if (dragImageElement) {
+        e.dataTransfer.setDragImage(dragImageElement, 0, 0);
+    }
+
+    e.dataTransfer.setData('text/plain', item.dataset.index); // 必须设置数据才能拖拽
 
     // 使用 setTimeout 确保拖拽图像生成后再隐藏原元素
     setTimeout(() => {
@@ -950,6 +983,69 @@ function renderGlobalSettings() {
             btnSave.textContent = "✔ 已保存";
             setTimeout(() => btnSave.textContent = originalText, 1000);
         });
+    }
+}
+
+/**
+ * 创建一个全局浮动保存按钮
+ */
+function createFloatingSaveButton() {
+    const fab = doc.createElement('div');
+    fab.id = 'continuity-fab-save';
+    fab.title = '保存所有更改';
+    fab.innerHTML = '💾';
+
+    Object.assign(fab.style, {
+        position: 'absolute',
+        bottom: '20px',
+        right: '20px',
+        width: '50px',
+        height: '50px',
+        borderRadius: '50%',
+        backgroundColor: 'var(--accent-color)',
+        color: '#fff',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '24px',
+        cursor: 'pointer',
+        zIndex: '1001',
+        transition: 'all 0.2s ease'
+    });
+
+    fab.addEventListener('mouseenter', () => fab.style.transform = 'scale(1.1)');
+    fab.addEventListener('mouseleave', () => fab.style.transform = 'scale(1)');
+
+    fab.addEventListener('click', () => {
+        const moduleSaveBtn = doc.getElementById('btn-save-module');
+        const globalSaveBtn = doc.getElementById('btn-save-global');
+        let saved = false;
+
+        // 检查按钮是否存在且可见
+        if (moduleSaveBtn && moduleSaveBtn.offsetParent !== null) {
+            moduleSaveBtn.click();
+            saved = true;
+        } else if (globalSaveBtn && globalSaveBtn.offsetParent !== null) {
+            globalSaveBtn.click();
+            saved = true;
+        }
+
+        if (saved) {
+            // 提供保存反馈
+            fab.innerHTML = '✔';
+            fab.style.backgroundColor = '#4CAF50'; // Green
+            setTimeout(() => {
+                fab.innerHTML = '💾';
+                fab.style.backgroundColor = 'var(--accent-color)';
+            }, 1500);
+        }
+    });
+
+    // 将按钮添加到 app-container 以便正确定位
+    const appContainer = doc.querySelector('.app-container');
+    if (appContainer) {
+        appContainer.appendChild(fab);
     }
 }
 

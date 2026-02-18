@@ -53,35 +53,36 @@ header.app-header {
 
 /* 左侧主导航栏 (一级菜单) */
 .main-nav {
-    width: 100px;
-    /* 缩小宽度 */
-    /* 加宽以容纳文字 */
+    width: 60px;
+    /* 进一步缩小宽度 */
     background-color: var(--bg-nav);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     align-items: center;
     padding-top: 10px;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 5px;
+    padding-right: 5px;
     flex-shrink: 0;
 }
 
 .nav-item {
     width: 100%;
-    height: 36px;
+    height: 40px;
     margin-bottom: 10px;
     border-radius: 8px;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    /* 左对齐 */
-    padding-left: 10px;
+    justify-content: center;
+    /* 居中对齐 */
+    padding: 4px;
     cursor: pointer;
     color: var(--text-secondary);
     transition: all 0.2s;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
+    text-align: center;
+    line-height: 1.2;
 }
 
 .nav-item:hover {
@@ -96,9 +97,7 @@ header.app-header {
 }
 
 .nav-icon {
-    font-size: 18px;
-    margin-right: 8px;
-    line-height: 1;
+    display: none;
 }
 
 /* 内容区域容器 */
@@ -601,79 +600,12 @@ section.module-detail-panel {
 }
 
 .form-actions {
-    text-align: right;
-    margin-top: 20px;
+    display: none;
+    /* 由全局浮动按钮替代 */
 }
 
 .spacer-bottom {
     height: 50px;
-}
-
-/* 变量列表项内部样式 */
-.variable-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-.variable-drag-handle-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.variable-index {
-    font-weight: bold;
-}
-
-.btn-variable-delete {
-    color: var(--danger-color);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.2em;
-}
-
-.variable-form-grid {
-    gap: 10px;
-    margin-bottom: 0;
-}
-
-.checkbox-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    font-size: 0.9em;
-}
-
-.hide-condition-wrapper {
-    border-top: 1px solid var(--border-light);
-    padding-top: 10px;
-}
-
-.hide-condition-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    margin-bottom: 5px;
-    font-size: 0.9em;
-}
-
-.hide-condition-input {
-    width: 100%;
-    padding: 6px;
-    background: var(--bg-input);
-    border: 1px solid var(--border-color);
-    color: var(--text-input);
-    border-radius: 4px;
 }
 
 /* 工具箱样式 */
@@ -738,6 +670,103 @@ section.module-detail-panel {
     padding: 15px 20px;
     /* 内容容器内边距 */
     position: relative;
+}
+
+/* === 变量编辑器优化样式 === */
+.variable-edit-item {
+    padding: 12px;
+}
+
+.variable-header-compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    /* Allow wrapping for mobile */
+}
+
+.variable-header-compact .toggle-switch {
+    margin-left: 0;
+}
+
+.compact-input-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-grow: 1;
+    /* Grow to fill space */
+}
+
+.var-name-group,
+.var-display-name-group {
+    flex-basis: 150px;
+    /* Smaller base width */
+}
+
+.var-compatible-names-group {
+    flex-basis: 200px;
+    /* Larger base width */
+}
+
+.compact-input-group label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.variable-header-compact input[type="text"] {
+    padding: 4px 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-input);
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.variable-header-compact .btn-variable-delete {
+    margin-left: auto;
+    color: var(--danger-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2em;
+}
+
+.variable-toggles {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.btn-text-toggle {
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.btn-text-toggle:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.btn-text-toggle.active {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #fff;
+}
+
+.module-toggles {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
 }
 
 /* 5. Modal (变量编辑弹窗) */
