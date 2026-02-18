@@ -388,6 +388,7 @@ section.module-detail-panel {
 /* 详情页内 Tab 样式 */
 .detail-tabs {
     display: flex;
+    align-items: center;
     position: sticky;
     /* 粘性定位 */
     top: 0;
@@ -428,6 +429,70 @@ section.module-detail-panel {
 
 .detail-tab-panel.active {
     display: block;
+}
+
+/* 粘性头部的保存按钮 */
+.btn-sticky-save {
+    margin-left: auto;
+    /* Push to the right */
+    padding: 0 12px;
+    font-size: 12px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn-sticky-save.saved {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+}
+
+.sticky-header-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* 粘性头部中的模块标题组 */
+.sticky-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 15px;
+    padding-right: 15px;
+    border-right: 1px solid var(--border-color);
+    max-width: 200px;
+    flex-shrink: 0;
+}
+
+.sticky-module-name {
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary);
+}
+
+.btn-delete-small {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-delete-small:hover {
+    color: var(--danger-color);
+    background-color: var(--bg-hover);
 }
 
 /* 通用工具类 */

@@ -52,7 +52,6 @@ export function initModuleEditor(iframeDocument) {
 
     // 绑定导航事件
     bindNavigationEvents();
-    createFloatingSaveButton(); // 创建浮动保存按钮
 }
 
 function bindHeaderEvents() {
@@ -196,17 +195,15 @@ function renderModuleDetail(module, index) {
                 <span>←</span> 返回列表
             </button>
 
-            <div class="module-header">
-                <h2 class="module-title">${module.displayName || module.name}</h2>
-                <button id="btn-delete-module" class="btn-icon btn-delete" title="删除模块">
-                    🗑️
-                </button>
-            </div>
-            
             <!-- Tab Navigation -->
             <div class="detail-tabs">
+                <div class="sticky-title-group">
+                    <span class="sticky-module-name" title="${module.displayName || module.name}">${module.displayName || module.name}</span>
+                    <button id="btn-delete-module" class="btn-delete-small" title="删除模块">🗑️</button>
+                </div>
                 <div class="detail-tab-item ${activeDetailTab === 'module-detail-settings' ? 'active' : ''}" data-target="module-detail-settings">模块设置</div>
                 <div class="detail-tab-item ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}" data-target="module-detail-variables">变量管理</div>
+                <button id="sticky-save-btn" class="btn-primary btn-sticky-save">💾 保存</button>
             </div>
 
             <!-- Tab Panel: Settings -->
@@ -367,6 +364,26 @@ function renderModuleDetail(module, index) {
             if (targetPanel) targetPanel.classList.add('active');
         });
     });
+
+    // 绑定粘性保存按钮
+    const stickySaveBtn = doc.getElementById('sticky-save-btn');
+    if (stickySaveBtn) {
+        stickySaveBtn.addEventListener('click', () => {
+            const moduleSaveBtn = doc.getElementById('btn-save-module');
+            if (moduleSaveBtn) {
+                moduleSaveBtn.click(); // Trigger the original save logic
+
+                // Provide feedback on the sticky button
+                const originalHTML = stickySaveBtn.innerHTML;
+                stickySaveBtn.innerHTML = '✔ 已保存';
+                stickySaveBtn.classList.add('saved');
+                setTimeout(() => {
+                    stickySaveBtn.innerHTML = originalHTML;
+                    stickySaveBtn.classList.remove('saved');
+                }, 1500);
+            }
+        });
+    }
 
     // 处理 Range Mode 联动
     const rangeModeSelect = doc.getElementById('edit-range-mode');
@@ -866,8 +883,12 @@ function renderGlobalSettings() {
     const section = 'module_editor'; // 复用翻译
 
     container.innerHTML = `
-        <div class="detail-content settings-container">
-            <div>
+        <div class="detail-content">
+            <div class="detail-tabs">
+                <span class="sticky-header-title">全局设置</span>
+                <button id="btn-save-global" class="btn-primary btn-sticky-save">💾 保存</button>
+            </div>
+            <div class="settings-container">
                 <div class="form-section-title">标签设置</div>
                 
                 <div class="form-grid">
@@ -943,12 +964,6 @@ function renderGlobalSettings() {
                     <input type="text" id="global-time-format" value="${settings.timeFormat || ''}">
                 </div>
 
-                <div class="form-actions">
-                    <button id="btn-save-global" class="btn-primary">
-                        保存全局设置
-                    </button>
-                </div>
-                
                 <div class="spacer-bottom"></div>
             </div>
         </div>
@@ -983,69 +998,6 @@ function renderGlobalSettings() {
             btnSave.textContent = "✔ 已保存";
             setTimeout(() => btnSave.textContent = originalText, 1000);
         });
-    }
-}
-
-/**
- * 创建一个全局浮动保存按钮
- */
-function createFloatingSaveButton() {
-    const fab = doc.createElement('div');
-    fab.id = 'continuity-fab-save';
-    fab.title = '保存所有更改';
-    fab.innerHTML = '💾';
-
-    Object.assign(fab.style, {
-        position: 'absolute',
-        bottom: '20px',
-        right: '20px',
-        width: '50px',
-        height: '50px',
-        borderRadius: '50%',
-        backgroundColor: 'var(--accent-color)',
-        color: '#fff',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '24px',
-        cursor: 'pointer',
-        zIndex: '1001',
-        transition: 'all 0.2s ease'
-    });
-
-    fab.addEventListener('mouseenter', () => fab.style.transform = 'scale(1.1)');
-    fab.addEventListener('mouseleave', () => fab.style.transform = 'scale(1)');
-
-    fab.addEventListener('click', () => {
-        const moduleSaveBtn = doc.getElementById('btn-save-module');
-        const globalSaveBtn = doc.getElementById('btn-save-global');
-        let saved = false;
-
-        // 检查按钮是否存在且可见
-        if (moduleSaveBtn && moduleSaveBtn.offsetParent !== null) {
-            moduleSaveBtn.click();
-            saved = true;
-        } else if (globalSaveBtn && globalSaveBtn.offsetParent !== null) {
-            globalSaveBtn.click();
-            saved = true;
-        }
-
-        if (saved) {
-            // 提供保存反馈
-            fab.innerHTML = '✔';
-            fab.style.backgroundColor = '#4CAF50'; // Green
-            setTimeout(() => {
-                fab.innerHTML = '💾';
-                fab.style.backgroundColor = 'var(--accent-color)';
-            }, 1500);
-        }
-    });
-
-    // 将按钮添加到 app-container 以便正确定位
-    const appContainer = doc.querySelector('.app-container');
-    if (appContainer) {
-        appContainer.appendChild(fab);
     }
 }
 
