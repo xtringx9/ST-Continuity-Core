@@ -53,7 +53,7 @@ header.app-header {
 
 /* 左侧主导航栏 (一级菜单) */
 .main-nav {
-    width: 60px;
+    width: 50px;
     /* 进一步缩小宽度 */
     background-color: var(--bg-nav);
     border-right: 1px solid var(--border-color);
@@ -383,6 +383,12 @@ section.module-detail-panel {
     border-bottom: 1px solid var(--border-light);
     padding-bottom: 5px;
     grid-column: span 2;
+}
+
+/* 移除首个标题的顶部间距，统一页面间距 */
+.detail-tab-panel>.form-section-title:first-child,
+.form-grid>.form-section-title:first-child {
+    margin-top: 0;
 }
 
 /* 详情页内 Tab 样式 */

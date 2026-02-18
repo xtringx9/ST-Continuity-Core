@@ -31,8 +31,8 @@ export class IframeModal {
             position: 'fixed',
             top: '0',
             left: '0',
-            width: '100vw',
-            height: '100vh',
+            width: '100dvw',
+            height: '100dvh',
             backgroundColor: 'rgba(0, 0, 0, 0.6)', // 半透明黑色背景
             zIndex: '9999', // 确保在最上层
             display: 'flex',
