@@ -61,6 +61,13 @@ function bindHeaderEvents() {
             doc.documentElement.setAttribute('data-theme', e.target.value);
         });
     }
+
+    const saveBtn = doc.getElementById('header-save-btn');
+    if (saveBtn) {
+        // 移除旧的监听器（如果有）
+        saveBtn.replaceWith(saveBtn.cloneNode(true));
+        doc.getElementById('header-save-btn').addEventListener('click', saveAll);
+    }
 }
 
 function bindNavigationEvents() {
@@ -189,7 +196,7 @@ function renderModuleDetail(module, index) {
 
     // 生成表单 HTML
     container.innerHTML = `
-        <div class="settings-container">
+        <div class="settings-container module-detail-view">
             <!-- 移动端返回按钮 -->
             <button id="btn-back-to-list" class="mobile-only btn-back">
                 <span>←</span> 返回列表
@@ -203,7 +210,6 @@ function renderModuleDetail(module, index) {
                 </div>
                 <div class="detail-tab-item ${activeDetailTab === 'module-detail-settings' ? 'active' : ''}" data-target="module-detail-settings">模块设置</div>
                 <div class="detail-tab-item ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}" data-target="module-detail-variables">变量管理</div>
-                <button id="sticky-save-btn" class="btn-primary btn-sticky-save">💾 保存</button>
             </div>
 
             <!-- Tab Panel: Settings -->
@@ -333,12 +339,6 @@ function renderModuleDetail(module, index) {
                 </div>
             </div>
 
-            <div class="form-actions">
-                <button id="btn-save-module" class="btn-primary">
-                    ${i18n.t('btn_save', section)}
-                </button>
-            </div>
-            
             <div class="spacer-bottom"></div>
         </div>
     `;
@@ -365,26 +365,6 @@ function renderModuleDetail(module, index) {
         });
     });
 
-    // 绑定粘性保存按钮
-    const stickySaveBtn = doc.getElementById('sticky-save-btn');
-    if (stickySaveBtn) {
-        stickySaveBtn.addEventListener('click', () => {
-            const moduleSaveBtn = doc.getElementById('btn-save-module');
-            if (moduleSaveBtn) {
-                moduleSaveBtn.click(); // Trigger the original save logic
-
-                // Provide feedback on the sticky button
-                const originalHTML = stickySaveBtn.innerHTML;
-                stickySaveBtn.innerHTML = '✔ 已保存';
-                stickySaveBtn.classList.add('saved');
-                setTimeout(() => {
-                    stickySaveBtn.innerHTML = originalHTML;
-                    stickySaveBtn.classList.remove('saved');
-                }, 1500);
-            }
-        });
-    }
-
     // 处理 Range Mode 联动
     const rangeModeSelect = doc.getElementById('edit-range-mode');
     const itemMinInput = doc.getElementById('edit-item-min');
@@ -402,12 +382,44 @@ function renderModuleDetail(module, index) {
     // 绑定变更事件
     rangeModeSelect.addEventListener('change', updateRangeInputs);
 
+    // === 实时数据更新逻辑 ===
+    const updateModuleData = () => {
+        module.name = doc.getElementById('edit-name').value;
+        module.displayName = doc.getElementById('edit-display-name').value;
+        module.compatibleModuleNames = doc.getElementById('edit-compatible-modules').value.split(',').map(s => s.trim()).filter(s => s);
+
+        module.outputPosition = doc.getElementById('edit-output-pos').value;
+        module.outputMode = doc.getElementById('edit-output-mode').value;
+        module.rangeMode = doc.getElementById('edit-range-mode').value;
+        module.itemMin = parseInt(doc.getElementById('edit-item-min').value) || 0;
+        module.itemMax = parseInt(doc.getElementById('edit-item-max').value) || 1;
+        module.retainLayers = parseInt(doc.getElementById('edit-retain-layers').value) || -1;
+
+        module.isExternalDisplay = doc.getElementById('btn-edit-external').classList.contains('active');
+        module.timeReferenceStandard = doc.getElementById('btn-edit-time-reference-standard').classList.contains('active');
+
+        module.prompt = doc.getElementById('edit-prompt').value;
+        module.timingPrompt = doc.getElementById('edit-prompt-timing').value;
+        module.contentPrompt = doc.getElementById('edit-prompt-content').value;
+        module.positionPrompt = doc.getElementById('edit-prompt-position').value;
+
+        module.stylesContainer = doc.getElementById('edit-styles-container').value;
+        module.externalStyles = doc.getElementById('edit-styles-external').value;
+        module.customStyles = doc.getElementById('edit-styles-custom').value;
+
+        // 刷新列表项名称（如果修改了名字）
+        const listItem = doc.querySelector(`.module-list-item[data-index="${index}"] .module-item-name`);
+        if (listItem) listItem.textContent = module.displayName || module.name;
+    };
+
     // 绑定模块高级开关按钮
     doc.getElementById('btn-edit-external').addEventListener('click', function () {
         this.classList.toggle('active');
+        updateModuleData();
     });
     doc.getElementById('btn-edit-time-reference-standard').addEventListener('click', function () {
         this.classList.toggle('active');
+        updateModuleData();
     });
 
     // 绑定返回按钮事件
@@ -444,44 +456,10 @@ function renderModuleDetail(module, index) {
         renderVariableList(module, doc.getElementById('variable-list-container'));
     });
 
-    // 绑定保存按钮事件
-    doc.getElementById('btn-save-module').addEventListener('click', () => {
-        // 1. 收集表单数据更新到当前模块对象
-        module.name = doc.getElementById('edit-name').value;
-        module.displayName = doc.getElementById('edit-display-name').value;
-
-        module.outputPosition = doc.getElementById('edit-output-pos').value;
-        module.outputMode = doc.getElementById('edit-output-mode').value;
-        module.rangeMode = doc.getElementById('edit-range-mode').value;
-        module.itemMin = parseInt(doc.getElementById('edit-item-min').value) || 0;
-        module.itemMax = parseInt(doc.getElementById('edit-item-max').value) || 1;
-
-        module.retainLayers = parseInt(doc.getElementById('edit-retain-layers').value) || -1;
-
-        module.isExternalDisplay = doc.getElementById('btn-edit-external').classList.contains('active');
-        module.timeReferenceStandard = doc.getElementById('btn-edit-time-reference-standard').classList.contains('active');
-
-        module.compatibleModuleNames = doc.getElementById('edit-compatible-modules').value.split(',').map(s => s.trim()).filter(s => s);
-
-        module.prompt = doc.getElementById('edit-prompt').value;
-        module.timingPrompt = doc.getElementById('edit-prompt-timing').value;
-        module.contentPrompt = doc.getElementById('edit-prompt-content').value;
-        module.positionPrompt = doc.getElementById('edit-prompt-position').value;
-        module.stylesContainer = doc.getElementById('edit-styles-container').value;
-        module.externalStyles = doc.getElementById('edit-styles-external').value;
-        module.customStyles = doc.getElementById('edit-styles-custom').value;
-
-        // 2. 刷新左侧列表
-        renderModuleList();
-
-        // 3. 保存到 configManager
-        saveChanges();
-
-        // 4. 反馈动画
-        const btn = doc.getElementById('btn-save-module');
-        const originalText = btn.textContent;
-        btn.textContent = "✔ OK";
-        setTimeout(() => btn.textContent = originalText, 1000);
+    // 绑定所有输入框的实时更新
+    container.querySelectorAll('input, textarea, select').forEach(el => {
+        el.addEventListener('input', updateModuleData);
+        el.addEventListener('change', updateModuleData);
     });
 }
 
@@ -884,9 +862,10 @@ function renderGlobalSettings() {
 
     container.innerHTML = `
         <div class="detail-content">
-            <div class="detail-tabs">
-                <span class="sticky-header-title">全局设置</span>
-                <button id="btn-save-global" class="btn-primary btn-sticky-save">💾 保存</button>
+            <div class="detail-tabs no-tabs">
+                <div class="sticky-title-group">
+                    <span class="sticky-module-name">全局设置</span>
+                </div>
             </div>
             <div class="settings-container">
                 <div class="form-section-title">标签设置</div>
@@ -969,50 +948,56 @@ function renderGlobalSettings() {
         </div>
     `;
 
-    // 绑定保存按钮
-    const btnSave = doc.getElementById('btn-save-global');
-    if (btnSave) {
-        btnSave.addEventListener('click', () => {
-            // 收集数据
-            currentGlobalSettings.moduleTag = doc.getElementById('global-module-tag').value;
-            currentGlobalSettings.moduleUpdateTag = doc.getElementById('global-module-update-tag').value;
-            currentGlobalSettings.compatibleModuleTags = doc.getElementById('global-compatible-module-tags').value.split(',').map(s => s.trim()).filter(s => s);
-            currentGlobalSettings.cotTags = doc.getElementById('global-cot-tags').value.split(',').map(s => s.trim()).filter(s => s);
-            currentGlobalSettings.contentTag = doc.getElementById('global-content-tag').value.split(',').map(s => s.trim()).filter(s => s);
-            currentGlobalSettings.contentRemainLayers = parseInt(doc.getElementById('global-content-remain-layers').value) || 0;
+    // === 实时数据更新逻辑 ===
+    const updateGlobalSettings = () => {
+        // 收集数据
+        currentGlobalSettings.moduleTag = doc.getElementById('global-module-tag').value;
+        currentGlobalSettings.moduleUpdateTag = doc.getElementById('global-module-update-tag').value;
+        currentGlobalSettings.compatibleModuleTags = doc.getElementById('global-compatible-module-tags').value.split(',').map(s => s.trim()).filter(s => s);
+        currentGlobalSettings.cotTags = doc.getElementById('global-cot-tags').value.split(',').map(s => s.trim()).filter(s => s);
+        currentGlobalSettings.contentTag = doc.getElementById('global-content-tag').value.split(',').map(s => s.trim()).filter(s => s);
+        currentGlobalSettings.contentRemainLayers = parseInt(doc.getElementById('global-content-remain-layers').value) || 0;
 
-            currentGlobalSettings.prompt = doc.getElementById('global-prompt').value;
-            currentGlobalSettings.orderPrompt = doc.getElementById('global-order-prompt').value;
-            currentGlobalSettings.usagePrompt = doc.getElementById('global-usage-prompt').value;
-            currentGlobalSettings.moduleDataPrompt = doc.getElementById('global-module-data-prompt').value;
-            currentGlobalSettings.containerStyles = doc.getElementById('global-container-styles').value;
-            currentGlobalSettings.externalStyles = doc.getElementById('global-external-styles').value;
-            currentGlobalSettings.bottomStyles = doc.getElementById('global-bottom-styles').value;
-            currentGlobalSettings.timeFormat = doc.getElementById('global-time-format').value;
+        currentGlobalSettings.prompt = doc.getElementById('global-prompt').value;
+        currentGlobalSettings.orderPrompt = doc.getElementById('global-order-prompt').value;
+        currentGlobalSettings.usagePrompt = doc.getElementById('global-usage-prompt').value;
+        currentGlobalSettings.moduleDataPrompt = doc.getElementById('global-module-data-prompt').value;
+        currentGlobalSettings.containerStyles = doc.getElementById('global-container-styles').value;
+        currentGlobalSettings.externalStyles = doc.getElementById('global-external-styles').value;
+        currentGlobalSettings.bottomStyles = doc.getElementById('global-bottom-styles').value;
+        currentGlobalSettings.timeFormat = doc.getElementById('global-time-format').value;
+    };
 
-            // 保存
-            saveGlobalSettings();
-
-            // 反馈动画
-            const originalText = btnSave.textContent;
-            btnSave.textContent = "✔ 已保存";
-            setTimeout(() => btnSave.textContent = originalText, 1000);
-        });
-    }
+    // 绑定所有输入框的实时更新
+    container.querySelectorAll('input, textarea').forEach(el => {
+        el.addEventListener('input', updateGlobalSettings);
+        el.addEventListener('change', updateGlobalSettings);
+    });
 }
 
 /**
- * 保存更改到 ConfigManager
+ * 保存所有更改 (模块 + 全局设置) 到 ConfigManager
  */
 function saveChanges() {
-    configManager.setModules(currentModules);
-    infoLog("[ModuleEditor] 模块配置已保存");
+    // 兼容旧调用，实际上现在统一用 saveAll
+    saveAll();
 }
 
-/**
- * 保存全局设置到 ConfigManager
- */
-function saveGlobalSettings() {
+function saveAll() {
+    configManager.setModules(currentModules);
     configManager.setGlobalSettings(currentGlobalSettings);
-    infoLog("[ModuleEditor] 全局设置已保存");
+    infoLog("[ModuleEditor] 所有配置已保存");
+
+    // Header 按钮反馈
+    const btn = doc.getElementById('header-save-btn');
+    if (btn) {
+        if (btn.dataset.saving === 'true') return;
+        btn.dataset.saving = 'true';
+        btn.textContent = "✔ 已保存";
+
+        setTimeout(() => {
+            btn.textContent = "保存";
+            btn.dataset.saving = 'false';
+        }, 1000);
+    }
 }
