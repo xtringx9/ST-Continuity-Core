@@ -197,14 +197,10 @@ function renderModuleDetail(module, index) {
     // 生成表单 HTML
     container.innerHTML = `
         <div class="settings-container module-detail-view">
-            <!-- 移动端返回按钮 -->
-            <button id="btn-back-to-list" class="mobile-only btn-back">
-                <span>←</span> 返回列表
-            </button>
-
             <!-- Tab Navigation -->
             <div class="detail-tabs">
                 <div class="sticky-title-group">
+                    <button id="btn-back-to-list" class="mobile-only btn-back-icon" title="返回列表">❮</button>
                     <span class="sticky-module-name" title="${module.displayName || module.name}">${module.displayName || module.name}</span>
                     <button id="btn-delete-module" class="btn-delete-small" title="删除模块">🗑️</button>
                 </div>
