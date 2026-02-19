@@ -146,13 +146,20 @@ function renderModuleList() {
         // 绑定启用/禁用开关事件
         const toggle = item.querySelector('.module-enable-toggle');
         toggle.addEventListener('click', (e) => {
-            e.stopPropagation(); // 阻止冒泡，防止触发选中
             mod.enabled = e.target.checked;
             if (!mod.enabled) item.classList.add('disabled');
             else item.classList.remove('disabled');
 
             saveChanges(); // 自动保存
         });
+
+        // 阻止开关容器的点击冒泡，防止触发列表项选中 (特别是点击 label/span 时)
+        const actions = item.querySelector('.module-item-actions');
+        if (actions) {
+            actions.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
 
         // 绑定拖拽事件
         // 模块列表项：整个项可拖拽，但为了防止输入框干扰，通常模块列表没有输入框，所以可以直接绑定
