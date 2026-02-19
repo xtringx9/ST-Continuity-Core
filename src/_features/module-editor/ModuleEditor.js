@@ -46,7 +46,10 @@ export function initModuleEditor(iframeDocument) {
 
     // 初始化视图
     renderModuleList();
-    renderToolbox(doc, currentModules);
+    renderToolbox(doc, currentModules, () => {
+        renderModuleList();
+        saveChanges();
+    });
     renderGlobalSettings(doc, currentGlobalSettings);
 
     // 绑定顶部栏事件 (主题切换等)

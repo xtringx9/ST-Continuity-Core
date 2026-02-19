@@ -114,7 +114,10 @@ const resources = {
             "option_preview_data": "模块数据 (Data)",
             "btn_select_all": "全选",
             "btn_select_none": "清空",
-            "btn_select_enabled": "仅启用"
+            "btn_select_enabled": "仅启用",
+            "title_quick_add": "快速添加模块",
+            "placeholder_parse_input": "输入模块格式，如：[item|own:所属人|loc:当前位置]",
+            "btn_parse": "解析并添加"
         }
         // 未来可以添加其他模块的翻译，例如 "settings": { ... }
     },
@@ -229,7 +232,10 @@ const resources = {
             "option_preview_data": "Module Data",
             "btn_select_all": "Select All",
             "btn_select_none": "Clear",
-            "btn_select_enabled": "Enabled Only"
+            "btn_select_enabled": "Enabled Only",
+            "title_quick_add": "Quick Add Module",
+            "placeholder_parse_input": "Input module format, e.g. [item|own:Owner|loc:Location]",
+            "btn_parse": "Parse & Add"
         }
     }
 };

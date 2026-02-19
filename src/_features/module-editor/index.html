@@ -102,6 +102,18 @@
                         <!-- 提示词预览容器 -->
                         <div id="tool-prompt-preview-container"></div>
 
+                        <!-- 快速添加模块 -->
+                        <div class="form-section-title" data-i18n="title_quick_add">快速添加模块</div>
+                        <div class="form-group" style="display: flex; gap: 10px;">
+                            <input type="text" id="tool-parse-input" style="flex: 1;"
+                                data-i18n="placeholder_parse_input" placeholder="输入模块格式...">
+                            <button id="btn-tool-parse" class="btn-primary" data-i18n="btn_parse"
+                                style="white-space: nowrap;">解析并添加</button>
+                        </div>
+                        <div id="tool-parse-result"
+                            style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; min-height: 1.2em;">
+                        </div>
+
                         <div class="form-section-title" data-i18n="label_source_settings">来源设置</div>
                         <div class="form-grid">
                             <div class="form-group">
