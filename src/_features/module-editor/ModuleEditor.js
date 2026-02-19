@@ -17,6 +17,7 @@ let currentModules = []; // 当前编辑的模块列表副本
 let currentGlobalSettings = {}; // 当前编辑的全局设置副本
 let selectedModuleId = null; // 记录当前选中的模块 ID
 let activeDetailTab = 'module-detail-settings'; // 记录当前详情页的活动Tab
+let searchTerm = ''; // 搜索关键词
 
 // === 渲染逻辑 ===
 // 拖拽状态变量
@@ -55,6 +56,9 @@ export function initModuleEditor(iframeDocument) {
 
     // 绑定导航事件
     bindNavigationEvents();
+
+    // 绑定侧边栏事件 (搜索和添加)
+    bindSidebarEvents();
 }
 
 function bindHeaderEvents() {
@@ -94,6 +98,43 @@ function bindNavigationEvents() {
     });
 }
 
+function bindSidebarEvents() {
+    const toolbar = doc.querySelector('.module-list-panel .list-toolbar');
+    if (!toolbar) return;
+
+    const searchInput = toolbar.querySelector('input');
+    const addBtn = toolbar.querySelector('button');
+
+    if (searchInput) {
+        // 更新 placeholder
+        searchInput.placeholder = "搜索或输入名称/格式添加...";
+
+        // 绑定搜索输入
+        searchInput.addEventListener('input', (e) => {
+            searchTerm = e.target.value.trim().toLowerCase();
+            renderModuleList();
+        });
+
+        // 绑定回车键添加
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && addBtn) {
+                addBtn.click();
+            }
+        });
+    }
+
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            const inputValue = searchInput ? searchInput.value.trim() : '';
+            if (searchInput) {
+                searchInput.value = '';
+                searchTerm = '';
+            }
+            handleSmartAdd(inputValue);
+        });
+    }
+}
+
 /**
  * 渲染模块列表
  */
@@ -105,6 +146,15 @@ function renderModuleList() {
     const section = 'module_editor';
 
     currentModules.forEach((mod, index) => {
+        // 搜索过滤
+        if (searchTerm) {
+            const name = (mod.name || '').toLowerCase();
+            const displayName = (mod.displayName || '').toLowerCase();
+            if (!name.includes(searchTerm) && !displayName.includes(searchTerm)) {
+                return;
+            }
+        }
+
         const item = doc.createElement('div');
         item.className = 'module-list-item';
         item.setAttribute('draggable', 'true'); // 启用拖拽
@@ -180,28 +230,6 @@ function renderModuleList() {
 
         listContainer.appendChild(item);
     });
-
-    // 绑定添加模块按钮 (列表底部的 + 号)
-    const toolbar = listContainer.parentElement.querySelector('.list-toolbar');
-    const addBtn = toolbar.querySelector('button');
-    const searchInput = toolbar.querySelector('input');
-
-    // 更新 placeholder 提示用户功能
-    if (searchInput) {
-        searchInput.placeholder = "搜索或输入名称/格式添加...";
-    }
-
-    if (addBtn) {
-        // 移除旧监听器 (简单粗暴的方法是克隆节点，或者确保只绑定一次)
-        const newAddBtn = addBtn.cloneNode(true);
-        addBtn.parentNode.replaceChild(newAddBtn, addBtn);
-
-        newAddBtn.addEventListener('click', () => {
-            const inputValue = searchInput ? searchInput.value.trim() : '';
-            handleSmartAdd(inputValue);
-            if (searchInput) searchInput.value = ''; // 添加后清空
-        });
-    }
 }
 
 /**
