@@ -62,13 +62,6 @@ export function initModuleEditor(iframeDocument) {
 }
 
 function bindHeaderEvents() {
-    const themeSelect = doc.getElementById('theme-select');
-    if (themeSelect) {
-        themeSelect.addEventListener('change', (e) => {
-            doc.documentElement.setAttribute('data-theme', e.target.value);
-        });
-    }
-
     const saveBtn = doc.getElementById('header-save-btn');
     if (saveBtn) {
         // 移除旧的监听器（如果有）

@@ -600,6 +600,29 @@ section.module-detail-panel {
     .toolbox-container {
         padding: 15px;
     }
+
+    /* 移动端头部优化 */
+    .header-title span {
+        display: none;
+        /* 隐藏长标题 */
+    }
+
+    .header-title:before {
+        content: "CCore";
+        /* 显示简写 */
+    }
+
+    .header-title small {
+        /*display: none; !* 隐藏版本号 *!*/
+    }
+
+    .header-actions button {
+        padding: 4px 8px !important;
+        /* 减小按钮内边距 */
+        font-size: 12px !important;
+        white-space: nowrap;
+        /* 防止文字换行 */
+    }
 }
 
 /* === 提取的通用样式 === */

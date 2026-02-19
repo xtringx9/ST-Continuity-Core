@@ -85,6 +85,14 @@ export function renderGlobalSettings(doc, settings) {
                 <div class="form-section-title">${i18n.t('title_other_settings', section)}</div>
 
                 <div class="form-group">
+                    <label>${i18n.t('label_theme', section)}</label>
+                    <select id="global-theme-select">
+                        <option value="light">${i18n.t('option_theme_light', section)}</option>
+                        <option value="dark">${i18n.t('option_theme_dark', section)}</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label>${i18n.t('label_time_format', section)}</label>
                     <input type="text" id="global-time-format" value="${settings.timeFormat || ''}">
                 </div>
@@ -119,4 +127,13 @@ export function renderGlobalSettings(doc, settings) {
         el.addEventListener('input', updateGlobalSettings);
         el.addEventListener('change', updateGlobalSettings);
     });
+
+    // 绑定主题切换
+    const themeSelect = doc.getElementById('global-theme-select');
+    if (themeSelect) {
+        themeSelect.value = doc.documentElement.getAttribute('data-theme') || 'light';
+        themeSelect.addEventListener('change', (e) => {
+            doc.documentElement.setAttribute('data-theme', e.target.value);
+        });
+    }
 }
