@@ -241,15 +241,18 @@ function renderModuleDetail(module, index) {
 
                     <div class="form-group">
                         <label>${i18n.t('label_output_pos', section)}</label>
-                        <select id="edit-output-pos">
-                            <option value="after_body" ${module.outputPosition === 'after_body' ? 'selected' : ''}>正文后输出</option>
-                            <option value="body" ${module.outputPosition === 'body' ? 'selected' : ''}>正文内输出</option>
-                            <option value="body_start" ${module.outputPosition === 'body_start' ? 'selected' : ''}>正文内开头</option>
-                            <option value="body_end" ${module.outputPosition === 'body_end' ? 'selected' : ''}>正文内结尾</option>
-                            <option value="body_surround" ${module.outputPosition === 'body_surround' ? 'selected' : ''}>正文内首末</option>
-                            <option value="specific_position" ${module.outputPosition === 'specific_position' ? 'selected' : ''}>正文内特定位置</option>
-                            <option value="embedded" ${module.outputPosition === 'embedded' ? 'selected' : ''}>可嵌入</option>
-                        </select>
+                        <div style="display: flex; gap: 10px; flex: 1;">
+                            <select id="edit-output-pos" style="flex: 1;">
+                                <option value="after_body" ${module.outputPosition === 'after_body' ? 'selected' : ''}>正文后输出</option>
+                                <option value="body" ${module.outputPosition === 'body' ? 'selected' : ''}>正文内输出</option>
+                                <option value="body_start" ${module.outputPosition === 'body_start' ? 'selected' : ''}>正文内开头</option>
+                                <option value="body_end" ${module.outputPosition === 'body_end' ? 'selected' : ''}>正文内结尾</option>
+                                <option value="body_surround" ${module.outputPosition === 'body_surround' ? 'selected' : ''}>正文内首末</option>
+                                <option value="specific_position" ${module.outputPosition === 'specific_position' ? 'selected' : ''}>正文内特定位置</option>
+                                <option value="embedded" ${module.outputPosition === 'embedded' ? 'selected' : ''}>可嵌入</option>
+                            </select>
+                            <input type="text" id="edit-prompt-position" value="${module.positionPrompt || ''}" placeholder="${i18n.t('label_prompt_position', section)}" style="flex: 1; display: none;">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -304,11 +307,6 @@ function renderModuleDetail(module, index) {
                     <div class="form-group form-full-width">
                         <label>${i18n.t('label_prompt_usage', section)}</label>
                         <textarea id="edit-prompt-content" rows="2">${module.contentPrompt || ''}</textarea>
-                    </div>
-
-                    <div class="form-group form-full-width">
-                        <label>${i18n.t('label_prompt_position', section)}</label>
-                        <textarea id="edit-prompt-position" rows="2">${module.positionPrompt || ''}</textarea>
                     </div>
 
                     <!-- 样式设置 -->
@@ -373,17 +371,28 @@ function renderModuleDetail(module, index) {
     const itemMinInput = doc.getElementById('edit-item-min');
     const itemMaxInput = doc.getElementById('edit-item-max');
 
+    // 处理 Output Position 联动
+    const outputPosSelect = doc.getElementById('edit-output-pos');
+    const positionPromptInput = doc.getElementById('edit-prompt-position');
+
     const updateRangeInputs = () => {
         const mode = rangeModeSelect.value;
         itemMinInput.style.display = mode === 'range' ? 'block' : 'none';
         itemMaxInput.style.display = (mode === 'specified' || mode === 'range') ? 'block' : 'none';
     };
 
+    const updateOutputPosInputs = () => {
+        const pos = outputPosSelect.value;
+        positionPromptInput.style.display = pos === 'specific_position' ? 'block' : 'none';
+    };
+
     // 初始化状态
     updateRangeInputs();
+    updateOutputPosInputs();
 
     // 绑定变更事件
     rangeModeSelect.addEventListener('change', updateRangeInputs);
+    outputPosSelect.addEventListener('change', updateOutputPosInputs);
 
     // === 实时数据更新逻辑 ===
     const updateModuleData = () => {
