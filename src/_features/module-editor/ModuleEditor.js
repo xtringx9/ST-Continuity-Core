@@ -522,10 +522,10 @@ function renderVariableList(module, container) {
                     <label>${i18n.t('label_compatible_variables', section)}</label>
                     <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="兼容变量名A...">
                 </div>
-            </div>
-            <div class="form-group" style="margin-bottom: 10px;">
-                <label style="font-size: 12px; color: var(--text-secondary); width: auto; margin-right: 6px;">${i18n.t('label_var_display_name', section)}</label>
-                <input type="text" class="var-display-name" value="${variable.displayName || ''}" style="flex: 1;">
+                <div class="compact-input-group var-display-name-group">
+                    <label>${i18n.t('label_var_display_name', section)}</label>
+                    <input type="text" class="var-display-name" value="${variable.displayName || ''}">
+                </div>
             </div>
 
             <div class="variable-toggles">
