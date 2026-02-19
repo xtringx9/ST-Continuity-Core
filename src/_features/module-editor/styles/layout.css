@@ -305,8 +305,8 @@ section.module-detail-panel {
 }
 
 .form-group label {
-    width: 50px;
-    min-width: 50px;
+    width: 60px;
+    min-width: 60px;
     margin-right: 8px;
     margin-bottom: 0 !important;
     /* 覆盖可能的内联样式 */
