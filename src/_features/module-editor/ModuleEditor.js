@@ -301,7 +301,7 @@ function renderModuleDetail(module, index) {
 
                     <div class="form-group form-full-width">
                         <label>${i18n.t('label_prompt_gen', section)}</label>
-                        <textarea id="edit-prompt" rows="3">${module.prompt || ''}</textarea>
+                        <textarea id="edit-prompt" rows="2">${module.prompt || ''}</textarea>
                     </div>
 
                     <div class="form-group form-full-width">
