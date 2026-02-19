@@ -66,9 +66,11 @@ export function renderToolbox(doc, currentModules) {
         const label = doc.createElement('label');
         label.className = 'toolbox-item';
 
+        const displayLabel = mod.displayName ? `${mod.displayName} (${mod.name})` : mod.name;
+
         label.innerHTML = `
             <input type="checkbox" value="${mod.name}" data-enabled="${mod.enabled}" class="toolbox-checkbox">
-            <span>${mod.displayName || mod.name}</span>
+            <span>${displayLabel}</span>
         `;
 
         listContainer.appendChild(label);
