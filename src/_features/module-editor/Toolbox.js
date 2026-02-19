@@ -67,12 +67,45 @@ export function renderToolbox(doc, currentModules) {
         label.className = 'toolbox-item';
 
         label.innerHTML = `
-            <input type="checkbox" value="${mod.name}" checked class="toolbox-checkbox">
+            <input type="checkbox" value="${mod.name}" data-enabled="${mod.enabled}" class="toolbox-checkbox">
             <span>${mod.displayName || mod.name}</span>
         `;
 
         listContainer.appendChild(label);
     });
+
+    // 绑定选择辅助按钮
+    const btnSelectAll = doc.getElementById('btn-tool-select-all');
+    if (btnSelectAll) {
+        const newBtn = btnSelectAll.cloneNode(true);
+        btnSelectAll.parentNode.replaceChild(newBtn, btnSelectAll);
+        newBtn.addEventListener('click', () => {
+            const checkboxes = listContainer.querySelectorAll('.toolbox-checkbox');
+            checkboxes.forEach(cb => cb.checked = true);
+        });
+    }
+
+    const btnSelectNone = doc.getElementById('btn-tool-select-none');
+    if (btnSelectNone) {
+        const newBtn = btnSelectNone.cloneNode(true);
+        btnSelectNone.parentNode.replaceChild(newBtn, btnSelectNone);
+        newBtn.addEventListener('click', () => {
+            const checkboxes = listContainer.querySelectorAll('.toolbox-checkbox');
+            checkboxes.forEach(cb => cb.checked = false);
+        });
+    }
+
+    const btnSelectEnabled = doc.getElementById('btn-tool-select-enabled');
+    if (btnSelectEnabled) {
+        const newBtn = btnSelectEnabled.cloneNode(true);
+        btnSelectEnabled.parentNode.replaceChild(newBtn, btnSelectEnabled);
+        newBtn.addEventListener('click', () => {
+            const checkboxes = listContainer.querySelectorAll('.toolbox-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = (cb.dataset.enabled === 'true');
+            });
+        });
+    }
 
     // 绑定提取按钮 (Mock 演示)
     const btnExtract = doc.getElementById('btn-extract');

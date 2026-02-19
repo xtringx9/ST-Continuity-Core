@@ -111,7 +111,10 @@ const resources = {
             "option_preview_prompt": "完整提示词 (Prompt)",
             "option_preview_order": "顺序提示词 (Order)",
             "option_preview_usage": "使用指导 (Usage)",
-            "option_preview_data": "模块数据 (Data)"
+            "option_preview_data": "模块数据 (Data)",
+            "btn_select_all": "全选",
+            "btn_select_none": "清空",
+            "btn_select_enabled": "仅启用"
         }
         // 未来可以添加其他模块的翻译，例如 "settings": { ... }
     },
@@ -223,7 +226,10 @@ const resources = {
             "option_preview_prompt": "Full Prompt",
             "option_preview_order": "Order Prompt",
             "option_preview_usage": "Usage Guide",
-            "option_preview_data": "Module Data"
+            "option_preview_data": "Module Data",
+            "btn_select_all": "Select All",
+            "btn_select_none": "Clear",
+            "btn_select_enabled": "Enabled Only"
         }
     }
 };

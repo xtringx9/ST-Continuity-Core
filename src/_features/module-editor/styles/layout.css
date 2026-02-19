@@ -755,11 +755,6 @@ section.module-detail-panel {
     min-width: 0;
 }
 
-.var-name-group,
-.var-display-name-group {
-    /* Flex handles sizing */
-}
-
 .compact-input-group label {
     font-size: 12px;
     color: var(--text-secondary);
