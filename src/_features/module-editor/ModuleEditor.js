@@ -233,23 +233,23 @@ function renderModuleDetail(module, index) {
 
                     <div class="form-group form-full-width">
                         <label>${i18n.t('label_compatible_modules', section)}</label>
-                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="兼容模块名A,兼容模块名B...">
+                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="${i18n.t('placeholder_compatible_modules', section)}">
                     </div>
 
                     <!-- 行为设置 -->
-                    <div class="form-section-title">行为设置</div>
+                    <div class="form-section-title">${i18n.t('title_behavior_settings', section)}</div>
 
                     <div class="form-group">
                         <label>${i18n.t('label_output_pos', section)}</label>
                         <div style="display: flex; gap: 10px; flex: 1;">
                             <select id="edit-output-pos" style="flex: 1;">
-                                <option value="after_body" ${module.outputPosition === 'after_body' ? 'selected' : ''}>正文后输出</option>
-                                <option value="body" ${module.outputPosition === 'body' ? 'selected' : ''}>正文内输出</option>
-                                <option value="body_start" ${module.outputPosition === 'body_start' ? 'selected' : ''}>正文内开头</option>
-                                <option value="body_end" ${module.outputPosition === 'body_end' ? 'selected' : ''}>正文内结尾</option>
-                                <option value="body_surround" ${module.outputPosition === 'body_surround' ? 'selected' : ''}>正文内首末</option>
-                                <option value="specific_position" ${module.outputPosition === 'specific_position' ? 'selected' : ''}>正文内特定位置</option>
-                                <option value="embedded" ${module.outputPosition === 'embedded' ? 'selected' : ''}>可嵌入</option>
+                                <option value="after_body" ${module.outputPosition === 'after_body' ? 'selected' : ''}>${i18n.t('option_after_body', section)}</option>
+                                <option value="body" ${module.outputPosition === 'body' ? 'selected' : ''}>${i18n.t('option_body', section)}</option>
+                                <option value="body_start" ${module.outputPosition === 'body_start' ? 'selected' : ''}>${i18n.t('option_body_start', section)}</option>
+                                <option value="body_end" ${module.outputPosition === 'body_end' ? 'selected' : ''}>${i18n.t('option_body_end', section)}</option>
+                                <option value="body_surround" ${module.outputPosition === 'body_surround' ? 'selected' : ''}>${i18n.t('option_body_surround', section)}</option>
+                                <option value="specific_position" ${module.outputPosition === 'specific_position' ? 'selected' : ''}>${i18n.t('option_specific_position', section)}</option>
+                                <option value="embedded" ${module.outputPosition === 'embedded' ? 'selected' : ''}>${i18n.t('option_embedded', section)}</option>
                             </select>
                             <input type="text" id="edit-prompt-position" value="${module.positionPrompt || ''}" placeholder="${i18n.t('label_prompt_position', section)}" style="flex: 1; display: none;">
                         </div>
@@ -258,8 +258,8 @@ function renderModuleDetail(module, index) {
                     <div class="form-group">
                         <label>${i18n.t('label_output_mode', section)}</label>
                         <select id="edit-output-mode">
-                            <option value="full" ${module.outputMode === 'full' ? 'selected' : ''}>全量输出</option>
-                            <option value="incremental" ${module.outputMode === 'incremental' ? 'selected' : ''}>增量更新</option>
+                            <option value="full" ${module.outputMode === 'full' ? 'selected' : ''}>${i18n.t('option_full', section)}</option>
+                            <option value="incremental" ${module.outputMode === 'incremental' ? 'selected' : ''}>${i18n.t('option_incremental', section)}</option>
                         </select>
                     </div>
 
@@ -267,9 +267,9 @@ function renderModuleDetail(module, index) {
                         <label>${i18n.t('label_range_mode', section)}</label>
                         <div style="display: flex; gap: 10px;">
                             <select id="edit-range-mode" style="flex: 1; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
-                                <option value="unlimited" ${module.rangeMode === 'unlimited' ? 'selected' : ''}>无限制</option>
-                                <option value="specified" ${module.rangeMode === 'specified' ? 'selected' : ''}>指定数量</option>
-                                <option value="range" ${module.rangeMode === 'range' ? 'selected' : ''}>指定范围</option>
+                                <option value="unlimited" ${module.rangeMode === 'unlimited' ? 'selected' : ''}>${i18n.t('option_unlimited', section)}</option>
+                                <option value="specified" ${module.rangeMode === 'specified' ? 'selected' : ''}>${i18n.t('option_specified', section)}</option>
+                                <option value="range" ${module.rangeMode === 'range' ? 'selected' : ''}>${i18n.t('option_range', section)}</option>
                             </select>
                             <input type="number" id="edit-item-min" value="${module.itemMin || 0}" placeholder="${i18n.t('label_item_min', section)}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
                             <input type="number" id="edit-item-max" value="${module.itemMax || 1}" placeholder="${i18n.t('label_item_max', section)}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
@@ -292,7 +292,7 @@ function renderModuleDetail(module, index) {
                     </div>
 
                     <!-- 提示词设置 -->
-                    <div class="form-section-title">提示词配置</div>
+                    <div class="form-section-title">${i18n.t('title_prompt_config', section)}</div>
 
                     <div class="form-group form-full-width">
                         <label>${i18n.t('label_prompt_timing', section)}</label>
@@ -310,8 +310,12 @@ function renderModuleDetail(module, index) {
                     </div>
 
                     <!-- 样式设置 -->
-                    <div class="form-section-title">样式配置</div>
+                    <div class="form-section-title">${i18n.t('title_style_config', section)}</div>
 
+                    <div class="form-group form-full-width">
+                        <label>${i18n.t('label_styles_custom', section)}</label>
+                        <textarea id="edit-styles-custom" rows="2">${module.customStyles || ''}</textarea>
+                    </div>
                     <div class="form-group form-full-width">
                         <label>${i18n.t('label_styles_container', section)}</label>
                         <textarea id="edit-styles-container" rows="2">${module.stylesContainer || ''}</textarea>
@@ -319,10 +323,6 @@ function renderModuleDetail(module, index) {
                     <div class="form-group form-full-width">
                         <label>${i18n.t('label_styles_external', section)}</label>
                         <textarea id="edit-styles-external" rows="2">${module.externalStyles || ''}</textarea>
-                    </div>
-                    <div class="form-group form-full-width">
-                        <label>${i18n.t('label_styles_custom', section)}</label>
-                        <textarea id="edit-styles-custom" rows="2">${module.customStyles || ''}</textarea>
                     </div>
                 </div>
             </div>
@@ -560,7 +560,7 @@ function renderVariableList(module, container) {
                 </div>
                 <div class="form-group">
                     <label>${i18n.t('label_compatible_variables', section)}</label>
-                    <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="兼容变量名A...">
+                    <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="${i18n.t('placeholder_compatible_vars', section)}">
                 </div>
                 <div class="form-group var-hide-values-group" style="display: ${variable.isHideCondition ? 'flex' : 'none'};">
                     <label>${i18n.t('label_var_hide_values', section)}</label>
@@ -771,6 +771,7 @@ function deleteModule(index) {
 function renderToolbox() {
     debugLog("renderToolbox: 初始化工具箱界面");
     const container = doc.getElementById('tool-module-list');
+    const section = 'module_editor';
     if (!container) {
         errorLog("renderToolbox: 未找到 tool-module-list 容器");
         return;
@@ -813,6 +814,7 @@ function renderToolbox() {
     const btnDebugCache = doc.getElementById('btn-debug-cache');
     if (btnDebugCache) {
         const newBtn = btnDebugCache.cloneNode(true);
+        newBtn.textContent = i18n.t('btn_debug_cache', section);
         btnDebugCache.parentNode.replaceChild(newBtn, btnDebugCache);
 
         newBtn.addEventListener('click', () => {
@@ -828,6 +830,7 @@ function renderToolbox() {
     const btnDebugConfig = doc.getElementById('btn-debug-config');
     if (btnDebugConfig) {
         const newBtn = btnDebugConfig.cloneNode(true);
+        newBtn.textContent = i18n.t('btn_debug_config', section);
         btnDebugConfig.parentNode.replaceChild(newBtn, btnDebugConfig);
 
         newBtn.addEventListener('click', () => {
@@ -843,6 +846,7 @@ function renderToolbox() {
     const btnDebugContext = doc.getElementById('btn-debug-context');
     if (btnDebugContext) {
         const newBtn = btnDebugContext.cloneNode(true);
+        newBtn.textContent = i18n.t('btn_debug_context', section);
         btnDebugContext.parentNode.replaceChild(newBtn, btnDebugContext);
 
         newBtn.addEventListener('click', () => {
@@ -857,6 +861,16 @@ function renderToolbox() {
     } else {
         errorLog("renderToolbox: 未找到 btn-debug-context");
     }
+
+    // 翻译工具箱标题
+    const debugTitle = doc.querySelector('.toolbox-container .form-section-title');
+    if (debugTitle) debugTitle.textContent = i18n.t('title_debug_tools', section);
+
+    // 翻译楼层输入框 placeholder
+    const floorEndInput = doc.getElementById('tool-floor-end');
+    if (floorEndInput) floorEndInput.placeholder = i18n.t('placeholder_latest', section);
+
+
 }
 
 /**
@@ -872,78 +886,78 @@ function renderGlobalSettings() {
     container.innerHTML = `
         <div class="detail-content">
             <div class="settings-container">
-                <div class="form-section-title">标签设置</div>
+                <div class="form-section-title">${i18n.t('title_tag_settings', section)}</div>
                 
                 <div class="form-grid">
                     <div class="form-group">
                         <label>${i18n.t('label_module_tag', section)}</label>
-                        <input type="text" id="global-module-tag" value="${settings.moduleTag || 'module'}" placeholder="默认为 module">
+                        <input type="text" id="global-module-tag" value="${settings.moduleTag || 'module'}" placeholder="${i18n.t('placeholder_default_module', section)}">
                     </div>
                     <div class="form-group">
                         <label>${i18n.t('label_module_update_tag', section)}</label>
-                        <input type="text" id="global-module-update-tag" value="${settings.moduleUpdateTag || 'module_update'}" placeholder="默认为 module_update">
+                        <input type="text" id="global-module-update-tag" value="${settings.moduleUpdateTag || 'module_update'}" placeholder="${i18n.t('placeholder_default_module_update', section)}">
                     </div>
                     <div class="form-group">
                         <label>${i18n.t('label_compatible_module_tags', section)}</label>
-                        <input type="text" id="global-compatible-module-tags" value="${(settings.compatibleModuleTags || []).join(',')}" placeholder="兼容更新标签A,兼容更新标签B,...">
+                        <input type="text" id="global-compatible-module-tags" value="${(settings.compatibleModuleTags || []).join(',')}" placeholder="${i18n.t('placeholder_compatible_module_tags', section)}">
                     </div>
                     <div class="form-group">
                         <label>${i18n.t('label_cot_tags', section)}</label>
-                        <input type="text" id="global-cot-tags" value="${(settings.cotTags || []).join(',')}" placeholder="标签A,标签B,...">
+                        <input type="text" id="global-cot-tags" value="${(settings.cotTags || []).join(',')}" placeholder="${i18n.t('placeholder_tags', section)}">
                     </div>
                     <div class="form-group">
                         <label>${i18n.t('label_content_tag', section)}</label>
-                        <input type="text" id="global-content-tag" value="${(settings.contentTag || []).join(',')}" placeholder="标签A,标签B,...">
+                        <input type="text" id="global-content-tag" value="${(settings.contentTag || []).join(',')}" placeholder="${i18n.t('placeholder_tags', section)}">
                     </div>
                     <div class="form-group">
                         <label>${i18n.t('label_content_remain_layers', section)}</label>
-                        <input type="number" id="global-content-remain-layers" value="${settings.contentRemainLayers !== undefined ? settings.contentRemainLayers : 6}" placeholder="保留正文层数 min=0">
+                        <input type="number" id="global-content-remain-layers" value="${settings.contentRemainLayers !== undefined ? settings.contentRemainLayers : 6}" placeholder="${i18n.t('placeholder_content_remain_layers', section)}">
                     </div>
                 </div>
 
-                <div class="form-section-title">全局提示词配置</div>
+                <div class="form-section-title">${i18n.t('title_global_prompt_config', section)}</div>
                 
                 <div class="form-group form-full-width">
-                    <label>{{CONTINUITY_PROMPT}}顶部提示词</label>
-                    <textarea id="global-prompt" rows="3" placeholder="该提示词将会放在{{CONTINUITY_PROMPT}}顶部">${settings.prompt || ''}</textarea>
+                    <label>${i18n.t('label_global_prompt', section)}</label>
+                    <textarea id="global-prompt" rows="3" placeholder="${i18n.t('placeholder_global_prompt', section)}">${settings.prompt || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label>{{CONTINUITY_ORDER}}顶部提示词</label>
-                    <textarea id="global-order-prompt" rows="3" placeholder="该提示词将会放在{{CONTINUITY_ORDER}}顶部">${settings.orderPrompt || ''}</textarea>
+                    <label>${i18n.t('label_global_order_prompt', section)}</label>
+                    <textarea id="global-order-prompt" rows="3" placeholder="${i18n.t('placeholder_global_order_prompt', section)}">${settings.orderPrompt || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label>{{CONTINUITY_USAGE_GUIDE}}顶部提示词</label>
-                    <textarea id="global-usage-prompt" rows="3" placeholder="该提示词将会放在{{CONTINUITY_USAGE_GUIDE}}顶部">${settings.usagePrompt || ''}</textarea>
+                    <label>${i18n.t('label_global_usage_prompt', section)}</label>
+                    <textarea id="global-usage-prompt" rows="3" placeholder="${i18n.t('placeholder_global_usage_prompt', section)}">${settings.usagePrompt || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label>{{CONTINUITY_MODULE_DATA}}顶部提示词</label>
-                    <textarea id="global-module-data-prompt" rows="3" placeholder="该提示词将会放在{{CONTINUITY_MODULE_DATA}}顶部">${settings.moduleDataPrompt || ''}</textarea>
+                    <label>${i18n.t('label_global_module_data_prompt', section)}</label>
+                    <textarea id="global-module-data-prompt" rows="3" placeholder="${i18n.t('placeholder_global_module_data_prompt', section)}">${settings.moduleDataPrompt || ''}</textarea>
                 </div>
 
-                <div class="form-section-title">全局样式配置</div>
+                <div class="form-section-title">${i18n.t('title_global_style_config', section)}</div>
 
                 <div class="form-group form-full-width">
-                    <label>容器样式</label>
-                    <textarea id="global-container-styles" rows="2" placeholder="使用\${customStyles}注入模块样式">${settings.containerStyles || ''}</textarea>
-                </div>
-
-                <div class="form-group form-full-width">
-                    <label>外部样式</label>
-                    <textarea id="global-external-styles" rows="2" placeholder="使用\${customStyles}注入模块样式">${settings.externalStyles || ''}</textarea>
+                    <label>${i18n.t('label_global_container_styles', section)}</label>
+                    <textarea id="global-container-styles" rows="2" placeholder="${i18n.t('placeholder_inject_styles', section)}">${settings.containerStyles || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label>底部样式</label>
-                    <textarea id="global-bottom-styles" rows="2" placeholder="使用\${customStyles}注入模块样式">${settings.bottomStyles || ''}</textarea>
+                    <label>${i18n.t('label_global_external_styles', section)}</label>
+                    <textarea id="global-external-styles" rows="2" placeholder="${i18n.t('placeholder_inject_styles', section)}">${settings.externalStyles || ''}</textarea>
                 </div>
 
-                <div class="form-section-title">其他设置</div>
+                <div class="form-group form-full-width">
+                    <label>${i18n.t('label_global_bottom_styles', section)}</label>
+                    <textarea id="global-bottom-styles" rows="2" placeholder="${i18n.t('placeholder_inject_styles', section)}">${settings.bottomStyles || ''}</textarea>
+                </div>
+
+                <div class="form-section-title">${i18n.t('title_other_settings', section)}</div>
 
                 <div class="form-group">
-                    <label>时间格式</label>
+                    <label>${i18n.t('label_time_format', section)}</label>
                     <input type="text" id="global-time-format" value="${settings.timeFormat || ''}">
                 </div>
 
