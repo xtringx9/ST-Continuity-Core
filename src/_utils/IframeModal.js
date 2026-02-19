@@ -1,10 +1,10 @@
 // src/_utils/IframeModal.js
 
 export class IframeModal {
-    constructor() {
-        this.modalId = 'st-continuity-iframe-modal';
-        this.iframeId = 'st-continuity-iframe';
-        this.containerClass = 'st-continuity-iframe-container';
+    constructor(options = {}) {
+        this.modalId = options.modalId || 'st-continuity-iframe-modal';
+        this.iframeId = options.iframeId || 'st-continuity-iframe';
+        this.containerClass = options.containerClass || 'st-continuity-iframe-container';
         this.backdrop = null;
     }
 

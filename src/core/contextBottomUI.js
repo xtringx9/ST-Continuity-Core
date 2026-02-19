@@ -44,6 +44,66 @@ function injectHtmlWithScript(targetElement, htmlString, clearContainer = false)
 }
 
 /**
+ * 将HTML内容注入到容器内的Iframe中
+ * @param {HTMLElement} container 容器元素
+ * @param {string} htmlString HTML内容
+ */
+function injectHtmlToIframe(container, htmlString) {
+    // 确保容器是DOM元素
+    const domNode = container.jquery ? container[0] : container;
+
+    // 查找或创建iframe
+    let iframe = domNode.querySelector('iframe');
+    if (!iframe) {
+        domNode.innerHTML = ''; // 清空容器
+        iframe = document.createElement('iframe');
+        // 设置基本样式
+        Object.assign(iframe.style, {
+            width: '100%',
+            border: 'none',
+            overflow: 'hidden',
+            display: 'block',
+            backgroundColor: 'transparent'
+        });
+        // 移除默认边框等
+        iframe.setAttribute('frameborder', '0');
+        iframe.setAttribute('scrolling', 'no');
+
+        domNode.appendChild(iframe);
+    }
+
+    // 自动调整高度的脚本
+    const resizeScript = `
+    <script>
+        function updateHeight() {
+            const body = document.body;
+            const html = document.documentElement;
+            const height = Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight);
+            if (window.frameElement) {
+                window.frameElement.style.height = height + 'px';
+            }
+        }
+        const observer = new ResizeObserver(updateHeight);
+        observer.observe(document.body);
+        document.addEventListener('toggle', () => setTimeout(updateHeight, 50), true);
+        window.addEventListener('load', updateHeight);
+        window.addEventListener('resize', updateHeight);
+    </script>`;
+
+    const fullHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head><link rel="stylesheet" href="./scripts/extensions/third-party/ST-Continuity-Core/assets/css/context-bottom-ui.css"></head>
+    <body style="margin:0;padding:0;background:transparent;">${htmlString}${resizeScript}</body>
+    </html>`;
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(fullHtml);
+    doc.close();
+}
+
+/**
  * 加载外部CSS样式文件
  */
 function loadContextUICSS() {
@@ -266,7 +326,7 @@ export async function updateUItoMsgBottom() {
                 finalString += containerStyles.replace('${customStyles}', internalString);
             }
             finalString = finalString.replace('${mesid}', messageIndex);
-            injectHtmlWithScript(container, finalString);
+            injectHtmlToIframe(container, finalString);
         }
 
         isUpdatingMsgUI = false;
@@ -412,7 +472,7 @@ export async function updateUItoContextBottom() {
         let finalString = configManager.getGlobalSettings().bottomStyles || '<!-- 上下文底部UI模板 - 竖向按钮版本 -->\n            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">\n                <details class="bottom-summary">\n                    <summary class="summary-title">Modules</summary>\n                    <div class="modules-content-container">${customStyles}</div>\n                </details>\n            </div>';
         finalString = finalString.replace('${customStyles}', resultString);
         // container.innerHTML = finalString;
-        injectHtmlWithScript(container, finalString);
+        injectHtmlToIframe(container, finalString);
 
         isUpdatingContextBottomUI = false;
         return true;
