@@ -292,6 +292,7 @@ section.module-detail-panel {
     overflow-y: auto;
     width: 100%;
     padding: 0;
+    scrollbar-gutter: stable;
     /* 移除内边距，由子容器控制 */
 }
 
@@ -405,6 +406,8 @@ section.module-detail-panel {
     /* 负边距抵消容器内边距 */
     padding: 0 20px;
     /* 移除顶部padding */
+    height: 40px;
+    /* 固定高度，方便后续元素定位 */
 }
 
 .detail-tab-item {
@@ -436,6 +439,12 @@ section.module-detail-panel {
     display: block;
 }
 
+/* 保存成功的绿色状态 */
+.btn-primary.saved {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+}
+
 .btn-sticky-save.saved {
     background-color: #4CAF50;
     border-color: #4CAF50;
@@ -464,6 +473,22 @@ section.module-detail-panel {
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--text-primary);
+}
+
+/* 变量管理页面的粘性头部 */
+.variable-sticky-header {
+    position: sticky;
+    top: 40px;
+    /* 紧贴在 detail-tabs (40px) 下方 */
+    z-index: 9;
+    background-color: var(--bg-app);
+    margin: 0 -20px 10px -20px !important;
+    /* 负边距延伸背景，覆盖滚动内容 */
+    padding: 0 20px 5px 20px;
+    /* 增加内边距保持美观 */
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
 }
 
 .btn-delete-small {

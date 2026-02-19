@@ -5,15 +5,15 @@
 const resources = {
     "zh-CN": {
         "module_editor": {
-            "nav_modules": "模块定义",
-            "nav_profiles": "角色覆盖",
+            "nav_modules": "模块配置",
+            "nav_profiles": "角色绑定",
             "nav_tools": "工具箱",
             "nav_settings": "全局设置",
             "tag_external": "外部显示",
             "tag_time_ref": "时间基准",
             "tag_disabled": "已禁用",
             "search_placeholder": "搜索模块...",
-            "title_edit_module": "编辑模块",
+            "title_edit_module": "名称配置",
             "label_name": "模块名称",
             "label_display_name": "显示名称",
             "label_description": "描述",

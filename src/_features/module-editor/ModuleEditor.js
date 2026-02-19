@@ -328,7 +328,7 @@ function renderModuleDetail(module, index) {
 
             <!-- Tab Panel: Variables -->
             <div id="module-detail-variables" class="detail-tab-panel ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}">
-                <div class="form-section-title section-header">
+                <div class="form-section-title section-header variable-sticky-header">
                     <span>${i18n.t('title_variables', section)}</span>
                     <button id="btn-add-variable" class="btn-secondary">
                         + ${i18n.t('btn_add_variable', section)}
@@ -862,11 +862,6 @@ function renderGlobalSettings() {
 
     container.innerHTML = `
         <div class="detail-content">
-            <div class="detail-tabs no-tabs">
-                <div class="sticky-title-group">
-                    <span class="sticky-module-name">全局设置</span>
-                </div>
-            </div>
             <div class="settings-container">
                 <div class="form-section-title">标签设置</div>
                 
@@ -994,10 +989,12 @@ function saveAll() {
         if (btn.dataset.saving === 'true') return;
         btn.dataset.saving = 'true';
         btn.textContent = "✔ 已保存";
+        btn.classList.add('saved'); // 添加绿色样式
 
         setTimeout(() => {
             btn.textContent = "保存";
             btn.dataset.saving = 'false';
+            btn.classList.remove('saved'); // 移除绿色样式
         }, 1000);
     }
 }
