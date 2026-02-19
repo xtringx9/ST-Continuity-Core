@@ -21,6 +21,9 @@ export class EntryButton {
         // 移除旧按钮（防止重复或类型切换残留）
         this.remove();
 
+        // 加载模态框所需的 CSS
+        this._loadModalCSS();
+
         // 获取配置
         const config = configManager.getExtensionConfig();
 
@@ -130,6 +133,23 @@ export class EntryButton {
         btn.addEventListener('click', () => this._handleClick());
 
         document.body.appendChild(btn);
+    }
+
+    /**
+     * 加载 IframeModal 所需的 CSS 文件
+     */
+    _loadModalCSS() {
+        const cssId = 'st-continuity-modal-styles';
+        if (document.getElementById(cssId)) {
+            return; // 已加载
+        }
+
+        const link = document.createElement('link');
+        link.id = cssId;
+        link.rel = 'stylesheet';
+        link.href = `${this.extensionPath}/src/_features/module-editor/styles/modal.css`;
+
+        document.head.appendChild(link);
     }
 
     /**

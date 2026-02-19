@@ -1,0 +1,86 @@
+/* Backdrop */
+.st-continuity-iframe-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100dvw;
+    height: 100dvh;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Container base */
+.st-continuity-iframe-container {
+    width: 100%;
+    height: 100%;
+    background-color: #1a1b1e;
+    /* Corresponds to var(--bg-app) inside the iframe */
+    overflow: hidden;
+    position: relative;
+}
+
+/* --- Variants --- */
+
+/* Drawer Left */
+.st-continuity-iframe-modal-backdrop.drawer-left {
+    justify-content: flex-start;
+    align-items: stretch;
+}
+
+.st-continuity-iframe-modal-backdrop.drawer-left .st-continuity-iframe-container {
+    max-width: 950px;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transform: translateX(-100%);
+}
+
+/* Drawer Right */
+.st-continuity-iframe-modal-backdrop.drawer-right {
+    justify-content: flex-end;
+    align-items: stretch;
+}
+
+.st-continuity-iframe-modal-backdrop.drawer-right .st-continuity-iframe-container {
+    max-width: 950px;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transform: translateX(100%);
+}
+
+/* Center */
+.st-continuity-iframe-modal-backdrop.center {
+    justify-content: center;
+    align-items: center;
+}
+
+.st-continuity-iframe-modal-backdrop.center .st-continuity-iframe-container {
+    width: 90%;
+    height: 90%;
+    max-width: 1400px;
+    max-height: 900px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+    transform: scale(0.95);
+    opacity: 0;
+}
+
+
+/* --- Open/Animation States --- */
+
+.st-continuity-iframe-modal-backdrop.open {
+    opacity: 1;
+}
+
+.st-continuity-iframe-modal-backdrop.open.drawer-left .st-continuity-iframe-container,
+.st-continuity-iframe-modal-backdrop.open.drawer-right .st-continuity-iframe-container {
+    transform: translateX(0);
+}
+
+.st-continuity-iframe-modal-backdrop.open.center .st-continuity-iframe-container {
+    transform: scale(1);
+    opacity: 1;
+}
