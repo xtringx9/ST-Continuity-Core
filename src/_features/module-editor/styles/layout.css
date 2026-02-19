@@ -709,12 +709,12 @@ section.module-detail-panel {
 }
 
 /* 全局设置页面的表单项强制垂直排列 (Label在上) */
-.settings-container .form-group {
+.settings-container:not(.module-detail-view) .form-group {
     flex-direction: column;
     align-items: stretch;
 }
 
-.settings-container .form-group label {
+.settings-container:not(.module-detail-view) .form-group label {
     width: auto;
     min-width: 0;
     margin-bottom: 4px !important;
