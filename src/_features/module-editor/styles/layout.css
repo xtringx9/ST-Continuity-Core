@@ -281,7 +281,7 @@ section.module-detail-panel {
     display: grid;
     grid-template-columns: 1fr 1fr;
     /* 两列布局 */
-    gap: 8px 50px;
+    gap: 6px 20px;
     /* 增加列间距，区分左右两组 */
     margin-bottom: 10px;
 }
