@@ -103,7 +103,15 @@ const resources = {
             "btn_debug_cache": "打印缓存数据",
             "btn_debug_config": "打印配置数据",
             "btn_debug_context": "打印上下文数据",
-            "placeholder_latest": "最新"
+            "placeholder_latest": "最新",
+            "title_prompt_preview": "提示词预览",
+            "label_preview_mode": "预览模式",
+            "btn_refresh": "刷新",
+            "btn_copy": "复制",
+            "option_preview_prompt": "完整提示词 (Prompt)",
+            "option_preview_order": "顺序提示词 (Order)",
+            "option_preview_usage": "使用指导 (Usage)",
+            "option_preview_data": "模块数据 (Data)"
         }
         // 未来可以添加其他模块的翻译，例如 "settings": { ... }
     },
@@ -207,7 +215,15 @@ const resources = {
             "btn_debug_cache": "Print Cache",
             "btn_debug_config": "Print Config",
             "btn_debug_context": "Print Context",
-            "placeholder_latest": "Latest"
+            "placeholder_latest": "Latest",
+            "title_prompt_preview": "Prompt Preview",
+            "label_preview_mode": "Preview Mode",
+            "btn_refresh": "Refresh",
+            "btn_copy": "Copy",
+            "option_preview_prompt": "Full Prompt",
+            "option_preview_order": "Order Prompt",
+            "option_preview_usage": "Usage Guide",
+            "option_preview_data": "Module Data"
         }
     }
 };

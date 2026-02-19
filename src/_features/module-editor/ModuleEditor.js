@@ -8,6 +8,7 @@ import configManager from '../../singleton/configManager.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
 import { getContext } from '../../index.js';
+import { generateFormalPrompt, generateModuleOrderPrompt, generateUsageGuide, generateModuleDataPrompt } from '../../modules/promptGenerator.js';
 
 // === 状态管理 ===
 let currentModules = []; // 当前编辑的模块列表副本
@@ -770,14 +771,54 @@ function deleteModule(index) {
  */
 function renderToolbox() {
     debugLog("renderToolbox: 初始化工具箱界面");
-    const container = doc.getElementById('tool-module-list');
+
     const section = 'module_editor';
-    if (!container) {
+
+    // === 1. 渲染提示词预览 ===
+    const previewContainer = doc.getElementById('tool-prompt-preview-container');
+    if (previewContainer) {
+        previewContainer.innerHTML = '';
+
+        const previewTitle = doc.createElement('div');
+        previewTitle.className = 'form-section-title';
+        previewTitle.textContent = i18n.t('title_prompt_preview', section);
+        previewContainer.appendChild(previewTitle);
+
+        const previewControls = doc.createElement('div');
+        previewControls.className = 'form-group';
+        previewControls.style.display = 'flex';
+        previewControls.style.gap = '10px';
+        previewControls.style.marginBottom = '10px';
+
+        previewControls.innerHTML = `
+            <select id="tool-preview-mode" style="flex: 1;">
+                <option value="prompt">${i18n.t('option_preview_prompt', section)}</option>
+                <option value="order">${i18n.t('option_preview_order', section)}</option>
+                <option value="usage">${i18n.t('option_preview_usage', section)}</option>
+                <option value="data">${i18n.t('option_preview_data', section)}</option>
+            </select>
+            <button id="btn-preview-refresh" class="btn-secondary">${i18n.t('btn_refresh', section)}</button>
+            <button id="btn-preview-copy" class="btn-secondary">${i18n.t('btn_copy', section)}</button>
+        `;
+        previewContainer.appendChild(previewControls);
+
+        const previewTextarea = doc.createElement('textarea');
+        previewTextarea.id = 'tool-preview-content';
+        previewTextarea.className = 'results-textarea';
+        previewTextarea.rows = 8;
+        previewTextarea.readOnly = true;
+        previewContainer.appendChild(previewTextarea);
+
+        bindPreviewEvents();
+    }
+
+    // === 2. 渲染模块选择列表 ===
+    const listContainer = doc.getElementById('tool-module-list');
+    if (!listContainer) {
         errorLog("renderToolbox: 未找到 tool-module-list 容器");
         return;
     }
-
-    container.innerHTML = '';
+    listContainer.innerHTML = '';
 
     currentModules.forEach(mod => {
         const label = doc.createElement('label');
@@ -788,7 +829,7 @@ function renderToolbox() {
             <span>${mod.displayName || mod.name}</span>
         `;
 
-        container.appendChild(label);
+        listContainer.appendChild(label);
     });
 
     // 绑定提取按钮 (Mock 演示)
@@ -801,7 +842,7 @@ function renderToolbox() {
         newBtn.addEventListener('click', () => {
             const start = doc.getElementById('tool-floor-start').value;
             const end = doc.getElementById('tool-floor-end').value || 'Latest';
-            const selected = Array.from(container.querySelectorAll('input:checked')).map(cb => cb.value);
+            const selected = Array.from(listContainer.querySelectorAll('input:checked')).map(cb => cb.value);
 
             const resultArea = doc.getElementById('tool-results');
             resultArea.value = `[模拟提取结果]\n范围: ${start} - ${end}\n选中模块: ${selected.join(', ')}\n\n[summary|content:这是一个模拟的剧情摘要...]\n[inventory|item_name:长剑|count:1]`;
@@ -863,14 +904,41 @@ function renderToolbox() {
     }
 
     // 翻译工具箱标题
-    const debugTitle = doc.querySelector('.toolbox-container .form-section-title');
+    const debugTitle = doc.getElementById('title-debug-tools');
     if (debugTitle) debugTitle.textContent = i18n.t('title_debug_tools', section);
 
     // 翻译楼层输入框 placeholder
     const floorEndInput = doc.getElementById('tool-floor-end');
     if (floorEndInput) floorEndInput.placeholder = i18n.t('placeholder_latest', section);
 
+}
 
+function bindPreviewEvents() {
+    const updatePreview = () => {
+        const mode = doc.getElementById('tool-preview-mode').value;
+        let content = '';
+        try {
+            switch (mode) {
+                case 'prompt': content = generateFormalPrompt(); break;
+                case 'order': content = generateModuleOrderPrompt(); break;
+                case 'usage': content = generateUsageGuide(); break;
+                case 'data': content = generateModuleDataPrompt(); break;
+            }
+        } catch (e) {
+            content = 'Error generating prompt: ' + e.message;
+            errorLog(e);
+        }
+        doc.getElementById('tool-preview-content').value = content;
+    };
+
+    doc.getElementById('btn-preview-refresh').addEventListener('click', updatePreview);
+    doc.getElementById('tool-preview-mode').addEventListener('change', updatePreview);
+
+    doc.getElementById('btn-preview-copy').addEventListener('click', () => {
+        const content = doc.getElementById('tool-preview-content');
+        content.select();
+        navigator.clipboard.writeText(content.value);
+    });
 }
 
 /**

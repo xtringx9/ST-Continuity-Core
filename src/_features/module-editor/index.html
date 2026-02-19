@@ -92,12 +92,15 @@
             <div id="view-tools" class="view-section">
                 <div class="detail-content">
                     <div class="toolbox-container">
-                        <div class="form-section-title">调试工具</div>
+                        <div class="form-section-title" id="title-debug-tools">调试工具</div>
                         <div class="debug-tools">
                             <button id="btn-debug-cache" class="btn-debug">打印缓存数据</button>
                             <button id="btn-debug-config" class="btn-debug">打印配置数据</button>
                             <button id="btn-debug-context" class="btn-debug">打印上下文数据</button>
                         </div>
+
+                        <!-- 提示词预览容器 -->
+                        <div id="tool-prompt-preview-container"></div>
 
                         <div class="form-section-title" data-i18n="label_source_settings">来源设置</div>
                         <div class="form-grid">
