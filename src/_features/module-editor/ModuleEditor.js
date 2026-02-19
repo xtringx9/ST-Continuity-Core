@@ -220,13 +220,13 @@ function renderModuleDetail(module, index) {
                     </div>
 
                     <div class="form-group">
-                        <label>${i18n.t('label_compatible_modules', section)}</label>
-                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="兼容模块名A,兼容模块名B...">
+                        <label>${i18n.t('label_display_name', section)}</label>
+                        <input type="text" id="edit-display-name" value="${module.displayName}">
                     </div>
 
                     <div class="form-group form-full-width">
-                        <label>${i18n.t('label_display_name', section)}</label>
-                        <input type="text" id="edit-display-name" value="${module.displayName}">
+                        <label>${i18n.t('label_compatible_modules', section)}</label>
+                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="兼容模块名A,兼容模块名B...">
                     </div>
 
                     <!-- 行为设置 -->
@@ -506,47 +506,45 @@ function renderVariableList(module, container) {
         item.dataset.index = index;
 
         item.innerHTML = `
-            <button class="btn-delete-variable btn-variable-delete" title="删除变量">✕</button>
             <div class="variable-header-compact">
                 <span class="drag-handle" draggable="true" title="拖拽排序">⋮⋮</span>
                 <label class="toggle-switch" title="启用/禁用">
                     <input type="checkbox" class="var-enabled" ${variable.enabled !== false ? 'checked' : ''}>
                     <span class="slider round"></span>
                 </label>
-                
                 <div class="compact-input-group var-name-group">
                     <label>${i18n.t('label_var_name', section)}</label>
                     <input type="text" class="var-name" value="${variable.name || ''}">
-                </div>
-                <div class="compact-input-group var-compatible-names-group">
-                    <label>${i18n.t('label_compatible_variables', section)}</label>
-                    <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="兼容变量名A...">
                 </div>
                 <div class="compact-input-group var-display-name-group">
                     <label>${i18n.t('label_var_display_name', section)}</label>
                     <input type="text" class="var-display-name" value="${variable.displayName || ''}">
                 </div>
-            </div>
-
-            <div class="variable-toggles">
-                <button class="btn-text-toggle var-identifier ${variable.isIdentifier ? 'active' : ''}">
-                    ${i18n.t('label_var_identifier', section)}
-                </button>
-                <button class="btn-text-toggle var-backup-identifier ${variable.isBackupIdentifier ? 'active' : ''}">
-                    ${i18n.t('label_var_backup_identifier', section)}
-                </button>
-                <button class="btn-text-toggle var-hide-condition ${variable.isHideCondition ? 'active' : ''}">
-                    ${i18n.t('label_var_hide_condition', section)}
-                </button>
-                <button class="btn-text-toggle var-no-normalize ${variable.isNoNormalize ? 'active' : ''}">
-                    ${i18n.t('label_var_no_normalize', section)}
-                </button>
+                <button class="btn-delete-variable btn-variable-delete" title="删除变量">✕</button>
             </div>
 
             <div class="variable-details">
+                <div class="variable-toggles">
+                    <button class="btn-text-toggle var-identifier ${variable.isIdentifier ? 'active' : ''}">
+                        ${i18n.t('label_var_identifier', section)}
+                    </button>
+                    <button class="btn-text-toggle var-backup-identifier ${variable.isBackupIdentifier ? 'active' : ''}">
+                        ${i18n.t('label_var_backup_identifier', section)}
+                    </button>
+                    <button class="btn-text-toggle var-hide-condition ${variable.isHideCondition ? 'active' : ''}">
+                        ${i18n.t('label_var_hide_condition', section)}
+                    </button>
+                    <button class="btn-text-toggle var-no-normalize ${variable.isNoNormalize ? 'active' : ''}">
+                        ${i18n.t('label_var_no_normalize', section)}
+                    </button>
+                </div>
                 <div class="form-group">
                     <label>${i18n.t('label_var_description', section)}</label>
                     <input type="text" class="var-description" value="${variable.description || ''}">
+                </div>
+                <div class="form-group">
+                    <label>${i18n.t('label_compatible_variables', section)}</label>
+                    <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="兼容变量名A...">
                 </div>
                 <div class="form-group var-hide-values-group" style="display: ${variable.isHideCondition ? 'flex' : 'none'};">
                     <label>${i18n.t('label_var_hide_values', section)}</label>
