@@ -10,6 +10,7 @@ import moduleCacheManager from '../../singleton/moduleCacheManager.js';
 import { getContext } from '../../index.js';
 import { renderGlobalSettings } from './GlobalSettings.js';
 import { renderToolbox } from './Toolbox.js';
+import { parseModuleString, validateModuleString } from '../../modules/moduleParser.js';
 
 // === 状态管理 ===
 let currentModules = []; // 当前编辑的模块列表副本
@@ -46,10 +47,7 @@ export function initModuleEditor(iframeDocument) {
 
     // 初始化视图
     renderModuleList();
-    renderToolbox(doc, currentModules, () => {
-        renderModuleList();
-        saveChanges();
-    });
+    renderToolbox(doc, currentModules);
     renderGlobalSettings(doc, currentGlobalSettings);
 
     // 绑定顶部栏事件 (主题切换等)
@@ -184,15 +182,24 @@ function renderModuleList() {
     });
 
     // 绑定添加模块按钮 (列表底部的 + 号)
-    // 注意：原来的 HTML 中可能没有 ID，我们需要在 HTML 中给那个按钮加个 ID 或者在这里查找
-    const addBtn = listContainer.parentElement.querySelector('.list-toolbar button');
+    const toolbar = listContainer.parentElement.querySelector('.list-toolbar');
+    const addBtn = toolbar.querySelector('button');
+    const searchInput = toolbar.querySelector('input');
+
+    // 更新 placeholder 提示用户功能
+    if (searchInput) {
+        searchInput.placeholder = "搜索或输入名称/格式添加...";
+    }
+
     if (addBtn) {
         // 移除旧监听器 (简单粗暴的方法是克隆节点，或者确保只绑定一次)
         const newAddBtn = addBtn.cloneNode(true);
         addBtn.parentNode.replaceChild(newAddBtn, addBtn);
 
         newAddBtn.addEventListener('click', () => {
-            createNewModule();
+            const inputValue = searchInput ? searchInput.value.trim() : '';
+            handleSmartAdd(inputValue);
+            if (searchInput) searchInput.value = ''; // 添加后清空
         });
     }
 }
@@ -482,11 +489,12 @@ function renderModuleDetail(module, index) {
 
 /**
  * 创建新模块
+ * @param {string} name 可选的模块名称
  */
-function createNewModule() {
+function createNewModule(name) {
     const newModule = {
-        name: `new_module_${Date.now()}`,
-        displayName: '新模块',
+        name: name || `new_module_${Date.now()}`,
+        displayName: name || '新模块',
         enabled: true,
         variables: []
     };
@@ -501,6 +509,98 @@ function createNewModule() {
 
     // 自动保存
     saveChanges();
+}
+
+/**
+ * 智能添加模块：根据输入内容决定是解析还是新建
+ * @param {string} inputValue 输入框内容
+ */
+function handleSmartAdd(inputValue) {
+    if (!inputValue) {
+        createNewModule();
+        return;
+    }
+
+    // 尝试解析为模块字符串
+    const moduleMatches = parseNestedModules(inputValue);
+
+    if (moduleMatches && moduleMatches.length > 0) {
+        // 是模块格式字符串，执行解析添加逻辑
+        let createdCount = 0;
+        let updatedCount = 0;
+
+        moduleMatches.forEach(match => {
+            if (validateModuleString(match)) {
+                const parsedModule = parseModuleString(match);
+                if (parsedModule) {
+                    // 查找现有模块
+                    const existingModule = currentModules.find(m => m.name === parsedModule.name);
+
+                    if (existingModule) {
+                        // 更新现有模块：合并变量
+                        if (!existingModule.variables) existingModule.variables = [];
+
+                        parsedModule.variables.forEach(newVar => {
+                            const existingVar = existingModule.variables.find(v => v.name === newVar.name);
+                            if (existingVar) {
+                                // 更新描述
+                                if (newVar.description) existingVar.description = newVar.description;
+                            } else {
+                                // 添加新变量
+                                existingModule.variables.push({
+                                    name: newVar.name,
+                                    displayName: newVar.name, // 默认显示名
+                                    description: newVar.description || '',
+                                    enabled: true,
+                                    isIdentifier: false
+                                });
+                            }
+                        });
+                        updatedCount++;
+                    } else {
+                        // 创建新模块
+                        const newModule = {
+                            name: parsedModule.name,
+                            displayName: parsedModule.name,
+                            enabled: true,
+                            outputMode: 'full',
+                            variables: parsedModule.variables.map(v => ({
+                                name: v.name,
+                                displayName: v.name,
+                                description: v.description || '',
+                                enabled: true,
+                                isIdentifier: false
+                            }))
+                        };
+                        currentModules.push(newModule);
+                        createdCount++;
+                    }
+                }
+            }
+        });
+
+        infoLog(`智能添加: 新建 ${createdCount} 个, 更新 ${updatedCount} 个`);
+        renderModuleList();
+        saveChanges();
+    } else {
+        // 不是模块格式，直接作为名称新建
+        createNewModule(inputValue);
+    }
+}
+
+/**
+ * 解析嵌套的模块字符串 (简单的栈解析)
+ */
+function parseNestedModules(inputText) {
+    const results = [];
+    // 简单正则匹配所有 [xxx] 格式，不处理嵌套，因为 moduleParser.js 的 parseModuleString 也不支持复杂嵌套解析
+    // 但为了支持 [mod1][mod2] 这种连写，我们用正则
+    const regex = /\[[^\]]+\]/g;
+    let match;
+    while ((match = regex.exec(inputText)) !== null) {
+        results.push(match[0]);
+    }
+    return results;
 }
 
 /**
