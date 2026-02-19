@@ -220,13 +220,13 @@ function renderModuleDetail(module, index) {
                     </div>
 
                     <div class="form-group">
-                        <label>${i18n.t('label_display_name', section)}</label>
-                        <input type="text" id="edit-display-name" value="${module.displayName}">
+                        <label>${i18n.t('label_compatible_modules', section)}</label>
+                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="兼容模块名A,兼容模块名B...">
                     </div>
 
                     <div class="form-group form-full-width">
-                        <label>${i18n.t('label_compatible_modules', section)}</label>
-                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="兼容模块名A,兼容模块名B...">
+                        <label>${i18n.t('label_display_name', section)}</label>
+                        <input type="text" id="edit-display-name" value="${module.displayName}">
                     </div>
 
                     <!-- 行为设置 -->
@@ -506,6 +506,7 @@ function renderVariableList(module, container) {
         item.dataset.index = index;
 
         item.innerHTML = `
+            <button class="btn-delete-variable btn-variable-delete" title="删除变量">✕</button>
             <div class="variable-header-compact">
                 <span class="drag-handle" draggable="true" title="拖拽排序">⋮⋮</span>
                 <label class="toggle-switch" title="启用/禁用">
@@ -517,16 +518,14 @@ function renderVariableList(module, container) {
                     <label>${i18n.t('label_var_name', section)}</label>
                     <input type="text" class="var-name" value="${variable.name || ''}">
                 </div>
-                <div class="compact-input-group var-display-name-group">
-                    <label>${i18n.t('label_var_display_name', section)}</label>
-                    <input type="text" class="var-display-name" value="${variable.displayName || ''}">
-                </div>
                 <div class="compact-input-group var-compatible-names-group">
                     <label>${i18n.t('label_compatible_variables', section)}</label>
                     <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="兼容变量名A...">
                 </div>
-
-                <button class="btn-delete-variable btn-variable-delete">✕</button>
+            </div>
+            <div class="form-group" style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: var(--text-secondary); width: auto; margin-right: 6px;">${i18n.t('label_var_display_name', section)}</label>
+                <input type="text" class="var-display-name" value="${variable.displayName || ''}" style="flex: 1;">
             </div>
 
             <div class="variable-toggles">

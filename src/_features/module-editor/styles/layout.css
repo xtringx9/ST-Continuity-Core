@@ -716,6 +716,10 @@ section.module-detail-panel {
 /* === 变量编辑器优化样式 === */
 .variable-edit-item {
     padding: 12px;
+    position: relative;
+    /* 为绝对定位的删除按钮提供锚点 */
+    padding-right: 35px;
+    /* 防止内容遮挡删除按钮 */
 }
 
 .variable-header-compact {
@@ -765,13 +769,17 @@ section.module-detail-panel {
     font-size: 13px;
 }
 
-.variable-header-compact .btn-variable-delete {
-    margin-left: auto;
+.btn-variable-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
     color: var(--danger-color);
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 1.2em;
+    font-size: 1.1em;
+    z-index: 5;
+    padding: 4px;
 }
 
 .variable-toggles {
