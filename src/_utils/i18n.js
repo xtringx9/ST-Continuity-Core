@@ -97,7 +97,7 @@ const resources = {
             "option_unlimited": "无限制",
             "option_specified": "指定数量",
             "option_range": "指定范围",
-            "placeholder_compatible_vars": "兼容变量名A...",
+            "placeholder_compatible_vars": "兼容变量名A,兼容变量名B...",
             "placeholder_compatible_modules": "兼容模块名A,兼容模块名B...",
             "title_debug_tools": "调试工具",
             "btn_debug_cache": "打印缓存数据",
