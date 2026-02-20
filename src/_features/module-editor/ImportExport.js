@@ -45,6 +45,7 @@ export function handleExport(doc) {
                 <span>选择模块:</span>
                 <div>
                     <button id="btn-export-all" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">全选</button>
+                    <button id="btn-export-enabled" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">仅启用</button>
                     <button id="btn-export-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
                 </div>
             </div>
@@ -114,6 +115,9 @@ export function handleExport(doc) {
 
     doc.getElementById('btn-export-all').addEventListener('click', () => {
         doc.querySelectorAll('#export-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = true);
+    });
+    doc.getElementById('btn-export-enabled').addEventListener('click', () => {
+        doc.querySelectorAll('#export-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = cb.parentElement.textContent.includes('(已启用)'));
     });
     doc.getElementById('btn-export-none').addEventListener('click', () => {
         doc.querySelectorAll('#export-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = false);
@@ -223,6 +227,7 @@ function showImportDialog(doc, importedConfig, resolve) {
                 <span>选择要导入的模块:</span>
                 <div>
                     <button id="btn-import-all" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">全选</button>
+                    <button id="btn-import-enabled" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">仅启用</button>
                     <button id="btn-import-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
                 </div>
             </div>
@@ -285,6 +290,9 @@ function showImportDialog(doc, importedConfig, resolve) {
 
         doc.getElementById('btn-import-all').addEventListener('click', () => {
             doc.querySelectorAll('#import-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = true);
+        });
+        doc.getElementById('btn-import-enabled').addEventListener('click', () => {
+            doc.querySelectorAll('#import-modules-list-container input[type="checkbox"]').forEach(cb => cb.parentElement.textContent.includes('(已启用)'));
         });
         doc.getElementById('btn-import-none').addEventListener('click', () => {
             doc.querySelectorAll('#import-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = false);
