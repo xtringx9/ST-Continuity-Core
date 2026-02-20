@@ -13,6 +13,7 @@ import { renderToolbox } from './Toolbox.js';
 import { parseModuleString, validateModuleString } from '../../modules/moduleParser.js';
 import { IframeDialog } from '../../_utils/IframeDialog.js';
 import { generateChangesSummary } from './ChangesSummary.js';
+import { handleExport, handleImport } from './ImportExport.js';
 
 // === 状态管理 ===
 let originalModules = []; // 保存时用于比较的原始模块列表
@@ -73,6 +74,16 @@ function bindHeaderEvents() {
         // 移除旧的监听器（如果有）
         saveBtn.replaceWith(saveBtn.cloneNode(true));
         doc.getElementById('header-save-btn').addEventListener('click', confirmAndSave);
+    }
+
+    const exportBtn = doc.getElementById('header-export-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => handleExport(doc, currentModules, currentGlobalSettings));
+    }
+
+    const importBtn = doc.getElementById('header-import-btn');
+    if (importBtn) {
+        importBtn.addEventListener('click', onImportClick);
     }
 }
 
@@ -901,6 +912,54 @@ function deleteModule(index) {
 function saveChanges() {
     // 兼容旧调用，实际上现在统一用 saveAll
     saveAll();
+}
+
+async function onImportClick() {
+    const importData = await handleImport(doc);
+    if (!importData) return;
+
+    let changesMade = false;
+
+    // 1. 导入全局设置
+    if (importData.globalSettings) {
+        currentGlobalSettings = { ...currentGlobalSettings, ...importData.globalSettings };
+        renderGlobalSettings(doc, currentGlobalSettings);
+        changesMade = true;
+    }
+
+    // 2. 导入模块
+    if (importData.modules && importData.modules.length > 0) {
+        const newModules = importData.modules;
+        const overrideEnabled = importData.overrideEnabled;
+
+        newModules.forEach(newMod => {
+            const existingIndex = currentModules.findIndex(m => m.name === newMod.name);
+            if (existingIndex !== -1) {
+                // 存在同名模块：合并/覆盖
+                const existingMod = currentModules[existingIndex];
+
+                // 如果不覆盖启用状态，则保留原状态
+                if (!overrideEnabled) {
+                    newMod.enabled = existingMod.enabled;
+                }
+
+                // 替换模块
+                currentModules[existingIndex] = newMod;
+            } else {
+                // 新模块：添加
+                currentModules.push(newMod);
+            }
+        });
+
+        renderModuleList();
+        renderToolbox(doc, currentModules);
+        changesMade = true;
+    }
+
+    if (changesMade) {
+        infoLog("[ModuleEditor] 导入成功，已更新编辑器状态");
+        saveChanges(); // 自动保存导入的更改
+    }
 }
 
 function confirmAndSave() {
