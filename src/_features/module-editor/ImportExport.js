@@ -1,8 +1,8 @@
 import { IframeDialog } from '../../_utils/IframeDialog.js';
 import { i18n } from '../../_utils/i18n.js';
-import { normalizeConfig } from '../../modules/moduleConfigTemplate.js';
+import { normalizeConfig, validateConfig } from '../../modules/moduleConfigTemplate.js';
 import { infoLog, errorLog, debugLog } from '../../utils/logger.js';
-import { CONTINUITY_CORE_IDENTIFIER } from '../../singleton/configManager.js';
+import configManager, { CONTINUITY_CORE_IDENTIFIER } from '../../singleton/configManager.js';
 
 /**
  * 处理导出逻辑
@@ -12,6 +12,11 @@ import { CONTINUITY_CORE_IDENTIFIER } from '../../singleton/configManager.js';
  */
 export function handleExport(doc, currentModules, currentGlobalSettings) {
     const dialog = new IframeDialog(doc);
+
+    // 获取上次保存的作者和版本信息
+    const extConfig = configManager.getExtensionConfig();
+    const defaultAuthor = extConfig.moduleConfigAuthor || '';
+    const defaultVersion = extConfig.moduleConfigVersion || '';
 
     // 生成模块选择列表 HTML
     const modulesHtml = currentModules.map(mod => `
@@ -49,9 +54,15 @@ export function handleExport(doc, currentModules, currentGlobalSettings) {
             </div>
         </div>
 
-        <div class="form-group" style="margin-top: 15px;">
-            <label style="display: block; margin-bottom: 5px;">配置作者 (可选):</label>
-            <input type="text" id="export-author" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
+        <div class="form-grid" style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 5px; font-size: 12px;">配置作者 (可选):</label>
+                <input type="text" id="export-author" value="${defaultAuthor}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
+            </div>
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 5px; font-size: 12px;">配置版本 (可选):</label>
+                <input type="text" id="export-version" value="${defaultVersion}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
+            </div>
         </div>
     `;
 
@@ -67,13 +78,21 @@ export function handleExport(doc, currentModules, currentGlobalSettings) {
                     const exportSettings = doc.getElementById('export-settings').checked;
                     const exportModules = doc.getElementById('export-modules').checked;
                     const author = doc.getElementById('export-author').value.trim();
+                    const version = doc.getElementById('export-version').value.trim();
+
+                    // 保存作者和版本到扩展配置，方便下次使用
+                    const newExtConfig = { ...configManager.getExtensionConfig() };
+                    if (author) newExtConfig.moduleConfigAuthor = author;
+                    if (version) newExtConfig.moduleConfigVersion = version;
+                    configManager.setExtensionConfig(newExtConfig);
 
                     const exportData = {
                         metadata: {
                             source: CONTINUITY_CORE_IDENTIFIER,
                             version: '1.0.0',
                             lastUpdated: new Date().toISOString(),
-                            author: author
+                            author: author,
+                            authorConfigVersion: version
                         }
                     };
 
@@ -134,6 +153,13 @@ export function handleImport(doc) {
             reader.onload = (event) => {
                 try {
                     const json = JSON.parse(event.target.result);
+
+                    // 简单验证
+                    const validation = validateConfig(json);
+                    if (!validation.isValid) {
+                        alert("配置格式验证失败:\n" + validation.errors.join('\n'));
+                    }
+
                     // 规范化配置
                     const importedConfig = normalizeConfig(json);
 
@@ -158,6 +184,7 @@ function showImportDialog(doc, importedConfig, resolve) {
     const dialog = new IframeDialog(doc);
     const modules = importedConfig.modules || [];
     const hasSettings = !!importedConfig.globalSettings;
+    const metadata = importedConfig.metadata || {};
 
     // 生成模块选择列表 HTML
     const modulesHtml = modules.map(mod => `
@@ -169,7 +196,20 @@ function showImportDialog(doc, importedConfig, resolve) {
         </div>
     `).join('');
 
+    // 构建元数据信息面板
+    const metaHtml = (metadata.author || metadata.authorConfigVersion || metadata.version) ? `
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; margin-bottom: 15px; font-size: 12px;">
+            ${metadata.author ? `<div style="margin-bottom: 4px;"><span style="opacity: 0.7;">配置作者：</span><span style="font-weight: 500;">${metadata.author}</span></div>` : ''}
+            <div style="display: flex; justify-content: space-between;">
+                ${metadata.authorConfigVersion ? `<div><span style="opacity: 0.7;">配置版本：</span><span style="font-weight: 500;">${metadata.authorConfigVersion}</span></div>` : '<div></div>'}
+                ${metadata.version ? `<div><span style="opacity: 0.5;">插件版本：</span><span style="opacity: 0.5;">${metadata.version}</span></div>` : ''}
+            </div>
+        </div>
+    ` : '';
+
     const content = `
+        ${metaHtml}
+
         <div class="form-group">
             <div style="margin-bottom: 10px; font-weight: bold;">发现导入内容:</div>
             <div style="display: flex; gap: 15px; margin-bottom: 15px;">
