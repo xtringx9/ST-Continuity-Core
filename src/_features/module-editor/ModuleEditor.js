@@ -11,9 +11,13 @@ import { getContext } from '../../index.js';
 import { renderGlobalSettings } from './GlobalSettings.js';
 import { renderToolbox } from './Toolbox.js';
 import { parseModuleString, validateModuleString } from '../../modules/moduleParser.js';
+import { IframeDialog } from '../../_utils/IframeDialog.js';
+import { generateChangesSummary } from './ChangesSummary.js';
 
 // === 状态管理 ===
+let originalModules = []; // 保存时用于比较的原始模块列表
 let currentModules = []; // 当前编辑的模块列表副本
+let originalGlobalSettings = {}; // 保存时用于比较的原始全局设置
 let currentGlobalSettings = {}; // 当前编辑的全局设置副本
 let selectedModuleId = null; // 记录当前选中的模块 ID
 let activeDetailTab = 'module-detail-settings'; // 记录当前详情页的活动Tab
@@ -41,10 +45,12 @@ export function initModuleEditor(iframeDocument) {
 
     // 加载真实数据 (深拷贝以避免直接修改引用，直到保存)
     const modules = configManager.getModules(true); // true 表示获取所有模块(包括禁用的)
-    currentModules = JSON.parse(JSON.stringify(modules));
+    originalModules = JSON.parse(JSON.stringify(modules));
+    currentModules = JSON.parse(JSON.stringify(originalModules));
 
     // 加载全局设置
-    currentGlobalSettings = JSON.parse(JSON.stringify(configManager.getGlobalSettings()));
+    originalGlobalSettings = JSON.parse(JSON.stringify(configManager.getGlobalSettings()));
+    currentGlobalSettings = JSON.parse(JSON.stringify(originalGlobalSettings));
 
     // 初始化视图
     renderModuleList();
@@ -66,7 +72,7 @@ function bindHeaderEvents() {
     if (saveBtn) {
         // 移除旧的监听器（如果有）
         saveBtn.replaceWith(saveBtn.cloneNode(true));
-        doc.getElementById('header-save-btn').addEventListener('click', saveAll);
+        doc.getElementById('header-save-btn').addEventListener('click', confirmAndSave);
     }
 }
 
@@ -897,12 +903,40 @@ function saveChanges() {
     saveAll();
 }
 
-function saveAll() {
-    configManager.setModules(currentModules);
-    configManager.setGlobalSettings(currentGlobalSettings);
-    infoLog("[ModuleEditor] 所有配置已保存");
+function confirmAndSave() {
+    const { html, hasChanges } = generateChangesSummary(originalModules, currentModules, originalGlobalSettings, currentGlobalSettings);
 
-    // Header 按钮反馈
+    const dialog = new IframeDialog(doc);
+
+    if (!hasChanges) {
+        // If no changes, just show the "Saved" feedback without actually saving.
+        showSavedFeedback();
+        infoLog("[ModuleEditor] No changes detected, skipping save.");
+        return;
+    }
+
+    dialog.open({
+        title: '确认保存更改',
+        content: html,
+        buttons: [
+            {
+                text: '取消',
+                className: 'btn-secondary',
+                onClick: (d) => d.close(),
+            },
+            {
+                text: '确认保存',
+                className: 'btn-primary',
+                onClick: (d) => {
+                    d.close();
+                    saveAll();
+                }
+            }
+        ]
+    });
+}
+
+function showSavedFeedback() {
     const btn = doc.getElementById('header-save-btn');
     if (btn) {
         if (btn.dataset.saving === 'true') return;
@@ -916,4 +950,16 @@ function saveAll() {
             btn.classList.remove('saved'); // 移除绿色样式
         }, 1000);
     }
+}
+
+function saveAll() {
+    configManager.setModules(currentModules);
+    configManager.setGlobalSettings(currentGlobalSettings);
+    infoLog("[ModuleEditor] 所有配置已保存");
+
+    // 保存后，将当前状态设为新的“原始”状态
+    originalModules = JSON.parse(JSON.stringify(currentModules));
+    originalGlobalSettings = JSON.parse(JSON.stringify(currentGlobalSettings));
+
+    showSavedFeedback();
 }
