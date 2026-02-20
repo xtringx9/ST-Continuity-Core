@@ -357,7 +357,7 @@ function renderModuleDetail(module, index) {
                     </div>
                     <div class="form-group form-full-width">
                         <label>${i18n.t('label_styles_container', section)}</label>
-                        <textarea id="edit-styles-container" rows="2">${module.stylesContainer || ''}</textarea>
+                        <textarea id="edit-styles-container" rows="2">${module.containerStyles || ''}</textarea>
                     </div>
                     <div class="form-group form-full-width">
                         <label>${i18n.t('label_styles_external', section)}</label>
@@ -454,7 +454,7 @@ function renderModuleDetail(module, index) {
         module.contentPrompt = doc.getElementById('edit-prompt-content').value;
         module.positionPrompt = doc.getElementById('edit-prompt-position').value;
 
-        module.stylesContainer = doc.getElementById('edit-styles-container').value;
+        module.containerStyles = doc.getElementById('edit-styles-container').value;
         module.externalStyles = doc.getElementById('edit-styles-external').value;
         module.customStyles = doc.getElementById('edit-styles-custom').value;
 
