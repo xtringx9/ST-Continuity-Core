@@ -78,7 +78,10 @@ function bindHeaderEvents() {
 
     const exportBtn = doc.getElementById('header-export-btn');
     if (exportBtn) {
-        exportBtn.addEventListener('click', () => handleExport(doc, currentModules, currentGlobalSettings));
+        exportBtn.addEventListener('click', () => {
+            // 直接导出 configManager 中的数据，不强制保存
+            handleExport(doc);
+        });
     }
 
     const importBtn = doc.getElementById('header-import-btn');

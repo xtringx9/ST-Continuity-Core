@@ -2,15 +2,14 @@ import { IframeDialog } from '../../_utils/IframeDialog.js';
 import { i18n } from '../../_utils/i18n.js';
 import { normalizeConfig, validateConfig } from '../../modules/moduleConfigTemplate.js';
 import { infoLog, errorLog, debugLog } from '../../utils/logger.js';
-import configManager, { CONTINUITY_CORE_IDENTIFIER } from '../../singleton/configManager.js';
+import configManager from '../../singleton/configManager.js';
 
 /**
  * 处理导出逻辑
  * @param {Document} doc Iframe文档对象
- * @param {Array} currentModules 当前模块列表
- * @param {Object} currentGlobalSettings 当前全局设置
  */
-export function handleExport(doc, currentModules, currentGlobalSettings) {
+export function handleExport(doc) {
+    const currentModules = configManager.getModules(true);
     const dialog = new IframeDialog(doc);
 
     // 获取上次保存的作者和版本信息
@@ -86,26 +85,19 @@ export function handleExport(doc, currentModules, currentGlobalSettings) {
                     if (version) newExtConfig.moduleConfigVersion = version;
                     configManager.setExtensionConfig(newExtConfig);
 
-                    const exportData = {
-                        metadata: {
-                            source: CONTINUITY_CORE_IDENTIFIER,
-                            version: '1.0.0',
-                            lastUpdated: new Date().toISOString(),
-                            author: author,
-                            authorConfigVersion: version
-                        }
+                    // 1. 构造导出选项
+                    const selectedIds = exportModules
+                        ? Array.from(doc.querySelectorAll('#export-modules-list-container input:checked')).map(cb => cb.value)
+                        : [];
+
+                    const exportOptions = {
+                        exportSettings: exportSettings,
+                        exportModuleConfig: exportModules,
+                        selectedModules: selectedIds
                     };
 
-                    if (exportSettings) {
-                        exportData.globalSettings = currentGlobalSettings;
-                    }
-
-                    if (exportModules) {
-                        const selectedIds = Array.from(doc.querySelectorAll('#export-modules-list-container input:checked')).map(cb => cb.value);
-                        exportData.modules = currentModules.filter(m => selectedIds.includes(m.name));
-                    }
-
-                    downloadJson(exportData);
+                    // 2. 调用统一的导出逻辑 (依赖 configManager 中的已保存数据)
+                    configManager.backupModuleConfig(exportOptions);
                     d.close();
                 }
             }
@@ -298,18 +290,4 @@ function showImportDialog(doc, importedConfig, resolve) {
             doc.querySelectorAll('#import-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = false);
         });
     }
-}
-
-function downloadJson(data) {
-    const dataStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `continuity_config_${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 }
