@@ -164,8 +164,11 @@ export function handleImport(doc) {
                         importedConfig.metadata = { ...importedConfig.metadata, ...json.metadata };
                     }
 
+                    // 检查源文件是否包含全局设置
+                    const hasSettings = !!(json.globalSettings && Object.keys(json.globalSettings).length > 0);
+
                     // 打开选择弹窗
-                    showImportDialog(doc, importedConfig, resolve);
+                    showImportDialog(doc, importedConfig, resolve, hasSettings);
                 } catch (err) {
                     errorLog("Import failed", err);
                     alert("解析 JSON 文件失败: " + err.message);
@@ -181,10 +184,9 @@ export function handleImport(doc) {
     });
 }
 
-function showImportDialog(doc, importedConfig, resolve) {
+function showImportDialog(doc, importedConfig, resolve, hasSettings) {
     const dialog = new IframeDialog(doc);
     const modules = importedConfig.modules || [];
-    const hasSettings = !!importedConfig.globalSettings;
     const metadata = importedConfig.metadata || {};
 
     // 生成模块选择列表 HTML
@@ -214,15 +216,13 @@ function showImportDialog(doc, importedConfig, resolve) {
         <div class="form-group" style="display: block; margin-bottom: 8px;">
             <div style="margin-bottom: 5px; font-weight: bold;">发现导入内容:</div>
             <div style="display: flex; justify-content: flex-start; gap: 15px; margin-bottom: 8px;">
-                ${hasSettings ? `
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="import-settings" checked style="margin-right: 5px;"> 全局设置
-                </label>` : '<span style="color: var(--text-secondary);">无全局设置</span>'}
+                <label style="display: flex; align-items: center; cursor: ${hasSettings ? 'pointer' : 'not-allowed'}; ${hasSettings ? '' : 'opacity: 0.6;'}">
+                    <input type="checkbox" id="import-settings" ${hasSettings ? 'checked' : 'disabled'} style="margin-right: 5px;"> 全局设置
+                </label>
                 
-                ${modules.length > 0 ? `
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="import-modules" checked style="margin-right: 5px;"> 模块配置 (${modules.length}个)
-                </label>` : '<span style="color: var(--text-secondary);">无模块配置</span>'}
+                <label style="display: flex; align-items: center; cursor: ${modules.length > 0 ? 'pointer' : 'not-allowed'}; ${modules.length > 0 ? '' : 'opacity: 0.6;'}">
+                    <input type="checkbox" id="import-modules" ${modules.length > 0 ? 'checked' : 'disabled'} style="margin-right: 5px;"> 模块配置 (${modules.length}个)
+                </label>
             </div>
         </div>
 
