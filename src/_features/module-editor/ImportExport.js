@@ -28,9 +28,9 @@ export function handleExport(doc) {
     `).join('');
 
     const content = `
-        <div class="form-group">
-            <div style="margin-bottom: 10px; font-weight: bold;">导出内容:</div>
-            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+        <div class="form-group" style="display: block; margin-bottom: 8px;">
+            <div style="margin-bottom: 5px; font-weight: bold;">导出内容:</div>
+            <div style="display: flex; justify-content: flex-start; gap: 15px; margin-bottom: 8px;">
                 <label style="display: flex; align-items: center; cursor: pointer;">
                     <input type="checkbox" id="export-settings" checked style="margin-right: 5px;"> 全局设置
                 </label>
@@ -49,18 +49,18 @@ export function handleExport(doc) {
                     <button id="btn-export-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
                 </div>
             </div>
-            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px;">
+            <div style="max-height: 23vh; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px;">
                 ${modulesHtml || '<div style="color: var(--text-secondary); text-align: center;">无可用模块</div>'}
             </div>
         </div>
 
-        <div class="form-grid" style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-grid" style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="form-group">
-                <label style="display: block; margin-bottom: 5px; font-size: 12px;">配置作者 (可选):</label>
+                <label style="display: block; margin-bottom: 2px; font-size: 12px;">配置作者 (可选):</label>
                 <input type="text" id="export-author" value="${defaultAuthor}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
             </div>
             <div class="form-group">
-                <label style="display: block; margin-bottom: 5px; font-size: 12px;">配置版本 (可选):</label>
+                <label style="display: block; margin-bottom: 2px; font-size: 12px;">配置版本 (可选):</label>
                 <input type="text" id="export-version" value="${defaultVersion}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
             </div>
         </div>
@@ -199,7 +199,7 @@ function showImportDialog(doc, importedConfig, resolve) {
 
     // 构建元数据信息面板
     const metaHtml = (metadata.author || metadata.authorConfigVersion || metadata.version) ? `
-        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; margin-bottom: 15px; font-size: 12px;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; font-size: 12px;">
             ${metadata.author ? `<div style="margin-bottom: 4px;"><span style="opacity: 0.7;">配置作者：</span><span style="font-weight: 500;">${metadata.author}</span></div>` : ''}
             <div style="display: flex; justify-content: space-between;">
                 ${metadata.authorConfigVersion ? `<div><span style="opacity: 0.7;">配置版本：</span><span style="font-weight: 500;">${metadata.authorConfigVersion}</span></div>` : '<div></div>'}
@@ -211,9 +211,9 @@ function showImportDialog(doc, importedConfig, resolve) {
     const content = `
         ${metaHtml}
 
-        <div class="form-group">
-            <div style="margin-bottom: 10px; font-weight: bold;">发现导入内容:</div>
-            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+        <div class="form-group" style="display: block; margin-bottom: 8px;">
+            <div style="margin-bottom: 5px; font-weight: bold;">发现导入内容:</div>
+            <div style="display: flex; justify-content: flex-start; gap: 15px; margin-bottom: 8px;">
                 ${hasSettings ? `
                 <label style="display: flex; align-items: center; cursor: pointer;">
                     <input type="checkbox" id="import-settings" checked style="margin-right: 5px;"> 全局设置
@@ -236,19 +236,22 @@ function showImportDialog(doc, importedConfig, resolve) {
                     <button id="btn-import-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
                 </div>
             </div>
-            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px;">
+            <div style="max-height: 23vh; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px;">
                 ${modulesHtml}
             </div>
-            <div style="margin-top: 10px;">
+            <div style="margin-top: 8px;">
                 <label style="display: flex; align-items: center; cursor: pointer; font-size: 13px;">
                     <input type="checkbox" id="import-override" checked style="margin-right: 5px;"> 
                     覆盖同名模块的启用状态
                 </label>
             </div>
+            <div style="margin-top: 5px; font-size: 12px; color: var(--text-secondary);">
+                注意：导入操作将合并到当前编辑状态，同名模块将被覆盖。
+            </div>
         </div>` : ''}
         
-        <div style="margin-top: 15px; font-size: 12px; color: var(--text-secondary);">
-            注意：导入操作将合并到当前编辑状态，同名模块将被覆盖。
+        <div style="margin-top: 8px;">
+            <p style="color: var(--text-error, #ff4444); font-weight: bold; margin: 0; font-size: 12px;">⚠️ 安全提示：请务必确保配置来源可信，确认导入吗？</p>
         </div>
     `;
 

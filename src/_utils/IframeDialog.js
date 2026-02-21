@@ -22,11 +22,11 @@ export class IframeDialog {
         const dialogHTML = `
             <div class="iframe-dialog-overlay">
                 <div class="iframe-dialog-content">
-                    <div class="iframe-dialog-header">
-                        <h3 class="iframe-dialog-title">${title}</h3>
+                    <div class="iframe-dialog-header" style="padding: 8px 12px; min-height: auto;">
+                        <h3 class="iframe-dialog-title" style="margin: 0; font-size: 1.1em;">${title}</h3>
                         <button class="iframe-dialog-close">✕</button>
                     </div>
-                    <div class="iframe-dialog-body">
+                    <div class="iframe-dialog-body" style="padding: 10px 12px;">
                         ${content}
                     </div>
                     <div class="iframe-dialog-footer">
