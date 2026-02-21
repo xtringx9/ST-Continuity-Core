@@ -20,7 +20,7 @@ export function handleExport(doc) {
     // 生成模块选择列表 HTML
     const modulesHtml = currentModules.map(mod => `
         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-            <input type="checkbox" id="export-mod-${mod.name}" value="${mod.name}" checked style="margin-right: 8px;">
+            <input type="checkbox" id="export-mod-${mod.name}" value="${mod.name}" data-enabled="${mod.enabled}" class="module-checkbox" checked style="margin-right: 8px;">
             <label for="export-mod-${mod.name}" style="font-size: 13px; cursor: pointer;">
                 ${mod.displayName || mod.name} <span style="opacity: 0.5; font-size: 0.9em;">(${mod.name})</span>
             </label>
@@ -49,7 +49,7 @@ export function handleExport(doc) {
                     <button id="btn-export-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
                 </div>
             </div>
-            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input);">
+            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
                 ${modulesHtml || '<div style="color: var(--text-secondary); text-align: center;">无可用模块</div>'}
             </div>
         </div>
@@ -88,7 +88,7 @@ export function handleExport(doc) {
 
                     // 1. 构造导出选项
                     const selectedIds = exportModules
-                        ? Array.from(doc.querySelectorAll('#export-modules-list-container input:checked')).map(cb => cb.value)
+                        ? Array.from(doc.querySelectorAll('#export-modules-list-container .module-checkbox:checked')).map(cb => cb.value)
                         : [];
 
                     const exportOptions = {
@@ -114,13 +114,13 @@ export function handleExport(doc) {
     doc.getElementById('export-modules').addEventListener('change', toggleModulesList);
 
     doc.getElementById('btn-export-all').addEventListener('click', () => {
-        doc.querySelectorAll('#export-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = true);
+        doc.querySelectorAll('#export-modules-list-container .module-checkbox').forEach(cb => cb.checked = true);
     });
     doc.getElementById('btn-export-enabled').addEventListener('click', () => {
-        doc.querySelectorAll('#export-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = cb.parentElement.textContent.includes('(已启用)'));
+        doc.querySelectorAll('#export-modules-list-container .module-checkbox').forEach(cb => cb.checked = (cb.dataset.enabled === 'true'));
     });
     doc.getElementById('btn-export-none').addEventListener('click', () => {
-        doc.querySelectorAll('#export-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = false);
+        doc.querySelectorAll('#export-modules-list-container .module-checkbox').forEach(cb => cb.checked = false);
     });
 }
 
@@ -159,6 +159,11 @@ export function handleImport(doc) {
                     // 规范化配置
                     const importedConfig = normalizeConfig(json);
 
+                    // 恢复原始元数据用于显示 (因为 normalizeConfig 会重置作者信息)
+                    if (json.metadata) {
+                        importedConfig.metadata = { ...importedConfig.metadata, ...json.metadata };
+                    }
+
                     // 打开选择弹窗
                     showImportDialog(doc, importedConfig, resolve);
                 } catch (err) {
@@ -185,7 +190,7 @@ function showImportDialog(doc, importedConfig, resolve) {
     // 生成模块选择列表 HTML
     const modulesHtml = modules.map(mod => `
         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-            <input type="checkbox" id="import-mod-${mod.name}" value="${mod.name}" checked style="margin-right: 8px;">
+            <input type="checkbox" id="import-mod-${mod.name}" value="${mod.name}" data-enabled="${mod.enabled}" class="module-checkbox" checked style="margin-right: 8px;">
             <label for="import-mod-${mod.name}" style="font-size: 13px; cursor: pointer;">
                 ${mod.displayName || mod.name} <span style="opacity: 0.5; font-size: 0.9em;">(${mod.name})</span>
             </label>
@@ -231,7 +236,7 @@ function showImportDialog(doc, importedConfig, resolve) {
                     <button id="btn-import-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
                 </div>
             </div>
-            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input);">
+            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
                 ${modulesHtml}
             </div>
             <div style="margin-top: 10px;">
@@ -267,7 +272,7 @@ function showImportDialog(doc, importedConfig, resolve) {
                     }
 
                     if (modules.length > 0 && doc.getElementById('import-modules').checked) {
-                        const selectedIds = Array.from(doc.querySelectorAll('#import-modules-list-container input:checked')).map(cb => cb.value);
+                        const selectedIds = Array.from(doc.querySelectorAll('#import-modules-list-container .module-checkbox:checked')).map(cb => cb.value);
                         result.modules = modules.filter(m => selectedIds.includes(m.name));
                         result.overrideEnabled = doc.getElementById('import-override').checked;
                     }
@@ -289,13 +294,13 @@ function showImportDialog(doc, importedConfig, resolve) {
         doc.getElementById('import-modules').addEventListener('change', toggleModulesList);
 
         doc.getElementById('btn-import-all').addEventListener('click', () => {
-            doc.querySelectorAll('#import-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = true);
+            doc.querySelectorAll('#import-modules-list-container .module-checkbox').forEach(cb => cb.checked = true);
         });
         doc.getElementById('btn-import-enabled').addEventListener('click', () => {
-            doc.querySelectorAll('#import-modules-list-container input[type="checkbox"]').forEach(cb => cb.parentElement.textContent.includes('(已启用)'));
+            doc.querySelectorAll('#import-modules-list-container .module-checkbox').forEach(cb => cb.checked = (cb.dataset.enabled === 'true'));
         });
         doc.getElementById('btn-import-none').addEventListener('click', () => {
-            doc.querySelectorAll('#import-modules-list-container input[type="checkbox"]').forEach(cb => cb.checked = false);
+            doc.querySelectorAll('#import-modules-list-container .module-checkbox').forEach(cb => cb.checked = false);
         });
     }
 }

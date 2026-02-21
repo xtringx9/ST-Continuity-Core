@@ -88,6 +88,11 @@ function bindHeaderEvents() {
     if (importBtn) {
         importBtn.addEventListener('click', onImportClick);
     }
+
+    const clearBtn = doc.getElementById('header-clear-btn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', clearAllModules);
+    }
 }
 
 function bindNavigationEvents() {
@@ -963,6 +968,37 @@ async function onImportClick() {
         infoLog("[ModuleEditor] 导入成功，已更新编辑器状态");
         saveChanges(); // 自动保存导入的更改
     }
+}
+
+function clearAllModules() {
+    const dialog = new IframeDialog(doc);
+    dialog.open({
+        title: '清空所有模块',
+        content: `
+            <div style="margin-bottom: 10px; color: var(--text-error, #ff4444); font-weight: bold;">⚠️ 警告</div>
+            <div>确定要清空所有模块吗？此操作将删除所有自定义模块，且无法撤销。</div>
+        `,
+        buttons: [
+            { text: '取消', onClick: (d) => d.close() },
+            {
+                text: '确定清空',
+                style: 'background-color: var(--red, #ff4444); color: white;',
+                onClick: (d) => {
+                    currentModules = [];
+                    selectedModuleId = null;
+
+                    // 清空详情页
+                    const detailContainer = doc.querySelector('.module-detail-panel .detail-content');
+                    if (detailContainer) detailContainer.innerHTML = '';
+
+                    renderModuleList();
+                    renderToolbox(doc, currentModules);
+                    saveChanges();
+                    d.close();
+                }
+            }
+        ]
+    });
 }
 
 function confirmAndSave() {
