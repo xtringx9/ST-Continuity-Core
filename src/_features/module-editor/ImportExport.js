@@ -70,10 +70,10 @@ export function handleExport(doc) {
         title: '导出配置',
         content: content,
         buttons: [
-            { text: '取消', onClick: (d) => d.close() },
+            { text: '取消', className: 'btn-primary', onClick: (d) => d.close() },
             {
                 text: '导出 JSON',
-                className: 'btn-primary',
+                className: 'btn-secondary',
                 onClick: (d) => {
                     const exportSettings = doc.getElementById('export-settings').checked;
                     const exportModules = doc.getElementById('export-modules').checked;
@@ -256,10 +256,10 @@ function showImportDialog(doc, importedConfig, resolve) {
         title: '导入配置',
         content: content,
         buttons: [
-            { text: '取消', onClick: (d) => { d.close(); resolve(null); } },
+            { text: '取消', className: 'btn-primary', onClick: (d) => { d.close(); resolve(null); } },
             {
                 text: '确认导入',
-                className: 'btn-primary',
+                className: 'btn-secondary',
                 onClick: (d) => {
                     const result = {
                         globalSettings: null,

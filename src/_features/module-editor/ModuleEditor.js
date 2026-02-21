@@ -1017,9 +1017,9 @@ function clearAllModules() {
             <div>确定要清空所有模块吗？此操作将删除所有自定义模块，且无法撤销。</div>
         `,
         buttons: [
-            { text: '取消', onClick: (d) => d.close() },
             {
                 text: '确定清空',
+                className: 'btn-secondary',
                 style: 'background-color: var(--red, #ff4444); color: white;',
                 onClick: (d) => {
                     currentModules = [];
@@ -1034,7 +1034,8 @@ function clearAllModules() {
                     saveChanges();
                     d.close();
                 }
-            }
+            },
+            { text: '取消', className: 'btn-primary', onClick: (d) => d.close() }
         ]
     });
 }
