@@ -49,7 +49,7 @@ export function handleExport(doc) {
                     <button id="btn-export-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
                 </div>
             </div>
-            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px;">
                 ${modulesHtml || '<div style="color: var(--text-secondary); text-align: center;">无可用模块</div>'}
             </div>
         </div>
@@ -236,7 +236,7 @@ function showImportDialog(doc, importedConfig, resolve) {
                     <button id="btn-import-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
                 </div>
             </div>
-            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+            <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px;">
                 ${modulesHtml}
             </div>
             <div style="margin-top: 10px;">

@@ -61,9 +61,9 @@ export function renderToolbox(doc, currentModules) {
         return;
     }
     listContainer.innerHTML = '';
-    // 设置双列布局样式
+    // 设置响应式网格布局
     listContainer.style.display = 'grid';
-    listContainer.style.gridTemplateColumns = '1fr 1fr';
+    listContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
     listContainer.style.gap = '5px';
 
     currentModules.forEach(mod => {
