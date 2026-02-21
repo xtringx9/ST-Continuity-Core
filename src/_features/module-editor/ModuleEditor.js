@@ -89,8 +89,21 @@ function bindHeaderEvents() {
         importBtn.addEventListener('click', onImportClick);
     }
 
-    const clearBtn = doc.getElementById('header-clear-btn');
+    // 动态注入清空按钮 (放在导入按钮左边)
+    let clearBtn = doc.getElementById('header-clear-btn');
+    if (!clearBtn && importBtn) {
+        clearBtn = doc.createElement('button');
+        clearBtn.id = 'header-clear-btn';
+        clearBtn.className = 'btn-secondary';
+        clearBtn.style.marginRight = '5px';
+        clearBtn.style.color = 'var(--text-error, #ff6b6b)';
+
+        // 插入到导入按钮之前
+        importBtn.parentNode.insertBefore(clearBtn, importBtn);
+    }
+
     if (clearBtn) {
+        clearBtn.textContent = i18n.t('btn_clear_modules', 'module_editor');
         clearBtn.addEventListener('click', clearAllModules);
     }
 }
@@ -111,6 +124,13 @@ function bindNavigationEvents() {
             const targetSection = doc.getElementById(targetId);
             if (targetSection) {
                 targetSection.classList.add('active');
+            }
+
+            // 控制“清空模块”按钮的显示/隐藏
+            const clearBtn = doc.getElementById('header-clear-btn');
+            if (clearBtn) {
+                // 假设 'view-modules' 是模块列表页面的 ID
+                clearBtn.style.display = (targetId === 'view-modules') ? 'inline-block' : 'none';
             }
         });
     });

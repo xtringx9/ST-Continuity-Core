@@ -61,10 +61,16 @@ export function renderToolbox(doc, currentModules) {
         return;
     }
     listContainer.innerHTML = '';
+    // 设置双列布局样式
+    listContainer.style.display = 'grid';
+    listContainer.style.gridTemplateColumns = '1fr 1fr';
+    listContainer.style.gap = '5px';
 
     currentModules.forEach(mod => {
         const label = doc.createElement('label');
         label.className = 'toolbox-item';
+        label.style.display = 'flex'; // 确保内部对齐
+        label.style.alignItems = 'center';
 
         const displayLabel = mod.displayName ? `${mod.displayName} (${mod.name})` : mod.name;
 
@@ -76,38 +82,55 @@ export function renderToolbox(doc, currentModules) {
         listContainer.appendChild(label);
     });
 
-    // 绑定选择辅助按钮
-    const btnSelectAll = doc.getElementById('btn-tool-select-all');
-    if (btnSelectAll) {
-        const newBtn = btnSelectAll.cloneNode(true);
-        btnSelectAll.parentNode.replaceChild(newBtn, btnSelectAll);
-        newBtn.addEventListener('click', () => {
-            const checkboxes = listContainer.querySelectorAll('.toolbox-checkbox');
-            checkboxes.forEach(cb => cb.checked = true);
-        });
+    // === 注入/更新工具栏 ===
+    // 优先查找现有的 toolbox-actions 容器 (通常位于标题行右侧)
+    let btnGroup = doc.querySelector('#view-tools .toolbox-actions');
+
+    if (btnGroup) {
+        // 如果找到了 toolbox-actions，清空它以便重新渲染
+        btnGroup.innerHTML = '';
+        // 强制设置右对齐样式
+        btnGroup.style.display = 'flex';
+        btnGroup.style.justifyContent = 'flex-end';
+        btnGroup.style.alignItems = 'center';
     }
 
-    const btnSelectNone = doc.getElementById('btn-tool-select-none');
-    if (btnSelectNone) {
-        const newBtn = btnSelectNone.cloneNode(true);
-        btnSelectNone.parentNode.replaceChild(newBtn, btnSelectNone);
-        newBtn.addEventListener('click', () => {
-            const checkboxes = listContainer.querySelectorAll('.toolbox-checkbox');
-            checkboxes.forEach(cb => cb.checked = false);
-        });
-    }
+    // 辅助函数：创建或获取按钮并绑定事件
+    const setupButton = (id, textKey, onClick) => {
+        if (!btnGroup) return null;
 
-    const btnSelectEnabled = doc.getElementById('btn-tool-select-enabled');
-    if (btnSelectEnabled) {
-        const newBtn = btnSelectEnabled.cloneNode(true);
-        btnSelectEnabled.parentNode.replaceChild(newBtn, btnSelectEnabled);
-        newBtn.addEventListener('click', () => {
-            const checkboxes = listContainer.querySelectorAll('.toolbox-checkbox');
-            checkboxes.forEach(cb => {
-                cb.checked = (cb.dataset.enabled === 'true');
-            });
+        let btn = doc.getElementById(id);
+        if (!btn) {
+            btn = doc.createElement('button');
+            btn.id = id;
+            btn.className = 'btn-secondary';
+            btn.style.padding = '2px 6px';
+            btn.style.fontSize = '12px';
+            btn.style.marginLeft = '5px';
+        }
+        // 确保按钮在分组内
+        if (btn.parentNode !== btnGroup) {
+            btnGroup.appendChild(btn);
+        }
+        btn.textContent = i18n.t(textKey, section);
+        btn.onclick = onClick; // 直接覆盖点击事件
+        return btn;
+    };
+
+    // 按指定顺序创建按钮：全选 -> 仅启用 -> 清空
+    setupButton('btn-tool-select-all', 'btn_select_all', () => {
+        listContainer.querySelectorAll('.toolbox-checkbox').forEach(cb => cb.checked = true);
+    });
+
+    setupButton('btn-tool-select-enabled', 'btn_select_enabled', () => {
+        listContainer.querySelectorAll('.toolbox-checkbox').forEach(cb => {
+            cb.checked = (cb.dataset.enabled === 'true');
         });
-    }
+    });
+
+    setupButton('btn-tool-select-none', 'btn_select_none', () => {
+        listContainer.querySelectorAll('.toolbox-checkbox').forEach(cb => cb.checked = false);
+    });
 
     // 绑定提取按钮 (Mock 演示)
     const btnExtract = doc.getElementById('btn-extract');
