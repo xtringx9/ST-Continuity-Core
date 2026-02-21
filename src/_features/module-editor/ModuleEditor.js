@@ -106,6 +106,24 @@ function bindHeaderEvents() {
         clearBtn.textContent = i18n.t('btn_clear_modules', 'module_editor');
         clearBtn.addEventListener('click', clearAllModules);
     }
+
+    // 绑定点击标题切换主题
+    const headerTitle = doc.querySelector('.header-title') || doc.getElementById('header-title');
+    if (headerTitle) {
+        // 初始化主题 (读取本地存储)
+        const savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
+        doc.documentElement.setAttribute('data-theme', savedTheme);
+
+        headerTitle.style.cursor = 'pointer';
+        headerTitle.title = "点击切换主题 (Click to toggle theme)";
+
+        headerTitle.addEventListener('click', () => {
+            const current = doc.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : 'light';
+            doc.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('st_continuity_theme', next);
+        });
+    }
 }
 
 function bindNavigationEvents() {
