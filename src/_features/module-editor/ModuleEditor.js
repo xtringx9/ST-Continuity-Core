@@ -471,6 +471,10 @@ function renderModuleDetail(module, index) {
     const outputPosSelect = doc.getElementById('edit-output-pos');
     const positionPromptInput = doc.getElementById('edit-prompt-position');
 
+    // 处理 Output Mode 联动
+    const outputModeSelect = doc.getElementById('edit-output-mode');
+    const retainLayersInput = doc.getElementById('edit-retain-layers');
+
     const updateRangeInputs = () => {
         const mode = rangeModeSelect.value;
         itemMinInput.style.display = mode === 'range' ? 'block' : 'none';
@@ -482,13 +486,23 @@ function renderModuleDetail(module, index) {
         positionPromptInput.style.display = pos === 'specific_position' ? 'block' : 'none';
     };
 
+    const updateOutputModeInputs = () => {
+        const mode = outputModeSelect.value;
+        const group = retainLayersInput.closest('.form-group');
+        if (group) {
+            group.style.display = mode === 'full' ? '' : 'none';
+        }
+    };
+
     // 初始化状态
     updateRangeInputs();
     updateOutputPosInputs();
+    updateOutputModeInputs();
 
     // 绑定变更事件
     rangeModeSelect.addEventListener('change', updateRangeInputs);
     outputPosSelect.addEventListener('change', updateOutputPosInputs);
+    outputModeSelect.addEventListener('change', updateOutputModeInputs);
 
     // === 实时数据更新逻辑 ===
     const updateModuleData = () => {
