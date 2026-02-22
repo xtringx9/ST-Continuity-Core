@@ -4,6 +4,7 @@ import moduleCacheManager from '../../singleton/moduleCacheManager.js';
 import configManager from '../../singleton/configManager.js';
 import { getContext } from '../../index.js';
 import { generateFormalPrompt, generateModuleOrderPrompt, generateUsageGuide, generateModuleDataPrompt, generateSingleChatModuleData } from '../../modules/promptGenerator.js';
+import { processModuleData } from '../../core/moduleProcessor.js';
 
 /**
  * 渲染工具箱界面
@@ -133,22 +134,32 @@ export function renderToolbox(doc, currentModules) {
         listContainer.querySelectorAll('.toolbox-checkbox').forEach(cb => cb.checked = false);
     });
 
-    // 绑定提取按钮 (Mock 演示)
+    // 绑定提取按钮组
     const btnExtract = doc.getElementById('btn-extract');
     if (btnExtract) {
-        // 移除旧的监听器以防重复绑定
-        const newBtn = btnExtract.cloneNode(true);
-        btnExtract.parentNode.replaceChild(newBtn, btnExtract);
+        const container = doc.createElement('div');
+        container.style.display = 'flex';
+        container.style.gap = '8px';
+        container.style.justifyContent = 'flex-end';
+        container.style.marginTop = '20px';
 
-        newBtn.addEventListener('click', () => {
-            const start = doc.getElementById('tool-floor-start').value;
-            const end = doc.getElementById('tool-floor-end').value || 'Latest';
-            const selected = Array.from(listContainer.querySelectorAll('input:checked')).map(cb => cb.value);
+        const createBtn = (textKey, type, defaultText) => {
+            const btn = doc.createElement('button');
+            btn.className = 'btn-primary';
+            btn.textContent = i18n.t(textKey, section) || defaultText;
+            btn.style.fontSize = '12px';
+            btn.style.padding = '6px 12px';
+            btn.addEventListener('click', () => handleExtract(doc, type));
+            return btn;
+        };
 
-            const resultArea = doc.getElementById('tool-results');
-            resultArea.value = `[模拟提取结果]\n范围: ${start} - ${end}\n选中模块: ${selected.join(', ')}\n\n[summary|content:这是一个模拟的剧情摘要...]\n[inventory|item_name:长剑|count:1]`;
-            infoLog("执行模拟提取");
-        });
+        container.appendChild(createBtn('btn_extract_native', 'extract', '提取原生'));
+        container.appendChild(createBtn('btn_extract_processed', 'processed', '提取并整理'));
+        container.appendChild(createBtn('btn_extract_auto', 'auto', '自动处理'));
+
+        if (btnExtract.parentNode) {
+            btnExtract.parentNode.replaceChild(container, btnExtract);
+        }
     }
 
     // === 调试按钮绑定 ===
@@ -161,6 +172,22 @@ export function renderToolbox(doc, currentModules) {
     // 翻译楼层输入框 placeholder
     const floorEndInput = doc.getElementById('tool-floor-end');
     if (floorEndInput) floorEndInput.placeholder = i18n.t('placeholder_latest', section);
+
+    // 为结果区域添加复制按钮
+    const resultsTitle = doc.querySelector('.results-title');
+    if (resultsTitle && !resultsTitle.querySelector('button')) {
+        const copyBtn = doc.createElement('button');
+        copyBtn.className = 'btn-secondary';
+        copyBtn.style.marginLeft = '10px';
+        copyBtn.style.padding = '2px 8px';
+        copyBtn.style.fontSize = '12px';
+        copyBtn.textContent = i18n.t('btn_copy', section);
+        copyBtn.addEventListener('click', () => {
+            const resultArea = doc.getElementById('tool-results');
+            if (resultArea) copyToClipboard(doc, resultArea.value, copyBtn);
+        });
+        resultsTitle.appendChild(copyBtn);
+    }
 }
 
 /**
@@ -186,6 +213,54 @@ function getPreviewModes(section) {
     }
 
     return modes;
+}
+
+// 通用复制函数
+function copyToClipboard(doc, text, btn) {
+    // 保存原始文本，防止在显示"✔"时再次点击导致原始文本丢失
+    if (!btn.dataset.originalText) {
+        btn.dataset.originalText = btn.textContent;
+    }
+
+    // 清除之前的定时器，防止快速点击时状态闪烁
+    if (btn.dataset.timer) {
+        clearTimeout(parseInt(btn.dataset.timer));
+    }
+
+    const successCallback = () => {
+        btn.textContent = "✔";
+        btn.dataset.timer = setTimeout(() => {
+            btn.textContent = btn.dataset.originalText;
+            delete btn.dataset.timer;
+        }, 1000);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(successCallback)
+            .catch(err => {
+                console.warn("Clipboard API failed, trying fallback...", err);
+                fallbackCopy(text);
+            });
+    } else {
+        fallbackCopy(text);
+    }
+
+    function fallbackCopy(text) {
+        try {
+            const textarea = doc.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            doc.body.appendChild(textarea);
+            textarea.select();
+            const successful = doc.execCommand('copy');
+            doc.body.removeChild(textarea);
+            if (successful) successCallback();
+        } catch (err) {
+            console.error("Fallback copy error:", err);
+        }
+    }
 }
 
 function bindPreviewEvents(doc) {
@@ -216,57 +291,10 @@ function bindPreviewEvents(doc) {
     doc.getElementById('btn-preview-refresh').addEventListener('click', updatePreview);
     doc.getElementById('tool-preview-mode').addEventListener('change', updatePreview);
 
-    const copyToClipboard = (text, btn) => {
-        // 保存原始文本，防止在显示"✔"时再次点击导致原始文本丢失
-        if (!btn.dataset.originalText) {
-            btn.dataset.originalText = btn.textContent;
-        }
-
-        // 清除之前的定时器，防止快速点击时状态闪烁
-        if (btn.dataset.timer) {
-            clearTimeout(parseInt(btn.dataset.timer));
-        }
-
-        const successCallback = () => {
-            btn.textContent = "✔";
-            btn.dataset.timer = setTimeout(() => {
-                btn.textContent = btn.dataset.originalText;
-                delete btn.dataset.timer;
-            }, 1000);
-        };
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text)
-                .then(successCallback)
-                .catch(err => {
-                    console.warn("Clipboard API failed, trying fallback...", err);
-                    fallbackCopy(text);
-                });
-        } else {
-            fallbackCopy(text);
-        }
-
-        function fallbackCopy(text) {
-            try {
-                const textarea = doc.createElement('textarea');
-                textarea.value = text;
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                doc.body.appendChild(textarea);
-                textarea.select();
-                const successful = doc.execCommand('copy');
-                doc.body.removeChild(textarea);
-                if (successful) successCallback();
-            } catch (err) {
-                console.error("Fallback copy error:", err);
-            }
-        }
-    };
-
     doc.getElementById('btn-preview-copy').addEventListener('click', () => {
         const content = doc.getElementById('tool-preview-content');
         content.select();
-        copyToClipboard(content.value, doc.getElementById('btn-preview-copy'));
+        copyToClipboard(doc, content.value, doc.getElementById('btn-preview-copy'));
     });
 
     doc.getElementById('btn-preview-copy-macro').addEventListener('click', () => {
@@ -284,7 +312,7 @@ function bindPreviewEvents(doc) {
             }
         }
 
-        copyToClipboard(macroText, doc.getElementById('btn-preview-copy-macro'));
+        copyToClipboard(doc, macroText, doc.getElementById('btn-preview-copy-macro'));
     });
 
     // 首次加载时触发一次预览
@@ -336,5 +364,63 @@ function bindDebugButtons(doc, section) {
                 warnLog('getContext not found');
             }
         });
+    }
+}
+
+async function handleExtract(doc, type) {
+    const startInput = doc.getElementById('tool-floor-start');
+    const endInput = doc.getElementById('tool-floor-end');
+    const resultArea = doc.getElementById('tool-results');
+    const listContainer = doc.getElementById('tool-module-list');
+
+    const startFloor = parseInt(startInput.value) || 1;
+    const endFloor = parseInt(endInput.value);
+
+    const startIndex = startFloor - 1;
+    let endIndex = null;
+    if (!isNaN(endFloor) && endFloor >= 1) {
+        endIndex = endFloor - 1;
+    }
+
+    // 获取选中的模块
+    const selectedModuleNames = Array.from(listContainer.querySelectorAll('.toolbox-checkbox:checked')).map(cb => cb.value);
+
+    // 构建过滤器 (参考 ExtractModuleController 逻辑)
+    const modulesData = configManager.getModules() || [];
+    let moduleFilters = null;
+
+    if (selectedModuleNames.length > 0) {
+        moduleFilters = [];
+        selectedModuleNames.forEach(name => {
+            const m = modulesData.find(mod => mod.name === name);
+            if (m) {
+                moduleFilters.push({
+                    name: m.name,
+                    compatibleModuleNames: m.compatibleModuleNames
+                });
+            }
+        });
+    }
+
+    resultArea.value = "正在提取...";
+
+    try {
+        const result = await processModuleData(
+            { startIndex, endIndex, moduleFilters },
+            type,
+            selectedModuleNames,
+            true, // useChat
+            true, // useWorldInfo
+            true  // returnResult
+        );
+
+        if (result.success) {
+            resultArea.value = result.hasContent ? result.contentString : "未找到相关内容。";
+        } else {
+            resultArea.value = "提取失败: " + result.error;
+        }
+    } catch (err) {
+        errorLog("Extraction error:", err);
+        resultArea.value = "发生错误: " + err.message;
     }
 }
