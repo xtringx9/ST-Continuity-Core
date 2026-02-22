@@ -4,8 +4,9 @@ import { i18n } from '../../_utils/i18n.js';
  * 渲染全局设置界面
  * @param {Document} doc Iframe文档对象
  * @param {Object} settings 当前全局设置对象 (引用)
+ * @param {Function} onChange 设置变更时的回调函数
  */
-export function renderGlobalSettings(doc, settings) {
+export function renderGlobalSettings(doc, settings, onChange) {
     const container = doc.getElementById('view-settings');
     if (!container) return;
 
@@ -112,6 +113,8 @@ export function renderGlobalSettings(doc, settings) {
         settings.externalStyles = doc.getElementById('global-external-styles').value;
         settings.bottomStyles = doc.getElementById('global-bottom-styles').value;
         settings.timeFormat = doc.getElementById('global-time-format').value;
+
+        if (onChange) onChange();
     };
 
     // 绑定所有输入框的实时更新

@@ -56,7 +56,7 @@ export function initModuleEditor(iframeDocument) {
     // 初始化视图
     renderModuleList();
     renderToolbox(doc, currentModules);
-    renderGlobalSettings(doc, currentGlobalSettings);
+    renderGlobalSettings(doc, currentGlobalSettings, checkForChanges);
 
     // 绑定顶部栏事件 (主题切换等)
     bindHeaderEvents();
@@ -66,6 +66,9 @@ export function initModuleEditor(iframeDocument) {
 
     // 绑定侧边栏事件 (搜索和添加)
     bindSidebarEvents();
+
+    // 初始化保存按钮状态
+    checkForChanges();
 }
 
 function bindHeaderEvents() {
@@ -259,7 +262,7 @@ function renderModuleList() {
             if (!mod.enabled) item.classList.add('disabled');
             else item.classList.remove('disabled');
 
-            saveChanges(); // 自动保存
+            checkForChanges(); // 检查变更
         });
 
         // 阻止开关容器的点击冒泡，防止触发列表项选中 (特别是点击 label/span 时)
@@ -280,7 +283,7 @@ function renderModuleList() {
         item.addEventListener('dragleave', handleDragLeave);
         item.addEventListener('drop', (e) => handleDrop(e, item, 'module', currentModules, () => {
             renderModuleList();
-            saveChanges(); // 拖拽排序后自动保存
+            checkForChanges(); // 检查变更
         }));
         item.addEventListener('dragend', handleDragEnd);
 
@@ -532,6 +535,8 @@ function renderModuleDetail(module, index) {
         module.externalStyles = doc.getElementById('edit-styles-external').value;
         module.customStyles = doc.getElementById('edit-styles-custom').value;
 
+        checkForChanges(); // 检查变更
+
         // 刷新列表项名称（如果修改了名字）
         const listItem = doc.querySelector(`.module-list-item[data-index="${index}"] .module-item-name`);
         if (listItem) listItem.textContent = module.displayName || module.name;
@@ -581,6 +586,7 @@ function renderModuleDetail(module, index) {
             customStyles: ''
         });
         renderVariableList(module, doc.getElementById('variable-list-container'));
+        checkForChanges(); // 检查变更
     });
 
     // 绑定所有输入框的实时更新
@@ -611,7 +617,7 @@ function createNewModule(name) {
     if (items[lastIndex]) items[lastIndex].click();
 
     // 自动保存
-    saveChanges();
+    checkForChanges(); // 检查变更
 }
 
 /**
@@ -684,7 +690,7 @@ function handleSmartAdd(inputValue) {
 
         infoLog(`智能添加: 新建 ${createdCount} 个, 更新 ${updatedCount} 个`);
         renderModuleList();
-        saveChanges();
+        checkForChanges(); // 检查变更
     } else {
         // 不是模块格式，直接作为名称新建
         createNewModule(inputValue);
@@ -798,6 +804,8 @@ function renderVariableList(module, container) {
             variable.hideConditionValues = item.querySelector('.var-hide-values').value.split(',').map(s => s.trim()).filter(s => s);
             variable.compatibleVariableNames = item.querySelector('.var-compatible-names').value.split(',').map(s => s.trim()).filter(s => s);
             variable.customStyles = item.querySelector('.var-custom-styles').value;
+
+            checkForChanges(); // 检查变更
         };
 
         // Bind input/textarea for live updates
@@ -827,6 +835,7 @@ function renderVariableList(module, container) {
             if (confirm('确定要删除这个变量吗？')) {
                 module.variables.splice(index, 1);
                 renderVariableList(module, container);
+                checkForChanges(); // 检查变更
             }
         });
 
@@ -836,7 +845,10 @@ function renderVariableList(module, container) {
         item.addEventListener('dragenter', handleDragEnter);
         item.addEventListener('dragover', handleDragOver);
         item.addEventListener('dragleave', handleDragLeave);
-        item.addEventListener('drop', (e) => handleDrop(e, item, 'variable', module.variables, () => renderVariableList(module, container)));
+        item.addEventListener('drop', (e) => handleDrop(e, item, 'variable', module.variables, () => {
+            renderVariableList(module, container);
+            checkForChanges(); // 检查变更
+        }));
         item.addEventListener('dragend', handleDragEnd);
 
         container.appendChild(item);
@@ -967,7 +979,7 @@ function deleteModule(index) {
             </div>
         `;
         renderModuleList();
-        saveChanges();
+        checkForChanges(); // 检查变更
         // 如果在移动端，返回列表
         doc.body.classList.remove('mobile-view-detail');
     }
@@ -976,12 +988,24 @@ function deleteModule(index) {
 // === 初始化 ===
 // 移除 DOMContentLoaded 监听，改为由 initModuleEditor 显式调用
 
-/**
- * 保存所有更改 (模块 + 全局设置) 到 ConfigManager
- */
-function saveChanges() {
-    // 兼容旧调用，实际上现在统一用 saveAll
-    saveAll();
+function checkForChanges() {
+    const modulesChanged = JSON.stringify(originalModules) !== JSON.stringify(currentModules);
+    const settingsChanged = JSON.stringify(originalGlobalSettings) !== JSON.stringify(currentGlobalSettings);
+    const hasChanges = modulesChanged || settingsChanged;
+
+    const saveBtn = doc.getElementById('header-save-btn');
+    if (saveBtn) {
+        saveBtn.disabled = !hasChanges;
+        if (hasChanges) {
+            saveBtn.classList.remove('btn-secondary');
+            saveBtn.classList.add('btn-primary');
+            saveBtn.textContent = i18n.t('btn_save', 'module_editor');
+        } else {
+            saveBtn.classList.remove('btn-primary');
+            saveBtn.classList.add('btn-secondary');
+            saveBtn.textContent = i18n.t('btn_save', 'module_editor');
+        }
+    }
 }
 
 async function onImportClick() {
@@ -1028,7 +1052,7 @@ async function onImportClick() {
 
     if (changesMade) {
         infoLog("[ModuleEditor] 导入成功，已更新编辑器状态");
-        saveChanges(); // 自动保存导入的更改
+        checkForChanges(); // 检查变更
     }
 }
 
@@ -1055,7 +1079,7 @@ function clearAllModules() {
 
                     renderModuleList();
                     renderToolbox(doc, currentModules);
-                    saveChanges();
+                    checkForChanges(); // 检查变更
                     d.close();
                 }
             },
@@ -1106,7 +1130,8 @@ function showSavedFeedback() {
         btn.classList.add('saved'); // 添加绿色样式
 
         setTimeout(() => {
-            btn.textContent = "保存";
+            // 恢复按钮状态（此时应该已保存，所以是禁用状态）
+            btn.textContent = i18n.t('btn_save', 'module_editor');
             btn.dataset.saving = 'false';
             btn.classList.remove('saved'); // 移除绿色样式
         }, 1000);
@@ -1122,5 +1147,6 @@ function saveAll() {
     originalModules = JSON.parse(JSON.stringify(currentModules));
     originalGlobalSettings = JSON.parse(JSON.stringify(currentGlobalSettings));
 
+    checkForChanges(); // 更新按钮状态（应变为禁用）
     showSavedFeedback();
 }

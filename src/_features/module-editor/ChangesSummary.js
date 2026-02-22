@@ -37,6 +37,47 @@ function compareObjects(obj1, obj2, keysToIgnore = []) {
     return changes;
 }
 
+function compareVariables(vars1, vars2) {
+    const changes = [];
+    const map1 = new Map(vars1.map(v => [v.name, v]));
+    const map2 = new Map(vars2.map(v => [v.name, v]));
+
+    // Added variables
+    vars2.filter(v => !map1.has(v.name)).forEach(v => {
+        changes.push({
+            key: `新增变量 [${v.name}]`,
+            oldValue: '-',
+            newValue: v.displayName || v.name
+        });
+    });
+
+    // Deleted variables
+    vars1.filter(v => !map2.has(v.name)).forEach(v => {
+        changes.push({
+            key: `删除变量 [${v.name}]`,
+            oldValue: v.displayName || v.name,
+            newValue: '-'
+        });
+    });
+
+    // Modified variables
+    vars2.filter(v => map1.has(v.name)).forEach(v2 => {
+        const v1 = map1.get(v2.name);
+        if (JSON.stringify(v1) !== JSON.stringify(v2)) {
+            const propChanges = compareObjects(v1, v2);
+            propChanges.forEach(pc => {
+                changes.push({
+                    key: `变量 [${v2.name}] ${pc.key}`,
+                    oldValue: pc.oldValue,
+                    newValue: pc.newValue
+                });
+            });
+        }
+    });
+
+    return changes;
+}
+
 function compareModuleLists(list1, list2) {
     const map1 = new Map((list1 || []).map(m => [m.name, m]));
     const map2 = new Map((list2 || []).map(m => [m.name, m]));
@@ -49,18 +90,9 @@ function compareModuleLists(list1, list2) {
             const module1 = map1.get(name);
             if (JSON.stringify(module1) !== JSON.stringify(module2)) {
                 const moduleChanges = compareObjects(module1, module2, ['variables']);
-                const variableChanges = compareObjects(
-                    { vars: module1.variables || [] },
-                    { vars: module2.variables || [] }
-                );
 
-                if (variableChanges.length > 0) {
-                    moduleChanges.push({
-                        key: 'variables',
-                        oldValue: `[${(module1.variables || []).length} 个变量]`,
-                        newValue: `[${(module2.variables || []).length} 个变量] (有修改)`,
-                    });
-                }
+                const varChanges = compareVariables(module1.variables || [], module2.variables || []);
+                moduleChanges.push(...varChanges);
 
                 if (moduleChanges.length > 0) {
                     modified.push({ module: module2, changes: moduleChanges });

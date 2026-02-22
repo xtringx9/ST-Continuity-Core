@@ -662,6 +662,16 @@ section.module-detail-panel {
     opacity: 0.9;
 }
 
+/* 禁用状态按钮样式 (使其更明显不可点) */
+button:disabled,
+.btn-secondary:disabled {
+    background-color: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 .spacer-bottom {
     height: 50px;
 }
@@ -985,4 +995,23 @@ section.module-detail-panel {
 
 .change-deleted {
     color: var(--danger-color);
+}
+
+/* 修复顶部保存按钮在切换状态时的布局跳动 */
+#header-save-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    border-width: 1px;
+    border-style: solid;
+    min-width: 60px;
+    text-align: center;
+}
+
+#header-save-btn.btn-primary {
+    border-color: var(--accent-color);
+}
+
+#header-save-btn.saved {
+    border-color: #4CAF50;
+    background-color: #4CAF50;
 }
