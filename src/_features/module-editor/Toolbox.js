@@ -216,15 +216,57 @@ function bindPreviewEvents(doc) {
     doc.getElementById('btn-preview-refresh').addEventListener('click', updatePreview);
     doc.getElementById('tool-preview-mode').addEventListener('change', updatePreview);
 
+    const copyToClipboard = (text, btn) => {
+        // 保存原始文本，防止在显示"✔"时再次点击导致原始文本丢失
+        if (!btn.dataset.originalText) {
+            btn.dataset.originalText = btn.textContent;
+        }
+
+        // 清除之前的定时器，防止快速点击时状态闪烁
+        if (btn.dataset.timer) {
+            clearTimeout(parseInt(btn.dataset.timer));
+        }
+
+        const successCallback = () => {
+            btn.textContent = "✔";
+            btn.dataset.timer = setTimeout(() => {
+                btn.textContent = btn.dataset.originalText;
+                delete btn.dataset.timer;
+            }, 1000);
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(successCallback)
+                .catch(err => {
+                    console.warn("Clipboard API failed, trying fallback...", err);
+                    fallbackCopy(text);
+                });
+        } else {
+            fallbackCopy(text);
+        }
+
+        function fallbackCopy(text) {
+            try {
+                const textarea = doc.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                doc.body.appendChild(textarea);
+                textarea.select();
+                const successful = doc.execCommand('copy');
+                doc.body.removeChild(textarea);
+                if (successful) successCallback();
+            } catch (err) {
+                console.error("Fallback copy error:", err);
+            }
+        }
+    };
+
     doc.getElementById('btn-preview-copy').addEventListener('click', () => {
         const content = doc.getElementById('tool-preview-content');
         content.select();
-        navigator.clipboard.writeText(content.value).then(() => {
-            const btn = doc.getElementById('btn-preview-copy');
-            const originalText = btn.textContent;
-            btn.textContent = "✔";
-            setTimeout(() => btn.textContent = originalText, 1000);
-        });
+        copyToClipboard(content.value, doc.getElementById('btn-preview-copy'));
     });
 
     doc.getElementById('btn-preview-copy-macro').addEventListener('click', () => {
@@ -242,12 +284,7 @@ function bindPreviewEvents(doc) {
             }
         }
 
-        navigator.clipboard.writeText(macroText).then(() => {
-            const btn = doc.getElementById('btn-preview-copy-macro');
-            const originalText = btn.textContent;
-            btn.textContent = "✔";
-            setTimeout(() => btn.textContent = originalText, 1000);
-        });
+        copyToClipboard(macroText, doc.getElementById('btn-preview-copy-macro'));
     });
 
     // 首次加载时触发一次预览
