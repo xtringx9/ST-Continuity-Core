@@ -332,6 +332,19 @@ function renderModuleDetail(module, index) {
                         <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="${i18n.t('placeholder_compatible_modules', section)}">
                     </div>
 
+                    <!-- 模块属性 -->
+                    <div class="form-section-title">${i18n.t('title_module_attributes', section)}</div>
+                    <div class="form-group form-full-width module-toggles" style="margin-bottom: 15px;">
+                        <button id="btn-edit-external" class="btn-text-toggle ${module.isExternalDisplay ? 'active' : ''}">
+                            <input type="checkbox" ${module.isExternalDisplay ? 'checked' : ''}>
+                            ${i18n.t('label_external', section)}
+                        </button>
+                        <button id="btn-edit-time-reference-standard" class="btn-text-toggle ${module.timeReferenceStandard ? 'active' : ''}">
+                            <input type="checkbox" ${module.timeReferenceStandard ? 'checked' : ''}>
+                            ${i18n.t('label_time_ref', section)}
+                        </button>
+                    </div>
+
                     <!-- 行为设置 -->
                     <div class="form-section-title">${i18n.t('title_behavior_settings', section)}</div>
 
@@ -375,16 +388,6 @@ function renderModuleDetail(module, index) {
                     <div class="form-group">
                         <label>${i18n.t('label_retain_layers', section)}</label>
                         <input type="number" id="edit-retain-layers" value="${module.retainLayers || -1}">
-                    </div>
-
-                    <!-- 高级开关 -->
-                    <div class="form-group form-full-width module-toggles">
-                        <button id="btn-edit-external" class="btn-text-toggle ${module.isExternalDisplay ? 'active' : ''}">
-                            ${i18n.t('label_external', section)}
-                        </button>
-                        <button id="btn-edit-time-reference-standard" class="btn-text-toggle ${module.timeReferenceStandard ? 'active' : ''}">
-                            ${i18n.t('label_time_ref', section)}
-                        </button>
                     </div>
 
                     <!-- 提示词设置 -->
@@ -537,10 +540,12 @@ function renderModuleDetail(module, index) {
     // 绑定模块高级开关按钮
     doc.getElementById('btn-edit-external').addEventListener('click', function () {
         this.classList.toggle('active');
+        const cb = this.querySelector('input'); if (cb) cb.checked = this.classList.contains('active');
         updateModuleData();
     });
     doc.getElementById('btn-edit-time-reference-standard').addEventListener('click', function () {
         this.classList.toggle('active');
+        const cb = this.querySelector('input'); if (cb) cb.checked = this.classList.contains('active');
         updateModuleData();
     });
 
@@ -745,15 +750,19 @@ function renderVariableList(module, container) {
             <div class="variable-details">
                 <div class="variable-toggles">
                     <button class="btn-text-toggle var-identifier ${variable.isIdentifier ? 'active' : ''}">
+                        <input type="checkbox" ${variable.isIdentifier ? 'checked' : ''}>
                         ${i18n.t('label_var_identifier', section)}
                     </button>
                     <button class="btn-text-toggle var-backup-identifier ${variable.isBackupIdentifier ? 'active' : ''}">
+                        <input type="checkbox" ${variable.isBackupIdentifier ? 'checked' : ''}>
                         ${i18n.t('label_var_backup_identifier', section)}
                     </button>
                     <button class="btn-text-toggle var-hide-condition ${variable.isHideCondition ? 'active' : ''}">
+                        <input type="checkbox" ${variable.isHideCondition ? 'checked' : ''}>
                         ${i18n.t('label_var_hide_condition', section)}
                     </button>
                     <button class="btn-text-toggle var-no-normalize ${variable.isNoNormalize ? 'active' : ''}">
+                        <input type="checkbox" ${variable.isNoNormalize ? 'checked' : ''}>
                         ${i18n.t('label_var_no_normalize', section)}
                     </button>
                 </div>
@@ -802,6 +811,7 @@ function renderVariableList(module, container) {
         item.querySelectorAll('.btn-text-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
                 btn.classList.toggle('active');
+                const cb = btn.querySelector('input'); if (cb) cb.checked = btn.classList.contains('active');
 
                 // Special logic for hide condition
                 if (btn.classList.contains('var-hide-condition')) {

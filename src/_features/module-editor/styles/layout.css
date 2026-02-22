@@ -820,6 +820,14 @@ section.module-detail-panel {
     cursor: pointer;
     font-size: 12px;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-text-toggle input[type="checkbox"] {
+    pointer-events: none;
+    margin: 0;
 }
 
 .btn-text-toggle:hover {
