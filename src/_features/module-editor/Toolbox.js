@@ -40,6 +40,7 @@ export function renderToolbox(doc, currentModules) {
                 ${optionsHtml}
             </select>
             <button id="btn-preview-refresh" class="btn-secondary">${i18n.t('btn_refresh', section)}</button>
+            <button id="btn-preview-copy-macro" class="btn-secondary">${i18n.t('btn_copy_macro', section)}</button>
             <button id="btn-preview-copy" class="btn-secondary">${i18n.t('btn_copy', section)}</button>
         `;
         previewContainer.appendChild(previewControls);
@@ -167,10 +168,10 @@ export function renderToolbox(doc, currentModules) {
  */
 function getPreviewModes(section) {
     const modes = [
-        { value: 'prompt', label: i18n.t('option_preview_prompt', section) },
-        { value: 'order', label: i18n.t('option_preview_order', section) },
-        { value: 'usage', label: i18n.t('option_preview_usage', section) },
-        { value: 'data', label: i18n.t('option_preview_data', section) }
+        { value: 'prompt', label: `${i18n.t('option_preview_prompt', section)} 宏` },
+        { value: 'order', label: `${i18n.t('option_preview_order', section)} 宏` },
+        { value: 'usage', label: `${i18n.t('option_preview_usage', section)} 宏` },
+        { value: 'data', label: `${i18n.t('option_preview_data', section)} 宏` }
     ];
 
     // 获取聊天消息层数配置，动态生成聊天模块宏选项
@@ -225,6 +226,32 @@ function bindPreviewEvents(doc) {
             setTimeout(() => btn.textContent = originalText, 1000);
         });
     });
+
+    doc.getElementById('btn-preview-copy-macro').addEventListener('click', () => {
+        const mode = doc.getElementById('tool-preview-mode').value;
+        let macroText = '';
+        if (mode.startsWith('chat_module_')) {
+            const index = parseInt(mode.split('_').pop());
+            macroText = `{{CONTINUITY_MSG_MODULE_${index}}}`;
+        } else {
+            switch (mode) {
+                case 'prompt': macroText = '{{CONTINUITY_PROMPT}}'; break;
+                case 'order': macroText = '{{CONTINUITY_ORDER}}'; break;
+                case 'usage': macroText = '{{CONTINUITY_USAGE_GUIDE}}'; break;
+                case 'data': macroText = '{{CONTINUITY_MODULE_DATA}}'; break;
+            }
+        }
+
+        navigator.clipboard.writeText(macroText).then(() => {
+            const btn = doc.getElementById('btn-preview-copy-macro');
+            const originalText = btn.textContent;
+            btn.textContent = "✔";
+            setTimeout(() => btn.textContent = originalText, 1000);
+        });
+    });
+
+    // 首次加载时触发一次预览
+    updatePreview();
 }
 
 function bindDebugButtons(doc, section) {
