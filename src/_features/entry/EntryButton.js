@@ -12,6 +12,7 @@ export class EntryButton {
         this.embeddedId = 'continuity-new-entry-btn';
         this.floatingId = 'continuity-new-fab-btn';
         this.iframeModal = new IframeModal();
+        this._themeListener = null;
     }
 
     /**
@@ -23,6 +24,7 @@ export class EntryButton {
 
         // 加载模态框所需的 CSS
         this._loadModalCSS();
+        this._injectButtonStyles();
 
         // 获取配置
         const config = configManager.getExtensionConfig();
@@ -50,6 +52,12 @@ export class EntryButton {
 
         const floatingBtn = document.getElementById(this.floatingId);
         if (floatingBtn) floatingBtn.remove();
+
+        if (this._themeListener) {
+            window.removeEventListener('storage', this._themeListener);
+            window.removeEventListener('continuity-theme-change', this._themeListener);
+            this._themeListener = null;
+        }
     }
 
     /**
@@ -73,15 +81,21 @@ export class EntryButton {
         btn.title = '打开 Continuity 配置 (Iframe)';
 
         // 简单的图标样式
-        btn.innerHTML = '⚙️';
+        btn.innerHTML = 'Cc';
         Object.assign(btn.style, {
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1.2em',
+            fontSize: '13px',
+            fontWeight: 'bold',
             marginLeft: '5px',
-            order: '9999' // 确保排在最后
+            order: '9999', // 确保排在最后
+            border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
+            borderRadius: '6px',
+            width: '30px',
+            height: '30px',
+            boxSizing: 'border-box'
         });
 
         btn.addEventListener('click', () => {
@@ -98,37 +112,18 @@ export class EntryButton {
         const btn = document.createElement('div');
         btn.id = this.floatingId;
         btn.title = '打开 Continuity 配置 (Iframe)';
+        btn.innerHTML = 'Cc';
 
-        // 浮动按钮样式
-        Object.assign(btn.style, {
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            backgroundColor: 'var(--smart-background, #202123)',
-            color: 'var(--smart-text-color, #fff)',
-            border: '1px solid var(--smart-border-color, #444)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            cursor: 'pointer',
-            zIndex: '2000',
-            transition: 'transform 0.2s ease'
-        });
+        // 初始化主题
+        this._updateButtonTheme(btn);
 
-        btn.innerHTML = '⚙️';
-
-        // 悬停效果
-        btn.addEventListener('mouseenter', () => {
-            btn.style.transform = 'scale(1.1)';
-        });
-        btn.addEventListener('mouseleave', () => {
-            btn.style.transform = 'scale(1)';
-        });
+        // 监听主题变化 (跨窗口/Iframe + 同窗口)
+        this._themeListener = (e) => {
+            if (e.type === 'storage' && e.key !== 'st_continuity_theme') return;
+            this._updateButtonTheme(btn);
+        };
+        window.addEventListener('storage', this._themeListener);
+        window.addEventListener('continuity-theme-change', this._themeListener);
 
         btn.addEventListener('click', () => this._handleClick());
 
@@ -150,6 +145,68 @@ export class EntryButton {
         link.href = `${this.extensionPath}/src/_features/module-editor/styles/modal.css`;
 
         document.head.appendChild(link);
+    }
+
+    /**
+     * 更新按钮主题样式
+     */
+    _updateButtonTheme(btn) {
+        const theme = localStorage.getItem('st_continuity_theme') || 'light';
+        btn.setAttribute('data-theme', theme);
+    }
+
+    /**
+     * 注入按钮样式 (支持响应式)
+     */
+    _injectButtonStyles() {
+        const styleId = 'continuity-entry-btn-styles';
+        if (document.getElementById(styleId)) return;
+
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            #${this.floatingId} {
+                position: absolute;
+                bottom: 138px;
+                left: 10px;
+                width: 30px;
+                height: 30px;
+                border-radius: 6px;
+                background-color: var(--smart-background, #202123);
+                color: var(--smart-text-color, #fff);
+                border: 2px solid var(--smart-border-color, rgba(128,128,128,0.5));
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 13px;
+                font-weight: bold;
+                cursor: pointer;
+                z-index: 2000;
+                box-sizing: border-box;
+                transition: transform 0.2s ease, background-color 0.3s, color 0.3s, border-color 0.3s;
+            }
+            #${this.floatingId}:hover {
+                transform: scale(1.1);
+            }
+            #${this.floatingId}[data-theme="light"] {
+                background-color: #ffffff;
+                color: #333333;
+                border-color: #cccccc;
+            }
+            #${this.floatingId}[data-theme="dark"] {
+                background-color: #202123;
+                color: #ffffff;
+                border-color: rgba(128,128,128,0.5);
+            }
+            @media (max-width: 768px) {
+                #${this.floatingId} {
+                    bottom: 150px;
+                    left: 15px;
+                }
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     /**

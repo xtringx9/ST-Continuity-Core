@@ -125,6 +125,8 @@ function bindHeaderEvents() {
             const next = current === 'light' ? 'dark' : 'light';
             doc.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('st_continuity_theme', next);
+            // 派发自定义事件，通知同一窗口下的其他组件（如 EntryButton）
+            window.dispatchEvent(new CustomEvent('continuity-theme-change'));
         });
     }
 }

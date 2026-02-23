@@ -5,6 +5,7 @@ import {
     infoLog,
     errorLog,
     removeUIfromContextBottom,
+    extensionFolderPath,
 } from "../index.js";
 
 import {
@@ -14,6 +15,8 @@ import {
 } from "../utils/worldBookUtils.js"
 
 import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
+
+import { EntryButton } from "../_features/entry/EntryButton.js";
 
 /**
  * 设置扩展启用状态（全局函数）
@@ -82,7 +85,8 @@ export function onEnabledToggle(event) {
 function enableContinuityCore() {
     try {
         // 创建菜单
-        createMenu();
+        // createMenu();
+        new EntryButton(extensionFolderPath).init();
 
         // 自动加载模块配置到DOM（如果配置面板尚未打开）
         if ($('.module-item').length === 0) {
@@ -106,7 +110,8 @@ function enableContinuityCore() {
  */
 function disableContinuityCore() {
     try {
-        removeAllButtonUI();
+        // removeAllButtonUI();
+        new EntryButton(extensionFolderPath).remove();
         // // 隐藏FAB菜单
         // const fabContainer = $("#continuity-fab-container");
         // if (fabContainer.length) {
@@ -182,11 +187,13 @@ export function onButtonTypeChange(event) {
     configManager.setExtensionConfig(extensionConfig);
 
     // 移除现有UI
-    removeAllButtonUI();
+    // removeAllButtonUI();
+    new EntryButton(extensionFolderPath).remove();
 
     // 根据新的按钮类型重新创建UI
     if (extensionConfig.enabled) {
-        createMenu();
+        // createMenu();
+        new EntryButton(extensionFolderPath).init();
     }
 
     // toastr.info("按钮类型已设置为: " + buttonType);
