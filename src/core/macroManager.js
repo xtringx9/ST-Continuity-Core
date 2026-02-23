@@ -5,7 +5,7 @@
 
 import { groupProcessResultByMessageIndex, chat, processModuleData, configManager, debugLog, errorLog, infoLog } from '../index.js';
 import { generateSingleChatModuleData, generateModuleDataPrompt, generateModuleOrderPrompt, generateUsageGuide, generateFormalPrompt } from '../modules/promptGenerator.js';
-import { extension_settings, extensionName, loadModuleConfig } from '../index.js';
+// import { extension_settings, extensionName, loadModuleConfig } from '../index.js';
 import { replaceVariables } from '../utils/variableReplacer.js';
 
 /**

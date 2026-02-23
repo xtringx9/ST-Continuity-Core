@@ -54,7 +54,6 @@ export { default as moduleCacheManager } from './singleton/moduleCacheManager.js
 // 3. Core 核心模块
 // ==========================================
 
-export { ExtractModuleController } from './_archive/core/extractModuleController.js';
 export { PromptInjector } from './core/promptInjector.js';
 export { EventHandler } from './core/eventHandler.js';
 export { groupProcessResultByMessageIndex, processModuleData, htmlEscape } from './core/moduleProcessor.js';
@@ -84,57 +83,9 @@ export {
     onButtonTypeChange,
 } from './ui/extensionSettingsManager.js';
 
-export {
-    // setExtensionEnabled,
-    // loadSettingsToUI,
-    // onEnabledToggle,
-    // onBackendUrlChange,
-    // onDebugLogsToggle,
-    onAutoInjectToggle,
-    updateInjectionSettingsVisibility,
-    updateExtensionUIState,
-    onPromptChange,
-    onOrderPromptChange,
-    onUsagePromptChange,
-    onModuleDataPromptChange,
-    onContainerStylesChange,
-    onExternalStylesChange,
-    onTimeFormatChange,
-} from './_archive/ui/settingsManager.js';
-
-export {
-    loadSettingsPanel,
-    openModuleConfigWindow,
-    closeModuleConfigWindow,
-    createMenu,
-    showCustomConfirmDialog,
-} from './_archive/ui/uiManager.js';
-
 // ==========================================
 // 5. Modules 功能模块
 // ==========================================
-
-export {
-    saveModuleConfig,
-    loadModuleConfig,
-    renderModulesFromConfig,
-    setBindModuleEvents,
-    setOnRenderComplete,
-    getModuleConfigStatsInfo,
-    hasModuleConfigData,
-    clearModuleConfigData,
-} from './modules/moduleConfigManager.js';
-
-export {
-    addModule,
-    updateModulePreview,
-    updateModuleOrderNumbers,
-    bindModuleEvents,
-    bindAddModuleButtonEvent,
-    bindClearModulesButtonEvent,
-    rebindAllModulesEvents,
-    updateAllModulesPreview,
-} from './_archive/modules/moduleManager.js';
 
 export {
     generateFormalPrompt,
@@ -143,32 +94,10 @@ export {
 } from './modules/promptGenerator.js';
 
 export {
-    togglePromptPreview,
-    updatePromptPreview,
-    copyPromptToClipboard,
-    bindPromptPreviewEvents,
-    initPromptPreview,
-} from './_archive/modules/promptPreviewManager.js';
-
-export {
-    addVariable,
-    bindVariableEvents,
-} from './_archive/modules/variableManager.js';
-
-export {
-    getVariableItemTemplate,
-    getEmptyVariableItemTemplate,
-} from './_archive/modules/templateManager.js';
-
-export {
     parseModuleString,
     validateModuleString,
     generateModulePreview,
 } from './modules/moduleParser.js';
-
-export {
-    initParseModule,
-} from './_archive/modules/parseModuleManager.js';
 
 // ==========================================
 // 6. Utils 工具模块
@@ -183,12 +112,6 @@ export {
 } from './utils/logger.js';
 
 export { sendToBackend } from './utils/backendService.js';
-
-export {
-    initJsonImportExport,
-    bindSaveButtonEvent,
-    showExportOptionsDialog
-} from './_archive/utils/configImporterExporter.js';
 
 export {
     updateCurrentCharWorldBookCache,

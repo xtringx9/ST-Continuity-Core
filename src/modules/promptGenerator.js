@@ -1,5 +1,5 @@
 // 提示词生成器模块
-import { processModuleData, groupProcessResultByMessageIndex, chat, configManager, debugLog, errorLog, infoLog, extension_settings, extensionName, loadModuleConfig } from "../index.js";
+import { processModuleData, groupProcessResultByMessageIndex, chat, configManager, debugLog, errorLog, infoLog, extension_settings, extensionName } from "../index.js";
 import { replaceVariables } from "../utils/variableReplacer.js";
 
 // 默认插入设置
