@@ -38,7 +38,7 @@ import {
     configManager,
     infoLog,
     initParseModule
-} from '../index.js';
+} from '../../index.js';
 
 import { onButtonTypeChange, onBottomStylesChange } from './settingsManager.js';
 
@@ -87,7 +87,7 @@ export async function loadSettingsPanel() {
         $('#continuity_test_backend').on('click', sendToBackend);
 
         // 绑定Tab切换事件
-        $('.continuity-tab-btn').on('click', function() {
+        $('.continuity-tab-btn').on('click', function () {
             const tabId = $(this).data('tab');
             $('.continuity-tab-btn').removeClass('active');
             $('.continuity-tab-content').removeClass('active');

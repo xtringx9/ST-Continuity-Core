@@ -1,7 +1,7 @@
 // 模块配置管理器 - 用于管理模块的添加、编辑、删除等操作
-import { debugLog, errorLog, addVariable, showCustomConfirmDialog, bindVariableEvents, registerContinuityRegexPattern } from "../index.js";
-import { default as configManager } from "../singleton/configManager.js";
-import { generateModuleFormat } from "./promptGenerator.js";
+import { debugLog, errorLog, addVariable, showCustomConfirmDialog, bindVariableEvents, registerContinuityRegexPattern } from "../../index.js";
+import { default as configManager } from "../../singleton/configManager.js";
+import { generateModuleFormat } from "../../modules/promptGenerator.js";
 
 /**
  * 添加新模块

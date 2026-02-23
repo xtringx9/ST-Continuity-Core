@@ -54,7 +54,7 @@ export { default as moduleCacheManager } from './singleton/moduleCacheManager.js
 // 3. Core 核心模块
 // ==========================================
 
-export { ExtractModuleController } from './core/extractModuleController.js';
+export { ExtractModuleController } from './_archive/core/extractModuleController.js';
 export { PromptInjector } from './core/promptInjector.js';
 export { EventHandler } from './core/eventHandler.js';
 export { groupProcessResultByMessageIndex, processModuleData, htmlEscape } from './core/moduleProcessor.js';
@@ -72,11 +72,24 @@ export {
 // 4. UI 模块
 // ==========================================
 
+export { SettingsPanel } from './_features/extension-settings/SettingsPanel.js';
+export { EntryButton } from './_features/entry/EntryButton.js';
+
 export {
+    setExtensionEnabled,
     loadSettingsToUI,
     onEnabledToggle,
     onBackendUrlChange,
     onDebugLogsToggle,
+    onButtonTypeChange,
+} from './ui/extensionSettingsManager.js';
+
+export {
+    // setExtensionEnabled,
+    // loadSettingsToUI,
+    // onEnabledToggle,
+    // onBackendUrlChange,
+    // onDebugLogsToggle,
     onAutoInjectToggle,
     updateInjectionSettingsVisibility,
     updateExtensionUIState,
@@ -87,7 +100,7 @@ export {
     onContainerStylesChange,
     onExternalStylesChange,
     onTimeFormatChange,
-} from './ui/settingsManager.js';
+} from './_archive/ui/settingsManager.js';
 
 export {
     loadSettingsPanel,
@@ -95,7 +108,7 @@ export {
     closeModuleConfigWindow,
     createMenu,
     showCustomConfirmDialog,
-} from './ui/uiManager.js';
+} from './_archive/ui/uiManager.js';
 
 // ==========================================
 // 5. Modules 功能模块
@@ -121,7 +134,7 @@ export {
     bindClearModulesButtonEvent,
     rebindAllModulesEvents,
     updateAllModulesPreview,
-} from './modules/moduleManager.js';
+} from './_archive/modules/moduleManager.js';
 
 export {
     generateFormalPrompt,
@@ -135,17 +148,17 @@ export {
     copyPromptToClipboard,
     bindPromptPreviewEvents,
     initPromptPreview,
-} from './modules/promptPreviewManager.js';
+} from './_archive/modules/promptPreviewManager.js';
 
 export {
     addVariable,
     bindVariableEvents,
-} from './modules/variableManager.js';
+} from './_archive/modules/variableManager.js';
 
 export {
     getVariableItemTemplate,
     getEmptyVariableItemTemplate,
-} from './modules/templateManager.js';
+} from './_archive/modules/templateManager.js';
 
 export {
     parseModuleString,
@@ -155,7 +168,7 @@ export {
 
 export {
     initParseModule,
-} from './modules/parseModuleManager.js';
+} from './_archive/modules/parseModuleManager.js';
 
 // ==========================================
 // 6. Utils 工具模块
@@ -175,7 +188,7 @@ export {
     initJsonImportExport,
     bindSaveButtonEvent,
     showExportOptionsDialog
-} from './utils/configImporterExporter.js';
+} from './_archive/utils/configImporterExporter.js';
 
 export {
     updateCurrentCharWorldBookCache,
@@ -187,5 +200,3 @@ export {
 } from './utils/worldBookUtils.js';
 
 export { registerContinuityRegexPattern } from './utils/regexUtils.js';
-
-

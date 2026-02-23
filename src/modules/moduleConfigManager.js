@@ -1,8 +1,8 @@
 // 模块配置管理模块
 import { extensionFolderPath, debugLog, errorLog, infoLog } from "../index.js";
-import { getVariableItemTemplate } from "./templateManager.js";
-import { updateModulePreview, restoreModuleCollapsedState, restoreCustomStylesVisibleState } from "./moduleManager.js";
-import { updateVariableOrderNumbers, bindVariableEvents } from "./variableManager.js";
+import { getVariableItemTemplate } from "../_archive/modules/templateManager.js";
+import { updateModulePreview, restoreModuleCollapsedState, restoreCustomStylesVisibleState } from "../_archive/modules/moduleManager.js";
+import { updateVariableOrderNumbers, bindVariableEvents } from "../_archive/modules/variableManager.js";
 import { default as configManager } from "../singleton/configManager.js";
 
 // 声明外部函数（在uiManager.js中定义）

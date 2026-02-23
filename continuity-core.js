@@ -1,8 +1,8 @@
 // 主模块 - ST-Continuity-Core
 // 使用src/index.js作为统一入口
 import {
-    loadSettingsPanel,
-    createMenu,
+    SettingsPanel,
+    EntryButton,
     registerMacros,
     infoLog,
     debugLog,
@@ -16,19 +16,15 @@ import { default as configManager } from "./src/singleton/configManager.js";
 // 导入事件处理器
 import { EventHandler } from "./src/core/eventHandler.js";
 
-// 导入新版 Iframe 入口按钮
-import { EntryButton } from "./src/_features/entry/EntryButton.js";
-
-infoLog("♥️ Continuity Core LOADED!");
+// infoLog("♥️ Continuity Core LOADED!");
 
 jQuery(async function () {
 
     // 手动加载配置
     configManager.load();
-    infoLog("Continuity Core 配置已手动加载");
 
     // 总是加载设置面板（即使插件禁用，也需要让用户能重新启用）
-    await loadSettingsPanel();
+    await new SettingsPanel().load();
 
     const eventHandler = new EventHandler();
 
@@ -41,12 +37,8 @@ jQuery(async function () {
         infoLog("♥️ Continuity Core 已禁用，事件监听器和宏已注册但不会处理事件");
         return;
     }
-    infoLog("♥️ Continuity Core 已启用，开始完整初始化");
+    infoLog("♥️ Continuity Core 已启用");
 
-    // 创建菜单
-    // createMenu();
-
-    // 初始化新的 Iframe 入口按钮 (平行开发测试用)
-    const entryButton = new EntryButton(extensionFolderPath);
-    entryButton.init();
+    // 初始化入口按钮 (EntryButton 内部会根据配置决定显示方式)
+    new EntryButton(extensionFolderPath).init();
 });

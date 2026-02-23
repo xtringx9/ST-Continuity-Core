@@ -4,7 +4,7 @@
     "requires": [],
     "optional": [],
     "js": "continuity-core.js",
-    "css": "assets/css/continuity-core-style.css",
+    "css": "",
     "author": "xtringx9",
     "version": "1.0.0",
     "description": "",

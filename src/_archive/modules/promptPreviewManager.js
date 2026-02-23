@@ -1,7 +1,7 @@
 // 提示词预览区域管理模块
-import { configManager, debugLog, errorLog, infoLog } from '../index.js';
-import { copyToClipboard } from './promptGenerator.js';
-import { getContinuityPrompt, getContinuityConfig, getContinuityModules, getContinuityOrder, getContinuityUsageGuide, getContinuityModuleData, getContinuityChatModule } from '../core/macroManager.js';
+import { configManager, debugLog, errorLog, infoLog } from '../../index.js';
+import { copyToClipboard } from '../../modules/promptGenerator.js';
+import { getContinuityPrompt, getContinuityConfig, getContinuityModules, getContinuityOrder, getContinuityUsageGuide, getContinuityModuleData, getContinuityChatModule } from '../../core/macroManager.js';
 
 // 默认插入设置
 const DEFAULT_INSERTION_SETTINGS = {

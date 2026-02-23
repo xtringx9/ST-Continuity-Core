@@ -1,8 +1,6 @@
 // 提取模块控制器 - 独立管理提取模块功能
-import { getContext, chat, configManager, infoLog, debugLog, errorLog, moduleCacheManager } from '../index.js';
-import { parseCompatibleNames } from '../modules/moduleParser.js';
-import { parseMultipleModules } from '../modules/parseModuleManager.js';
-import { processModuleData, htmlEscape } from './moduleProcessor.js';
+import { getContext, chat, configManager, infoLog, debugLog, errorLog, moduleCacheManager } from '../../index.js';
+import { processModuleData, htmlEscape } from '../../core/moduleProcessor.js';
 
 /**
  * 复制文本到剪贴板

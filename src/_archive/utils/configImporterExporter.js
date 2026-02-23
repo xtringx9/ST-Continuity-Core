@@ -1,10 +1,10 @@
 // 配置导入导出相关功能
-import { infoLog, debugLog, errorLog, renderModulesFromConfig, showCustomConfirmDialog, updateModuleOrderNumbers } from "../index.js";
+import { infoLog, debugLog, errorLog, renderModulesFromConfig, showCustomConfirmDialog, updateModuleOrderNumbers } from "../../index.js";
 import { clearAllModules, rebindAllModulesEvents, updateAllModulesPreview, bindModuleEvents, updateModulePreview, bindClearModulesButtonEvent, bindAddModuleButtonEvent } from "../modules/moduleManager.js";
-import { MODULE_CONFIG_TEMPLATE, validateConfig, normalizeConfig, CONFIG_CONSTANTS } from "../modules/moduleConfigTemplate.js";
-import { default as configManager, CONTINUITY_CORE_IDENTIFIER, extensionName } from "../singleton/configManager.js";
-import { checkAndInitializeWorldBook } from "./worldBookUtils.js";
-import { registerContinuityRegexPattern } from "./regexUtils.js";
+import { MODULE_CONFIG_TEMPLATE, validateConfig, normalizeConfig, CONFIG_CONSTANTS } from "../../modules/moduleConfigTemplate.js";
+import { default as configManager, CONTINUITY_CORE_IDENTIFIER, extensionName } from "../../singleton/configManager.js";
+import { checkAndInitializeWorldBook } from "../../utils/worldBookUtils.js";
+import { registerContinuityRegexPattern } from "../../utils/regexUtils.js";
 import { updateMacroOptionsFromConfig } from "../modules/promptPreviewManager.js";
 
 /**

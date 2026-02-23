@@ -6,17 +6,17 @@ import {
     errorLog,
     removeUIfromContextBottom,
     extensionFolderPath,
-} from "../index.js";
+} from "../../index.js";
 
 import {
     addWorldBookToGlobalSettings,
     removeWorldBookFromGlobalSettings,
     WORLD_BOOK_CONSTANTS
-} from "../utils/worldBookUtils.js"
+} from "../../utils/worldBookUtils.js"
 
-import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
+import { registerContinuityRegexPattern } from "../../utils/regexUtils.js"
 
-import { EntryButton } from "../_features/entry/EntryButton.js";
+import { EntryButton } from "../../_features/entry/EntryButton.js";
 
 /**
  * 设置扩展启用状态（全局函数）

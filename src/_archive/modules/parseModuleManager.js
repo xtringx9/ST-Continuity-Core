@@ -1,6 +1,6 @@
 // 模块解析管理器 - 纯基于配置的模块解析处理
-import { configManager, debugLog, errorLog, infoLog, renderModulesFromConfig } from "../index.js";
-import { parseModuleString, validateModuleString } from "./moduleParser.js";
+import { configManager, debugLog, errorLog, infoLog, renderModulesFromConfig } from "../../index.js";
+import { parseModuleString, validateModuleString } from "../../modules/moduleParser.js";
 import { rebindAllModulesEvents, updateAllModulesPreview } from "./moduleManager.js";
 
 /**
