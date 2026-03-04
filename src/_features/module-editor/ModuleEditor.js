@@ -22,6 +22,7 @@ let originalGlobalSettings = {}; // 保存时用于比较的原始全局设置
 let currentGlobalSettings = {}; // 当前编辑的全局设置副本
 let selectedModuleId = null; // 记录当前选中的模块 ID
 let activeDetailTab = 'module-detail-settings'; // 记录当前详情页的活动Tab
+let activeViewSectionId = 'view-modules'; // 当前主视图的活动ID
 let searchTerm = ''; // 搜索关键词
 
 // === 渲染逻辑 ===
@@ -43,6 +44,9 @@ export function initModuleEditor(iframeDocument) {
 
     // 应用静态文本翻译
     i18n.apply(doc, 'module_editor');
+
+    // 从 localStorage 加载上次打开的页面
+    activeViewSectionId = localStorage.getItem('continuity_editor_last_tab') || 'view-modules';
 
     // 加载真实数据 (深拷贝以避免直接修改引用，直到保存)
     const modules = configManager.getModules(true); // true 表示获取所有模块(包括禁用的)
@@ -66,6 +70,32 @@ export function initModuleEditor(iframeDocument) {
 
     // 绑定侧边栏事件 (搜索和添加)
     bindSidebarEvents();
+
+    // ---- 设置初始活动页面 ----
+    const navItems = doc.querySelectorAll('.nav-item');
+    const sections = doc.querySelectorAll('.view-section');
+    navItems.forEach(n => n.classList.remove('active'));
+    sections.forEach(s => s.classList.remove('active'));
+
+    const initialNavItem = doc.querySelector(`.nav-item[data-target="${activeViewSectionId}"]`);
+    const initialSection = doc.getElementById(activeViewSectionId);
+
+    if (initialNavItem && initialSection) {
+        initialNavItem.classList.add('active');
+        initialSection.classList.add('active');
+    } else {
+        // Fallback to the first one if the saved one is invalid
+        const firstNavItem = doc.querySelector('.nav-item');
+        if (firstNavItem) {
+            const firstTargetId = firstNavItem.getAttribute('data-target');
+            firstNavItem.classList.add('active');
+            doc.getElementById(firstTargetId)?.classList.add('active');
+            activeViewSectionId = firstTargetId; // Update state
+        }
+    }
+
+    // 控制“清空模块”按钮的初始显示/隐藏
+    doc.getElementById('header-clear-btn').style.display = (activeViewSectionId === 'view-modules') ? 'inline-block' : 'none';
 
     // 初始化保存按钮状态
     checkForChanges();
@@ -148,6 +178,10 @@ function bindNavigationEvents() {
             if (targetSection) {
                 targetSection.classList.add('active');
             }
+
+            // 保存当前激活的页面ID
+            localStorage.setItem('continuity_editor_last_tab', targetId);
+            activeViewSectionId = targetId;
 
             // 控制“清空模块”按钮的显示/隐藏
             const clearBtn = doc.getElementById('header-clear-btn');
