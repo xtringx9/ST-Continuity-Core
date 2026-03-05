@@ -62,6 +62,9 @@ export function initModuleEditor(iframeDocument) {
     renderToolbox(doc, currentModules);
     renderGlobalSettings(doc, currentGlobalSettings, checkForChanges);
 
+    // 绑定调试按钮 (打印当前编辑器状态)
+    bindDebugStateButton();
+
     // 绑定顶部栏事件 (主题切换等)
     bindHeaderEvents();
 
@@ -157,6 +160,22 @@ function bindHeaderEvents() {
             localStorage.setItem('st_continuity_theme', next);
             // 派发自定义事件，通知同一窗口下的其他组件（如 EntryButton）
             window.dispatchEvent(new CustomEvent('continuity-theme-change'));
+        });
+    }
+}
+
+function bindDebugStateButton() {
+    const btn = doc.getElementById('btn-debug-state');
+    if (btn) {
+        // 应用翻译
+        btn.textContent = i18n.t('btn_debug_state', 'module_editor');
+
+        // 绑定点击事件
+        btn.addEventListener('click', () => {
+            infoLog("[Debug] === Editor State Dump ===");
+            infoLog("[Debug] Original Modules (Saved):", originalModules);
+            infoLog("[Debug] Current Modules (Editing):", currentModules);
+            infoLog("[Debug] =========================");
         });
     }
 }

@@ -1,5 +1,17 @@
 import { i18n } from '../../_utils/i18n.js';
 
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') {
+        return unsafe;
+    }
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function truncate(value, length = 50) {
     if (typeof value === 'string') {
         if (value.length > length) {
@@ -124,7 +136,7 @@ export function generateChangesSummary(originalModules, currentModules, original
         html += '<h4>全局设置变更:</h4><ul>';
         settingsChanges.forEach(change => {
             const label = i18n.t(`label_global_${change.key.replace(/([A-Z])/g, '_$1').toLowerCase()}`, 'module_editor') || change.key;
-            html += `<li><strong>${label}</strong>: <span class="change-old">${change.oldValue}</span> → <span class="change-new">${change.newValue}</span></li>`;
+            html += `<li><strong>${escapeHtml(label)}</strong>: <span class="change-old">${escapeHtml(change.oldValue)}</span> → <span class="change-new">${escapeHtml(change.newValue)}</span></li>`;
         });
         html += '</ul>';
     }
@@ -138,7 +150,7 @@ export function generateChangesSummary(originalModules, currentModules, original
         if (moduleChanges.added.length > 0) {
             html += '<h5>新增模块:</h5><ul>';
             moduleChanges.added.forEach(mod => {
-                html += `<li><span class="change-new">${mod.displayName || mod.name}</span></li>`;
+                html += `<li><span class="change-new">${escapeHtml(mod.displayName || mod.name)}</span></li>`;
             });
             html += '</ul>';
         }
@@ -146,7 +158,7 @@ export function generateChangesSummary(originalModules, currentModules, original
         if (moduleChanges.deleted.length > 0) {
             html += '<h5>删除模块:</h5><ul>';
             moduleChanges.deleted.forEach(mod => {
-                html += `<li><span class="change-deleted">${mod.displayName || mod.name}</span></li>`;
+                html += `<li><span class="change-deleted">${escapeHtml(mod.displayName || mod.name)}</span></li>`;
             });
             html += '</ul>';
         }
@@ -154,9 +166,9 @@ export function generateChangesSummary(originalModules, currentModules, original
         if (moduleChanges.modified.length > 0) {
             html += '<h5>修改模块:</h5>';
             moduleChanges.modified.forEach(modChange => {
-                html += `<details><summary>${modChange.module.displayName || modChange.module.name}</summary><ul>`;
+                html += `<details><summary>${escapeHtml(modChange.module.displayName || modChange.module.name)}</summary><ul>`;
                 modChange.changes.forEach(change => {
-                    html += `<li><strong>${change.key}</strong>: <span class="change-old">${change.oldValue}</span> → <span class="change-new">${change.newValue}</span></li>`;
+                    html += `<li><strong>${escapeHtml(change.key)}</strong>: <span class="change-old">${escapeHtml(change.oldValue)}</span> → <span class="change-new">${escapeHtml(change.newValue)}</span></li>`;
                 });
                 html += '</ul></details>';
             });
@@ -164,7 +176,7 @@ export function generateChangesSummary(originalModules, currentModules, original
     }
 
     if (!hasChanges) {
-        html = '<p>未检测到任何更改。</p>';
+        html = `<p>${i18n.t('msg_no_changes', 'module_editor')}</p>`;
     }
 
     return { html, hasChanges };
