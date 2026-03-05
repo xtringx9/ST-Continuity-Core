@@ -1126,27 +1126,38 @@ function clearAllModules() {
 
 function confirmAndSave() {
     const { html, hasChanges } = generateChangesSummary(originalModules, currentModules, originalGlobalSettings, currentGlobalSettings);
+    const section = 'module_editor';
 
     const dialog = new IframeDialog(doc);
 
     if (!hasChanges) {
         // If no changes, just show the "Saved" feedback without actually saving.
         showSavedFeedback();
-        infoLog("[ModuleEditor] No changes detected, skipping save.");
+        infoLog(`[ModuleEditor] ${i18n.t('msg_no_changes', section)}`);
         return;
     }
 
     dialog.open({
-        title: '确认保存更改',
+        title: i18n.t('title_confirm_save', section),
         content: html,
         buttons: [
             {
-                text: '取消',
+                text: i18n.t('btn_undo_changes', section),
+                id: 'restore-button',
+                className: 'btn-secondary',
+                align: 'left', // 放在左下角
+                onClick: (d) => {
+                    restoreAll();
+                    d.close();
+                }
+            },
+            {
+                text: i18n.t('btn_cancel', section),
                 className: 'btn-secondary',
                 onClick: (d) => d.close(),
             },
             {
-                text: '确认保存',
+                text: i18n.t('btn_confirm_save', section),
                 className: 'btn-primary',
                 onClick: (d) => {
                     d.close();
@@ -1185,4 +1196,15 @@ function saveAll() {
 
     checkForChanges(); // 更新按钮状态（应变为禁用）
     showSavedFeedback();
+}
+
+function restoreAll() {
+    currentModules = JSON.parse(JSON.stringify(originalModules));
+    currentGlobalSettings = JSON.parse(JSON.stringify(originalGlobalSettings));
+    renderModuleList();
+    renderGlobalSettings(doc, currentGlobalSettings, checkForChanges);
+    renderToolbox(doc, currentModules);
+    infoLog("[ModuleEditor] 所有配置已恢复");
+
+    checkForChanges(); // 更新按钮状态（应变为禁用）
 }

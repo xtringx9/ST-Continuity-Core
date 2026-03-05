@@ -49,6 +49,12 @@ export class IframeDialog {
                 button.className = `${btnConfig.className || 'btn-secondary'}`;
                 button.style.padding = '6px 12px';
                 button.style.fontSize = '13px';
+
+                // 支持左对齐 (将按钮推到左边，利用 flex 布局)
+                if (btnConfig.align === 'left') {
+                    button.style.marginRight = 'auto';
+                }
+
                 button.addEventListener('click', () => {
                     if (btnConfig.onClick) {
                         btnConfig.onClick(this);

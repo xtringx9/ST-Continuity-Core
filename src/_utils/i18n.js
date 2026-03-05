@@ -129,7 +129,12 @@ const resources = {
             "btn_select_enabled": "仅启用",
             "title_quick_add": "快速添加模块",
             "placeholder_parse_input": "输入模块格式，如：[item|own:所属人|loc:当前位置]",
-            "btn_parse": "解析并添加"
+            "btn_parse": "解析并添加",
+            "btn_undo_changes": "撤销修改",
+            "title_confirm_save": "确认保存更改",
+            "btn_confirm_save": "确认保存",
+            "btn_cancel": "取消",
+            "msg_no_changes": "未检测到任何更改。"
         }
         // 未来可以添加其他模块的翻译，例如 "settings": { ... }
     },
@@ -259,7 +264,12 @@ const resources = {
             "btn_select_enabled": "Enabled Only",
             "title_quick_add": "Quick Add Module",
             "placeholder_parse_input": "Input module format, e.g. [item|own:Owner|loc:Location]",
-            "btn_parse": "Parse & Add"
+            "btn_parse": "Parse & Add",
+            "btn_undo_changes": "Undo Changes",
+            "title_confirm_save": "Confirm Save",
+            "btn_confirm_save": "Confirm Save",
+            "btn_cancel": "Cancel",
+            "msg_no_changes": "No changes detected."
         }
     }
 };
