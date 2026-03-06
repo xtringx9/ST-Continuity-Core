@@ -1223,6 +1223,27 @@ function restoreAll() {
     renderModuleList();
     renderGlobalSettings(doc, currentGlobalSettings, checkForChanges);
     renderToolbox(doc, currentModules);
+
+    // 如果有模块被选中，需要重新渲染详情视图以反映撤销的更改
+    if (selectedModuleId) {
+        const restoredModuleIndex = currentModules.findIndex(m => m.name === selectedModuleId);
+        if (restoredModuleIndex !== -1) {
+            // 模块仍然存在，重新渲染其详情
+            renderModuleDetail(currentModules[restoredModuleIndex], restoredModuleIndex);
+        } else {
+            // 选中的模块在撤销后被删除了（例如，一个新添加的模块），清空详情面板
+            selectedModuleId = null;
+            const detailContainer = doc.querySelector('.module-detail-panel .detail-content');
+            if (detailContainer) {
+                detailContainer.innerHTML = `
+                    <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
+                        <p>请从左侧选择一个模块进行编辑</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
     infoLog("[ModuleEditor] 所有配置已恢复");
 
     checkForChanges(); // 更新按钮状态（应变为禁用）
