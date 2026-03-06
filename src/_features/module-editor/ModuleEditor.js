@@ -1071,8 +1071,8 @@ async function onImportClick() {
 
     // 1. 导入全局设置
     if (importData.globalSettings) {
-        currentGlobalSettings = { ...currentGlobalSettings, ...importData.globalSettings };
-        renderGlobalSettings(doc, currentGlobalSettings);
+        currentGlobalSettings = { ...currentGlobalSettings, ...importData.globalSettings }; // 合并导入的设置
+        renderGlobalSettings(doc, currentGlobalSettings, checkForChanges); // 重新渲染全局设置视图
         changesMade = true;
     }
 
@@ -1107,6 +1107,16 @@ async function onImportClick() {
 
     if (changesMade) {
         infoLog("[ModuleEditor] 导入成功，已更新编辑器状态");
+
+        // 如果有模块被选中，需要重新渲染详情视图以反映导入的更改
+        if (selectedModuleId) {
+            const updatedModuleIndex = currentModules.findIndex(m => m.name === selectedModuleId);
+            if (updatedModuleIndex !== -1) {
+                // 模块仍然存在（可能已被覆盖），重新渲染其详情
+                renderModuleDetail(currentModules[updatedModuleIndex], updatedModuleIndex);
+            }
+        }
+
         checkForChanges(); // 检查变更
     }
 }
