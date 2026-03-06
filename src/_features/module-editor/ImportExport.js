@@ -12,6 +12,10 @@ export function handleExport(doc) {
     const currentModules = configManager.getModules(true);
     const dialog = new IframeDialog(doc);
 
+    // 检查是否有未保存的更改 (通过保存按钮状态判断)
+    const saveBtn = doc.getElementById('header-save-btn');
+    const hasUnsavedChanges = saveBtn && !saveBtn.disabled;
+
     // 获取上次保存的作者和版本信息
     const extConfig = configManager.getExtensionConfig();
     const defaultAuthor = extConfig.moduleConfigAuthor || '';
@@ -64,6 +68,14 @@ export function handleExport(doc) {
                 <input type="text" id="export-version" value="${defaultVersion}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
             </div>
         </div>
+
+        ${hasUnsavedChanges ? `
+        <div style="margin-top: 12px; padding: 8px; background: rgba(255, 170, 0, 0.1); border: 1px solid rgba(255, 170, 0, 0.3); border-radius: 4px;">
+            <p style="color: var(--text-warning, #ffaa00); margin: 0; font-size: 12px; line-height: 1.4;">
+                ⚠️ <strong>注意：</strong>检测到未保存的更改。导出文件仅包含<b>已保存</b>的配置。若要导出当前编辑内容，请先保存。
+            </p>
+        </div>
+        ` : ''}
     `;
 
     dialog.open({
