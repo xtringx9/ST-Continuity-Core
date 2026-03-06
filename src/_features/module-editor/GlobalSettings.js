@@ -19,27 +19,27 @@ export function renderGlobalSettings(doc, settings, onChange) {
                 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>${i18n.t('label_module_tag', section)}</label>
+                        <label>${i18n.t('label_global_module_tag', section)}</label>
                         <input type="text" id="global-module-tag" value="${settings.moduleTag || 'module'}" placeholder="${i18n.t('placeholder_default_module', section)}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_module_update_tag', section)}</label>
+                        <label>${i18n.t('label_global_module_update_tag', section)}</label>
                         <input type="text" id="global-module-update-tag" value="${settings.moduleUpdateTag || 'module_update'}" placeholder="${i18n.t('placeholder_default_module_update', section)}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_compatible_module_tags', section)}</label>
+                        <label>${i18n.t('label_global_compatible_module_tags', section)}</label>
                         <input type="text" id="global-compatible-module-tags" value="${(settings.compatibleModuleTags || []).join(',')}" placeholder="${i18n.t('placeholder_compatible_module_tags', section)}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_cot_tags', section)}</label>
+                        <label>${i18n.t('label_global_cot_tags', section)}</label>
                         <input type="text" id="global-cot-tags" value="${(settings.cotTags || []).join(',')}" placeholder="${i18n.t('placeholder_tags', section)}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_content_tag', section)}</label>
+                        <label>${i18n.t('label_global_content_tag', section)}</label>
                         <input type="text" id="global-content-tag" value="${(settings.contentTag || []).join(',')}" placeholder="${i18n.t('placeholder_tags', section)}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_content_remain_layers', section)}</label>
+                        <label>${i18n.t('label_global_content_remain_layers', section)}</label>
                         <input type="number" id="global-content-remain-layers" value="${settings.contentRemainLayers !== undefined ? settings.contentRemainLayers : 6}" placeholder="${i18n.t('placeholder_content_remain_layers', section)}">
                     </div>
                 </div>
@@ -86,7 +86,7 @@ export function renderGlobalSettings(doc, settings, onChange) {
                 <div class="form-section-title">${i18n.t('title_other_settings', section)}</div>
 
                 <div class="form-group">
-                    <label>${i18n.t('label_time_format', section)}</label>
+                    <label>${i18n.t('label_global_time_format', section)}</label>
                     <input type="text" id="global-time-format" value="${settings.timeFormat || ''}">
                 </div>
 

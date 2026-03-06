@@ -12,20 +12,33 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
-function truncate(value, length = 50) {
-    if (typeof value === 'string') {
-        if (value.length > length) {
-            return `"${value.substring(0, length)}..."`;
-        }
-        return `"${value}"`;
-    }
-    if (Array.isArray(value)) {
-        return `[${value.length} items]`;
-    }
+/**
+ * 格式化变更值为可读的HTML。
+ * - 对长字符串使用可展开的 <details> 标签。
+ * - 对数组显示其长度。
+ * - 对其他值进行HTML转义。
+ * @param {*} value - 要格式化的值
+ * @param {number} length - 字符串截断长度
+ * @returns {string} - 格式化后的HTML字符串
+ */
+function formatChangeValue(value, length = 50) {
     if (value === undefined) {
         return 'N/A';
     }
-    return String(value);
+    if (Array.isArray(value)) {
+        return `[${value.length} 项]`;
+    }
+    if (typeof value === 'string') {
+        if (value.length > length) {
+            // 使用 <details> 标签创建可展开的区域
+            return `<details style="display: inline-block; cursor: pointer; max-width: 100%;">
+                        <summary style="display: inline; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">"${escapeHtml(value.substring(0, length))}..."</summary>
+                        <pre style="margin-top: 5px; padding: 5px; background: rgba(0,0,0,0.1); border-radius: 3px; white-space: pre-wrap; word-break: break-all;">${escapeHtml(value)}</pre>
+                    </details>`;
+        }
+        return `"${escapeHtml(value)}"`;
+    }
+    return escapeHtml(String(value));
 }
 
 function compareObjects(obj1, obj2, keysToIgnore = []) {
@@ -35,14 +48,26 @@ function compareObjects(obj1, obj2, keysToIgnore = []) {
     for (const key of allKeys) {
         if (keysToIgnore.includes(key)) continue;
 
-        const val1 = JSON.stringify(obj1 ? obj1[key] : undefined);
-        const val2 = JSON.stringify(obj2 ? obj2[key] : undefined);
+        const val1 = obj1 ? obj1[key] : undefined;
+        const val2 = obj2 ? obj2[key] : undefined;
 
-        if (val1 !== val2) {
+        // 对数组进行特殊处理，以显示具体差异
+        if (Array.isArray(val1) || Array.isArray(val2)) {
+            const arr1 = val1 || [];
+            const arr2 = val2 || [];
+            if (JSON.stringify(arr1.sort()) !== JSON.stringify(arr2.sort())) {
+                const set1 = new Set(arr1);
+                const set2 = new Set(arr2);
+                const added = [...set2].filter(item => !set1.has(item));
+                const removed = [...set1].filter(item => !set2.has(item));
+                let details = [];
+                if (added.length > 0) details.push(`新增: "${added.join('", "')}"`);
+                if (removed.length > 0) details.push(`移除: "${removed.join('", "')}"`);
+                changes.push({ key, oldValue: arr1, newValue: arr2, details: details.join('; ') });
+            }
+        } else if (JSON.stringify(val1) !== JSON.stringify(val2)) {
             changes.push({
-                key,
-                oldValue: truncate(obj1 ? obj1[key] : undefined),
-                newValue: truncate(obj2 ? obj2[key] : undefined),
+                key, oldValue: val1, newValue: val2,
             });
         }
     }
@@ -51,37 +76,44 @@ function compareObjects(obj1, obj2, keysToIgnore = []) {
 
 function compareVariables(vars1, vars2) {
     const changes = [];
-    const map1 = new Map(vars1.map(v => [v.name, v]));
-    const map2 = new Map(vars2.map(v => [v.name, v]));
+    const map1 = new Map((vars1 || []).map(v => [v.name, v]));
+    const map2 = new Map((vars2 || []).map(v => [v.name, v]));
 
     // Added variables
-    vars2.filter(v => !map1.has(v.name)).forEach(v => {
+    (vars2 || []).filter(v => !map1.has(v.name)).forEach(v => {
         changes.push({
-            key: `新增变量 [${v.name}]`,
+            isVariableChange: true,
+            variableName: v.name,
+            key: 'added', // Special key for new variable
             oldValue: '-',
             newValue: v.displayName || v.name
         });
     });
 
     // Deleted variables
-    vars1.filter(v => !map2.has(v.name)).forEach(v => {
+    (vars1 || []).filter(v => !map2.has(v.name)).forEach(v => {
         changes.push({
-            key: `删除变量 [${v.name}]`,
+            isVariableChange: true,
+            variableName: v.name,
+            key: 'deleted', // Special key for deleted variable
             oldValue: v.displayName || v.name,
             newValue: '-'
         });
     });
 
     // Modified variables
-    vars2.filter(v => map1.has(v.name)).forEach(v2 => {
+    (vars2 || []).filter(v => map1.has(v.name)).forEach(v2 => {
         const v1 = map1.get(v2.name);
         if (JSON.stringify(v1) !== JSON.stringify(v2)) {
-            const propChanges = compareObjects(v1, v2);
+            const propChanges = compareObjects(v1, v2, ['id']); // Ignore id changes for variables
             propChanges.forEach(pc => {
                 changes.push({
-                    key: `变量 [${v2.name}] ${pc.key}`,
+                    isVariableChange: true,
+                    variableName: v2.name,
+                    key: pc.key,
                     oldValue: pc.oldValue,
-                    newValue: pc.newValue
+                    newValue: pc.newValue,
+                    details: pc.details,
                 });
             });
         }
@@ -116,6 +148,48 @@ function compareModuleLists(list1, list2) {
     return { added, deleted, modified };
 }
 
+const variableKeyToI18nKey = {
+    'name': 'label_var_name',
+    'displayName': 'label_var_display_name',
+    'description': 'label_var_description',
+    'enabled': 'label_var_enabled',
+    'isIdentifier': 'label_var_identifier',
+    'isBackupIdentifier': 'label_var_backup_identifier',
+    'isHideCondition': 'label_var_hide_condition',
+    'hideConditionValues': 'label_var_hide_values',
+    'isNoNormalize': 'label_var_no_normalize',
+    'customStyles': 'label_var_custom_styles',
+    'compatibleVariableNames': 'label_compatible_variables'
+};
+
+function getVariablePropertyLabel(key) {
+    return i18n.t(variableKeyToI18nKey[key] || key, 'module_editor');
+}
+
+
+const moduleKeyToI18nKey = {
+    'displayName': 'label_display_name',
+    'enabled': 'label_enabled',
+    'outputPosition': 'label_output_pos',
+    'outputMode': 'label_output_mode',
+    'rangeMode': 'label_range_mode',
+    'retainLayers': 'label_retain_layers',
+    'timeReferenceStandard': 'label_time_ref',
+    'isExternalDisplay': 'label_external',
+    'compatibleModuleNames': 'label_compatible_modules',
+    'timingPrompt': 'label_prompt_timing',
+    'prompt': 'label_prompt_gen',
+    'contentPrompt': 'label_prompt_usage',
+    'positionPrompt': 'label_prompt_position',
+    'containerStyles': 'label_styles_container',
+    'externalStyles': 'label_styles_external',
+    'customStyles': 'label_styles_custom',
+    'itemMin': 'label_item_min',
+    'itemMax': 'label_item_max',
+};
+function getModulePropertyLabel(key) {
+    return i18n.t(moduleKeyToI18nKey[key] || key, 'module_editor');
+}
 
 /**
  * Compares original and current configurations to generate a summary of changes.
@@ -136,7 +210,13 @@ export function generateChangesSummary(originalModules, currentModules, original
         html += '<h4>全局设置变更:</h4><ul>';
         settingsChanges.forEach(change => {
             const label = i18n.t(`label_global_${change.key.replace(/([A-Z])/g, '_$1').toLowerCase()}`, 'module_editor') || change.key;
-            html += `<li><strong>${escapeHtml(label)}</strong>: <span class="change-old">${escapeHtml(change.oldValue)}</span> → <span class="change-new">${escapeHtml(change.newValue)}</span></li>`;
+            const oldValueFormatted = formatChangeValue(change.oldValue);
+            const newValueFormatted = formatChangeValue(change.newValue);
+            html += `<li><strong>${escapeHtml(label)}</strong>: <span class="change-old">${oldValueFormatted}</span> → <span class="change-new">${newValueFormatted}</span>`;
+            if (change.details) {
+                html += `<div class="change-details" style="font-size: 0.9em; color: #888; margin-left: 1em; margin-top: 2px;">${escapeHtml(change.details)}</div>`;
+            }
+            html += '</li>';
         });
         html += '</ul>';
     }
@@ -168,7 +248,26 @@ export function generateChangesSummary(originalModules, currentModules, original
             moduleChanges.modified.forEach(modChange => {
                 html += `<details><summary>${escapeHtml(modChange.module.displayName || modChange.module.name)}</summary><ul>`;
                 modChange.changes.forEach(change => {
-                    html += `<li><strong>${escapeHtml(change.key)}</strong>: <span class="change-old">${escapeHtml(change.oldValue)}</span> → <span class="change-new">${escapeHtml(change.newValue)}</span></li>`;
+                    let label;
+                    if (change.isVariableChange) {
+                        if (change.key === 'added') {
+                            label = `${i18n.t('label_var_added', 'module_editor')}: ${change.variableName}`;
+                        } else if (change.key === 'deleted') {
+                            label = `${i18n.t('label_var_deleted', 'module_editor')}: ${change.variableName}`;
+                        } else {
+                            const varPropLabel = getVariablePropertyLabel(change.key);
+                            label = `变量 ${change.variableName} / ${varPropLabel}`;
+                        }
+                    } else {
+                        label = getModulePropertyLabel(change.key);
+                    }
+                    const oldValueFormatted = formatChangeValue(change.oldValue);
+                    const newValueFormatted = formatChangeValue(change.newValue);
+                    html += `<li><strong>${escapeHtml(label)}</strong>: <span class="change-old">${oldValueFormatted}</span> → <span class="change-new">${newValueFormatted}</span>`;
+                    if (change.details) {
+                        html += `<div class="change-details" style="font-size: 0.9em; color: #888; margin-left: 1em; margin-top: 2px;">${escapeHtml(change.details)}</div>`;
+                    }
+                    html += '</li>';
                 });
                 html += '</ul></details>';
             });
