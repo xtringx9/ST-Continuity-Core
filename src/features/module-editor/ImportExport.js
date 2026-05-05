@@ -1,5 +1,5 @@
-import { IframeDialog } from '../../_utils/IframeDialog.js';
-import { i18n } from '../../_utils/i18n.js';
+import { IframeDialog } from '../../shared/IframeDialog.js';
+import { i18n } from '../../shared/i18n.js';
 import { normalizeConfig, validateConfig } from '../../modules/moduleConfigTemplate.js';
 import { infoLog, errorLog, debugLog } from '../../utils/logger.js';
 import configManager from '../../singleton/configManager.js';

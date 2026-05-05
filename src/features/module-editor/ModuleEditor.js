@@ -3,7 +3,7 @@
  * 注意：此脚本现在运行在主窗口上下文中，直接操作 Iframe 的 DOM
  */
 
-import { i18n } from '../../_utils/i18n.js';
+import { i18n } from '../../shared/i18n.js';
 import configManager from '../../singleton/configManager.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
@@ -11,7 +11,7 @@ import { getContext } from '../../index.js';
 import { renderGlobalSettings } from './GlobalSettings.js';
 import { renderToolbox } from './Toolbox.js';
 import { parseModuleString, validateModuleString } from '../../modules/moduleParser.js';
-import { IframeDialog } from '../../_utils/IframeDialog.js';
+import { IframeDialog } from '../../shared/IframeDialog.js';
 import { generateChangesSummary } from './ChangesSummary.js';
 import { handleExport, handleImport } from './ImportExport.js';
 

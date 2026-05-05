@@ -1,4 +1,4 @@
-// src/_features/extension-settings/SettingsPanel.js
+// src/features/extension-settings/SettingsPanel.js
 
 import { extensionFolderPath } from '../../index.js';
 import {
@@ -8,7 +8,7 @@ import {
     onButtonTypeChange,
     loadSettingsToUI,
 } from '../../ui/extensionSettingsManager.js';
-import { sendToBackend } from '../../utils/backendService.js';
+import { sendToBackend } from '../../services/backendService.js';
 
 
 export class SettingsPanel {
@@ -38,12 +38,12 @@ export class SettingsPanel {
         const link = document.createElement('link');
         link.id = cssId;
         link.rel = 'stylesheet';
-        link.href = `${extensionFolderPath}/src/_features/extension-settings/styles/settings-panel.css`;
+        link.href = `${extensionFolderPath}/src/features/extension-settings/styles/settings-panel.css`;
         document.head.appendChild(link);
     }
 
     async _loadHTML() {
-        const response = await fetch(`${extensionFolderPath}/src/_features/extension-settings/settings-panel.html`);
+        const response = await fetch(`${extensionFolderPath}/src/features/extension-settings/settings-panel.html`);
         if (!response.ok) {
             throw new Error(`Failed to fetch settings-panel.html: ${response.statusText}`);
         }

@@ -1,4 +1,4 @@
-import { i18n } from '../../_utils/i18n.js';
+import { i18n } from '../../shared/i18n.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
 import configManager from '../../singleton/configManager.js';

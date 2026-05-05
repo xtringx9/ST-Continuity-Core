@@ -13,7 +13,7 @@ import {
     WORLD_BOOK_CONSTANTS
 } from "../utils/worldBookUtils.js"
 import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
-import { EntryButton } from "../_features/entry/EntryButton.js";
+import { EntryButton } from "../features/entry/EntryButton.js";
 
 /**
  * Sets the global enabled state of the extension.

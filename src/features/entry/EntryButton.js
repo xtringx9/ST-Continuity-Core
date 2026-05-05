@@ -1,4 +1,4 @@
-import { IframeModal } from '../../_utils/IframeModal.js';
+import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
 import { initModuleEditor } from '../module-editor/ModuleEditor.js';
 import { warnLog } from '../../utils/logger.js';
@@ -142,7 +142,7 @@ export class EntryButton {
         const link = document.createElement('link');
         link.id = cssId;
         link.rel = 'stylesheet';
-        link.href = `${this.extensionPath}/src/_features/module-editor/styles/modal.css`;
+        link.href = `${this.extensionPath}/src/features/module-editor/styles/modal.css`;
 
         document.head.appendChild(link);
     }
@@ -214,7 +214,7 @@ export class EntryButton {
      */
     _handleClick() {
         // 构建 HTML 文件的完整路径
-        const pageUrl = `${this.extensionPath}/src/_features/module-editor/index.html`;
+        const pageUrl = `${this.extensionPath}/src/features/module-editor/index.html`;
 
         this.iframeModal.open(pageUrl, 'Continuity Editor', {
             variant: 'drawer-left', // 显式指定样式，以后可以改成 'center' 或 'drawer-right'

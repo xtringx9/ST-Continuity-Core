@@ -1,4 +1,4 @@
-// src/_utils/IframeModal.js
+// src/shared/IframeModal.js
 
 export class IframeModal {
     constructor(options = {}) {

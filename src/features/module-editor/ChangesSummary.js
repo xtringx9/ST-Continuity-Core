@@ -1,4 +1,4 @@
-import { i18n } from '../../_utils/i18n.js';
+import { i18n } from '../../shared/i18n.js';
 
 function escapeHtml(unsafe) {
     if (typeof unsafe !== 'string') {

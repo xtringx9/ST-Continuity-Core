@@ -73,8 +73,8 @@ export {
 // 4. UI 模块
 // ==========================================
 
-export { SettingsPanel } from './_features/extension-settings/SettingsPanel.js';
-export { EntryButton } from './_features/entry/EntryButton.js';
+export { SettingsPanel } from './features/extension-settings/SettingsPanel.js';
+export { EntryButton } from './features/entry/EntryButton.js';
 
 export {
     setExtensionEnabled,
@@ -113,7 +113,7 @@ export {
     infoLog,
 } from './utils/logger.js';
 
-export { sendToBackend } from './utils/backendService.js';
+export { sendToBackend } from './services/backendService.js';
 
 export {
     CONTINUITY_CORE_SERVER_API_BASE,
@@ -123,7 +123,7 @@ export {
     readContinuityCoreFile,
     listContinuityCoreFiles,
     deleteContinuityCoreFile,
-} from './utils/continuityCoreServerApi.js';
+} from './services/continuityCoreServerApi.js';
 
 export {
     updateCurrentCharWorldBookCache,
