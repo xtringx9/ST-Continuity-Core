@@ -705,13 +705,28 @@ button:disabled,
 
 .debug-tools {
     display: flex;
-    gap: 10px;
+    gap: 8px 14px;
     flex-wrap: wrap;
+    align-items: center;
     margin-bottom: 20px;
 }
 
+.debug-tool-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.debug-tool-group-label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
 .btn-debug {
-    padding: 8px 15px;
+    padding: 6px 10px;
     background: var(--bg-input);
     border: 1px solid var(--border-color);
     color: var(--text-primary);

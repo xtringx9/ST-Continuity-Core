@@ -2,7 +2,14 @@ import { i18n } from '../../_utils/i18n.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
 import configManager from '../../singleton/configManager.js';
-import { getContext } from '../../index.js';
+import {
+    getContext,
+    getContinuityCoreUserHandle,
+    saveContinuityCoreFile,
+    readContinuityCoreFile,
+    listContinuityCoreFiles,
+    deleteContinuityCoreFile,
+} from '../../index.js';
 import { generateFormalPrompt, generateModuleOrderPrompt, generateUsageGuide, generateModuleDataPrompt, generateSingleChatModuleData } from '../../modules/promptGenerator.js';
 import { processModuleData } from '../../core/moduleProcessor.js';
 
@@ -320,6 +327,35 @@ function bindPreviewEvents(doc) {
 }
 
 function bindDebugButtons(doc, section) {
+    const serverDebugDir = '_debug';
+    const serverDebugFile = `${serverDebugDir}/server-api-test.json`;
+
+    const bindServerDebugButton = (id, textKey, handler) => {
+        const btn = doc.getElementById(id);
+        if (!btn) return;
+
+        const newBtn = btn.cloneNode(true);
+        newBtn.textContent = i18n.t(textKey, section);
+        btn.parentNode.replaceChild(newBtn, btn);
+
+        newBtn.addEventListener('click', async () => {
+            newBtn.disabled = true;
+            try {
+                await handler();
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(i18n.t(textKey, section));
+                }
+            } catch (err) {
+                errorLog(`[Debug] ${i18n.t(textKey, section)} 失败:`, err);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(err.message);
+                }
+            } finally {
+                newBtn.disabled = false;
+            }
+        });
+    };
+
     // 1. 打印缓存数据
     const btnDebugCache = doc.getElementById('btn-debug-cache');
     if (btnDebugCache) {
@@ -365,6 +401,46 @@ function bindDebugButtons(doc, section) {
             }
         });
     }
+
+    // 4. 打印当前用户 Handle
+    const btnDebugUserHandle = doc.getElementById('btn-debug-user-handle');
+    if (btnDebugUserHandle) {
+        const newBtn = btnDebugUserHandle.cloneNode(true);
+        newBtn.textContent = i18n.t('btn_debug_user_handle', section);
+        btnDebugUserHandle.parentNode.replaceChild(newBtn, btnDebugUserHandle);
+
+        newBtn.addEventListener('click', () => {
+            const userHandle = getContinuityCoreUserHandle();
+            infoLog("[Debug] 当前用户 Handle:", userHandle);
+        });
+    }
+
+    // 5. 服务器接口调试
+    bindServerDebugButton('btn-debug-server-list', 'btn_debug_server_list', async () => {
+        const result = await listContinuityCoreFiles(serverDebugDir);
+        infoLog(`[Debug] 服务器目录列表 (${serverDebugDir}):`, result);
+    });
+
+    bindServerDebugButton('btn-debug-server-save', 'btn_debug_server_save', async () => {
+        const userHandle = getContinuityCoreUserHandle();
+        const content = {
+            source: 'module-editor-debug',
+            userHandle,
+            savedAt: new Date().toISOString(),
+        };
+        const result = await saveContinuityCoreFile(serverDebugFile, content);
+        infoLog(`[Debug] 服务器写入测试 (${serverDebugFile}):`, result, content);
+    });
+
+    bindServerDebugButton('btn-debug-server-read', 'btn_debug_server_read', async () => {
+        const result = await readContinuityCoreFile(serverDebugFile);
+        infoLog(`[Debug] 服务器读取测试 (${serverDebugFile}):`, result);
+    });
+
+    bindServerDebugButton('btn-debug-server-delete', 'btn_debug_server_delete', async () => {
+        const result = await deleteContinuityCoreFile(serverDebugFile);
+        infoLog(`[Debug] 服务器删除测试 (${serverDebugFile}):`, result);
+    });
 }
 
 async function handleExtract(doc, type) {

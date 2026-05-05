@@ -9,8 +9,9 @@
 
 import { extension_settings, loadExtensionSettings, getContext, getApiUrl } from '../../../../extensions.js';
 import {
-    chat_metadata, chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid
+    chat_metadata, chat, characters, eventSource, event_types, getCurrentChatId, getRequestHeaders, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid
 } from '../../../../../script.js';
+import { currentUser, getCurrentUserHandle } from '../../../../user.js';
 import { uuidv4, findChar } from '../../../../utils.js';
 import {
     METADATA_KEY,
@@ -28,7 +29,8 @@ import { getRegexScripts, saveScriptsByType, SCRIPT_TYPES } from '../../../regex
 export {
     chat_metadata, findChar, getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4,
     extension_settings, loadExtensionSettings, getContext, getApiUrl,
-    chat, characters, eventSource, event_types, getCurrentChatId, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid
+    chat, characters, eventSource, event_types, getCurrentChatId, getRequestHeaders, messageFormatting, reloadCurrentChat, saveSettingsDebounced, this_chid,
+    currentUser, getCurrentUserHandle
 };
 
 export {
@@ -112,6 +114,16 @@ export {
 } from './utils/logger.js';
 
 export { sendToBackend } from './utils/backendService.js';
+
+export {
+    CONTINUITY_CORE_SERVER_API_BASE,
+    getContinuityCoreUserHandle,
+    continuityCoreServerRequest,
+    saveContinuityCoreFile,
+    readContinuityCoreFile,
+    listContinuityCoreFiles,
+    deleteContinuityCoreFile,
+} from './utils/continuityCoreServerApi.js';
 
 export {
     updateCurrentCharWorldBookCache,
