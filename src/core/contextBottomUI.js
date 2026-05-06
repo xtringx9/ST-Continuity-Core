@@ -72,29 +72,56 @@ function injectHtmlToIframe(container, htmlString) {
         domNode.appendChild(iframe);
     }
 
+    // Iframe 内部交互桥：HTML 中的内联事件会在 iframe 自己的 window/document 中解析。
+    const interactionScript = `
+    <script>
+        window.toggleVariableDisplay = function(id, lastValue, currentValue) {
+            const container = document.getElementById(id);
+            if (!container) return;
+
+            const currentSpan = container.children[0];
+            const lastSpan = container.children[1];
+            if (!currentSpan || !lastSpan) return;
+
+            if (currentSpan.style.display !== 'none') {
+                currentSpan.style.display = 'none';
+                lastSpan.style.display = 'inline';
+                container.title = '点击显示新值: ' + currentValue;
+            } else {
+                currentSpan.style.display = 'inline';
+                lastSpan.style.display = 'none';
+                container.title = '点击显示旧值: ' + lastValue;
+            }
+
+            if (typeof window.updateHeight === 'function') {
+                setTimeout(window.updateHeight, 0);
+            }
+        };
+    </script>`;
+
     // 自动调整高度的脚本
     const resizeScript = `
     <script>
-        function updateHeight() {
+        window.updateHeight = function() {
             const body = document.body;
             const html = document.documentElement;
             const height = Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight);
             if (window.frameElement) {
                 window.frameElement.style.height = height + 'px';
             }
-        }
-        const observer = new ResizeObserver(updateHeight);
+        };
+        const observer = new ResizeObserver(window.updateHeight);
         observer.observe(document.body);
-        document.addEventListener('toggle', () => setTimeout(updateHeight, 50), true);
-        window.addEventListener('load', updateHeight);
-        window.addEventListener('resize', updateHeight);
+        document.addEventListener('toggle', () => setTimeout(window.updateHeight, 50), true);
+        window.addEventListener('load', window.updateHeight);
+        window.addEventListener('resize', window.updateHeight);
     </script>`;
 
     const fullHtml = `
     <!DOCTYPE html>
     <html>
     <head><link rel="stylesheet" href="./scripts/extensions/third-party/ST-Continuity-Core/assets/css/context-bottom-ui.css"></head>
-    <body style="margin:0;padding:0;background:transparent;">${htmlString}${resizeScript}</body>
+    <body style="margin:0;padding:0;background:transparent;">${htmlString}${interactionScript}${resizeScript}</body>
     </html>`;
 
     const doc = iframe.contentDocument || iframe.contentWindow.document;
