@@ -445,7 +445,7 @@ function renderModuleDetail(module, index) {
 
                     <div class="form-group">
                         <label>${i18n.t('label_retain_layers', section)}</label>
-                        <input type="number" id="edit-retain-layers" value="${module.retainLayers || -1}">
+                        <input type="number" id="edit-retain-layers" value="${module.retainLayers !== undefined ? module.retainLayers : -1}">
                     </div>
 
                     <!-- 提示词设置 -->
@@ -576,7 +576,8 @@ function renderModuleDetail(module, index) {
         module.rangeMode = doc.getElementById('edit-range-mode').value;
         module.itemMin = parseInt(doc.getElementById('edit-item-min').value) || 0;
         module.itemMax = parseInt(doc.getElementById('edit-item-max').value) || 1;
-        module.retainLayers = parseInt(doc.getElementById('edit-retain-layers').value) || -1;
+        const retainLayers = parseInt(doc.getElementById('edit-retain-layers').value);
+        module.retainLayers = Number.isNaN(retainLayers) ? -1 : retainLayers;
 
         module.isExternalDisplay = doc.getElementById('btn-edit-external').classList.contains('active');
         module.timeReferenceStandard = doc.getElementById('btn-edit-time-reference-standard').classList.contains('active');
