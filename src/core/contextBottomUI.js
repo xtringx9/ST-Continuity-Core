@@ -105,10 +105,19 @@ function injectHtmlToIframe(container, htmlString) {
         window.updateHeight = function() {
             const body = document.body;
             const html = document.documentElement;
-            const height = Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight);
+            // const values = {
+            //     'body.scrollHeight': body.scrollHeight,
+            //     'body.offsetHeight': body.offsetHeight,
+            //     'body.clientHeight': body.clientHeight,
+            //     'html.scrollHeight': html.scrollHeight,
+            //     'html.offsetHeight': html.offsetHeight,
+            //     'html.clientHeight': html.clientHeight
+            // };
+            const height = html.offsetHeight;
             if (window.frameElement) {
                 window.frameElement.style.height = height + 'px';
             }
+            // console.log('[iframe] updateHeight called, new height:', height, values);
         };
         const observer = new ResizeObserver(window.updateHeight);
         observer.observe(document.body);
