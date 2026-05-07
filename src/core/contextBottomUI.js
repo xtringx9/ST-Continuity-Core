@@ -292,7 +292,7 @@ export async function updateUItoMsgBottom() {
         const processResult = getProcessResult(null, extractParams, false);
         if (!processResult) {
             errorLog('更新上下文底部UI失败');
-            isUpdatingRenderUI = false;
+            isUpdatingMsgUI = false;
             return false;
         }
         // debugLog('按messageIndex分组前的模块数据:', processResult);
