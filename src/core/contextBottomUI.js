@@ -8,7 +8,7 @@ import { debugLog, errorLog, infoLog } from '../utils/logger.js';
 // import styleCombiner from '../modules/styleCombiner.js';
 import { insertCombinedStylesToDetails } from '../modules/styleCombiner.js';
 import { processModuleData } from './moduleProcessor.js';
-import { groupProcessResultByMessageIndex, chat_metadata, getContext, configManager } from '../index.js';
+import { groupProcessResultByMessageIndex, chat_metadata, getContext, configManager, extensionFolderPath } from '../index.js';
 // import { processQuotes } from '../utils/textConverter.js';
 
 // 上下文底部UI容器ID
@@ -152,7 +152,7 @@ function loadContextUICSS() {
     const link = document.createElement('link');
     link.id = 'continuity-context-bottom-css';
     link.rel = 'stylesheet';
-    link.href = './scripts/extensions/third-party/ST-Continuity-Core/assets/css/context-bottom-ui.css';
+    link.href = `${extensionFolderPath}/assets/css/context-bottom-ui.css`;
 
     // 添加到head
     document.head.appendChild(link);
