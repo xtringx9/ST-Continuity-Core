@@ -211,7 +211,7 @@ async function createContextContainer(containerId = CONTEXT_BOTTOM_CONTAINER_ID,
     debugLog(`创建上下文底部UI容器 ${containerId}`);
 
     // 加载CSS样式
-    // loadContextUICSS();
+    loadContextUICSS();
 
     // 加载HTML模板
     // const template = await loadContextBottomUITemplate();
