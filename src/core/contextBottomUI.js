@@ -11,8 +11,7 @@
  */
 
 import { debugLog, errorLog } from '../utils/logger.js';
-// import styleCombiner from '../modules/styleCombiner.js';
-import { groupProcessResultByMessageIndex, chat_metadata, getContext, configManager } from '../index.js';
+import { groupProcessResultByMessageIndex, configManager } from '../index.js';
 import {
     CONTEXT_BOTTOM_CONTAINER_ID,
     CONTEXT_MSG_CONTAINER_ID,
@@ -28,28 +27,6 @@ import {
 } from './context-ui/moduleFilters.js';
 import { buildStyledProcessResult } from './context-ui/processResultBuilder.js';
 import { renderCurrentMessageContext } from './context-ui/inlineMessageRenderer.js';
-// import { processQuotes } from '../utils/textConverter.js';
-
-/**
- * 加载HTML模板内容
- * 使用fetch从外部文件加载HTML模板
- * @returns {Promise<string>} HTML模板字符串
- */
-async function loadContextBottomUITemplate(containerId = CONTEXT_BOTTOM_CONTAINER_ID) {
-    try {
-        const response = await fetch('./scripts/extensions/third-party/ST-Continuity-Core/assets/html/context-bottom-ui.html');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const html = await response.text();
-        debugLog('上下文底部UI模板已加载');
-        return html;
-    } catch (error) {
-        console.error('加载UI模板失败:', error);
-        // 如果外部文件加载失败，返回空字符串
-        return ``;
-    }
-}
 
 let isUpdatingMsgUI = false;
 
