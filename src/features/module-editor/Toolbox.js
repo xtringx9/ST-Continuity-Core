@@ -9,6 +9,8 @@ import {
     readContinuityCoreFile,
     listContinuityCoreFiles,
     deleteContinuityCoreFile,
+    perMessageStorage,
+    listContinuityCoreChats,
 } from '../../index.js';
 import { generateFormalPrompt, generateModuleOrderPrompt, generateUsageGuide, generateModuleDataPrompt, generateSingleChatModuleData } from '../../modules/promptGenerator.js';
 import { processModuleData } from '../../core/moduleProcessor.js';
@@ -440,6 +442,123 @@ function bindDebugButtons(doc, section) {
     bindServerDebugButton('btn-debug-server-delete', 'btn_debug_server_delete', async () => {
         const result = await deleteContinuityCoreFile(serverDebugFile);
         infoLog(`[Debug] 服务器删除测试 (${serverDebugFile}):`, result);
+    });
+
+    // === 存储层调试按钮 ===
+    const bindStorageDebugButton = (id, label, handler) => {
+        const btn = doc.getElementById(id);
+        if (!btn) return;
+
+        const newBtn = btn.cloneNode(true);
+        newBtn.textContent = label;
+        btn.parentNode.replaceChild(newBtn, btn);
+
+        newBtn.addEventListener('click', async () => {
+            newBtn.disabled = true;
+            try {
+                await handler();
+            } catch (err) {
+                errorLog(`[Debug-Storage] ${label} 失败:`, err);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(err.message);
+                }
+            } finally {
+                newBtn.disabled = false;
+            }
+        });
+    };
+
+    bindStorageDebugButton('btn-debug-storage-init', '初始化存储', async () => {
+        const context = getContext();
+        const characterName = context?.name2 || 'TestChar';
+        const chatId = context?.chatIdHash || 'test-hash';
+        // 构造聊天文件名
+        const chatFileName = context?.chatId || 'TestChat-2026-05-30.jsonl';
+        await perMessageStorage.initChat(characterName, chatFileName, chatId);
+        infoLog('[Debug-Storage] 初始化完成:', { characterName, chatFileName, chatId });
+    });
+
+    bindStorageDebugButton('btn-debug-storage-append', '追加测试数据', async () => {
+        const testMesId = parseInt(prompt('输入楼层 mesId:', '0'));
+        if (isNaN(testMesId)) return;
+
+        const swipeData = {
+            '0': {
+                inContentModules: {
+                    modules: [
+                        { raw: `[Location|name:Tavern|time:afternoon]`, moduleName: 'Location', variables: { name: 'Tavern', time: 'afternoon' } }
+                    ]
+                },
+                extraModules: { source: 'none', modules: null }
+            }
+        };
+
+        await perMessageStorage.appendMessage(testMesId, swipeData);
+        infoLog(`[Debug-Storage] 追加楼层 ${testMesId}:`, swipeData);
+    });
+
+    bindStorageDebugButton('btn-debug-storage-read', '读取楼层', async () => {
+        const testMesId = parseInt(prompt('输入楼层 mesId:', '0'));
+        if (isNaN(testMesId)) return;
+
+        const data = await perMessageStorage.getMessage(testMesId, 0);
+        infoLog(`[Debug-Storage] 读取楼层 ${testMesId} swipe 0:`, data);
+    });
+
+    bindStorageDebugButton('btn-debug-storage-update', '更新楼层', async () => {
+        const testMesId = parseInt(prompt('输入楼层 mesId:', '0'));
+        if (isNaN(testMesId)) return;
+
+        const newData = {
+            inContentModules: {
+                modules: [
+                    { raw: `[Location|name:Forest|time:night]`, moduleName: 'Location', variables: { name: 'Forest', time: 'night' } }
+                ]
+            },
+            extraModules: { source: 'manual', modules: [{ moduleName: 'Location', variables: { name: 'Forest', time: 'night', weather: 'rain' } }], manualEditedAt: new Date().toISOString() }
+        };
+
+        await perMessageStorage.updateMessage(testMesId, 0, newData);
+        infoLog(`[Debug-Storage] 更新楼层 ${testMesId} swipe 0:`, newData);
+    });
+
+    bindStorageDebugButton('btn-debug-storage-snapshot', '写入快照', async () => {
+        const testMesId = parseInt(prompt('输入快照楼层 mesId:', '0'));
+        if (isNaN(testMesId)) return;
+
+        const moduleStates = {
+            Location: { lastAppearanceMesId: testMesId, identifier: 'Tavern', variables: { name: 'Tavern', time: 'afternoon' }, source: 'inContent' }
+        };
+
+        await perMessageStorage.writeSnapshot(testMesId, moduleStates);
+        infoLog(`[Debug-Storage] 写入快照 ${testMesId}:`, moduleStates);
+    });
+
+    bindStorageDebugButton('btn-debug-storage-read-snapshot', '读取快照', async () => {
+        const testMesId = parseInt(prompt('输入楼层 mesId（查找≤该层的最近快照）:', '5'));
+        if (isNaN(testMesId)) return;
+
+        const data = await perMessageStorage.getSnapshot(testMesId);
+        infoLog(`[Debug-Storage] 读取快照 (≤${testMesId}):`, data);
+    });
+
+    bindStorageDebugButton('btn-debug-storage-accumulated', '累积状态', async () => {
+        const testMesId = parseInt(prompt('输入楼层 mesId:', '5'));
+        if (isNaN(testMesId)) return;
+
+        const state = await perMessageStorage.getAccumulatedState(testMesId);
+        infoLog(`[Debug-Storage] 累积状态 (楼层 ${testMesId}):`, state);
+    });
+
+    bindStorageDebugButton('btn-debug-storage-meta', '读取Meta', async () => {
+        infoLog('[Debug-Storage] Meta:', perMessageStorage.metaCache);
+    });
+
+    bindStorageDebugButton('btn-debug-storage-list', '列出聊天', async () => {
+        const context = getContext();
+        const characterName = context?.name2 || 'TestChar';
+        const result = await listContinuityCoreChats(characterName);
+        infoLog(`[Debug-Storage] 角色 ${characterName} 的聊天列表:`, result);
     });
 }
 

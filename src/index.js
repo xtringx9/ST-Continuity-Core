@@ -123,7 +123,33 @@ export {
     readContinuityCoreFile,
     listContinuityCoreFiles,
     deleteContinuityCoreFile,
+    ensureContinuityCoreDir,
+    appendContinuityCoreMessage,
+    readContinuityCoreMessage,
+    writeContinuityCoreMessage,
+    readContinuityCoreMessages,
+    readContinuityCoreSnapshot,
+    writeContinuityCoreSnapshot,
+    readContinuityCoreMeta,
+    writeContinuityCoreMeta,
+    moveContinuityCoreChat,
+    deleteContinuityCoreChat,
+    listContinuityCoreChats,
 } from './services/continuityCoreServerApi.js';
+
+export {
+    getSafeCharName,
+    getSafeFileName,
+    getChatStorageDir,
+    getBatchStart,
+    getMessageBatchFileName,
+    getSnapshotBatchFileName,
+    getMessageBatchPath,
+    getSnapshotBatchPath,
+    getMetaPath,
+} from './services/storageKeyBuilder.js';
+
+export { default as perMessageStorage } from './services/perMessageStorage.js';
 
 export {
     updateCurrentCharWorldBookCache,
