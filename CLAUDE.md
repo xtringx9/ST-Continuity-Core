@@ -12,7 +12,13 @@ src/singleton/            # 全局单例状态
   moduleCacheManager.js   #   每个聊天的模块数据缓存（嵌套 Map）
 src/core/                 # 核心逻辑
   moduleExtractor.js      #   从聊天 + 世界书中解析 [模块名|键:值|...] 格式
-  moduleProcessor.js      #   处理管线：标准化 → 去重 → 排序 → 压缩 → 构建字符串
+  moduleProcessor.js      #   处理管线入口：processModuleData + groupProcessResultByMessageIndex
+  pipeline/               #   管线子模块（由 moduleProcessor 调用）
+    deduplicate.js        #     去重：增量/全量模块去重，messageIndexHistory 管理
+    time.js               #     时间：附加结构化时间数据、智能补全时间变量
+    sort.js               #     排序：标识符排序、层级压缩、ID补全
+    normalize.js          #     标准化：变量名映射、兼容名处理、管线编排
+    output.js             #     输出：增量/全量/提取/自动处理、字符串构建
   promptInjector.js       #   在 CHAT_COMPLETION_PROMPT_READY 事件中注入提示词
   macroManager.js         #   注册 {{CONTINUITY_PROMPT}} 等宏到 SillyTavern
   eventHandler.js         #   注册 ST 事件 → UI 更新、缓存刷新、正则初始化、世界书
@@ -71,7 +77,7 @@ continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 
 ### 提示词注入流程
 1. **提取** — `moduleExtractor` 从聊天消息与世界书条目中解析 `[模块名|键:值|...]` 格式，支持嵌套模块
 2. **缓存** — `moduleCacheManager` 将处理结果存入按聊天分组的嵌套 Map（`chatIdHash → rangeKey → data`）
-3. **处理** — `moduleProcessor` 管线：按配置映射标准化变量名 → 去重 → 按标识符/时间/ID 排序 → 应用 retainLayers → 应用层级压缩 → 构建最终模块字符串
+3. **处理** — `moduleProcessor` 入口调用 `pipeline/` 子模块：`normalize`（变量名映射 + 兼容名处理）→ `deduplicate`（去重）→ `time`（时间数据附加与补全）→ `sort`（标识符/时间/ID 排序 + 层级压缩 + ID补全）→ `output`（增量/全量处理 + retainLayers + 字符串构建）
 4. **注入** — `macroManager` 注册 `{{CONTINUITY_PROMPT}}`、`{{CONTINUITY_ORDER}}`、`{{CONTINUITY_USAGE_GUIDE}}`、`{{CONTINUITY_MODULE_DATA}}`、逐消息 `{{CONTINUITY_MSG_MODULE_N}}` 宏；`promptInjector` 监听 `CHAT_COMPLETION_PROMPT_READY` 事件
 5. **UI** — `contextBottomUI` 渲染 3 种目标：上下文底部汇总、.mes_text 后的消息块、.mes_text 内的行内替换
 
@@ -138,8 +144,23 @@ import { configManager, debugLog, processModuleData } from '../index.js';
 
 路径层数规则（从 `src/` 算起）：
 - `src/` 下1层（如 `singleton/`、`core/`）：到 `script.js` = 6层 `../`，到 `extensions.js` = 5层 `../`
-- `src/` 下2层（如 `core/context-ui/`、`features/module-editor/`）：各加1层 `../`
+- `src/` 下2层（如 `core/context-ui/`、`features/module-editor/`、`core/pipeline/`）：各加1层 `../`
 - `src/` 本身：到 `script.js` = 5层 `../`，到 `extensions.js` = 4层 `../`
+
+### pipeline 子模块的导入规则
+
+`core/pipeline/` 内的子模块按管线顺序单向依赖，**禁止反向依赖**：
+
+```
+output.js → normalize.js → deduplicate.js
+                         → time.js
+                         → sort.js
+```
+
+- `moduleProcessor.js`（入口）只导入 `output.js`，不直接导入其他管线子模块
+- `output.js` 导入 `normalize.js`；`normalize.js` 导入 `deduplicate.js`、`time.js`、`sort.js`
+- `sort.js`、`time.js`、`deduplicate.js` 之间互不依赖
+- 外部模块（如 `promptGenerator.js`、`macroManager.js`）只从 `moduleProcessor.js` 导入，不直接导入 `pipeline/` 子模块
 
 ### 新增模块时
 
