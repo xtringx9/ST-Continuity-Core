@@ -7,7 +7,8 @@ SillyTavern 扩展，用于在 AI 角色扮演中管理结构化连续性数据�
 ```
 continuity-core.js        # ST 扩展加载入口 — 直接从各源文件导入，无中间层
 src/singleton/            # 全局单例状态
-  configManager.js        #   配置生命周期：加载、缓存、自动保存、导入/导出/合并
+  configManager.js        #   配置读写：加载、缓存、自动保存（纯读写职责）
+  moduleConfigService.js  #   模块配置业务逻辑：导入/导出/合并/重置
   moduleCacheManager.js   #   每个聊天的模块数据缓存（嵌套 Map）
 src/core/                 # 核心逻辑
   moduleExtractor.js      #   从聊天 + 世界书中解析 [模块名|键:值|...] 格式
@@ -19,10 +20,9 @@ src/core/                 # 核心逻辑
   context-ui/             #   子模块：容器管理、iframe 渲染、过滤器、样式
 src/modules/              # 模块数据类型和提示词
   moduleConfigTemplate.js #   配置 JSON schema、校验、规范化、默认值
-  moduleConfigManager.js  #   模块配置管理（导入/导出/合并/重置）
   moduleParser.js         #   字符串 ↔ 结构化模块数据互转
   promptGenerator.js      #   从配置 + 缓存数据构建正式提示词字符串
-  styleCombiner.js        #   样式组合器
+  styleCombiner.js        #   样式组合器（customStyles 变量替换与容器样式处理）
 src/features/             # UI 功能面板
   entry/EntryButton.js
   extension-settings/
