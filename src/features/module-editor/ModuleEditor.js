@@ -3,7 +3,7 @@
  * 注意：此脚本现在运行在主窗口上下文中，直接操作 Iframe 的 DOM
  */
 
-import { i18n } from '../../shared/i18n.js';
+import { translate } from '../../../../../../i18n.js';
 import configManager from '../../singleton/configManager.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
@@ -42,8 +42,7 @@ export function initModuleEditor(iframeDocument) {
     doc = iframeDocument;
     debugLog("ModuleEditor initialized with document context");
 
-    // 应用静态文本翻译
-    i18n.apply(doc, 'module_editor');
+    // 应用静态文本翻译 — ST 的 MutationObserver 会自动处理 data-i18n 属性
 
     // 从 localStorage 加载上次打开的页面
     activeViewSectionId = localStorage.getItem('continuity_editor_last_tab') || 'view-modules';
@@ -139,7 +138,7 @@ function bindHeaderEvents() {
     }
 
     if (clearBtn) {
-        clearBtn.textContent = i18n.t('btn_clear_modules', 'module_editor');
+        clearBtn.textContent = translate('ccore_btn_clear_modules');
         clearBtn.addEventListener('click', clearAllModules);
     }
 
@@ -168,7 +167,7 @@ function bindDebugStateButton() {
     const btn = doc.getElementById('btn-debug-state');
     if (btn) {
         // 应用翻译
-        btn.textContent = i18n.t('btn_debug_state', 'module_editor');
+        btn.textContent = translate('ccore_btn_debug_state');
 
         // 绑定点击事件
         btn.addEventListener('click', () => {
@@ -255,9 +254,6 @@ function bindSidebarEvents() {
 function renderModuleList() {
     const listContainer = doc.getElementById('module-list');
     listContainer.innerHTML = ''; // 清空
-
-    // 指定使用 'module_editor' 功能区的翻译
-    const section = 'module_editor';
 
     currentModules.forEach((mod, index) => {
         // 搜索过滤
@@ -353,7 +349,6 @@ function renderModuleList() {
  */
 function renderModuleDetail(module, index) {
     const container = doc.querySelector('.module-detail-panel .detail-content');
-    const section = 'module_editor';
 
     // 生成表单 HTML
     container.innerHTML = `
@@ -373,112 +368,112 @@ function renderModuleDetail(module, index) {
             <div id="module-detail-settings" class="detail-tab-panel ${activeDetailTab === 'module-detail-settings' ? 'active' : ''}">
                 <div class="form-grid">
                     <!-- 基础信息 -->
-                    <div class="form-section-title">${i18n.t('title_edit_module', section)}</div>
+                    <div class="form-section-title">${translate('ccore_title_edit_module')}</div>
                     
                     <div class="form-group">
-                        <label>${i18n.t('label_name', section)}</label>
+                        <label>${translate('ccore_label_name')}</label>
                         <input type="text" id="edit-name" value="${module.name}">
                     </div>
 
                     <div class="form-group">
-                        <label>${i18n.t('label_display_name', section)}</label>
+                        <label>${translate('ccore_label_display_name')}</label>
                         <input type="text" id="edit-display-name" value="${module.displayName}">
                     </div>
 
                     <div class="form-group form-full-width">
-                        <label>${i18n.t('label_compatible_modules', section)}</label>
-                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="${i18n.t('placeholder_compatible_modules', section)}">
+                        <label>${translate('ccore_label_compatible_modules')}</label>
+                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="${translate('ccore_placeholder_compatible_modules')}">
                     </div>
 
                     <!-- 模块属性 -->
-                    <div class="form-section-title">${i18n.t('title_module_attributes', section)}</div>
+                    <div class="form-section-title">${translate('ccore_title_module_attributes')}</div>
                     <div class="form-group form-full-width module-toggles" style="margin-bottom: 15px;">
                         <button id="btn-edit-external" class="btn-text-toggle ${module.isExternalDisplay ? 'active' : ''}">
                             <input type="checkbox" ${module.isExternalDisplay ? 'checked' : ''}>
-                            ${i18n.t('label_external', section)}
+                            ${translate('ccore_label_external')}
                         </button>
                         <button id="btn-edit-time-reference-standard" class="btn-text-toggle ${module.timeReferenceStandard ? 'active' : ''}">
                             <input type="checkbox" ${module.timeReferenceStandard ? 'checked' : ''}>
-                            ${i18n.t('label_time_ref', section)}
+                            ${translate('ccore_label_time_ref')}
                         </button>
                     </div>
 
                     <!-- 行为设置 -->
-                    <div class="form-section-title">${i18n.t('title_behavior_settings', section)}</div>
+                    <div class="form-section-title">${translate('ccore_title_behavior_settings')}</div>
 
                     <div class="form-group">
-                        <label>${i18n.t('label_output_pos', section)}</label>
+                        <label>${translate('ccore_label_output_pos')}</label>
                         <div style="display: flex; gap: 10px; flex: 1;">
                             <select id="edit-output-pos" style="flex: 1;">
-                                <option value="after_body" ${module.outputPosition === 'after_body' ? 'selected' : ''}>${i18n.t('option_after_body', section)}</option>
-                                <option value="body" ${module.outputPosition === 'body' ? 'selected' : ''}>${i18n.t('option_body', section)}</option>
-                                <option value="body_start" ${module.outputPosition === 'body_start' ? 'selected' : ''}>${i18n.t('option_body_start', section)}</option>
-                                <option value="body_end" ${module.outputPosition === 'body_end' ? 'selected' : ''}>${i18n.t('option_body_end', section)}</option>
-                                <option value="body_surround" ${module.outputPosition === 'body_surround' ? 'selected' : ''}>${i18n.t('option_body_surround', section)}</option>
-                                <option value="specific_position" ${module.outputPosition === 'specific_position' ? 'selected' : ''}>${i18n.t('option_specific_position', section)}</option>
-                                <option value="embedded" ${module.outputPosition === 'embedded' ? 'selected' : ''}>${i18n.t('option_embedded', section)}</option>
+                                <option value="after_body" ${module.outputPosition === 'after_body' ? 'selected' : ''}>${translate('ccore_option_after_body')}</option>
+                                <option value="body" ${module.outputPosition === 'body' ? 'selected' : ''}>${translate('ccore_option_body')}</option>
+                                <option value="body_start" ${module.outputPosition === 'body_start' ? 'selected' : ''}>${translate('ccore_option_body_start')}</option>
+                                <option value="body_end" ${module.outputPosition === 'body_end' ? 'selected' : ''}>${translate('ccore_option_body_end')}</option>
+                                <option value="body_surround" ${module.outputPosition === 'body_surround' ? 'selected' : ''}>${translate('ccore_option_body_surround')}</option>
+                                <option value="specific_position" ${module.outputPosition === 'specific_position' ? 'selected' : ''}>${translate('ccore_option_specific_position')}</option>
+                                <option value="embedded" ${module.outputPosition === 'embedded' ? 'selected' : ''}>${translate('ccore_option_embedded')}</option>
                             </select>
-                            <input type="text" id="edit-prompt-position" value="${module.positionPrompt || ''}" placeholder="${i18n.t('label_prompt_position', section)}" style="flex: 1; display: none;">
+                            <input type="text" id="edit-prompt-position" value="${module.positionPrompt || ''}" placeholder="${translate('ccore_label_prompt_position')}" style="flex: 1; display: none;">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>${i18n.t('label_output_mode', section)}</label>
+                        <label>${translate('ccore_label_output_mode')}</label>
                         <select id="edit-output-mode">
-                            <option value="full" ${module.outputMode === 'full' ? 'selected' : ''}>${i18n.t('option_full', section)}</option>
-                            <option value="incremental" ${module.outputMode === 'incremental' ? 'selected' : ''}>${i18n.t('option_incremental', section)}</option>
+                            <option value="full" ${module.outputMode === 'full' ? 'selected' : ''}>${translate('ccore_option_full')}</option>
+                            <option value="incremental" ${module.outputMode === 'incremental' ? 'selected' : ''}>${translate('ccore_option_incremental')}</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label>${i18n.t('label_range_mode', section)}</label>
+                        <label>${translate('ccore_label_range_mode')}</label>
                         <div style="display: flex; gap: 10px;">
                             <select id="edit-range-mode" style="flex: 1; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
-                                <option value="unlimited" ${module.rangeMode === 'unlimited' ? 'selected' : ''}>${i18n.t('option_unlimited', section)}</option>
-                                <option value="specified" ${module.rangeMode === 'specified' ? 'selected' : ''}>${i18n.t('option_specified', section)}</option>
-                                <option value="range" ${module.rangeMode === 'range' ? 'selected' : ''}>${i18n.t('option_range', section)}</option>
+                                <option value="unlimited" ${module.rangeMode === 'unlimited' ? 'selected' : ''}>${translate('ccore_option_unlimited')}</option>
+                                <option value="specified" ${module.rangeMode === 'specified' ? 'selected' : ''}>${translate('ccore_option_specified')}</option>
+                                <option value="range" ${module.rangeMode === 'range' ? 'selected' : ''}>${translate('ccore_option_range')}</option>
                             </select>
-                            <input type="number" id="edit-item-min" value="${module.itemMin || 0}" placeholder="${i18n.t('label_item_min', section)}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
-                            <input type="number" id="edit-item-max" value="${module.itemMax || 1}" placeholder="${i18n.t('label_item_max', section)}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
+                            <input type="number" id="edit-item-min" value="${module.itemMin || 0}" placeholder="${translate('ccore_label_item_min')}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
+                            <input type="number" id="edit-item-max" value="${module.itemMax || 1}" placeholder="${translate('ccore_label_item_max')}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>${i18n.t('label_retain_layers', section)}</label>
+                        <label>${translate('ccore_label_retain_layers')}</label>
                         <input type="number" id="edit-retain-layers" value="${module.retainLayers !== undefined ? module.retainLayers : -1}">
                     </div>
 
                     <!-- 提示词设置 -->
-                    <div class="form-section-title">${i18n.t('title_prompt_config', section)}</div>
+                    <div class="form-section-title">${translate('ccore_title_prompt_config')}</div>
 
                     <div class="form-group form-full-width">
-                        <label>${i18n.t('label_prompt_timing', section)}</label>
+                        <label>${translate('ccore_label_prompt_timing')}</label>
                         <textarea id="edit-prompt-timing" rows="2">${module.timingPrompt || ''}</textarea>
                     </div>
 
                     <div class="form-group form-full-width">
-                        <label>${i18n.t('label_prompt_gen', section)}</label>
+                        <label>${translate('ccore_label_prompt_gen')}</label>
                         <textarea id="edit-prompt" rows="2">${module.prompt || ''}</textarea>
                     </div>
 
                     <div class="form-group form-full-width">
-                        <label>${i18n.t('label_prompt_usage', section)}</label>
+                        <label>${translate('ccore_label_prompt_usage')}</label>
                         <textarea id="edit-prompt-content" rows="2">${module.contentPrompt || ''}</textarea>
                     </div>
 
                     <!-- 样式设置 -->
-                    <div class="form-section-title">${i18n.t('title_style_config', section)}</div>
+                    <div class="form-section-title">${translate('ccore_title_style_config')}</div>
 
                     <div class="form-group form-full-width">
-                        <label>${i18n.t('label_styles_custom', section)}</label>
+                        <label>${translate('ccore_label_styles_custom')}</label>
                         <textarea id="edit-styles-custom" rows="2">${module.customStyles || ''}</textarea>
                     </div>
                     <div class="form-group form-full-width">
-                        <label>${i18n.t('label_styles_container', section)}</label>
+                        <label>${translate('ccore_label_styles_container')}</label>
                         <textarea id="edit-styles-container" rows="2">${module.containerStyles || ''}</textarea>
                     </div>
                     <div class="form-group form-full-width">
-                        <label>${i18n.t('label_styles_external', section)}</label>
+                        <label>${translate('ccore_label_styles_external')}</label>
                         <textarea id="edit-styles-external" rows="2">${module.externalStyles || ''}</textarea>
                     </div>
                 </div>
@@ -487,9 +482,9 @@ function renderModuleDetail(module, index) {
             <!-- Tab Panel: Variables -->
             <div id="module-detail-variables" class="detail-tab-panel ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}">
                 <div class="form-section-title section-header variable-sticky-header">
-                    <span>${i18n.t('title_variables', section)}</span>
+                    <span>${translate('ccore_title_variables')}</span>
                     <button id="btn-add-variable" class="btn-secondary">
-                        + ${i18n.t('btn_add_variable', section)}
+                        + ${translate('ccore_btn_add_variable')}
                     </button>
                 </div>
                 <div class="form-full-width" id="variable-list-container">
@@ -779,7 +774,6 @@ function renderVariableList(module, container) {
         return;
     }
     container.innerHTML = '';
-    const section = 'module_editor';
 
     if (!module.variables || module.variables.length === 0) {
         container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.9em; border: 1px dashed var(--border-color); border-radius: 4px;">暂无变量</div>`;
@@ -799,11 +793,11 @@ function renderVariableList(module, container) {
                     <span class="slider round"></span>
                 </label>
                 <div class="compact-input-group var-name-group">
-                    <label>${i18n.t('label_var_name', section)}</label>
+                    <label>${translate('ccore_label_var_name')}</label>
                     <input type="text" class="var-name" value="${variable.name || ''}">
                 </div>
                 <div class="compact-input-group var-display-name-group">
-                    <label>${i18n.t('label_var_display_name', section)}</label>
+                    <label>${translate('ccore_label_var_display_name')}</label>
                     <input type="text" class="var-display-name" value="${variable.displayName || ''}">
                 </div>
                 <button class="btn-delete-variable btn-variable-delete" title="删除变量">✕</button>
@@ -813,35 +807,35 @@ function renderVariableList(module, container) {
                 <div class="variable-toggles">
                     <button class="btn-text-toggle var-identifier ${variable.isIdentifier ? 'active' : ''}">
                         <input type="checkbox" ${variable.isIdentifier ? 'checked' : ''}>
-                        ${i18n.t('label_var_identifier', section)}
+                        ${translate('ccore_label_var_identifier')}
                     </button>
                     <button class="btn-text-toggle var-backup-identifier ${variable.isBackupIdentifier ? 'active' : ''}">
                         <input type="checkbox" ${variable.isBackupIdentifier ? 'checked' : ''}>
-                        ${i18n.t('label_var_backup_identifier', section)}
+                        ${translate('ccore_label_var_backup_identifier')}
                     </button>
                     <button class="btn-text-toggle var-hide-condition ${variable.isHideCondition ? 'active' : ''}">
                         <input type="checkbox" ${variable.isHideCondition ? 'checked' : ''}>
-                        ${i18n.t('label_var_hide_condition', section)}
+                        ${translate('ccore_label_var_hide_condition')}
                     </button>
                     <button class="btn-text-toggle var-no-normalize ${variable.isNoNormalize ? 'active' : ''}">
                         <input type="checkbox" ${variable.isNoNormalize ? 'checked' : ''}>
-                        ${i18n.t('label_var_no_normalize', section)}
+                        ${translate('ccore_label_var_no_normalize')}
                     </button>
                 </div>
                 <div class="form-group">
-                    <label>${i18n.t('label_var_description', section)}</label>
+                    <label>${translate('ccore_label_var_description')}</label>
                     <input type="text" class="var-description" value="${variable.description || ''}">
                 </div>
                 <div class="form-group">
-                    <label>${i18n.t('label_compatible_variables', section)}</label>
-                    <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="${i18n.t('placeholder_compatible_vars', section)}">
+                    <label>${translate('ccore_label_compatible_variables')}</label>
+                    <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="${translate('ccore_placeholder_compatible_vars')}">
                 </div>
                 <div class="form-group var-hide-values-group" style="display: ${variable.isHideCondition ? 'flex' : 'none'};">
-                    <label>${i18n.t('label_var_hide_values', section)}</label>
+                    <label>${translate('ccore_label_var_hide_values')}</label>
                     <input type="text" class="var-hide-values" value="${Array.isArray(variable.hideConditionValues) ? variable.hideConditionValues.join(',') : variable.hideConditionValues || ''}">
                 </div>
                 <div class="form-group">
-                    <label>${i18n.t('label_var_custom_styles', section)}</label>
+                    <label>${translate('ccore_label_var_custom_styles')}</label>
                     <textarea class="var-custom-styles" rows="2">${variable.customStyles || ''}</textarea>
                 </div>
             </div>
@@ -1055,11 +1049,11 @@ function checkForChanges() {
         if (hasChanges) {
             saveBtn.classList.remove('btn-secondary');
             saveBtn.classList.add('btn-primary');
-            saveBtn.textContent = i18n.t('btn_save', 'module_editor');
+            saveBtn.textContent = translate('ccore_btn_save');
         } else {
             saveBtn.classList.remove('btn-primary');
             saveBtn.classList.add('btn-secondary');
-            saveBtn.textContent = i18n.t('btn_save', 'module_editor');
+            saveBtn.textContent = translate('ccore_btn_save');
         }
     }
 }
@@ -1156,23 +1150,22 @@ function clearAllModules() {
 
 function confirmAndSave() {
     const { html, hasChanges } = generateChangesSummary(originalModules, currentModules, originalGlobalSettings, currentGlobalSettings);
-    const section = 'module_editor';
 
     const dialog = new IframeDialog(doc);
 
     if (!hasChanges) {
         // If no changes, just show the "Saved" feedback without actually saving.
         showSavedFeedback();
-        infoLog(`[ModuleEditor] ${i18n.t('msg_no_changes', section)}`);
+        infoLog(`[ModuleEditor] ${translate('ccore_msg_no_changes')}`);
         return;
     }
 
     dialog.open({
-        title: i18n.t('title_confirm_save', section),
+        title: translate('ccore_title_confirm_save'),
         content: html,
         buttons: [
             {
-                text: i18n.t('btn_undo_changes', section),
+                text: translate('ccore_btn_undo_changes'),
                 id: 'restore-button',
                 className: 'btn-secondary',
                 align: 'left', // 放在左下角
@@ -1182,12 +1175,12 @@ function confirmAndSave() {
                 }
             },
             {
-                text: i18n.t('btn_cancel', section),
+                text: translate('ccore_btn_cancel'),
                 className: 'btn-secondary',
                 onClick: (d) => d.close(),
             },
             {
-                text: i18n.t('btn_confirm_save', section),
+                text: translate('ccore_btn_confirm_save'),
                 className: 'btn-primary',
                 onClick: (d) => {
                     d.close();
@@ -1208,7 +1201,7 @@ function showSavedFeedback() {
 
         setTimeout(() => {
             // 恢复按钮状态（此时应该已保存，所以是禁用状态）
-            btn.textContent = i18n.t('btn_save', 'module_editor');
+            btn.textContent = translate('ccore_btn_save');
             btn.dataset.saving = 'false';
             btn.classList.remove('saved'); // 移除绿色样式
         }, 1000);

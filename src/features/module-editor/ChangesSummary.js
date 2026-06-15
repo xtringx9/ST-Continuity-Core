@@ -1,4 +1,4 @@
-import { i18n } from '../../shared/i18n.js';
+import { translate } from '../../../../../../i18n.js';
 
 function escapeHtml(unsafe) {
     if (typeof unsafe !== 'string') {
@@ -163,7 +163,7 @@ const variableKeyToI18nKey = {
 };
 
 function getVariablePropertyLabel(key) {
-    return i18n.t(variableKeyToI18nKey[key] || key, 'module_editor');
+    return translate(`ccore_${variableKeyToI18nKey[key] || key}`);
 }
 
 
@@ -188,7 +188,7 @@ const moduleKeyToI18nKey = {
     'itemMax': 'label_item_max',
 };
 function getModulePropertyLabel(key) {
-    return i18n.t(moduleKeyToI18nKey[key] || key, 'module_editor');
+    return translate(`ccore_${moduleKeyToI18nKey[key] || key}`);
 }
 
 /**
@@ -209,7 +209,7 @@ export function generateChangesSummary(originalModules, currentModules, original
         hasChanges = true;
         html += '<h4>全局设置变更:</h4><ul>';
         settingsChanges.forEach(change => {
-            const label = i18n.t(`label_global_${change.key.replace(/([A-Z])/g, '_$1').toLowerCase()}`, 'module_editor') || change.key;
+            const label = translate(`ccore_label_global_${change.key.replace(/([A-Z])/g, '_$1').toLowerCase()}`) || change.key;
             const oldValueFormatted = formatChangeValue(change.oldValue);
             const newValueFormatted = formatChangeValue(change.newValue);
             html += `<li><strong>${escapeHtml(label)}</strong>: <span class="change-old">${oldValueFormatted}</span> → <span class="change-new">${newValueFormatted}</span>`;
@@ -251,9 +251,9 @@ export function generateChangesSummary(originalModules, currentModules, original
                     let label;
                     if (change.isVariableChange) {
                         if (change.key === 'added') {
-                            label = `${i18n.t('label_var_added', 'module_editor')}: ${change.variableName}`;
+                            label = `${translate('ccore_label_var_added')}: ${change.variableName}`;
                         } else if (change.key === 'deleted') {
-                            label = `${i18n.t('label_var_deleted', 'module_editor')}: ${change.variableName}`;
+                            label = `${translate('ccore_label_var_deleted')}: ${change.variableName}`;
                         } else {
                             const varPropLabel = getVariablePropertyLabel(change.key);
                             label = `变量 ${change.variableName} / ${varPropLabel}`;
@@ -275,7 +275,7 @@ export function generateChangesSummary(originalModules, currentModules, original
     }
 
     if (!hasChanges) {
-        html = `<p>${i18n.t('msg_no_changes', 'module_editor')}</p>`;
+        html = `<p>${translate('ccore_msg_no_changes')}</p>`;
     }
 
     return { html, hasChanges };

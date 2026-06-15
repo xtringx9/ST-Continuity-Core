@@ -1,4 +1,4 @@
-import { i18n } from '../../shared/i18n.js';
+import { translate } from '../../../../../../i18n.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
 import configManager from '../../singleton/configManager.js';
@@ -23,8 +23,6 @@ import { processModuleData } from '../../core/moduleProcessor.js';
 export function renderToolbox(doc, currentModules) {
     debugLog("renderToolbox: 初始化工具箱界面");
 
-    const section = 'module_editor';
-
     // === 1. 渲染提示词预览 ===
     const previewContainer = doc.getElementById('tool-prompt-preview-container');
     if (previewContainer) {
@@ -32,7 +30,7 @@ export function renderToolbox(doc, currentModules) {
 
         const previewTitle = doc.createElement('div');
         previewTitle.className = 'form-section-title';
-        previewTitle.textContent = i18n.t('title_prompt_preview', section);
+        previewTitle.textContent = translate('ccore_title_prompt_preview');
         previewContainer.appendChild(previewTitle);
 
         const previewControls = doc.createElement('div');
@@ -42,16 +40,16 @@ export function renderToolbox(doc, currentModules) {
         previewControls.style.marginBottom = '10px';
 
         // 动态生成预览模式选项
-        const previewModes = getPreviewModes(section);
+        const previewModes = getPreviewModes();
         const optionsHtml = previewModes.map(mode => `<option value="${mode.value}">${mode.label}</option>`).join('');
 
         previewControls.innerHTML = `
             <select id="tool-preview-mode" style="flex: 1;">
                 ${optionsHtml}
             </select>
-            <button id="btn-preview-refresh" class="btn-secondary">${i18n.t('btn_refresh', section)}</button>
-            <button id="btn-preview-copy-macro" class="btn-secondary">${i18n.t('btn_copy_macro', section)}</button>
-            <button id="btn-preview-copy" class="btn-secondary">${i18n.t('btn_copy', section)}</button>
+            <button id="btn-preview-refresh" class="btn-secondary">${translate('ccore_btn_refresh')}</button>
+            <button id="btn-preview-copy-macro" class="btn-secondary">${translate('ccore_btn_copy_macro')}</button>
+            <button id="btn-preview-copy" class="btn-secondary">${translate('ccore_btn_copy')}</button>
         `;
         previewContainer.appendChild(previewControls);
 
@@ -123,7 +121,7 @@ export function renderToolbox(doc, currentModules) {
         if (btn.parentNode !== btnGroup) {
             btnGroup.appendChild(btn);
         }
-        btn.textContent = i18n.t(textKey, section);
+        btn.textContent = translate(`ccore_${textKey}`);
         btn.onclick = onClick; // 直接覆盖点击事件
         return btn;
     };
@@ -155,7 +153,7 @@ export function renderToolbox(doc, currentModules) {
         const createBtn = (textKey, type, defaultText) => {
             const btn = doc.createElement('button');
             btn.className = 'btn-primary';
-            btn.textContent = i18n.t(textKey, section) || defaultText;
+            btn.textContent = translate(`ccore_${textKey}`) || defaultText;
             btn.style.fontSize = '12px';
             btn.style.padding = '6px 12px';
             btn.addEventListener('click', () => handleExtract(doc, type));
@@ -172,15 +170,15 @@ export function renderToolbox(doc, currentModules) {
     }
 
     // === 调试按钮绑定 ===
-    bindDebugButtons(doc, section);
+    bindDebugButtons(doc);
 
     // 翻译工具箱标题
     const debugTitle = doc.getElementById('title-debug-tools');
-    if (debugTitle) debugTitle.textContent = i18n.t('title_debug_tools', section);
+    if (debugTitle) debugTitle.textContent = translate('ccore_title_debug_tools');
 
     // 翻译楼层输入框 placeholder
     const floorEndInput = doc.getElementById('tool-floor-end');
-    if (floorEndInput) floorEndInput.placeholder = i18n.t('placeholder_latest', section);
+    if (floorEndInput) floorEndInput.placeholder = translate('ccore_placeholder_latest');
 
     // 为结果区域添加复制按钮
     const resultsTitle = doc.querySelector('.results-title');
@@ -190,7 +188,7 @@ export function renderToolbox(doc, currentModules) {
         copyBtn.style.marginLeft = '10px';
         copyBtn.style.padding = '2px 8px';
         copyBtn.style.fontSize = '12px';
-        copyBtn.textContent = i18n.t('btn_copy', section);
+        copyBtn.textContent = translate('ccore_btn_copy');
         copyBtn.addEventListener('click', () => {
             const resultArea = doc.getElementById('tool-results');
             if (resultArea) copyToClipboard(doc, resultArea.value, copyBtn);
@@ -202,12 +200,12 @@ export function renderToolbox(doc, currentModules) {
 /**
  * 获取预览模式选项列表
  */
-function getPreviewModes(section) {
+function getPreviewModes() {
     const modes = [
-        { value: 'prompt', label: `${i18n.t('option_preview_prompt', section)} 宏` },
-        { value: 'order', label: `${i18n.t('option_preview_order', section)} 宏` },
-        { value: 'usage', label: `${i18n.t('option_preview_usage', section)} 宏` },
-        { value: 'data', label: `${i18n.t('option_preview_data', section)} 宏` }
+        { value: 'prompt', label: `${translate('ccore_option_preview_prompt')} 宏` },
+        { value: 'order', label: `${translate('ccore_option_preview_order')} 宏` },
+        { value: 'usage', label: `${translate('ccore_option_preview_usage')} 宏` },
+        { value: 'data', label: `${translate('ccore_option_preview_data')} 宏` }
     ];
 
     // 获取聊天消息层数配置，动态生成聊天模块宏选项
@@ -328,7 +326,7 @@ function bindPreviewEvents(doc) {
     updatePreview();
 }
 
-function bindDebugButtons(doc, section) {
+function bindDebugButtons(doc) {
     const serverDebugDir = '_debug';
     const serverDebugFile = `${serverDebugDir}/server-api-test.json`;
 
@@ -337,7 +335,7 @@ function bindDebugButtons(doc, section) {
         if (!btn) return;
 
         const newBtn = btn.cloneNode(true);
-        newBtn.textContent = i18n.t(textKey, section);
+        newBtn.textContent = translate(`ccore_${textKey}`);
         btn.parentNode.replaceChild(newBtn, btn);
 
         newBtn.addEventListener('click', async () => {
@@ -345,10 +343,10 @@ function bindDebugButtons(doc, section) {
             try {
                 await handler();
                 if (typeof toastr !== 'undefined') {
-                    toastr.success(i18n.t(textKey, section));
+                    toastr.success(translate(`ccore_${textKey}`));
                 }
             } catch (err) {
-                errorLog(`[Debug] ${i18n.t(textKey, section)} 失败:`, err);
+                errorLog(`[Debug] ${translate(`ccore_${textKey}`)} 失败:`, err);
                 if (typeof toastr !== 'undefined') {
                     toastr.error(err.message);
                 }
@@ -362,7 +360,7 @@ function bindDebugButtons(doc, section) {
     const btnDebugCache = doc.getElementById('btn-debug-cache');
     if (btnDebugCache) {
         const newBtn = btnDebugCache.cloneNode(true);
-        newBtn.textContent = i18n.t('btn_debug_cache', section);
+        newBtn.textContent = translate('ccore_btn_debug_cache');
         btnDebugCache.parentNode.replaceChild(newBtn, btnDebugCache);
 
         newBtn.addEventListener('click', () => {
@@ -376,7 +374,7 @@ function bindDebugButtons(doc, section) {
     const btnDebugConfig = doc.getElementById('btn-debug-config');
     if (btnDebugConfig) {
         const newBtn = btnDebugConfig.cloneNode(true);
-        newBtn.textContent = i18n.t('btn_debug_config', section);
+        newBtn.textContent = translate('ccore_btn_debug_config');
         btnDebugConfig.parentNode.replaceChild(newBtn, btnDebugConfig);
 
         newBtn.addEventListener('click', () => {
@@ -390,7 +388,7 @@ function bindDebugButtons(doc, section) {
     const btnDebugContext = doc.getElementById('btn-debug-context');
     if (btnDebugContext) {
         const newBtn = btnDebugContext.cloneNode(true);
-        newBtn.textContent = i18n.t('btn_debug_context', section);
+        newBtn.textContent = translate('ccore_btn_debug_context');
         btnDebugContext.parentNode.replaceChild(newBtn, btnDebugContext);
 
         newBtn.addEventListener('click', () => {
@@ -408,7 +406,7 @@ function bindDebugButtons(doc, section) {
     const btnDebugUserHandle = doc.getElementById('btn-debug-user-handle');
     if (btnDebugUserHandle) {
         const newBtn = btnDebugUserHandle.cloneNode(true);
-        newBtn.textContent = i18n.t('btn_debug_user_handle', section);
+        newBtn.textContent = translate('ccore_btn_debug_user_handle');
         btnDebugUserHandle.parentNode.replaceChild(newBtn, btnDebugUserHandle);
 
         newBtn.addEventListener('click', () => {

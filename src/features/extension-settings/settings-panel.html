@@ -3,7 +3,7 @@
         <div class="inline-drawer-toggle inline-drawer-header">
             <b>
                 <span class="ccore-badge">CCore</span>
-                <span style="margin-left: 5px; font-size: 0.95em;">模块中心</span>
+                <span style="margin-left: 5px; font-size: 0.95em;" data-i18n="ccore_settings_module_center">模块中心</span>
             </b>
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
@@ -15,7 +15,7 @@
                             <input id="continuity_enabled" type="checkbox" />
                             <span class="continuity-toggle-slider"></span>
                         </label>
-                        <label for="continuity_enabled">启用插件</label>
+                        <label for="continuity_enabled" data-i18n="ccore_settings_enabled">启用插件</label>
                     </div>
                     <div class="continuity-version-info">
                         Continuity Core v1.0.0
@@ -23,37 +23,37 @@
                 </div>
                 
                 <div class="continuity-tabs">
-                    <button class="continuity-tab-btn active" data-tab="interface">界面设置</button>
-                    <button class="continuity-tab-btn" data-tab="backend">后端配置</button>
-                    <button class="continuity-tab-btn" data-tab="debug">调试设置</button>
+                    <button class="continuity-tab-btn active" data-tab="interface" data-i18n="ccore_settings_tab_interface">界面设置</button>
+                    <button class="continuity-tab-btn" data-tab="backend" data-i18n="ccore_settings_tab_backend">后端配置</button>
+                    <button class="continuity-tab-btn" data-tab="debug" data-i18n="ccore_settings_tab_debug">调试设置</button>
                 </div>
                 
                 <div class="continuity-tab-content active" id="tab-interface">
                     <div class="continuity-form-row">
-                        <label for="continuity_button_type" class="continuity-form-label">按钮类型:</label>
+                        <label for="continuity_button_type" class="continuity-form-label" data-i18n="ccore_settings_button_type">按钮类型:</label>
                         <select id="continuity_button_type" class="continuity-form-input">
-                            <option value="embedded">嵌入按钮</option>
-                            <option value="floating">浮动按钮</option>
+                            <option value="embedded" data-i18n="ccore_settings_button_embedded">嵌入按钮</option>
+                            <option value="floating" data-i18n="ccore_settings_button_floating">浮动按钮</option>
                         </select>
                     </div>
                 </div>
                 
                 <div class="continuity-tab-content" id="tab-backend">
                     <div class="continuity-form-row">
-                        <label for="continuity_backend_url" class="continuity-form-label">服务器地址:</label>
+                        <label for="continuity_backend_url" class="continuity-form-label" data-i18n="ccore_settings_backend_url">服务器地址:</label>
                         <input id="continuity_backend_url" type="text" class="continuity-form-input"
-                            placeholder="http://localhost:8888" />
+                            placeholder="http://localhost:8888" data-i18n="ccore_settings_backend_url" />
                     </div>
                     <div class="example-extension_block">
                         <button id="continuity_test_backend" type="button" class="menu_button"
-                            style="width:auto;">测试后端连接</button>
+                            style="width:auto;" data-i18n="ccore_settings_test_backend">测试后端连接</button>
                     </div>
                 </div>
                 
                 <div class="continuity-tab-content" id="tab-debug">
                     <div class="example-extension_block flex-container">
                         <input id="continuity_debug_logs" type="checkbox" />
-                        <label for="continuity_debug_logs">显示调试日志</label>
+                        <label for="continuity_debug_logs" data-i18n="ccore_settings_debug_logs">显示调试日志</label>
                     </div>
                 </div>
             </div>

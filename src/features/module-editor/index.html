@@ -20,9 +20,9 @@
         </div>
         <div class="header-actions">
             <button id="header-import-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;"
-                data-i18n="btn_import">导入</button>
+                data-i18n="ccore_btn_import">导入</button>
             <button id="header-export-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;"
-                data-i18n="btn_export">导出</button>
+                data-i18n="ccore_btn_export">导出</button>
             <button id="header-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;">保存</button>
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
@@ -34,19 +34,19 @@
         <nav class="main-nav">
             <div class="nav-item active" data-target="view-modules">
                 <span class="nav-icon">📦</span>
-                <span class="nav-text" data-i18n="nav_modules">模块定义</span>
+                <span class="nav-text" data-i18n="ccore_nav_modules">模块定义</span>
             </div>
             <div class="nav-item" data-target="view-profiles">
                 <span class="nav-icon">👥</span>
-                <span class="nav-text" data-i18n="nav_profiles">角色覆盖</span>
+                <span class="nav-text" data-i18n="ccore_nav_profiles">角色覆盖</span>
             </div>
             <div class="nav-item" data-target="view-settings">
                 <span class="nav-icon">⚙️</span>
-                <span class="nav-text" data-i18n="nav_settings">全局设置</span>
+                <span class="nav-text" data-i18n="ccore_nav_settings">全局设置</span>
             </div>
             <div class="nav-item" data-target="view-tools">
                 <span class="nav-icon">🛠️</span>
-                <span class="nav-text" data-i18n="nav_tools">工具箱</span>
+                <span class="nav-text" data-i18n="ccore_nav_tools">工具箱</span>
             </div>
         </nav>
 
@@ -92,7 +92,7 @@
                         <div class="form-section-title" id="title-debug-tools">调试工具</div>
                         <div class="debug-tools">
                             <div class="debug-tool-group">
-                                <span class="debug-tool-group-label" data-i18n="label_debug_general">通用</span>
+                                <span class="debug-tool-group-label" data-i18n="ccore_label_debug_general">通用</span>
                                 <button id="btn-debug-cache" class="btn-debug">打印缓存数据</button>
                                 <button id="btn-debug-config" class="btn-debug">打印配置数据</button>
                                 <button id="btn-debug-context" class="btn-debug">打印上下文数据</button>
@@ -100,7 +100,7 @@
                                 <button id="btn-debug-state" class="btn-debug">打印编辑器状态</button>
                             </div>
                             <div class="debug-tool-group">
-                                <span class="debug-tool-group-label" data-i18n="label_debug_server">服务器</span>
+                                <span class="debug-tool-group-label" data-i18n="ccore_label_debug_server">服务器</span>
                                 <button id="btn-debug-server-list" class="btn-debug">列出服务器目录</button>
                                 <button id="btn-debug-server-save" class="btn-debug">服务器写入测试</button>
                                 <button id="btn-debug-server-read" class="btn-debug">服务器读取测试</button>
@@ -123,36 +123,36 @@
                         <!-- 提示词预览容器 -->
                         <div id="tool-prompt-preview-container"></div>
 
-                        <div class="form-section-title" data-i18n="label_source_settings">来源设置</div>
+                        <div class="form-section-title" data-i18n="ccore_label_source_settings">来源设置</div>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label data-i18n="label_floor_start">起始楼层</label>
+                                <label data-i18n="ccore_label_floor_start">起始楼层</label>
                                 <input type="number" id="tool-floor-start" value="1">
                             </div>
                             <div class="form-group">
-                                <label data-i18n="label_floor_end">结束楼层</label>
+                                <label data-i18n="ccore_label_floor_end">结束楼层</label>
                                 <input type="number" id="tool-floor-end" placeholder="最新">
                             </div>
                         </div>
 
-                        <div class="form-section-title" data-i18n="label_select_modules">选择模块</div>
+                        <div class="form-section-title" data-i18n="ccore_label_select_modules">选择模块</div>
                         <div class="toolbox-actions" style="margin-bottom: 10px; display: flex; gap: 8px;">
                             <button id="btn-tool-select-all" class="btn-secondary"
-                                data-i18n="btn_select_all">全选</button>
+                                data-i18n="ccore_btn_select_all">全选</button>
                             <button id="btn-tool-select-none" class="btn-secondary"
-                                data-i18n="btn_select_none">清空</button>
+                                data-i18n="ccore_btn_select_none">清空</button>
                             <button id="btn-tool-select-enabled" class="btn-secondary"
-                                data-i18n="btn_select_enabled">仅启用</button>
+                                data-i18n="ccore_btn_select_enabled">仅启用</button>
                         </div>
                         <div id="tool-module-list" class="form-group form-full-width toolbox-list">
                             <!-- 模块复选框将由 JS 生成 -->
                         </div>
 
                         <div style="margin-top: 20px; text-align: right;">
-                            <button id="btn-extract" class="btn-primary" data-i18n="btn_extract">开始提取</button>
+                            <button id="btn-extract" class="btn-primary" data-i18n="ccore_btn_extract">开始提取</button>
                         </div>
 
-                        <div class="form-section-title results-title" data-i18n="label_results">提取结果</div>
+                        <div class="form-section-title results-title" data-i18n="ccore_label_results">提取结果</div>
                         <textarea id="tool-results" rows="10" class="results-textarea" readonly></textarea>
                     </div>
                 </div>

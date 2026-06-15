@@ -8,5 +8,9 @@
     "author": "xtringx9",
     "version": "1.0.0",
     "description": "",
-    "homePage": "https://github.com/xtringx9/ST-Continuity-Core"
+    "homePage": "https://github.com/xtringx9/ST-Continuity-Core",
+    "i18n": {
+        "en": "locales/en.json",
+        "zh-cn": "locales/zh-cn.json"
+    }
 }

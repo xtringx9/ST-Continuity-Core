@@ -1,4 +1,4 @@
-import { i18n } from '../../shared/i18n.js';
+import { translate } from '../../../../../../i18n.js';
 
 /**
  * 渲染全局设置界面
@@ -10,83 +10,81 @@ export function renderGlobalSettings(doc, settings, onChange) {
     const container = doc.getElementById('view-settings');
     if (!container) return;
 
-    const section = 'module_editor'; // 复用翻译
-
     container.innerHTML = `
         <div class="detail-content">
             <div class="settings-container">
-                <div class="form-section-title">${i18n.t('title_tag_settings', section)}</div>
+                <div class="form-section-title">${translate('ccore_title_tag_settings')}</div>
                 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>${i18n.t('label_global_module_tag', section)}</label>
-                        <input type="text" id="global-module-tag" value="${settings.moduleTag || 'module'}" placeholder="${i18n.t('placeholder_default_module', section)}">
+                        <label>${translate('ccore_label_global_module_tag')}</label>
+                        <input type="text" id="global-module-tag" value="${settings.moduleTag || 'module'}" placeholder="${translate('ccore_placeholder_default_module')}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_global_module_update_tag', section)}</label>
-                        <input type="text" id="global-module-update-tag" value="${settings.moduleUpdateTag || 'module_update'}" placeholder="${i18n.t('placeholder_default_module_update', section)}">
+                        <label>${translate('ccore_label_global_module_update_tag')}</label>
+                        <input type="text" id="global-module-update-tag" value="${settings.moduleUpdateTag || 'module_update'}" placeholder="${translate('ccore_placeholder_default_module_update')}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_global_compatible_module_tags', section)}</label>
-                        <input type="text" id="global-compatible-module-tags" value="${(settings.compatibleModuleTags || []).join(',')}" placeholder="${i18n.t('placeholder_compatible_module_tags', section)}">
+                        <label>${translate('ccore_label_global_compatible_module_tags')}</label>
+                        <input type="text" id="global-compatible-module-tags" value="${(settings.compatibleModuleTags || []).join(',')}" placeholder="${translate('ccore_placeholder_compatible_module_tags')}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_global_cot_tags', section)}</label>
-                        <input type="text" id="global-cot-tags" value="${(settings.cotTags || []).join(',')}" placeholder="${i18n.t('placeholder_tags', section)}">
+                        <label>${translate('ccore_label_global_cot_tags')}</label>
+                        <input type="text" id="global-cot-tags" value="${(settings.cotTags || []).join(',')}" placeholder="${translate('ccore_placeholder_tags')}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_global_content_tag', section)}</label>
-                        <input type="text" id="global-content-tag" value="${(settings.contentTag || []).join(',')}" placeholder="${i18n.t('placeholder_tags', section)}">
+                        <label>${translate('ccore_label_global_content_tag')}</label>
+                        <input type="text" id="global-content-tag" value="${(settings.contentTag || []).join(',')}" placeholder="${translate('ccore_placeholder_tags')}">
                     </div>
                     <div class="form-group">
-                        <label>${i18n.t('label_global_content_remain_layers', section)}</label>
-                        <input type="number" id="global-content-remain-layers" value="${settings.contentRemainLayers !== undefined ? settings.contentRemainLayers : 6}" placeholder="${i18n.t('placeholder_content_remain_layers', section)}">
+                        <label>${translate('ccore_label_global_content_remain_layers')}</label>
+                        <input type="number" id="global-content-remain-layers" value="${settings.contentRemainLayers !== undefined ? settings.contentRemainLayers : 6}" placeholder="${translate('ccore_placeholder_content_remain_layers')}">
                     </div>
                 </div>
 
-                <div class="form-section-title">${i18n.t('title_global_prompt_config', section)}</div>
+                <div class="form-section-title">${translate('ccore_title_global_prompt_config')}</div>
                 
                 <div class="form-group form-full-width">
-                    <label>${i18n.t('label_global_prompt', section)}</label>
-                    <textarea id="global-prompt" rows="3" placeholder="${i18n.t('placeholder_global_prompt', section)}">${settings.prompt || ''}</textarea>
+                    <label>${translate('ccore_label_global_prompt')}</label>
+                    <textarea id="global-prompt" rows="3" placeholder="${translate('ccore_placeholder_global_prompt')}">${settings.prompt || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label>${i18n.t('label_global_order_prompt', section)}</label>
-                    <textarea id="global-order-prompt" rows="3" placeholder="${i18n.t('placeholder_global_order_prompt', section)}">${settings.orderPrompt || ''}</textarea>
+                    <label>${translate('ccore_label_global_order_prompt')}</label>
+                    <textarea id="global-order-prompt" rows="3" placeholder="${translate('ccore_placeholder_global_order_prompt')}">${settings.orderPrompt || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label>${i18n.t('label_global_usage_prompt', section)}</label>
-                    <textarea id="global-usage-prompt" rows="3" placeholder="${i18n.t('placeholder_global_usage_prompt', section)}">${settings.usagePrompt || ''}</textarea>
+                    <label>${translate('ccore_label_global_usage_prompt')}</label>
+                    <textarea id="global-usage-prompt" rows="3" placeholder="${translate('ccore_placeholder_global_usage_prompt')}">${settings.usagePrompt || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label>${i18n.t('label_global_module_data_prompt', section)}</label>
-                    <textarea id="global-module-data-prompt" rows="3" placeholder="${i18n.t('placeholder_global_module_data_prompt', section)}">${settings.moduleDataPrompt || ''}</textarea>
+                    <label>${translate('ccore_label_global_module_data_prompt')}</label>
+                    <textarea id="global-module-data-prompt" rows="3" placeholder="${translate('ccore_placeholder_global_module_data_prompt')}">${settings.moduleDataPrompt || ''}</textarea>
                 </div>
 
-                <div class="form-section-title">${i18n.t('title_global_style_config', section)}</div>
+                <div class="form-section-title">${translate('ccore_title_global_style_config')}</div>
 
                 <div class="form-group form-full-width">
-                    <label>${i18n.t('label_global_container_styles', section)}</label>
-                    <textarea id="global-container-styles" rows="2" placeholder="${i18n.t('placeholder_inject_styles', section)}">${settings.containerStyles || ''}</textarea>
-                </div>
-
-                <div class="form-group form-full-width">
-                    <label>${i18n.t('label_global_external_styles', section)}</label>
-                    <textarea id="global-external-styles" rows="2" placeholder="${i18n.t('placeholder_inject_styles', section)}">${settings.externalStyles || ''}</textarea>
+                    <label>${translate('ccore_label_global_container_styles')}</label>
+                    <textarea id="global-container-styles" rows="2" placeholder="${translate('ccore_placeholder_inject_styles')}">${settings.containerStyles || ''}</textarea>
                 </div>
 
                 <div class="form-group form-full-width">
-                    <label>${i18n.t('label_global_bottom_styles', section)}</label>
-                    <textarea id="global-bottom-styles" rows="2" placeholder="${i18n.t('placeholder_inject_styles', section)}">${settings.bottomStyles || ''}</textarea>
+                    <label>${translate('ccore_label_global_external_styles')}</label>
+                    <textarea id="global-external-styles" rows="2" placeholder="${translate('ccore_placeholder_inject_styles')}">${settings.externalStyles || ''}</textarea>
                 </div>
 
-                <div class="form-section-title">${i18n.t('title_other_settings', section)}</div>
+                <div class="form-group form-full-width">
+                    <label>${translate('ccore_label_global_bottom_styles')}</label>
+                    <textarea id="global-bottom-styles" rows="2" placeholder="${translate('ccore_placeholder_inject_styles')}">${settings.bottomStyles || ''}</textarea>
+                </div>
+
+                <div class="form-section-title">${translate('ccore_title_other_settings')}</div>
 
                 <div class="form-group">
-                    <label>${i18n.t('label_global_time_format', section)}</label>
+                    <label>${translate('ccore_label_global_time_format')}</label>
                     <input type="text" id="global-time-format" value="${settings.timeFormat || ''}">
                 </div>
 
