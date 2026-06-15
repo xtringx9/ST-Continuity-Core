@@ -1,14 +1,10 @@
 // 主模块 - ST-Continuity-Core
-// 使用src/index.js作为统一入口
-import {
-    SettingsPanel,
-    EntryButton,
-    registerMacros,
-    infoLog,
-    debugLog,
-    getContext,
-    extensionFolderPath,
-} from "./src/index.js";
+import { SettingsPanel } from "./src/features/extension-settings/SettingsPanel.js";
+import { EntryButton } from "./src/features/entry/EntryButton.js";
+import { registerMacros } from "./src/core/macroManager.js";
+import { infoLog, debugLog } from "./src/utils/logger.js";
+import { getContext } from "../../../extensions.js";
+import { extensionFolderPath } from "./src/singleton/configManager.js";
 
 // 导入配置管理器
 import { default as configManager } from "./src/singleton/configManager.js";

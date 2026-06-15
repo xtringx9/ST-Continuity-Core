@@ -5,7 +5,7 @@ SillyTavern 扩展，用于在 AI 角色扮演中管理结构化连续性数据�
 ## 项目结构
 
 ```
-src/index.js              # 入口文件 — 仅导出 continuity-core.js 所需的符号
+continuity-core.js        # ST 扩展加载入口 — 直接从各源文件导入，无中间层
 src/singleton/            # 全局单例状态
   configManager.js        #   配置生命周期：加载、缓存、自动保存、导入/导出/合并
   moduleCacheManager.js   #   每个聊天的模块数据缓存（嵌套 Map）
@@ -134,7 +134,7 @@ import { configManager, debugLog, processModuleData } from '../index.js';
 
 1. 在源文件中定义并 `export`
 2. 需要该模块的文件直接 `import` 源文件
-3. 只有 `continuity-core.js` 需要的符号才添加到 `src/index.js`
+3. 只有 `continuity-core.js` 需要的符号才直接在该文件中导入
 
 ## 配置系统
 
