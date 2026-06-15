@@ -47,17 +47,29 @@ src/shared/               # 可复用 UI 组件
   IframeDialog.js, IframeModal.js, i18n.js
 server-plugin/continuity-core-server/  # ST 服务端插件 (Node.js)
   index.js                #   REST API：隔离用户路径的文件的增删查改
+                          #   接口：saveFile, readFile, listFiles, deleteFile, ensureDir,
+                          #         appendMessage, readMessage, writeMessage, readMessages,
+                          #         readSnapshot, writeSnapshot, readMeta, writeMeta,
+                          #         moveChat, deleteChat, listChats
 assets/                   # CSS、HTML 模板
 continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 — 请编辑 src/）
 ```
 
 ## 数据流
 
+### 提示词注入流程
 1. **提取** — `moduleExtractor` 从聊天消息与世界书条目中解析 `[模块名|键:值|...]` 格式，支持嵌套模块
 2. **缓存** — `moduleCacheManager` 将处理结果存入按聊天分组的嵌套 Map（`chatIdHash → rangeKey → data`）
 3. **处理** — `moduleProcessor` 管线：按配置映射标准化变量名 → 去重 → 按标识符/时间/ID 排序 → 应用 retainLayers → 应用层级压缩 → 构建最终模块字符串
 4. **注入** — `macroManager` 注册 `{{CONTINUITY_PROMPT}}`、`{{CONTINUITY_ORDER}}`、`{{CONTINUITY_USAGE_GUIDE}}`、`{{CONTINUITY_MODULE_DATA}}`、逐消息 `{{CONTINUITY_MSG_MODULE_N}}` 宏；`promptInjector` 监听 `CHAT_COMPLETION_PROMPT_READY` 事件
 5. **UI** — `contextBottomUI` 渲染 3 种目标：上下文底部汇总、.mes_text 后的消息块、.mes_text 内的行内替换
+
+### 每楼层存储流程（开发中）
+1. **路径构建** — `storageKeyBuilder` 生成与后端一致的存储路径（`chats/{safeCharName}/{safeFileName}/messages/{batch}.jsonl`）
+2. **写入** — `perMessageStorage` 通过服务端插件将每楼层的模块数据追加到批量 JSONL 文件（每100层一个文件）
+3. **快照** — 每5层自动生成累积状态快照，存入 `snapshots/{batch}.json`，加速后续读取
+4. **读取** — 先查最近快照，再增量计算从快照到目标楼层的累积状态
+5. **迁移** — 聊天文件重命名时，通过 `moveChat` 接口自动迁移存储目录
 
 ## 关键概念
 
@@ -66,6 +78,14 @@ continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 
 - **层级压缩**：高级别模块隐藏其时间/ID 范围内的低级别模块
 - **时间参考标准**：指定某个模块的时间作为同一消息中其他模块的时间参考
 - **变量**：模块内的字段，可设为主标识符、备用标识符、隐藏条件、不规范化
+
+### 存储层概念（开发中）
+- **批量 JSONL**：每100层楼层的模块数据存储在一个 `.jsonl` 文件中，每行一条消息数据
+- **快照**：累积状态的检查点，每5层自动生成，存储在 `snapshots/` 目录下的 JSON 文件中
+- **累积状态**：从第0层到目标楼层的所有模块数据的合并结果
+- **符号处理**：角色名和文件名中的 `.` 替换为 `_`，与后端保持一致
+- **存储路径**：`chats/{safeCharName}/{safeFileName}/`，与 ST 的 `data/default-user/chats/` 结构对齐
+- **聊天标识**：`{safeCharName}::{safeFileName}` 作为唯一标识，Branch 聊天因文件名不同而自动隔离
 
 ## 构建与开发
 
