@@ -202,10 +202,10 @@ export function renderToolbox(doc, currentModules) {
  */
 function getPreviewModes() {
     const modes = [
-        { value: 'prompt', label: `${translate('ccore_option_preview_prompt')} 宏` },
-        { value: 'order', label: `${translate('ccore_option_preview_order')} 宏` },
-        { value: 'usage', label: `${translate('ccore_option_preview_usage')} 宏` },
-        { value: 'data', label: `${translate('ccore_option_preview_data')} 宏` }
+        { value: 'prompt', label: `${translate('ccore_option_preview_prompt')} ${translate('ccore_label_macro')}` },
+        { value: 'order', label: `${translate('ccore_option_preview_order')} ${translate('ccore_label_macro')}` },
+        { value: 'usage', label: `${translate('ccore_option_preview_usage')} ${translate('ccore_label_macro')}` },
+        { value: 'data', label: `${translate('ccore_option_preview_data')} ${translate('ccore_label_macro')}` }
     ];
 
     // 获取聊天消息层数配置，动态生成聊天模块宏选项
@@ -214,7 +214,7 @@ function getPreviewModes() {
         if (i % 2 === 1) {
             modes.push({
                 value: `chat_module_${i}`,
-                label: `{{CONTINUITY_MSG_MODULE_${i}}} 宏`
+                label: `{{CONTINUITY_MSG_MODULE_${i}}} ${translate('ccore_label_macro')}`
             });
         }
     }
@@ -466,7 +466,7 @@ function bindDebugButtons(doc) {
         });
     };
 
-    bindStorageDebugButton('btn-debug-storage-init', '初始化存储', async () => {
+    bindStorageDebugButton('btn-debug-storage-init', translate('ccore_btn_debug_storage_init'), async () => {
         const context = getContext();
         const characterName = context?.name2 || 'TestChar';
         const chatId = context?.chatIdHash || 'test-hash';
@@ -476,8 +476,8 @@ function bindDebugButtons(doc) {
         infoLog('[Debug-Storage] 初始化完成:', { characterName, chatFileName, chatId });
     });
 
-    bindStorageDebugButton('btn-debug-storage-append', '追加测试数据', async () => {
-        const testMesId = parseInt(prompt('输入楼层 mesId:', '0'));
+    bindStorageDebugButton('btn-debug-storage-append', translate('ccore_btn_debug_storage_append'), async () => {
+        const testMesId = parseInt(prompt(translate('ccore_prompt_input_mesid'), '0'));
         if (isNaN(testMesId)) return;
 
         const swipeData = {
@@ -495,16 +495,16 @@ function bindDebugButtons(doc) {
         infoLog(`[Debug-Storage] 追加楼层 ${testMesId}:`, swipeData);
     });
 
-    bindStorageDebugButton('btn-debug-storage-read', '读取楼层', async () => {
-        const testMesId = parseInt(prompt('输入楼层 mesId:', '0'));
+    bindStorageDebugButton('btn-debug-storage-read', translate('ccore_btn_debug_storage_read'), async () => {
+        const testMesId = parseInt(prompt(translate('ccore_prompt_input_mesid'), '0'));
         if (isNaN(testMesId)) return;
 
         const data = await perMessageStorage.getMessage(testMesId, 0);
         infoLog(`[Debug-Storage] 读取楼层 ${testMesId} swipe 0:`, data);
     });
 
-    bindStorageDebugButton('btn-debug-storage-update', '更新楼层', async () => {
-        const testMesId = parseInt(prompt('输入楼层 mesId:', '0'));
+    bindStorageDebugButton('btn-debug-storage-update', translate('ccore_btn_debug_storage_update'), async () => {
+        const testMesId = parseInt(prompt(translate('ccore_prompt_input_mesid'), '0'));
         if (isNaN(testMesId)) return;
 
         const newData = {
@@ -520,8 +520,8 @@ function bindDebugButtons(doc) {
         infoLog(`[Debug-Storage] 更新楼层 ${testMesId} swipe 0:`, newData);
     });
 
-    bindStorageDebugButton('btn-debug-storage-snapshot', '写入快照', async () => {
-        const testMesId = parseInt(prompt('输入快照楼层 mesId:', '0'));
+    bindStorageDebugButton('btn-debug-storage-snapshot', translate('ccore_btn_debug_storage_snapshot'), async () => {
+        const testMesId = parseInt(prompt(translate('ccore_prompt_input_snapshot_mesid'), '0'));
         if (isNaN(testMesId)) return;
 
         const moduleStates = {
@@ -532,27 +532,27 @@ function bindDebugButtons(doc) {
         infoLog(`[Debug-Storage] 写入快照 ${testMesId}:`, moduleStates);
     });
 
-    bindStorageDebugButton('btn-debug-storage-read-snapshot', '读取快照', async () => {
-        const testMesId = parseInt(prompt('输入楼层 mesId（查找≤该层的最近快照）:', '5'));
+    bindStorageDebugButton('btn-debug-storage-read-snapshot', translate('ccore_btn_debug_storage_read_snapshot'), async () => {
+        const testMesId = parseInt(prompt(translate('ccore_prompt_input_snapshot_find_mesid'), '5'));
         if (isNaN(testMesId)) return;
 
         const data = await perMessageStorage.getSnapshot(testMesId);
         infoLog(`[Debug-Storage] 读取快照 (≤${testMesId}):`, data);
     });
 
-    bindStorageDebugButton('btn-debug-storage-accumulated', '累积状态', async () => {
-        const testMesId = parseInt(prompt('输入楼层 mesId:', '5'));
+    bindStorageDebugButton('btn-debug-storage-accumulated', translate('ccore_btn_debug_storage_accumulated'), async () => {
+        const testMesId = parseInt(prompt(translate('ccore_prompt_input_mesid'), '5'));
         if (isNaN(testMesId)) return;
 
         const state = await perMessageStorage.getAccumulatedState(testMesId);
         infoLog(`[Debug-Storage] 累积状态 (楼层 ${testMesId}):`, state);
     });
 
-    bindStorageDebugButton('btn-debug-storage-meta', '读取Meta', async () => {
+    bindStorageDebugButton('btn-debug-storage-meta', translate('ccore_btn_debug_storage_meta'), async () => {
         infoLog('[Debug-Storage] Meta:', perMessageStorage.metaCache);
     });
 
-    bindStorageDebugButton('btn-debug-storage-list', '列出聊天', async () => {
+    bindStorageDebugButton('btn-debug-storage-list', translate('ccore_btn_debug_storage_list'), async () => {
         const context = getContext();
         const characterName = context?.name2 || 'TestChar';
         const result = await listContinuityCoreChats(characterName);
@@ -595,7 +595,7 @@ async function handleExtract(doc, type) {
         });
     }
 
-    resultArea.value = "正在提取...";
+    resultArea.value = translate('ccore_msg_extracting');
 
     try {
         const result = await processModuleData(
@@ -608,12 +608,12 @@ async function handleExtract(doc, type) {
         );
 
         if (result.success) {
-            resultArea.value = result.hasContent ? result.contentString : "未找到相关内容。";
+            resultArea.value = result.hasContent ? result.contentString : translate('ccore_msg_no_content');
         } else {
-            resultArea.value = "提取失败: " + result.error;
+            resultArea.value = translate('ccore_msg_extract_failed') + result.error;
         }
     } catch (err) {
         errorLog("Extraction error:", err);
-        resultArea.value = "发生错误: " + err.message;
+        resultArea.value = translate('ccore_msg_error') + err.message;
     }
 }

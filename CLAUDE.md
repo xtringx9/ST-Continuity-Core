@@ -44,7 +44,10 @@ src/utils/                # 工具函数
 src/ui/                   # UI 管理
   extensionSettingsManager.js  # 扩展设置面板逻辑
 src/shared/               # 可复用 UI 组件
-  IframeDialog.js, IframeModal.js, i18n.js
+  IframeDialog.js, IframeModal.js
+locales/                  # 翻译资源（ST 标准 i18n）
+  zh-cn.json              #   中文（默认）
+  en.json                  #   英文
 server-plugin/continuity-core-server/  # ST 服务端插件 (Node.js)
   index.js                #   REST API：隔离用户路径的文件的增删查改
                           #   接口：saveFile, readFile, listFiles, deleteFile, ensureDir,
@@ -142,3 +145,57 @@ import { configManager, debugLog, processModuleData } from '../index.js';
 - **持久化**：通过 ST 的 `saveSettingsDebounced` 存储在 `extension_settings[extensionName]` 中
 - **DEV_SAVE_GUARD**（`configManager.js` 中的 `ENABLE_DEV_SAVE_GUARD`）— 为 `false` 时阻止所有保存，设置为 `true` 恢复正常操作
 - **normalizeConfig()**（`moduleConfigTemplate.js`）— 所有保存/导入/导出操作的规范化入口
+
+## 国际化（i18n）
+
+采用 SillyTavern 标准 i18n 机制，翻译资源存放在 `locales/` 目录，通过 `manifest.json` 声明加载。
+
+### 翻译资源
+
+- `locales/zh-cn.json` — 中文（默认语言，ST 回退语言）
+- `locales/en.json` — 英文
+- 所有 key 统一使用 `ccore_` 前缀，避免与其他扩展冲突
+- 两个文件必须保持 key 一一对应
+
+### 使用方式
+
+**HTML 静态文本**（ST 主文档中的面板，如 `settings-panel.html`）：
+```html
+<span data-i18n="ccore_settings_enabled">启用插件</span>
+<input data-i18n-placeholder="ccore_search_placeholder" placeholder="搜索模块...">
+```
+ST 的 MutationObserver 会自动翻译 `data-i18n` 和 `data-i18n-placeholder` 属性。
+
+**JS 动态文本**：
+```javascript
+import { translate } from '../../../../../../i18n.js';
+btn.textContent = translate('ccore_btn_save');
+```
+
+**iframe 内的静态文本**（如 `module-editor/index.html`）：
+iframe 内 ST 的 MutationObserver 不会运行，`data-i18n` 属性不会自动翻译。必须在 JS 初始化时手动调用 `applyI18nToStaticElements(doc)` 遍历翻译：
+```javascript
+function applyI18nToStaticElements(doc) {
+    doc.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const translated = translate(key);
+        if (translated && translated !== key) el.textContent = translated;
+    });
+    doc.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const translated = translate(key);
+        if (translated && translated !== key) el.placeholder = translated;
+    });
+}
+```
+
+### 新增翻译的步骤
+
+1. 在 `locales/zh-cn.json` 和 `locales/en.json` 中添加对应的 key-value
+2. HTML 中用 `data-i18n="key"` 标记静态文本，JS 中用 `translate('key')` 处理动态文本
+3. iframe 内的 HTML 还需确保 `applyI18nToStaticElements` 被调用
+
+### 不需要 i18n 的文本
+
+- `infoLog`/`debugLog`/`warnLog`/`errorLog` 日志输出（仅开发者可见）
+- 世界书条目的 `comment` 和 `content`（由用户自定义内容）

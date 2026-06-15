@@ -26,7 +26,7 @@ function formatChangeValue(value, length = 50) {
         return 'N/A';
     }
     if (Array.isArray(value)) {
-        return `[${value.length} 项]`;
+        return `[${value.length} ${translate('ccore_msg_items')}]`;
     }
     if (typeof value === 'string') {
         if (value.length > length) {
@@ -61,8 +61,8 @@ function compareObjects(obj1, obj2, keysToIgnore = []) {
                 const added = [...set2].filter(item => !set1.has(item));
                 const removed = [...set1].filter(item => !set2.has(item));
                 let details = [];
-                if (added.length > 0) details.push(`新增: "${added.join('", "')}"`);
-                if (removed.length > 0) details.push(`移除: "${removed.join('", "')}"`);
+                if (added.length > 0) details.push(`${translate('ccore_msg_added')} "${added.join('", "')}"`);
+                if (removed.length > 0) details.push(`${translate('ccore_msg_removed')} "${removed.join('", "')}"`);
                 changes.push({ key, oldValue: arr1, newValue: arr2, details: details.join('; ') });
             }
         } else if (JSON.stringify(val1) !== JSON.stringify(val2)) {
@@ -207,7 +207,7 @@ export function generateChangesSummary(originalModules, currentModules, original
     const settingsChanges = compareObjects(originalSettings, currentSettings);
     if (settingsChanges.length > 0) {
         hasChanges = true;
-        html += '<h4>全局设置变更:</h4><ul>';
+        html += `<h4>${translate('ccore_title_global_changes')}</h4><ul>`;
         settingsChanges.forEach(change => {
             const label = translate(`ccore_label_global_${change.key.replace(/([A-Z])/g, '_$1').toLowerCase()}`) || change.key;
             const oldValueFormatted = formatChangeValue(change.oldValue);
@@ -225,10 +225,10 @@ export function generateChangesSummary(originalModules, currentModules, original
     const moduleChanges = compareModuleLists(originalModules, currentModules);
     if (moduleChanges.added.length > 0 || moduleChanges.deleted.length > 0 || moduleChanges.modified.length > 0) {
         hasChanges = true;
-        html += '<h4>模块定义变更:</h4>';
+        html += `<h4>${translate('ccore_title_module_changes')}</h4>`;
 
         if (moduleChanges.added.length > 0) {
-            html += '<h5>新增模块:</h5><ul>';
+            html += `<h5>${translate('ccore_title_added_modules')}</h5><ul>`;
             moduleChanges.added.forEach(mod => {
                 html += `<li><span class="change-new">${escapeHtml(mod.displayName || mod.name)}</span></li>`;
             });
@@ -236,7 +236,7 @@ export function generateChangesSummary(originalModules, currentModules, original
         }
 
         if (moduleChanges.deleted.length > 0) {
-            html += '<h5>删除模块:</h5><ul>';
+            html += `<h5>${translate('ccore_title_deleted_modules')}</h5><ul>`;
             moduleChanges.deleted.forEach(mod => {
                 html += `<li><span class="change-deleted">${escapeHtml(mod.displayName || mod.name)}</span></li>`;
             });
@@ -244,7 +244,7 @@ export function generateChangesSummary(originalModules, currentModules, original
         }
 
         if (moduleChanges.modified.length > 0) {
-            html += '<h5>修改模块:</h5>';
+            html += `<h5>${translate('ccore_title_modified_modules')}</h5>`;
             moduleChanges.modified.forEach(modChange => {
                 html += `<details><summary>${escapeHtml(modChange.module.displayName || modChange.module.name)}</summary><ul>`;
                 modChange.changes.forEach(change => {
@@ -256,7 +256,7 @@ export function generateChangesSummary(originalModules, currentModules, original
                             label = `${translate('ccore_label_var_deleted')}: ${change.variableName}`;
                         } else {
                             const varPropLabel = getVariablePropertyLabel(change.key);
-                            label = `变量 ${change.variableName} / ${varPropLabel}`;
+                            label = `${translate('ccore_label_variable')} ${change.variableName} / ${varPropLabel}`;
                         }
                     } else {
                         label = getModulePropertyLabel(change.key);

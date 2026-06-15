@@ -33,38 +33,38 @@ export function handleExport(doc) {
 
     const content = `
         <div class="form-group" style="display: block; margin-bottom: 8px;">
-            <div style="margin-bottom: 5px; font-weight: bold;">导出内容:</div>
+            <div style="margin-bottom: 5px; font-weight: bold;">${translate('ccore_label_export_content')}</div>
             <div style="display: flex; justify-content: flex-start; gap: 15px; margin-bottom: 8px;">
                 <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="export-settings" checked style="margin-right: 5px;"> 全局设置
+                    <input type="checkbox" id="export-settings" checked style="margin-right: 5px;"> ${translate('ccore_label_export_settings')}
                 </label>
                 <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="export-modules" checked style="margin-right: 5px;"> 模块配置
+                    <input type="checkbox" id="export-modules" checked style="margin-right: 5px;"> ${translate('ccore_label_export_modules')}
                 </label>
             </div>
         </div>
         
         <div id="export-modules-list-container">
             <div style="margin-bottom: 5px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
-                <span>选择模块:</span>
+                <span>${translate('ccore_label_export_select')}</span>
                 <div>
-                    <button id="btn-export-all" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">全选</button>
-                    <button id="btn-export-enabled" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">仅启用</button>
-                    <button id="btn-export-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
+                    <button id="btn-export-all" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">${translate('ccore_btn_select_all')}</button>
+                    <button id="btn-export-enabled" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">${translate('ccore_btn_select_enabled')}</button>
+                    <button id="btn-export-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">${translate('ccore_btn_select_none')}</button>
                 </div>
             </div>
             <div style="max-height: 23vh; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px;">
-                ${modulesHtml || '<div style="color: var(--text-secondary); text-align: center;">无可用模块</div>'}
+                ${modulesHtml || `<div style="color: var(--text-secondary); text-align: center;">${translate('ccore_msg_no_modules')}</div>`}
             </div>
         </div>
 
         <div class="form-grid" style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="form-group">
-                <label style="display: block; margin-bottom: 2px; font-size: 12px;">配置作者 (可选):</label>
+                <label style="display: block; margin-bottom: 2px; font-size: 12px;">${translate('ccore_label_export_author')}</label>
                 <input type="text" id="export-author" value="${defaultAuthor}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
             </div>
             <div class="form-group">
-                <label style="display: block; margin-bottom: 2px; font-size: 12px;">配置版本 (可选):</label>
+                <label style="display: block; margin-bottom: 2px; font-size: 12px;">${translate('ccore_label_export_version')}</label>
                 <input type="text" id="export-version" value="${defaultVersion}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
             </div>
         </div>
@@ -72,19 +72,19 @@ export function handleExport(doc) {
         ${hasUnsavedChanges ? `
         <div style="margin-top: 12px; padding: 8px; background: rgba(255, 170, 0, 0.1); border: 1px solid rgba(255, 170, 0, 0.3); border-radius: 4px;">
             <p style="color: var(--text-warning, #ffaa00); margin: 0; font-size: 12px; line-height: 1.4;">
-                ⚠️ <strong>注意：</strong>检测到未保存的更改。导出文件仅包含<b>已保存</b>的配置。若要导出当前编辑内容，请先保存。
+                ${translate('ccore_msg_export_unsaved')}
             </p>
         </div>
         ` : ''}
     `;
 
     dialog.open({
-        title: '导出配置',
+        title: translate('ccore_title_export_config'),
         content: content,
         buttons: [
-            { text: '取消', className: 'btn-primary', onClick: (d) => d.close() },
+            { text: translate('ccore_btn_cancel'), className: 'btn-primary', onClick: (d) => d.close() },
             {
-                text: '导出 JSON',
+                text: translate('ccore_btn_export_json'),
                 className: 'btn-secondary',
                 onClick: (d) => {
                     const exportSettings = doc.getElementById('export-settings').checked;
@@ -165,7 +165,7 @@ export function handleImport(doc) {
                     // 简单验证
                     const validation = validateConfig(json);
                     if (!validation.isValid) {
-                        alert("配置格式验证失败:\n" + validation.errors.join('\n'));
+                        alert(translate('ccore_msg_validation_failed') + validation.errors.join('\n'));
                     }
 
                     // 规范化配置
@@ -183,7 +183,7 @@ export function handleImport(doc) {
                     showImportDialog(doc, importedConfig, resolve, hasSettings);
                 } catch (err) {
                     errorLog("Import failed", err);
-                    alert("解析 JSON 文件失败: " + err.message);
+                    alert(translate('ccore_msg_parse_json_failed') + err.message);
                     resolve(null);
                 } finally {
                     doc.body.removeChild(input);
@@ -214,10 +214,10 @@ function showImportDialog(doc, importedConfig, resolve, hasSettings) {
     // 构建元数据信息面板
     const metaHtml = (metadata.author || metadata.authorConfigVersion || metadata.version) ? `
         <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; font-size: 12px;">
-            ${metadata.author ? `<div style="margin-bottom: 4px;"><span style="opacity: 0.7;">配置作者：</span><span style="font-weight: 500;">${metadata.author}</span></div>` : ''}
+            ${metadata.author ? `<div style="margin-bottom: 4px;"><span style="opacity: 0.7;">${translate('ccore_label_config_author')}</span><span style="font-weight: 500;">${metadata.author}</span></div>` : ''}
             <div style="display: flex; justify-content: space-between;">
-                ${metadata.authorConfigVersion ? `<div><span style="opacity: 0.7;">配置版本：</span><span style="font-weight: 500;">${metadata.authorConfigVersion}</span></div>` : '<div></div>'}
-                ${metadata.version ? `<div><span style="opacity: 0.5;">插件版本：</span><span style="opacity: 0.5;">${metadata.version}</span></div>` : ''}
+                ${metadata.authorConfigVersion ? `<div><span style="opacity: 0.7;">${translate('ccore_label_config_version')}</span><span style="font-weight: 500;">${metadata.authorConfigVersion}</span></div>` : '<div></div>'}
+                ${metadata.version ? `<div><span style="opacity: 0.5;">${translate('ccore_label_plugin_version')}</span><span style="opacity: 0.5;">${metadata.version}</span></div>` : ''}
             </div>
         </div>
     ` : '';
@@ -226,14 +226,14 @@ function showImportDialog(doc, importedConfig, resolve, hasSettings) {
         ${metaHtml}
 
         <div class="form-group" style="display: block; margin-bottom: 8px;">
-            <div style="margin-bottom: 5px; font-weight: bold;">发现导入内容:</div>
+            <div style="margin-bottom: 5px; font-weight: bold;">${translate('ccore_label_import_content')}</div>
             <div style="display: flex; justify-content: flex-start; gap: 15px; margin-bottom: 8px;">
                 <label style="display: flex; align-items: center; cursor: ${hasSettings ? 'pointer' : 'not-allowed'}; ${hasSettings ? '' : 'opacity: 0.6;'}">
-                    <input type="checkbox" id="import-settings" ${hasSettings ? 'checked' : 'disabled'} style="margin-right: 5px;"> 全局设置
+                    <input type="checkbox" id="import-settings" ${hasSettings ? 'checked' : 'disabled'} style="margin-right: 5px;"> ${translate('ccore_label_import_settings')}
                 </label>
                 
                 <label style="display: flex; align-items: center; cursor: ${modules.length > 0 ? 'pointer' : 'not-allowed'}; ${modules.length > 0 ? '' : 'opacity: 0.6;'}">
-                    <input type="checkbox" id="import-modules" ${modules.length > 0 ? 'checked' : 'disabled'} style="margin-right: 5px;"> 模块配置 (${modules.length}个)
+                    <input type="checkbox" id="import-modules" ${modules.length > 0 ? 'checked' : 'disabled'} style="margin-right: 5px;"> ${translate('ccore_label_import_modules')} (${modules.length})
                 </label>
             </div>
         </div>
@@ -241,11 +241,11 @@ function showImportDialog(doc, importedConfig, resolve, hasSettings) {
         ${modules.length > 0 ? `
         <div id="import-modules-list-container">
             <div style="margin-bottom: 5px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
-                <span>选择要导入的模块:</span>
+                <span>${translate('ccore_label_import_select')}</span>
                 <div>
-                    <button id="btn-import-all" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">全选</button>
-                    <button id="btn-import-enabled" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">仅启用</button>
-                    <button id="btn-import-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">清空</button>
+                    <button id="btn-import-all" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">${translate('ccore_btn_select_all')}</button>
+                    <button id="btn-import-enabled" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">${translate('ccore_btn_select_enabled')}</button>
+                    <button id="btn-import-none" class="btn-secondary" style="padding: 2px 6px; font-size: 12px;">${translate('ccore_btn_select_none')}</button>
                 </div>
             </div>
             <div style="max-height: 23vh; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--bg-input); display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px;">
@@ -254,26 +254,26 @@ function showImportDialog(doc, importedConfig, resolve, hasSettings) {
             <div style="margin-top: 8px;">
                 <label style="display: flex; align-items: center; cursor: pointer; font-size: 13px;">
                     <input type="checkbox" id="import-override" checked style="margin-right: 5px;"> 
-                    覆盖同名模块的启用状态
+                    ${translate('ccore_label_import_override')}
                 </label>
             </div>
             <div style="margin-top: 5px; font-size: 12px; color: var(--text-secondary);">
-                注意：导入操作将合并到当前编辑状态，同名模块将被覆盖。
+                ${translate('ccore_msg_import_notice')}
             </div>
         </div>` : ''}
         
         <div style="margin-top: 8px;">
-            <p style="color: var(--text-error, #ff4444); font-weight: bold; margin: 0; font-size: 12px;">⚠️ 安全提示：请务必确保配置来源可信，确认导入吗？</p>
+            <p style="color: var(--text-error, #ff4444); font-weight: bold; margin: 0; font-size: 12px;">${translate('ccore_msg_import_warning')}</p>
         </div>
     `;
 
     dialog.open({
-        title: '导入配置',
+        title: translate('ccore_title_import_config'),
         content: content,
         buttons: [
-            { text: '取消', className: 'btn-primary', onClick: (d) => { d.close(); resolve(null); } },
+            { text: translate('ccore_btn_cancel'), className: 'btn-primary', onClick: (d) => { d.close(); resolve(null); } },
             {
-                text: '确认导入',
+                text: translate('ccore_btn_confirm_import'),
                 className: 'btn-secondary',
                 onClick: (d) => {
                     const result = {

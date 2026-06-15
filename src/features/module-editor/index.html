@@ -23,7 +23,7 @@
                 data-i18n="ccore_btn_import">导入</button>
             <button id="header-export-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;"
                 data-i18n="ccore_btn_export">导出</button>
-            <button id="header-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;">保存</button>
+            <button id="header-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;" data-i18n="ccore_btn_save">保存</button>
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
         </div>
@@ -58,13 +58,13 @@
                 <!-- 左侧：模块列表 -->
                 <aside class="module-list-panel">
                     <div class="list-toolbar">
-                        <input type="text" placeholder="搜索模块..."
+                        <input type="text" data-i18n-placeholder="ccore_search_placeholder" placeholder="搜索模块..."
                             style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
                         <button style="padding: 6px 10px; cursor: pointer;">+</button>
                     </div>
                     <div class="list-content" id="module-list">
                         <!-- 列表项将由 JS 生成 -->
-                        <div style="padding: 10px; text-align: center; color: var(--text-secondary);">
+                        <div style="padding: 10px; text-align: center; color: var(--text-secondary);" data-i18n="ccore_loading">
                             加载中...
                         </div>
                     </div>
@@ -73,8 +73,8 @@
                 <section class="module-detail-panel">
                     <div class="detail-content">
                         <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
-                            <p>请从左侧选择一个模块进行编辑</p>
-                            <p>或者点击 + 号创建新模块</p>
+                            <p data-i18n="ccore_msg_select_module">请从左侧选择一个模块进行编辑</p>
+                            <p data-i18n="ccore_msg_or_create">或者点击 + 号创建新模块</p>
                         </div>
                     </div>
                 </section>
@@ -82,41 +82,41 @@
 
             <!-- 视图 B: 角色覆盖 (占位) -->
             <div id="view-profiles" class="view-section">
-                <div style="padding: 20px;">角色覆盖功能开发中...</div>
+                <div style="padding: 20px;" data-i18n="ccore_msg_profiles_wip">角色覆盖功能开发中...</div>
             </div>
 
             <!-- 视图 C: 工具箱 (占位) -->
             <div id="view-tools" class="view-section">
                 <div class="detail-content">
                     <div class="toolbox-container">
-                        <div class="form-section-title" id="title-debug-tools">调试工具</div>
+                        <div class="form-section-title" id="title-debug-tools" data-i18n="ccore_title_debug_tools">调试工具</div>
                         <div class="debug-tools">
                             <div class="debug-tool-group">
                                 <span class="debug-tool-group-label" data-i18n="ccore_label_debug_general">通用</span>
-                                <button id="btn-debug-cache" class="btn-debug">打印缓存数据</button>
-                                <button id="btn-debug-config" class="btn-debug">打印配置数据</button>
-                                <button id="btn-debug-context" class="btn-debug">打印上下文数据</button>
-                                <button id="btn-debug-user-handle" class="btn-debug">打印用户Handle</button>
-                                <button id="btn-debug-state" class="btn-debug">打印编辑器状态</button>
+                                <button id="btn-debug-cache" class="btn-debug" data-i18n="ccore_btn_debug_cache">打印缓存数据</button>
+                                <button id="btn-debug-config" class="btn-debug" data-i18n="ccore_btn_debug_config">打印配置数据</button>
+                                <button id="btn-debug-context" class="btn-debug" data-i18n="ccore_btn_debug_context">打印上下文数据</button>
+                                <button id="btn-debug-user-handle" class="btn-debug" data-i18n="ccore_btn_debug_user_handle">打印用户Handle</button>
+                                <button id="btn-debug-state" class="btn-debug" data-i18n="ccore_btn_debug_state">打印编辑器状态</button>
                             </div>
                             <div class="debug-tool-group">
                                 <span class="debug-tool-group-label" data-i18n="ccore_label_debug_server">服务器</span>
-                                <button id="btn-debug-server-list" class="btn-debug">列出服务器目录</button>
-                                <button id="btn-debug-server-save" class="btn-debug">服务器写入测试</button>
-                                <button id="btn-debug-server-read" class="btn-debug">服务器读取测试</button>
-                                <button id="btn-debug-server-delete" class="btn-debug">服务器删除测试</button>
+                                <button id="btn-debug-server-list" class="btn-debug" data-i18n="ccore_btn_debug_server_list">列出服务器目录</button>
+                                <button id="btn-debug-server-save" class="btn-debug" data-i18n="ccore_btn_debug_server_save">服务器写入测试</button>
+                                <button id="btn-debug-server-read" class="btn-debug" data-i18n="ccore_btn_debug_server_read">服务器读取测试</button>
+                                <button id="btn-debug-server-delete" class="btn-debug" data-i18n="ccore_btn_debug_server_delete">服务器删除测试</button>
                             </div>
                             <div class="debug-tool-group">
-                                <span class="debug-tool-group-label">存储层</span>
-                                <button id="btn-debug-storage-init" class="btn-debug">初始化存储</button>
-                                <button id="btn-debug-storage-append" class="btn-debug">追加测试数据</button>
-                                <button id="btn-debug-storage-read" class="btn-debug">读取楼层</button>
-                                <button id="btn-debug-storage-update" class="btn-debug">更新楼层</button>
-                                <button id="btn-debug-storage-snapshot" class="btn-debug">写入快照</button>
-                                <button id="btn-debug-storage-read-snapshot" class="btn-debug">读取快照</button>
-                                <button id="btn-debug-storage-accumulated" class="btn-debug">累积状态</button>
-                                <button id="btn-debug-storage-meta" class="btn-debug">读取Meta</button>
-                                <button id="btn-debug-storage-list" class="btn-debug">列出聊天</button>
+                                <span class="debug-tool-group-label" data-i18n="ccore_label_debug_storage">存储层</span>
+                                <button id="btn-debug-storage-init" class="btn-debug" data-i18n="ccore_btn_debug_storage_init">初始化存储</button>
+                                <button id="btn-debug-storage-append" class="btn-debug" data-i18n="ccore_btn_debug_storage_append">追加测试数据</button>
+                                <button id="btn-debug-storage-read" class="btn-debug" data-i18n="ccore_btn_debug_storage_read">读取楼层</button>
+                                <button id="btn-debug-storage-update" class="btn-debug" data-i18n="ccore_btn_debug_storage_update">更新楼层</button>
+                                <button id="btn-debug-storage-snapshot" class="btn-debug" data-i18n="ccore_btn_debug_storage_snapshot">写入快照</button>
+                                <button id="btn-debug-storage-read-snapshot" class="btn-debug" data-i18n="ccore_btn_debug_storage_read_snapshot">读取快照</button>
+                                <button id="btn-debug-storage-accumulated" class="btn-debug" data-i18n="ccore_btn_debug_storage_accumulated">累积状态</button>
+                                <button id="btn-debug-storage-meta" class="btn-debug" data-i18n="ccore_btn_debug_storage_meta">读取Meta</button>
+                                <button id="btn-debug-storage-list" class="btn-debug" data-i18n="ccore_btn_debug_storage_list">列出聊天</button>
                             </div>
                         </div>
 
@@ -131,7 +131,7 @@
                             </div>
                             <div class="form-group">
                                 <label data-i18n="ccore_label_floor_end">结束楼层</label>
-                                <input type="number" id="tool-floor-end" placeholder="最新">
+                                <input type="number" id="tool-floor-end" data-i18n-placeholder="ccore_placeholder_latest" placeholder="最新">
                             </div>
                         </div>
 

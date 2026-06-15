@@ -35,6 +35,27 @@ let dropPosition = null; // 'before' or 'after'
 let doc = null;
 
 /**
+ * 手动应用 iframe 内的 data-i18n 翻译
+ * ST 的 MutationObserver 只监听主文档，不会处理 iframe 内的 data-i18n 属性
+ */
+function applyI18nToStaticElements(doc) {
+    doc.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const translated = translate(key);
+        if (translated && translated !== key) {
+            el.textContent = translated;
+        }
+    });
+    doc.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const translated = translate(key);
+        if (translated && translated !== key) {
+            el.placeholder = translated;
+        }
+    });
+}
+
+/**
  * 初始化模块编辑器
  * @param {Document} iframeDocument Iframe 的文档对象
  */
@@ -42,7 +63,8 @@ export function initModuleEditor(iframeDocument) {
     doc = iframeDocument;
     debugLog("ModuleEditor initialized with document context");
 
-    // 应用静态文本翻译 — ST 的 MutationObserver 会自动处理 data-i18n 属性
+    // 应用静态文本翻译 — iframe 内 ST 的 MutationObserver 不会运行，需手动遍历
+    applyI18nToStaticElements(doc);
 
     // 从 localStorage 加载上次打开的页面
     activeViewSectionId = localStorage.getItem('continuity_editor_last_tab') || 'view-modules';
@@ -150,7 +172,7 @@ function bindHeaderEvents() {
         doc.documentElement.setAttribute('data-theme', savedTheme);
 
         headerTitle.style.cursor = 'pointer';
-        headerTitle.title = "点击切换主题 (Click to toggle theme)";
+        headerTitle.title = translate('ccore_title_toggle_theme');
 
         headerTitle.addEventListener('click', () => {
             const current = doc.documentElement.getAttribute('data-theme') || 'light';
@@ -220,7 +242,7 @@ function bindSidebarEvents() {
 
     if (searchInput) {
         // 更新 placeholder
-        searchInput.placeholder = "搜索或输入名称/格式添加...";
+        searchInput.placeholder = translate('ccore_search_add_placeholder');
 
         // 绑定搜索输入
         searchInput.addEventListener('input', (e) => {
@@ -284,7 +306,7 @@ function renderModuleList() {
                 </div>
             </div>
             <div class="module-item-actions">
-                <label class="toggle-switch" title="启用/禁用">
+                <label class="toggle-switch" title="${translate('ccore_title_toggle_enabled')}">
                     <input type="checkbox" class="module-enable-toggle" ${mod.enabled ? 'checked' : ''}>
                     <span class="slider round"></span>
                 </label>
@@ -356,12 +378,12 @@ function renderModuleDetail(module, index) {
             <!-- Tab Navigation -->
             <div class="detail-tabs">
                 <div class="sticky-title-group">
-                    <button id="btn-back-to-list" class="mobile-only btn-back-icon" title="返回列表">❮</button>
+                    <button id="btn-back-to-list" class="mobile-only btn-back-icon" title="${translate('ccore_title_back_to_list')}">❮</button>
                     <span class="sticky-module-name" title="${module.displayName || module.name}">${module.displayName || module.name}</span>
-                    <button id="btn-delete-module" class="btn-delete-small" title="删除模块">🗑️</button>
+                    <button id="btn-delete-module" class="btn-delete-small" title="${translate('ccore_title_delete_module')}">🗑️</button>
                 </div>
-                <div class="detail-tab-item ${activeDetailTab === 'module-detail-settings' ? 'active' : ''}" data-target="module-detail-settings">模块设置</div>
-                <div class="detail-tab-item ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}" data-target="module-detail-variables">变量管理</div>
+                <div class="detail-tab-item ${activeDetailTab === 'module-detail-settings' ? 'active' : ''}" data-target="module-detail-settings" data-i18n="ccore_title_module_attributes">${translate('ccore_title_module_attributes')}</div>
+                <div class="detail-tab-item ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}" data-target="module-detail-variables" data-i18n="ccore_title_variables">${translate('ccore_title_variables')}</div>
             </div>
 
             <!-- Tab Panel: Settings -->
@@ -626,7 +648,7 @@ function renderModuleDetail(module, index) {
         if (!module.variables) module.variables = [];
         module.variables.push({
             name: 'new_var',
-            displayName: '新变量',
+            displayName: translate('ccore_msg_new_variable'),
             enabled: true,
             description: '',
             isIdentifier: false,
@@ -654,7 +676,7 @@ function renderModuleDetail(module, index) {
 function createNewModule(name) {
     const newModule = {
         name: name || `new_module_${Date.now()}`,
-        displayName: name || '新模块',
+        displayName: name || translate('ccore_msg_new_module'),
         enabled: true,
         variables: []
     };
@@ -776,7 +798,7 @@ function renderVariableList(module, container) {
     container.innerHTML = '';
 
     if (!module.variables || module.variables.length === 0) {
-        container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.9em; border: 1px dashed var(--border-color); border-radius: 4px;">暂无变量</div>`;
+        container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.9em; border: 1px dashed var(--border-color); border-radius: 4px;">${translate('ccore_msg_no_variables')}</div>`;
         return;
     }
 
@@ -787,8 +809,8 @@ function renderVariableList(module, container) {
 
         item.innerHTML = `
             <div class="variable-header-compact">
-                <span class="drag-handle" draggable="true" title="拖拽排序">⋮⋮</span>
-                <label class="toggle-switch" title="启用/禁用">
+                <span class="drag-handle" draggable="true" title="${translate('ccore_title_drag_sort')}">⋮⋮</span>
+                <label class="toggle-switch" title="${translate('ccore_title_toggle_enabled')}">
                     <input type="checkbox" class="var-enabled" ${variable.enabled !== false ? 'checked' : ''}>
                     <span class="slider round"></span>
                 </label>
@@ -800,7 +822,7 @@ function renderVariableList(module, container) {
                     <label>${translate('ccore_label_var_display_name')}</label>
                     <input type="text" class="var-display-name" value="${variable.displayName || ''}">
                 </div>
-                <button class="btn-delete-variable btn-variable-delete" title="删除变量">✕</button>
+                <button class="btn-delete-variable btn-variable-delete" title="${translate('ccore_title_delete_variable')}">✕</button>
             </div>
 
             <div class="variable-details">
@@ -882,7 +904,7 @@ function renderVariableList(module, container) {
 
         // 删除按钮事件
         item.querySelector('.btn-delete-variable').addEventListener('click', () => {
-            if (confirm('确定要删除这个变量吗？')) {
+            if (confirm(translate('ccore_msg_confirm_delete_var'))) {
                 module.variables.splice(index, 1);
                 renderVariableList(module, container);
                 checkForChanges(); // 检查变更
@@ -1019,7 +1041,7 @@ function handleDragEnd(e) {
  * @param {number} index 索引
  */
 function deleteModule(index) {
-    if (confirm('确定要删除这个模块吗？此操作不可恢复。')) {
+    if (confirm(translate('ccore_msg_confirm_delete_module'))) {
         currentModules.splice(index, 1);
         selectedModuleId = null;
         // 清空详情页或显示占位符
@@ -1119,14 +1141,14 @@ async function onImportClick() {
 function clearAllModules() {
     const dialog = new IframeDialog(doc);
     dialog.open({
-        title: '清空所有模块',
+        title: translate('ccore_title_clear_all'),
         content: `
-            <div style="margin-bottom: 10px; color: var(--text-error, #ff4444); font-weight: bold;">⚠️ 警告</div>
-            <div>确定要清空所有模块吗？此操作将删除所有自定义模块，且无法撤销。</div>
+            <div style="margin-bottom: 10px; color: var(--text-error, #ff4444); font-weight: bold;">${translate('ccore_msg_clear_warning')}</div>
+            <div>${translate('ccore_msg_clear_confirm')}</div>
         `,
         buttons: [
             {
-                text: '确定清空',
+                text: translate('ccore_btn_confirm_clear'),
                 className: 'btn-secondary',
                 style: 'background-color: var(--red, #ff4444); color: white;',
                 onClick: (d) => {
@@ -1143,7 +1165,7 @@ function clearAllModules() {
                     d.close();
                 }
             },
-            { text: '取消', className: 'btn-primary', onClick: (d) => d.close() }
+            { text: translate('ccore_btn_cancel'), className: 'btn-primary', onClick: (d) => d.close() }
         ]
     });
 }
@@ -1196,7 +1218,7 @@ function showSavedFeedback() {
     if (btn) {
         if (btn.dataset.saving === 'true') return;
         btn.dataset.saving = 'true';
-        btn.textContent = "✔ 已保存";
+        btn.textContent = translate('ccore_msg_saved');
         btn.classList.add('saved'); // 添加绿色样式
 
         setTimeout(() => {
