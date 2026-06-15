@@ -1,12 +1,8 @@
 // src/ui/extensionSettingsManager.js
 
-import {
-    configManager,
-    infoLog,
-    errorLog,
-    removeUIfromContextBottom,
-    extensionFolderPath,
-} from "../index.js";
+import configManager, { extensionFolderPath } from "../singleton/configManager.js";
+import { infoLog, errorLog } from "../utils/logger.js";
+import { removeUIfromContextBottom } from "../core/contextBottomUI.js";
 import {
     addWorldBookToGlobalSettings,
     removeWorldBookFromGlobalSettings,

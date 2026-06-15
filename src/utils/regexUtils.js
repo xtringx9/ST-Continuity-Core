@@ -1,7 +1,10 @@
 // 正则工具模块 - 处理Regex扩展集成
-import { configManager, CONTINUITY_CORE_IDENTIFIER, eventSource, event_types, getRegexScripts, saveScriptsByType, SCRIPT_TYPES, uuidv4, extension_settings, reloadCurrentChat } from "../index.js";
+import configManager, { CONTINUITY_CORE_IDENTIFIER } from "../singleton/configManager.js";
+import { eventSource, event_types, saveSettingsDebounced, reloadCurrentChat } from "../../../../../../script.js";
+import { getRegexScripts, saveScriptsByType, SCRIPT_TYPES } from "../../../../regex/engine.js";
+import { uuidv4 } from "../../../../../utils.js";
+import { extension_settings } from "../../../../../extensions.js";
 import { debugLog, errorLog, infoLog } from "./logger.js";
-import { saveSettingsDebounced } from "../../../../../../script.js";
 
 
 // 正则相关常量定义

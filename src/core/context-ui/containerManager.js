@@ -1,4 +1,4 @@
-import { extensionFolderPath } from '../../index.js';
+import { extensionFolderPath } from '../../singleton/configManager.js';
 import { debugLog } from '../../utils/logger.js';
 
 export const CONTEXT_BOTTOM_CONTAINER_ID = 'CONTEXT_BOTTOM_CONTAINER_ID';

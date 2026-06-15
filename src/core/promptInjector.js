@@ -1,5 +1,7 @@
 // 提示词注入管理器
-import { extension_settings, extensionName, chat } from "../index.js";
+import { extension_settings } from "../../../../../extensions.js";
+import { extensionName } from '../singleton/configManager.js';
+import { chat } from '../../../../../../script.js';
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { generateFormalPrompt } from "../modules/promptGenerator.js";
 

@@ -1,4 +1,5 @@
-import { currentUser, getCurrentUserHandle, getRequestHeaders } from '../index.js';
+import { currentUser, getCurrentUserHandle } from '../../../../../user.js';
+import { getRequestHeaders } from '../../../../../../script.js';
 
 export const CONTINUITY_CORE_SERVER_API_BASE = '/api/plugins/continuity-core';
 

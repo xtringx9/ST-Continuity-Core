@@ -1,6 +1,9 @@
 // 事件处理器 - 处理SillyTavern扩展事件
-import { getTestData, registerContinuityRegexPattern, updateCurrentCharWorldBookCache, checkAndInitializeWorldBook, getCurrentCharBooks, configManager } from "../index.js";
-import { moduleCacheManager, eventSource, event_types } from "../index.js";
+import { registerContinuityRegexPattern } from "../utils/regexUtils.js";
+import { updateCurrentCharWorldBookCache, checkAndInitializeWorldBook, getCurrentCharBooks, getTestData } from "../utils/worldBookUtils.js";
+import configManager from "../singleton/configManager.js";
+import moduleCacheManager from "../singleton/moduleCacheManager.js";
+import { eventSource, event_types } from "../../../../../../script.js";
 import { checkUItoContextBottom, checkUItoMsgBottom, checkRenderCurrentMessageContext } from "./contextBottomUI.js"
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 /**

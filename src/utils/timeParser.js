@@ -3,7 +3,7 @@
  * 支持多种时间格式，返回结构化的时间数据
  */
 
-import { debugLog } from "../index.js";
+import { debugLog } from "./logger.js";
 
 /**
  * 解析时间字符串，返回结构化的时间数据

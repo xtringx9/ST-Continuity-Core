@@ -1,5 +1,5 @@
 // 模块解析器 - 用于解析模块格式字符串
-import { debugLog, errorLog } from "../index.js";
+import { debugLog, errorLog } from "../utils/logger.js";
 import { IdentifierParser } from "../utils/identifierParser.js";
 
 /**

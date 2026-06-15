@@ -1,5 +1,5 @@
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
-import { groupProcessResultByMessageIndex } from '../../index.js';
+import { groupProcessResultByMessageIndex } from '../moduleProcessor.js';
 import { getCurrentMessageContainer } from './containerManager.js';
 import { getRenderUIFilteredModuleConfigs } from './moduleFilters.js';
 import { buildStyledProcessResult } from './processResultBuilder.js';

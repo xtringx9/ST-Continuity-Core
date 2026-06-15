@@ -1,0 +1,124 @@
+# ST-Continuity-Core 开发指南
+
+SillyTavern 扩展，用于在 AI 角色扮演中管理结构化连续性数据。允许用户定义带类型变量的数据模块，从聊天记录中提取、缓存并注入到提示词中。
+
+## 项目结构
+
+```
+src/index.js              # 入口文件 — 仅导出 continuity-core.js 所需的符号
+src/singleton/            # 全局单例状态
+  configManager.js        #   配置生命周期：加载、缓存、自动保存、导入/导出/合并
+  moduleCacheManager.js   #   每个聊天的模块数据缓存（嵌套 Map）
+src/core/                 # 核心逻辑
+  moduleExtractor.js      #   从聊天 + 世界书中解析 [模块名|键:值|...] 格式
+  moduleProcessor.js      #   处理管线：标准化 → 去重 → 排序 → 压缩 → 构建字符串
+  promptInjector.js       #   在 CHAT_COMPLETION_PROMPT_READY 事件中注入提示词
+  macroManager.js         #   注册 {{CONTINUITY_PROMPT}} 等宏到 SillyTavern
+  eventHandler.js         #   注册 ST 事件 → UI 更新、缓存刷新、正则初始化、世界书
+  contextBottomUI.js      #   UI 协调：上下文底部、消息底部、行内渲染
+  context-ui/             #   子模块：容器管理、iframe 渲染、过滤器、样式
+src/modules/              # 模块数据类型和提示词
+  moduleConfigTemplate.js #   配置 JSON schema、校验、规范化、默认值
+  moduleConfigManager.js  #   模块配置管理（导入/导出/合并/重置）
+  moduleParser.js         #   字符串 ↔ 结构化模块数据互转
+  promptGenerator.js      #   从配置 + 缓存数据构建正式提示词字符串
+  styleCombiner.js        #   样式组合器
+src/features/             # UI 功能面板
+  entry/EntryButton.js
+  extension-settings/
+  module-editor/          #   完整编辑器（HTML + CSS），用于模块管理
+src/services/             # 外部集成
+  backendService.js           #   HTTP POST 到用户配置的后端
+  continuityCoreServerApi.js  #   ST 服务端插件客户端（保存/读取/列表/删除/追加/快照/迁移）
+  storageKeyBuilder.js        #   存储路径构建工具（符号处理与后端一致）
+  perMessageStorage.js        #   每楼层模块数据存储管理器（单例）
+src/utils/                # 工具函数
+  logger.js               #   日志（debugLog/infoLog/warnLog/errorLog）
+  regexUtils.js           #   正则扩展集成
+  worldBookUtils.js       #   世界书集成
+  timeParser.js           #   时间解析
+  identifierParser.js     #   标识符解析
+  stringUtils.js          #   字符串工具
+  textConverter.js        #   文本转换
+  variableReplacer.js     #   变量替换
+src/ui/                   # UI 管理
+  extensionSettingsManager.js  # 扩展设置面板逻辑
+src/shared/               # 可复用 UI 组件
+  IframeDialog.js, IframeModal.js, i18n.js
+server-plugin/continuity-core-server/  # ST 服务端插件 (Node.js)
+  index.js                #   REST API：隔离用户路径的文件的增删查改
+assets/                   # CSS、HTML 模板
+continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 — 请编辑 src/）
+```
+
+## 数据流
+
+1. **提取** — `moduleExtractor` 从聊天消息与世界书条目中解析 `[模块名|键:值|...]` 格式，支持嵌套模块
+2. **缓存** — `moduleCacheManager` 将处理结果存入按聊天分组的嵌套 Map（`chatIdHash → rangeKey → data`）
+3. **处理** — `moduleProcessor` 管线：按配置映射标准化变量名 → 去重 → 按标识符/时间/ID 排序 → 应用 retainLayers → 应用层级压缩 → 构建最终模块字符串
+4. **注入** — `macroManager` 注册 `{{CONTINUITY_PROMPT}}`、`{{CONTINUITY_ORDER}}`、`{{CONTINUITY_USAGE_GUIDE}}`、`{{CONTINUITY_MODULE_DATA}}`、逐消息 `{{CONTINUITY_MSG_MODULE_N}}` 宏；`promptInjector` 监听 `CHAT_COMPLETION_PROMPT_READY` 事件
+5. **UI** — `contextBottomUI` 渲染 3 种目标：上下文底部汇总、.mes_text 后的消息块、.mes_text 内的行内替换
+
+## 关键概念
+
+- **模块**：结构化数据，格式如 `[Location|name:Tavern|time:afternoon]`
+- **输出模式**：`full`（全部变量）、`incremental`（仅变更变量 + 标识符）、`extract`（原始）
+- **层级压缩**：高级别模块隐藏其时间/ID 范围内的低级别模块
+- **时间参考标准**：指定某个模块的时间作为同一消息中其他模块的时间参考
+- **变量**：模块内的字段，可设为主标识符、备用标识符、隐藏条件、不规范化
+
+## 构建与开发
+
+- **无构建步骤** — 纯 JavaScript，无打包工具。`continuity-core.js` 是编译输出，编辑 `src/` 下的文件
+- **无测试** — 仓库中没有测试框架或测试文件
+- **扩展运行在 SillyTavern 中** — 通过 manifest.json 在 `scripts/extensions/third-party/ST-Continuity-Core/` 加载
+- **服务端插件** 位于 `server-plugin/continuity-core-server/` — 由 ST 的服务端插件系统单独加载
+
+## 导入导出规范
+
+### 核心原则：直接导入，不通过 index.js 中转
+
+`src/index.js` 仅导出 `continuity-core.js`（ST 扩展加载入口）所需的符号，不作为内部模块的中转站。
+
+**内部模块之间必须直接从源文件导入：**
+
+```javascript
+// ✓ 正确 — 直接从源文件导入
+import configManager from '../singleton/configManager.js';
+import { debugLog, infoLog } from '../utils/logger.js';
+import { processModuleData } from '../core/moduleProcessor.js';
+
+// ✗ 错误 — 不要通过 index.js 中转
+import { configManager, debugLog, processModuleData } from '../index.js';
+```
+
+### ST 外部依赖的导入路径
+
+从 SillyTavern 核心代码导入时，注意各模块的来源不同：
+
+| 符号 | 来源文件 | 路径（相对于 `src/` 下1层目录） |
+|------|----------|------|
+| `chat`, `chat_metadata`, `characters`, `this_chid`, `saveSettingsDebounced`, `getRequestHeaders`, `reloadCurrentChat`, `eventSource`, `event_types` | `public/script.js` | `../../../../../../script.js` |
+| `getContext`, `extension_settings` | `public/scripts/extensions.js` | `../../../../../extensions.js` |
+| `currentUser`, `getCurrentUserHandle` | `public/scripts/user.js` | `../../../../../user.js` |
+| `findChar`, `uuidv4` | `public/scripts/utils.js` | `../../../../../utils.js` |
+| `world_info`, `METADATA_KEY` 等 | `public/scripts/world-info.js` | `../../../../../world-info.js` |
+| `getRegexScripts` 等 | `public/scripts/regex/engine.js` | `../../../../regex/engine.js` |
+
+路径层数规则（从 `src/` 算起）：
+- `src/` 下1层（如 `singleton/`、`core/`）：到 `script.js` = 6层 `../`，到 `extensions.js` = 5层 `../`
+- `src/` 下2层（如 `core/context-ui/`、`features/module-editor/`）：各加1层 `../`
+- `src/` 本身：到 `script.js` = 5层 `../`，到 `extensions.js` = 4层 `../`
+
+### 新增模块时
+
+1. 在源文件中定义并 `export`
+2. 需要该模块的文件直接 `import` 源文件
+3. 只有 `continuity-core.js` 需要的符号才添加到 `src/index.js`
+
+## 配置系统
+
+- **双配置结构**：`extension_config`（全局开关、后端 URL、调试日志、按钮类型）和 `module_config`（模块、全局设置）
+- **持久化**：通过 ST 的 `saveSettingsDebounced` 存储在 `extension_settings[extensionName]` 中
+- **DEV_SAVE_GUARD**（`configManager.js` 中的 `ENABLE_DEV_SAVE_GUARD`）— 为 `false` 时阻止所有保存，设置为 `true` 恢复正常操作
+- **normalizeConfig()**（`moduleConfigTemplate.js`）— 所有保存/导入/导出操作的规范化入口

@@ -1,4 +1,8 @@
-import { configManager, chat, processModuleData, chat_metadata, getContext, extension_settings, saveSettingsDebounced, infoLog, errorLog, debugLog } from "../index.js";
+import configManager from "./configManager.js";
+import { chat, chat_metadata, saveSettingsDebounced } from "../../../../../../script.js";
+import { getContext, extension_settings } from "../../../../../extensions.js";
+import { infoLog, errorLog, debugLog } from "../utils/logger.js";
+import { processModuleData } from "../core/moduleProcessor.js";
 class ModuleCacheManager {
     constructor() {
         // 使用嵌套Map结构存储缓存数据

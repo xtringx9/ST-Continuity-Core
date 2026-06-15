@@ -1,10 +1,17 @@
 // 世界书工具模块 - 处理世界书集成功能
 import { debugLog, errorLog, infoLog } from "./logger.js";
-// 导入世界书系统模块（使用静态导入方式）
 import {
     eventSource,
     event_types,
     saveSettingsDebounced,
+    characters,
+    chat_metadata,
+    this_chid,
+} from '../../../../../../script.js';
+import { getContext } from '../../../../../extensions.js';
+import { findChar } from '../../../../../utils.js';
+import {
+    METADATA_KEY,
     world_info,
     world_names,
     selected_world_info,
@@ -18,15 +25,10 @@ import {
     worldInfoCache,
     onWorldInfoChange,
     reloadEditor,
-    characters,
-    getContext,
-    chat_metadata, findChar,
-    this_chid,
-    METADATA_KEY,
-    CONTINUITY_CORE_IDENTIFIER,
-    configManager,
-    moduleCacheManager
-} from '../index.js';
+} from '../../../../../world-info.js';
+import { CONTINUITY_CORE_IDENTIFIER } from '../singleton/configManager.js';
+import configManager from '../singleton/configManager.js';
+import moduleCacheManager from '../singleton/moduleCacheManager.js';
 
 // 世界书相关常量定义
 export const WORLD_BOOK_CONSTANTS = {

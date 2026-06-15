@@ -2,16 +2,16 @@ import { i18n } from '../../shared/i18n.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
 import configManager from '../../singleton/configManager.js';
+import { getContext } from '../../../../../../extensions.js';
 import {
-    getContext,
     getContinuityCoreUserHandle,
     saveContinuityCoreFile,
     readContinuityCoreFile,
     listContinuityCoreFiles,
     deleteContinuityCoreFile,
-    perMessageStorage,
     listContinuityCoreChats,
-} from '../../index.js';
+} from '../../services/continuityCoreServerApi.js';
+import perMessageStorage from '../../services/perMessageStorage.js';
 import { generateFormalPrompt, generateModuleOrderPrompt, generateUsageGuide, generateModuleDataPrompt, generateSingleChatModuleData } from '../../modules/promptGenerator.js';
 import { processModuleData } from '../../core/moduleProcessor.js';
 

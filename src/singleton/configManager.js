@@ -1,5 +1,7 @@
 // 统一配置管理类 - 实现配置的内存缓存、自动加载和保存
-import { extension_settings, saveSettingsDebounced, infoLog, errorLog, debugLog } from "../index.js";
+import { extension_settings } from "../../../../../extensions.js";
+import { saveSettingsDebounced } from "../../../../../../script.js";
+import { infoLog, errorLog, debugLog } from "../utils/logger.js";
 import { IdentifierParser } from '../utils/identifierParser.js';
 import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../modules/moduleConfigTemplate.js';
 

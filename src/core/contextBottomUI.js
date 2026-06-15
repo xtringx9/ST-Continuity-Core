@@ -11,7 +11,8 @@
  */
 
 import { debugLog, errorLog } from '../utils/logger.js';
-import { groupProcessResultByMessageIndex, configManager } from '../index.js';
+import { groupProcessResultByMessageIndex } from './moduleProcessor.js';
+import configManager from '../singleton/configManager.js';
 import {
     CONTEXT_BOTTOM_CONTAINER_ID,
     CONTEXT_MSG_CONTAINER_ID,

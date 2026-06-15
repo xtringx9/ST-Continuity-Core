@@ -7,7 +7,7 @@ import { i18n } from '../../shared/i18n.js';
 import configManager from '../../singleton/configManager.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
-import { getContext } from '../../index.js';
+import { getContext } from '../../../../../../extensions.js';
 import { renderGlobalSettings } from './GlobalSettings.js';
 import { renderToolbox } from './Toolbox.js';
 import { parseModuleString, validateModuleString } from '../../modules/moduleParser.js';

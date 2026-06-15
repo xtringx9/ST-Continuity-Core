@@ -1,5 +1,8 @@
 // 模块数据处理器 - 独立管理模块数据的文本处理方法
-import { chat, moduleCacheManager, configManager, infoLog, debugLog, errorLog } from '../index.js';
+import { chat } from '../../../../../../script.js';
+import moduleCacheManager from '../singleton/moduleCacheManager.js';
+import configManager from '../singleton/configManager.js';
+import { infoLog, debugLog, errorLog } from '../utils/logger.js';
 import { extractModulesFromChat } from './moduleExtractor.js';
 import { IdentifierParser } from '../utils/identifierParser.js';
 import { parseTimeDetailed, formatTimeDataToStandard, completeTimeDataWithStandard } from '../utils/timeParser.js';

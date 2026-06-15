@@ -1,4 +1,4 @@
-import { configManager } from '../../index.js';
+import configManager from '../../singleton/configManager.js';
 import { debugLog } from '../../utils/logger.js';
 
 function toModuleFilters(moduleConfigs) {

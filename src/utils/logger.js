@@ -1,5 +1,6 @@
 // 日志管理模块
-import { EXTENSION_CONFIG_KEY, extension_settings, extensionName } from "../index.js";
+import { EXTENSION_CONFIG_KEY, extensionName } from "../singleton/configManager.js";
+import { extension_settings } from "../../../../../extensions.js";
 
 /**
  * 检查调试日志是否启用

@@ -1,6 +1,6 @@
 // src/features/extension-settings/SettingsPanel.js
 
-import { extensionFolderPath } from '../../index.js';
+import { extensionFolderPath } from '../../singleton/configManager.js';
 import {
     onEnabledToggle,
     onBackendUrlChange,

@@ -1,6 +1,8 @@
 // 模块提取器 - 用于从聊天记录中提取模块数据
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
-import { chat, getCurrentCharBooksModuleEntries, configManager } from "../index.js";
+import { chat } from '../../../../../../script.js';
+import { getCurrentCharBooksModuleEntries } from '../utils/worldBookUtils.js';
+import configManager from '../singleton/configManager.js';
 import { processTextForMatching } from '../utils/textConverter.js';
 
 export const MODULE_REGEX = /\[([^:|]+?)\|(.*?)\]/g;

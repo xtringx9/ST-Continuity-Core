@@ -1,5 +1,5 @@
 // 样式组合器 - 用于组合模块级和变量级的customStyles
-import { infoLog, debugLog, errorLog } from "../index.js";
+import { infoLog, debugLog, errorLog } from "../utils/logger.js";
 import { getUserAndCharNames } from "../utils/variableReplacer.js"
 
 // /**
