@@ -3,6 +3,7 @@ import { translate } from '../../../../../../i18n.js';
 import { normalizeConfig, validateConfig } from '../../modules/moduleConfigTemplate.js';
 import { infoLog, errorLog, debugLog } from '../../utils/logger.js';
 import configManager from '../../singleton/configManager.js';
+import { backupModuleConfig } from '../../singleton/moduleConfigService.js';
 
 /**
  * 处理导出逻辑
@@ -110,7 +111,7 @@ export function handleExport(doc) {
                     };
 
                     // 2. 调用统一的导出逻辑 (依赖 configManager 中的已保存数据)
-                    configManager.backupModuleConfig(exportOptions);
+                    backupModuleConfig(exportOptions);
                     d.close();
                 }
             }
