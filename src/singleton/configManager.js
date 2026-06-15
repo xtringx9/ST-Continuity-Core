@@ -1,6 +1,6 @@
 // 统一配置管理类 - 实现配置的内存缓存、自动加载和保存
 import { extension_settings } from "../../../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../../../script.js";
+import { saveSettings } from "../../../../../../script.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
 import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../modules/moduleConfigTemplate.js';
 
@@ -154,7 +154,7 @@ class ConfigManager {
 
             extension_settings[extensionName][EXTENSION_CONFIG_KEY] = this.extensionConfig;
             infoLog('扩展配置已更新到内存缓存:', this.extensionConfig);
-            saveSettingsDebounced(true);
+            saveSettings();
         } catch (error) {
             errorLog('设置扩展配置失败:', error);
             throw error;
@@ -426,7 +426,7 @@ class ConfigManager {
             extension_settings[extensionName][MODULE_CONFIG_KEY] = this.moduleConfig;
             debugLog('配置已设置到扩展设置中');
 
-            saveSettingsDebounced(true);
+            saveSettings();
 
             setTimeout(() => {
                 const savedConfig = extension_settings[extensionName] && extension_settings[extensionName][MODULE_CONFIG_KEY];

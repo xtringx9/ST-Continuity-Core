@@ -119,6 +119,26 @@ function compareVariables(vars1, vars2) {
         }
     });
 
+    // Reordered variables: same set of names but different order
+    const vNames1 = (vars1 || []).map(v => v.name);
+    const vNames2 = (vars2 || []).map(v => v.name);
+    const vSameSet = vNames1.length === vNames2.length && vNames1.every(n => vNames2.includes(n));
+    if (vSameSet && JSON.stringify(vNames1) !== JSON.stringify(vNames2)) {
+        for (let i = 0; i < vNames2.length; i++) {
+            if (vNames1[i] !== vNames2[i]) {
+                const v = (vars2 || []).find(v => v.name === vNames2[i]);
+                const oldIndex = vNames1.indexOf(vNames2[i]);
+                changes.push({
+                    isVariableChange: true,
+                    variableName: vNames2[i],
+                    key: 'reordered',
+                    oldValue: `#${oldIndex + 1}`,
+                    newValue: `#${i + 1}`,
+                });
+            }
+        }
+    }
+
     return changes;
 }
 
@@ -128,6 +148,21 @@ function compareModuleLists(list1, list2) {
     const added = (list2 || []).filter(m => !map1.has(m.name));
     const deleted = (list1 || []).filter(m => !map2.has(m.name));
     const modified = [];
+    const reordered = [];
+
+    // 检测顺序变化：找出位置发生变化的模块
+    const names1 = (list1 || []).map(m => m.name);
+    const names2 = (list2 || []).map(m => m.name);
+    const sameSet = names1.length === names2.length && names1.every(n => names2.includes(n));
+    if (sameSet && JSON.stringify(names1) !== JSON.stringify(names2)) {
+        for (let i = 0; i < names2.length; i++) {
+            if (names1[i] !== names2[i]) {
+                const mod = (list2 || []).find(m => m.name === names2[i]);
+                const oldIndex = names1.indexOf(names2[i]);
+                reordered.push({ name: names2[i], displayName: mod?.displayName || names2[i], oldIndex: oldIndex + 1, newIndex: i + 1 });
+            }
+        }
+    }
 
     for (const [name, module2] of map2) {
         if (map1.has(name)) {
@@ -145,7 +180,7 @@ function compareModuleLists(list1, list2) {
         }
     }
 
-    return { added, deleted, modified };
+    return { added, deleted, modified, reordered };
 }
 
 const variableKeyToI18nKey = {
@@ -223,9 +258,17 @@ export function generateChangesSummary(originalModules, currentModules, original
 
     // 2. Compare Modules
     const moduleChanges = compareModuleLists(originalModules, currentModules);
-    if (moduleChanges.added.length > 0 || moduleChanges.deleted.length > 0 || moduleChanges.modified.length > 0) {
+    if (moduleChanges.added.length > 0 || moduleChanges.deleted.length > 0 || moduleChanges.modified.length > 0 || moduleChanges.reordered.length > 0) {
         hasChanges = true;
         html += `<h4>${translate('ccore_title_module_changes')}</h4>`;
+
+        if (moduleChanges.reordered.length > 0) {
+            html += `<h5>${translate('ccore_title_reordered_modules')}</h5><ul>`;
+            moduleChanges.reordered.forEach(item => {
+                html += `<li><strong>${escapeHtml(item.displayName)}</strong>: #${item.oldIndex} → #${item.newIndex}</li>`;
+            });
+            html += '</ul>';
+        }
 
         if (moduleChanges.added.length > 0) {
             html += `<h5>${translate('ccore_title_added_modules')}</h5><ul>`;
@@ -254,6 +297,8 @@ export function generateChangesSummary(originalModules, currentModules, original
                             label = `${translate('ccore_label_var_added')}: ${change.variableName}`;
                         } else if (change.key === 'deleted') {
                             label = `${translate('ccore_label_var_deleted')}: ${change.variableName}`;
+                        } else if (change.key === 'reordered') {
+                            label = `${translate('ccore_label_var_reordered')}: ${change.variableName}`;
                         } else {
                             const varPropLabel = getVariablePropertyLabel(change.key);
                             label = `${translate('ccore_label_variable')} ${change.variableName} / ${varPropLabel}`;

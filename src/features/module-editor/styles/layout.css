@@ -980,16 +980,22 @@ button:disabled,
 .iframe-dialog-body ul {
     list-style-type: none;
     padding-left: 15px;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .iframe-dialog-body li {
     margin-bottom: 4px;
     font-size: 13px;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .iframe-dialog-body details {
     margin-left: 15px;
     margin-bottom: 5px;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .iframe-dialog-body summary {

@@ -27,6 +27,14 @@ src/features/             # UI 功能面板
   entry/EntryButton.js
   extension-settings/
   module-editor/          #   完整编辑器（HTML + CSS），用于模块管理
+    ModuleEditor.js       #     主编排：初始化、导航、列表渲染、保存/恢复
+    ModuleDetailRenderer.js #  模块详情页 HTML + 表单联动
+    VariableListRenderer.js # 变量列表渲染 + 事件绑定
+    DragHandler.js        #     通用拖拽排序
+    GlobalSettings.js     #     全局设置面板
+    Toolbox.js            #     工具箱面板
+    ChangesSummary.js     #     变更检测与保存确认弹窗
+    ImportExport.js       #     导入导出逻辑
 src/services/             # 外部集成
   backendService.js           #   HTTP POST 到用户配置的后端
   continuityCoreServerApi.js  #   ST 服务端插件客户端（保存/读取/列表/删除/追加/快照/迁移）
@@ -121,7 +129,7 @@ import { configManager, debugLog, processModuleData } from '../index.js';
 
 | 符号 | 来源文件 | 路径（相对于 `src/` 下1层目录） |
 |------|----------|------|
-| `chat`, `chat_metadata`, `characters`, `this_chid`, `saveSettingsDebounced`, `getRequestHeaders`, `reloadCurrentChat`, `eventSource`, `event_types` | `public/script.js` | `../../../../../../script.js` |
+| `chat`, `chat_metadata`, `characters`, `this_chid`, `saveSettings`, `getRequestHeaders`, `reloadCurrentChat`, `eventSource`, `event_types` | `public/script.js` | `../../../../../../script.js` |
 | `getContext`, `extension_settings` | `public/scripts/extensions.js` | `../../../../../extensions.js` |
 | `currentUser`, `getCurrentUserHandle` | `public/scripts/user.js` | `../../../../../user.js` |
 | `findChar`, `uuidv4` | `public/scripts/utils.js` | `../../../../../utils.js` |
@@ -142,9 +150,67 @@ import { configManager, debugLog, processModuleData } from '../index.js';
 ## 配置系统
 
 - **双配置结构**：`extension_config`（全局开关、后端 URL、调试日志、按钮类型）和 `module_config`（模块、全局设置）
-- **持久化**：通过 ST 的 `saveSettingsDebounced` 存储在 `extension_settings[extensionName]` 中
+- **持久化**：通过 ST 的 `saveSettings` 存储在 `extension_settings[extensionName]` 中（见下方"保存机制"说明）
 - **DEV_SAVE_GUARD**（`configManager.js` 中的 `ENABLE_DEV_SAVE_GUARD`）— 为 `false` 时阻止所有保存，设置为 `true` 恢复正常操作
 - **normalizeConfig()**（`moduleConfigTemplate.js`）— 所有保存/导入/导出操作的规范化入口
+
+### 保存机制
+
+ST 提供两个保存函数，行为完全不同：
+
+| 函数 | 行为 | 适用场景 |
+|------|------|----------|
+| `saveSettings()` | **立即**写入磁盘 | 用户主动保存（如点击保存按钮） |
+| `saveSettingsDebounced()` | **1 秒防抖**，每次调用重置计时器 | 非关键路径的自动保存（如世界书、正则保存） |
+
+**关键区别**：`saveSettingsDebounced(true)` 的 `true` 参数是 `loopCounter`，不是"立即执行"标志。调用后仍需等 1 秒才写入磁盘。
+
+**本项目规则**：
+- `configManager.saveModuleConfigNow()` 使用 `saveSettings()` — 确保用户保存操作立即持久化
+- `configManager.scheduleAutoSave()` 使用 `saveSettings()` — 通过 1 秒 setTimeout 延迟调用，但最终执行的是立即写入
+- 其他模块（`worldBookUtils`、`regexUtils`）使用 `saveSettingsDebounced` — 遵循 ST 标准做法
+
+### normalizeConfig 的副作用
+
+`normalizeConfig()` 会生成一个**全新对象**，只保留已知字段。这意味着：
+- 保存后 `this.moduleConfig` 变成新对象，与之前的引用断开
+- 任何未在 `normalizeConfig` 中列出的自定义字段会被丢弃
+- 调用 `setModules()` 后再调用 `saveModuleConfigNow()` 时，`normalizeConfig` 会重新生成对象
+
+## 常见陷阱
+
+### 1. `saveSettingsDebounced` 不是立即保存
+
+```javascript
+// ✗ 错误 — 1 秒后才写入，用户刷新会丢数据
+saveSettingsDebounced(true);
+
+// ✓ 正确 — 立即写入磁盘
+saveSettings();
+```
+
+### 2. DragHandler 中 `this` 绑定
+
+`DragHandler.js` 的函数通过 `doc.addEventListener` 绑定时，`this` 指向 DOM 元素。但通过箭头函数调用时 `this` 丢失：
+
+```javascript
+// ✗ 错误 — 箭头函数中 this 不是 DOM 元素
+el.addEventListener('dragend', (e) => handleDragEnd(e, doc));
+// handleDragEnd 内部 this.classList 报错
+
+// ✓ 正确 — 传入 event.currentTarget
+el.addEventListener('dragend', (e) => handleDragEnd(e, doc, e.currentTarget));
+```
+
+### 3. ChangesSummary 不检测顺序变化
+
+`compareModuleLists` 和 `compareVariables` 使用 `Map<name, item>` 查找，只检测内容差异。拖拽换位后内容相同但顺序不同，需要额外检测 `reordered` 情况。
+
+### 4. `continuity-core.js` 的路径层级
+
+`continuity-core.js` 在项目根目录（`src/` 外），到 ST 核心文件的路径比 `src/` 下1层目录少1层 `../`：
+- 到 `extensions.js` = `../../../extensions.js`（3 层）
+- 到 `script.js` = `../../../../script.js`（4 层）
 
 ## 国际化（i18n）
 

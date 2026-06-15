@@ -5,15 +5,15 @@
 
 import { translate } from '../../../../../../i18n.js';
 import configManager from '../../singleton/configManager.js';
-import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
-import moduleCacheManager from '../../singleton/moduleCacheManager.js';
-import { getContext } from '../../../../../../extensions.js';
+import { debugLog, infoLog } from '../../utils/logger.js';
 import { renderGlobalSettings } from './GlobalSettings.js';
 import { renderToolbox } from './Toolbox.js';
 import { parseModuleString, validateModuleString } from '../../modules/moduleParser.js';
 import { IframeDialog } from '../../shared/IframeDialog.js';
 import { generateChangesSummary } from './ChangesSummary.js';
 import { handleExport, handleImport } from './ImportExport.js';
+import { renderModuleDetail } from './ModuleDetailRenderer.js';
+import { handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd } from './DragHandler.js';
 
 // === 状态管理 ===
 let originalModules = []; // 保存时用于比较的原始模块列表
@@ -24,12 +24,6 @@ let selectedModuleId = null; // 记录当前选中的模块 ID
 let activeDetailTab = 'module-detail-settings'; // 记录当前详情页的活动Tab
 let activeViewSectionId = 'view-modules'; // 当前主视图的活动ID
 let searchTerm = ''; // 搜索关键词
-
-// === 渲染逻辑 ===
-// 拖拽状态变量
-let dragSrcEl = null;
-let dragType = null; // 'module' or 'variable'
-let dropPosition = null; // 'before' or 'after'
 
 // 全局文档引用 (指向 Iframe 的 document)
 let doc = null;
@@ -118,7 +112,7 @@ export function initModuleEditor(iframeDocument) {
         }
     }
 
-    // 控制“清空模块”按钮的初始显示/隐藏
+    // 控制"清空模块"按钮的初始显示/隐藏
     doc.getElementById('header-clear-btn').style.display = (activeViewSectionId === 'view-modules') ? 'inline-block' : 'none';
 
     // 初始化保存按钮状态
@@ -223,7 +217,7 @@ function bindNavigationEvents() {
             localStorage.setItem('continuity_editor_last_tab', targetId);
             activeViewSectionId = targetId;
 
-            // 控制“清空模块”按钮的显示/隐藏
+            // 控制"清空模块"按钮的显示/隐藏
             const clearBtn = doc.getElementById('header-clear-btn');
             if (clearBtn) {
                 // 假设 'view-modules' 是模块列表页面的 ID
@@ -320,7 +314,7 @@ function renderModuleList() {
             item.classList.add('active');
 
             selectedModuleId = mod.name;
-            renderModuleDetail(mod, index);
+            renderModuleDetail(mod, index, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; });
 
             // 移动端适配：点击后切换到详情视图
             if (window.innerWidth <= 768) {
@@ -347,9 +341,6 @@ function renderModuleList() {
         }
 
         // 绑定拖拽事件
-        // 模块列表项：整个项可拖拽，但为了防止输入框干扰，通常模块列表没有输入框，所以可以直接绑定
-        // 但为了统一，我们也可以只绑定手柄。不过模块列表目前设计是整个可点选，手柄用于拖拽。
-        // 这里我们保持原样，因为模块列表项主要是文本和开关，没有文本输入框。
         item.addEventListener('dragstart', (e) => handleDragStart(e, item, 'module', item));
         item.addEventListener('dragenter', handleDragEnter);
         item.addEventListener('dragover', handleDragOver);
@@ -358,314 +349,9 @@ function renderModuleList() {
             renderModuleList();
             checkForChanges(); // 检查变更
         }));
-        item.addEventListener('dragend', handleDragEnd);
+        item.addEventListener('dragend', (e) => handleDragEnd(e, doc));
 
         listContainer.appendChild(item);
-    });
-}
-
-/**
- * 渲染模块详情表单 (右侧)
- * @param {Object} module 模块数据对象
- * @param {number} index 模块在数组中的索引
- */
-function renderModuleDetail(module, index) {
-    const container = doc.querySelector('.module-detail-panel .detail-content');
-
-    // 生成表单 HTML
-    container.innerHTML = `
-        <div class="settings-container module-detail-view">
-            <!-- Tab Navigation -->
-            <div class="detail-tabs">
-                <div class="sticky-title-group">
-                    <button id="btn-back-to-list" class="mobile-only btn-back-icon" title="${translate('ccore_title_back_to_list')}">❮</button>
-                    <span class="sticky-module-name" title="${module.displayName || module.name}">${module.displayName || module.name}</span>
-                    <button id="btn-delete-module" class="btn-delete-small" title="${translate('ccore_title_delete_module')}">🗑️</button>
-                </div>
-                <div class="detail-tab-item ${activeDetailTab === 'module-detail-settings' ? 'active' : ''}" data-target="module-detail-settings" data-i18n="ccore_title_module_attributes">${translate('ccore_title_module_attributes')}</div>
-                <div class="detail-tab-item ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}" data-target="module-detail-variables" data-i18n="ccore_title_variables">${translate('ccore_title_variables')}</div>
-            </div>
-
-            <!-- Tab Panel: Settings -->
-            <div id="module-detail-settings" class="detail-tab-panel ${activeDetailTab === 'module-detail-settings' ? 'active' : ''}">
-                <div class="form-grid">
-                    <!-- 基础信息 -->
-                    <div class="form-section-title">${translate('ccore_title_edit_module')}</div>
-                    
-                    <div class="form-group">
-                        <label>${translate('ccore_label_name')}</label>
-                        <input type="text" id="edit-name" value="${module.name}">
-                    </div>
-
-                    <div class="form-group">
-                        <label>${translate('ccore_label_display_name')}</label>
-                        <input type="text" id="edit-display-name" value="${module.displayName}">
-                    </div>
-
-                    <div class="form-group form-full-width">
-                        <label>${translate('ccore_label_compatible_modules')}</label>
-                        <input type="text" id="edit-compatible-modules" value="${(module.compatibleModuleNames || []).join(',')}" placeholder="${translate('ccore_placeholder_compatible_modules')}">
-                    </div>
-
-                    <!-- 模块属性 -->
-                    <div class="form-section-title">${translate('ccore_title_module_attributes')}</div>
-                    <div class="form-group form-full-width module-toggles" style="margin-bottom: 15px;">
-                        <button id="btn-edit-external" class="btn-text-toggle ${module.isExternalDisplay ? 'active' : ''}">
-                            <input type="checkbox" ${module.isExternalDisplay ? 'checked' : ''}>
-                            ${translate('ccore_label_external')}
-                        </button>
-                        <button id="btn-edit-time-reference-standard" class="btn-text-toggle ${module.timeReferenceStandard ? 'active' : ''}">
-                            <input type="checkbox" ${module.timeReferenceStandard ? 'checked' : ''}>
-                            ${translate('ccore_label_time_ref')}
-                        </button>
-                    </div>
-
-                    <!-- 行为设置 -->
-                    <div class="form-section-title">${translate('ccore_title_behavior_settings')}</div>
-
-                    <div class="form-group">
-                        <label>${translate('ccore_label_output_pos')}</label>
-                        <div style="display: flex; gap: 10px; flex: 1;">
-                            <select id="edit-output-pos" style="flex: 1;">
-                                <option value="after_body" ${module.outputPosition === 'after_body' ? 'selected' : ''}>${translate('ccore_option_after_body')}</option>
-                                <option value="body" ${module.outputPosition === 'body' ? 'selected' : ''}>${translate('ccore_option_body')}</option>
-                                <option value="body_start" ${module.outputPosition === 'body_start' ? 'selected' : ''}>${translate('ccore_option_body_start')}</option>
-                                <option value="body_end" ${module.outputPosition === 'body_end' ? 'selected' : ''}>${translate('ccore_option_body_end')}</option>
-                                <option value="body_surround" ${module.outputPosition === 'body_surround' ? 'selected' : ''}>${translate('ccore_option_body_surround')}</option>
-                                <option value="specific_position" ${module.outputPosition === 'specific_position' ? 'selected' : ''}>${translate('ccore_option_specific_position')}</option>
-                                <option value="embedded" ${module.outputPosition === 'embedded' ? 'selected' : ''}>${translate('ccore_option_embedded')}</option>
-                            </select>
-                            <input type="text" id="edit-prompt-position" value="${module.positionPrompt || ''}" placeholder="${translate('ccore_label_prompt_position')}" style="flex: 1; display: none;">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>${translate('ccore_label_output_mode')}</label>
-                        <select id="edit-output-mode">
-                            <option value="full" ${module.outputMode === 'full' ? 'selected' : ''}>${translate('ccore_option_full')}</option>
-                            <option value="incremental" ${module.outputMode === 'incremental' ? 'selected' : ''}>${translate('ccore_option_incremental')}</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>${translate('ccore_label_range_mode')}</label>
-                        <div style="display: flex; gap: 10px;">
-                            <select id="edit-range-mode" style="flex: 1; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
-                                <option value="unlimited" ${module.rangeMode === 'unlimited' ? 'selected' : ''}>${translate('ccore_option_unlimited')}</option>
-                                <option value="specified" ${module.rangeMode === 'specified' ? 'selected' : ''}>${translate('ccore_option_specified')}</option>
-                                <option value="range" ${module.rangeMode === 'range' ? 'selected' : ''}>${translate('ccore_option_range')}</option>
-                            </select>
-                            <input type="number" id="edit-item-min" value="${module.itemMin || 0}" placeholder="${translate('ccore_label_item_min')}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
-                            <input type="number" id="edit-item-max" value="${module.itemMax || 1}" placeholder="${translate('ccore_label_item_max')}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>${translate('ccore_label_retain_layers')}</label>
-                        <input type="number" id="edit-retain-layers" value="${module.retainLayers !== undefined ? module.retainLayers : -1}">
-                    </div>
-
-                    <!-- 提示词设置 -->
-                    <div class="form-section-title">${translate('ccore_title_prompt_config')}</div>
-
-                    <div class="form-group form-full-width">
-                        <label>${translate('ccore_label_prompt_timing')}</label>
-                        <textarea id="edit-prompt-timing" rows="2">${module.timingPrompt || ''}</textarea>
-                    </div>
-
-                    <div class="form-group form-full-width">
-                        <label>${translate('ccore_label_prompt_gen')}</label>
-                        <textarea id="edit-prompt" rows="2">${module.prompt || ''}</textarea>
-                    </div>
-
-                    <div class="form-group form-full-width">
-                        <label>${translate('ccore_label_prompt_usage')}</label>
-                        <textarea id="edit-prompt-content" rows="2">${module.contentPrompt || ''}</textarea>
-                    </div>
-
-                    <!-- 样式设置 -->
-                    <div class="form-section-title">${translate('ccore_title_style_config')}</div>
-
-                    <div class="form-group form-full-width">
-                        <label>${translate('ccore_label_styles_custom')}</label>
-                        <textarea id="edit-styles-custom" rows="2">${module.customStyles || ''}</textarea>
-                    </div>
-                    <div class="form-group form-full-width">
-                        <label>${translate('ccore_label_styles_container')}</label>
-                        <textarea id="edit-styles-container" rows="2">${module.containerStyles || ''}</textarea>
-                    </div>
-                    <div class="form-group form-full-width">
-                        <label>${translate('ccore_label_styles_external')}</label>
-                        <textarea id="edit-styles-external" rows="2">${module.externalStyles || ''}</textarea>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab Panel: Variables -->
-            <div id="module-detail-variables" class="detail-tab-panel ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}">
-                <div class="form-section-title section-header variable-sticky-header">
-                    <span>${translate('ccore_title_variables')}</span>
-                    <button id="btn-add-variable" class="btn-secondary">
-                        + ${translate('ccore_btn_add_variable')}
-                    </button>
-                </div>
-                <div class="form-full-width" id="variable-list-container">
-                    <!-- 变量列表将在这里渲染 -->
-                </div>
-            </div>
-
-            <div class="spacer-bottom"></div>
-        </div>
-    `;
-
-    // 渲染变量列表
-    renderVariableList(module, doc.getElementById('variable-list-container'));
-
-    // 绑定 Tab 切换事件
-    const tabs = doc.querySelectorAll('.detail-tab-item');
-    const panels = doc.querySelectorAll('.detail-tab-panel');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const targetId = tab.getAttribute('data-target');
-            activeDetailTab = targetId; // 更新状态
-
-            // 移除所有 active
-            tabs.forEach(t => t.classList.remove('active'));
-            panels.forEach(p => p.classList.remove('active'));
-
-            // 激活当前
-            tab.classList.add('active');
-            const targetPanel = doc.getElementById(targetId);
-            if (targetPanel) targetPanel.classList.add('active');
-        });
-    });
-
-    // 处理 Range Mode 联动
-    const rangeModeSelect = doc.getElementById('edit-range-mode');
-    const itemMinInput = doc.getElementById('edit-item-min');
-    const itemMaxInput = doc.getElementById('edit-item-max');
-
-    // 处理 Output Position 联动
-    const outputPosSelect = doc.getElementById('edit-output-pos');
-    const positionPromptInput = doc.getElementById('edit-prompt-position');
-
-    // 处理 Output Mode 联动
-    const outputModeSelect = doc.getElementById('edit-output-mode');
-    const retainLayersInput = doc.getElementById('edit-retain-layers');
-
-    const updateRangeInputs = () => {
-        const mode = rangeModeSelect.value;
-        itemMinInput.style.display = mode === 'range' ? 'block' : 'none';
-        itemMaxInput.style.display = (mode === 'specified' || mode === 'range') ? 'block' : 'none';
-    };
-
-    const updateOutputPosInputs = () => {
-        const pos = outputPosSelect.value;
-        positionPromptInput.style.display = pos === 'specific_position' ? 'block' : 'none';
-    };
-
-    const updateOutputModeInputs = () => {
-        const mode = outputModeSelect.value;
-        const group = retainLayersInput.closest('.form-group');
-        if (group) {
-            group.style.display = mode === 'full' ? '' : 'none';
-        }
-    };
-
-    // 初始化状态
-    updateRangeInputs();
-    updateOutputPosInputs();
-    updateOutputModeInputs();
-
-    // 绑定变更事件
-    rangeModeSelect.addEventListener('change', updateRangeInputs);
-    outputPosSelect.addEventListener('change', updateOutputPosInputs);
-    outputModeSelect.addEventListener('change', updateOutputModeInputs);
-
-    // === 实时数据更新逻辑 ===
-    const updateModuleData = () => {
-        module.name = doc.getElementById('edit-name').value;
-        module.displayName = doc.getElementById('edit-display-name').value;
-        module.compatibleModuleNames = doc.getElementById('edit-compatible-modules').value.split(',').map(s => s.trim()).filter(s => s);
-
-        module.outputPosition = doc.getElementById('edit-output-pos').value;
-        module.outputMode = doc.getElementById('edit-output-mode').value;
-        module.rangeMode = doc.getElementById('edit-range-mode').value;
-        module.itemMin = parseInt(doc.getElementById('edit-item-min').value) || 0;
-        module.itemMax = parseInt(doc.getElementById('edit-item-max').value) || 1;
-        const retainLayers = parseInt(doc.getElementById('edit-retain-layers').value);
-        module.retainLayers = Number.isNaN(retainLayers) ? -1 : retainLayers;
-
-        module.isExternalDisplay = doc.getElementById('btn-edit-external').classList.contains('active');
-        module.timeReferenceStandard = doc.getElementById('btn-edit-time-reference-standard').classList.contains('active');
-
-        module.prompt = doc.getElementById('edit-prompt').value;
-        module.timingPrompt = doc.getElementById('edit-prompt-timing').value;
-        module.contentPrompt = doc.getElementById('edit-prompt-content').value;
-        module.positionPrompt = doc.getElementById('edit-prompt-position').value;
-
-        module.containerStyles = doc.getElementById('edit-styles-container').value;
-        module.externalStyles = doc.getElementById('edit-styles-external').value;
-        module.customStyles = doc.getElementById('edit-styles-custom').value;
-
-        checkForChanges(); // 检查变更
-
-        // 刷新列表项名称（如果修改了名字）
-        const listItem = doc.querySelector(`.module-list-item[data-index="${index}"] .module-item-name`);
-        if (listItem) listItem.textContent = module.displayName || module.name;
-    };
-
-    // 绑定模块高级开关按钮
-    doc.getElementById('btn-edit-external').addEventListener('click', function () {
-        this.classList.toggle('active');
-        const cb = this.querySelector('input'); if (cb) cb.checked = this.classList.contains('active');
-        updateModuleData();
-    });
-    doc.getElementById('btn-edit-time-reference-standard').addEventListener('click', function () {
-        this.classList.toggle('active');
-        const cb = this.querySelector('input'); if (cb) cb.checked = this.classList.contains('active');
-        updateModuleData();
-    });
-
-    // 绑定返回按钮事件
-    const backBtn = doc.getElementById('btn-back-to-list');
-    if (backBtn) {
-        backBtn.addEventListener('click', () => {
-            doc.body.classList.remove('mobile-view-detail');
-        });
-    }
-
-    // 绑定删除模块按钮
-    const deleteBtn = doc.getElementById('btn-delete-module');
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', () => {
-            deleteModule(index);
-        });
-    }
-
-    // 绑定添加变量按钮
-    doc.getElementById('btn-add-variable').addEventListener('click', () => {
-        if (!module.variables) module.variables = [];
-        module.variables.push({
-            name: 'new_var',
-            displayName: translate('ccore_msg_new_variable'),
-            enabled: true,
-            description: '',
-            isIdentifier: false,
-            isBackupIdentifier: false,
-            isHideCondition: false,
-            hideConditionValues: [],
-            isNoNormalize: false,
-            customStyles: ''
-        });
-        renderVariableList(module, doc.getElementById('variable-list-container'));
-        checkForChanges(); // 检查变更
-    });
-
-    // 绑定所有输入框的实时更新
-    container.querySelectorAll('input, textarea, select').forEach(el => {
-        el.addEventListener('input', updateModuleData);
-        el.addEventListener('change', updateModuleData);
     });
 }
 
@@ -786,257 +472,6 @@ function parseNestedModules(inputText) {
 }
 
 /**
- * 渲染变量列表
- * @param {Object} module 模块对象
- * @param {HTMLElement} container 容器元素
- */
-function renderVariableList(module, container) {
-    if (!container) {
-        errorLog("renderVariableList: 容器不存在");
-        return;
-    }
-    container.innerHTML = '';
-
-    if (!module.variables || module.variables.length === 0) {
-        container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.9em; border: 1px dashed var(--border-color); border-radius: 4px;">${translate('ccore_msg_no_variables')}</div>`;
-        return;
-    }
-
-    module.variables.forEach((variable, index) => {
-        const item = doc.createElement('div');
-        item.className = 'variable-edit-item';
-        item.dataset.index = index;
-
-        item.innerHTML = `
-            <div class="variable-header-compact">
-                <span class="drag-handle" draggable="true" title="${translate('ccore_title_drag_sort')}">⋮⋮</span>
-                <label class="toggle-switch" title="${translate('ccore_title_toggle_enabled')}">
-                    <input type="checkbox" class="var-enabled" ${variable.enabled !== false ? 'checked' : ''}>
-                    <span class="slider round"></span>
-                </label>
-                <div class="compact-input-group var-name-group">
-                    <label>${translate('ccore_label_var_name')}</label>
-                    <input type="text" class="var-name" value="${variable.name || ''}">
-                </div>
-                <div class="compact-input-group var-display-name-group">
-                    <label>${translate('ccore_label_var_display_name')}</label>
-                    <input type="text" class="var-display-name" value="${variable.displayName || ''}">
-                </div>
-                <button class="btn-delete-variable btn-variable-delete" title="${translate('ccore_title_delete_variable')}">✕</button>
-            </div>
-
-            <div class="variable-details">
-                <div class="variable-toggles">
-                    <button class="btn-text-toggle var-identifier ${variable.isIdentifier ? 'active' : ''}">
-                        <input type="checkbox" ${variable.isIdentifier ? 'checked' : ''}>
-                        ${translate('ccore_label_var_identifier')}
-                    </button>
-                    <button class="btn-text-toggle var-backup-identifier ${variable.isBackupIdentifier ? 'active' : ''}">
-                        <input type="checkbox" ${variable.isBackupIdentifier ? 'checked' : ''}>
-                        ${translate('ccore_label_var_backup_identifier')}
-                    </button>
-                    <button class="btn-text-toggle var-hide-condition ${variable.isHideCondition ? 'active' : ''}">
-                        <input type="checkbox" ${variable.isHideCondition ? 'checked' : ''}>
-                        ${translate('ccore_label_var_hide_condition')}
-                    </button>
-                    <button class="btn-text-toggle var-no-normalize ${variable.isNoNormalize ? 'active' : ''}">
-                        <input type="checkbox" ${variable.isNoNormalize ? 'checked' : ''}>
-                        ${translate('ccore_label_var_no_normalize')}
-                    </button>
-                </div>
-                <div class="form-group">
-                    <label>${translate('ccore_label_var_description')}</label>
-                    <input type="text" class="var-description" value="${variable.description || ''}">
-                </div>
-                <div class="form-group">
-                    <label>${translate('ccore_label_compatible_variables')}</label>
-                    <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="${translate('ccore_placeholder_compatible_vars')}">
-                </div>
-                <div class="form-group var-hide-values-group" style="display: ${variable.isHideCondition ? 'flex' : 'none'};">
-                    <label>${translate('ccore_label_var_hide_values')}</label>
-                    <input type="text" class="var-hide-values" value="${Array.isArray(variable.hideConditionValues) ? variable.hideConditionValues.join(',') : variable.hideConditionValues || ''}">
-                </div>
-                <div class="form-group">
-                    <label>${translate('ccore_label_var_custom_styles')}</label>
-                    <textarea class="var-custom-styles" rows="2">${variable.customStyles || ''}</textarea>
-                </div>
-            </div>
-        `;
-
-        // Data collection function
-        const updateVariable = () => {
-            variable.name = item.querySelector('.var-name').value;
-            variable.displayName = item.querySelector('.var-display-name').value;
-            variable.description = item.querySelector('.var-description').value;
-            variable.enabled = item.querySelector('.var-enabled').checked;
-            variable.isIdentifier = item.querySelector('.var-identifier').classList.contains('active');
-            variable.isBackupIdentifier = item.querySelector('.var-backup-identifier').classList.contains('active');
-            variable.isNoNormalize = item.querySelector('.var-no-normalize').classList.contains('active');
-            variable.isHideCondition = item.querySelector('.var-hide-condition').classList.contains('active');
-            variable.hideConditionValues = item.querySelector('.var-hide-values').value.split(',').map(s => s.trim()).filter(s => s);
-            variable.compatibleVariableNames = item.querySelector('.var-compatible-names').value.split(',').map(s => s.trim()).filter(s => s);
-            variable.customStyles = item.querySelector('.var-custom-styles').value;
-
-            checkForChanges(); // 检查变更
-        };
-
-        // Bind input/textarea for live updates
-        item.querySelectorAll('input, textarea').forEach(input => {
-            input.addEventListener('input', updateVariable);
-            input.addEventListener('change', updateVariable);
-        });
-
-        // Bind toggle buttons
-        const hideValuesGroup = item.querySelector('.var-hide-values-group');
-        item.querySelectorAll('.btn-text-toggle').forEach(btn => {
-            btn.addEventListener('click', () => {
-                btn.classList.toggle('active');
-                const cb = btn.querySelector('input'); if (cb) cb.checked = btn.classList.contains('active');
-
-                // Special logic for hide condition
-                if (btn.classList.contains('var-hide-condition')) {
-                    hideValuesGroup.style.display = btn.classList.contains('active') ? 'flex' : 'none';
-                }
-
-                updateVariable(); // Update data on toggle
-            });
-        });
-
-        // 删除按钮事件
-        item.querySelector('.btn-delete-variable').addEventListener('click', () => {
-            if (confirm(translate('ccore_msg_confirm_delete_var'))) {
-                module.variables.splice(index, 1);
-                renderVariableList(module, container);
-                checkForChanges(); // 检查变更
-            }
-        });
-
-        // 绑定拖拽事件
-        const handle = item.querySelector('.drag-handle');
-        handle.addEventListener('dragstart', (e) => handleDragStart(e, item, 'variable', item));
-        item.addEventListener('dragenter', handleDragEnter);
-        item.addEventListener('dragover', handleDragOver);
-        item.addEventListener('dragleave', handleDragLeave);
-        item.addEventListener('drop', (e) => handleDrop(e, item, 'variable', module.variables, () => {
-            renderVariableList(module, container);
-            checkForChanges(); // 检查变更
-        }));
-        item.addEventListener('dragend', handleDragEnd);
-
-        container.appendChild(item);
-    });
-}
-
-// === 通用拖拽处理函数 ===
-
-function handleDragStart(e, item, type, dragImageElement) {
-    dragSrcEl = item;
-    dragType = type;
-    e.dataTransfer.effectAllowed = 'move';
-
-    // 设置拖拽图像为整个项目元素
-    if (dragImageElement) {
-        e.dataTransfer.setDragImage(dragImageElement, 0, 0);
-    }
-
-    e.dataTransfer.setData('text/plain', item.dataset.index); // 必须设置数据才能拖拽
-
-    // 使用 setTimeout 确保拖拽图像生成后再隐藏原元素
-    setTimeout(() => {
-        item.classList.add('dragging');
-    }, 0);
-}
-
-function handleDragOver(e) {
-    if (e.preventDefault) {
-        e.preventDefault(); // 允许放置
-    }
-
-    const target = e.currentTarget;
-    // 简单的类型检查，防止跨类型拖拽干扰
-    if (dragType === 'module' && !target.classList.contains('module-list-item')) return false;
-    if (dragType === 'variable' && !target.classList.contains('variable-edit-item')) return false;
-    if (target === dragSrcEl) return false; // 不对自己产生反应
-
-    const rect = target.getBoundingClientRect();
-    const offsetY = e.clientY - rect.top;
-
-    // 判断鼠标在元素的上半部分还是下半部分
-    if (offsetY < rect.height / 2) {
-        dropPosition = 'before';
-        target.classList.add('over-top');
-        target.classList.remove('over-bottom');
-    } else {
-        dropPosition = 'after';
-        target.classList.add('over-bottom');
-        target.classList.remove('over-top');
-    }
-
-    e.dataTransfer.dropEffect = 'move';
-    return false;
-}
-
-function handleDragEnter(e) {
-    // 逻辑已移至 handleDragOver 以支持动态位置判断
-}
-
-function handleDragLeave(e) {
-    // 修复下划线闪烁问题：如果进入的是当前元素的子元素，不移除样式
-    if (this.contains(e.relatedTarget)) return;
-    this.classList.remove('over-top');
-    this.classList.remove('over-bottom');
-}
-
-function handleDrop(e, item, type, dataArray, renderCallback) {
-    if (e.stopPropagation) {
-        e.stopPropagation();
-    }
-
-    // 确保拖拽的是同类型的项目
-    if (dragSrcEl !== item && dragType === type) {
-        const srcIndex = parseInt(dragSrcEl.dataset.index);
-        let targetIndex = parseInt(item.dataset.index);
-
-        // 根据放置位置调整目标索引
-        if (dropPosition === 'after') {
-            targetIndex++;
-        }
-
-        // 移动数组元素
-        if (!isNaN(srcIndex) && !isNaN(targetIndex)) {
-            const movedItem = dataArray[srcIndex];
-
-            // 先移除源元素
-            dataArray.splice(srcIndex, 1); // 移除源
-
-            // 如果移除的元素在目标之前，目标索引需要减1
-            if (srcIndex < targetIndex) {
-                targetIndex--;
-            }
-
-            // 插入到新位置
-            dataArray.splice(targetIndex, 0, movedItem); // 插入目标位置
-
-            // 重新渲染列表
-            renderCallback();
-        }
-    }
-
-    return false;
-}
-
-function handleDragEnd(e) {
-    this.classList.remove('dragging');
-
-    // 清除所有项的 over 样式
-    const selector = dragType === 'module' ? '.module-list-item' : '.variable-edit-item';
-    doc.querySelectorAll(selector).forEach(el => {
-        el.classList.remove('over-top');
-        el.classList.remove('over-bottom');
-    });
-}
-
-/**
  * 删除模块
  * @param {number} index 索引
  */
@@ -1130,7 +565,7 @@ async function onImportClick() {
             const updatedModuleIndex = currentModules.findIndex(m => m.name === selectedModuleId);
             if (updatedModuleIndex !== -1) {
                 // 模块仍然存在（可能已被覆盖），重新渲染其详情
-                renderModuleDetail(currentModules[updatedModuleIndex], updatedModuleIndex);
+                renderModuleDetail(currentModules[updatedModuleIndex], updatedModuleIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; });
             }
         }
 
@@ -1233,9 +668,15 @@ function showSavedFeedback() {
 function saveAll() {
     configManager.setModules(currentModules);
     configManager.setGlobalSettings(currentGlobalSettings);
+    // 取消 setModules/setGlobalSettings 触发的延迟自动保存，直接立即保存
+    if (configManager.autoSaveTimeout) {
+        clearTimeout(configManager.autoSaveTimeout);
+        configManager.autoSaveTimeout = null;
+    }
+    configManager.saveModuleConfigNow();
     infoLog("[ModuleEditor] 所有配置已保存");
 
-    // 保存后，将当前状态设为新的“原始”状态
+    // 保存后，将当前状态设为新的"原始"状态
     originalModules = JSON.parse(JSON.stringify(currentModules));
     originalGlobalSettings = JSON.parse(JSON.stringify(currentGlobalSettings));
 
@@ -1255,7 +696,7 @@ function restoreAll() {
         const restoredModuleIndex = currentModules.findIndex(m => m.name === selectedModuleId);
         if (restoredModuleIndex !== -1) {
             // 模块仍然存在，重新渲染其详情
-            renderModuleDetail(currentModules[restoredModuleIndex], restoredModuleIndex);
+            renderModuleDetail(currentModules[restoredModuleIndex], restoredModuleIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; });
         } else {
             // 选中的模块在撤销后被删除了（例如，一个新添加的模块），清空详情面板
             selectedModuleId = null;
