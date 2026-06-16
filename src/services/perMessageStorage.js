@@ -24,7 +24,6 @@ import {
 } from './storageKeyBuilder.js';
 
 import {
-    appendContinuityCoreMessage,
     readContinuityCoreMessage,
     writeContinuityCoreMessage,
     readContinuityCoreMessages,
@@ -128,6 +127,56 @@ class PerMessageStorageManager {
     }
 
     // ==========================================
+    // 单条消息提取
+    // ==========================================
+
+    /**
+     * 从单条消息文本中提取并分类模块 raw 字符串
+     * 三层分类：moduleTagModules（contentTag 后）、contentTagModules（contentTag 内）、extraModules（其他位置）
+     * 只存 raw 字符串，读取时由 moduleProcessor 重新解析
+     * @param {string} messageText - 消息原始文本（不经过 processMessageWithContentTags 处理）
+     * @param {string[]} cotTags - 内容标签列表，如 ["content", "game"]
+     * @returns {{ moduleTagModules: string[], contentTagModules: string[], extraModules: string[] }}
+     */
+    extractMessageModules(messageText, cotTags) {
+        const empty = {
+            moduleTagModules: [],
+            contentTagModules: [],
+            extraModules: [],
+        };
+
+        if (!messageText || typeof messageText !== 'string') return empty;
+
+        // 1. 找到 contentTag 区间
+        const contentRanges = this._findContentTagRanges(messageText, cotTags);
+        const lastContentEnd = contentRanges.length > 0
+            ? Math.max(...contentRanges.map(r => r.end))
+            : -1;
+
+        // 2. 用栈找所有顶层模块的 raw + 位置
+        const topLevelModules = this._findTopLevelModuleRanges(messageText);
+
+        // 3. 按位置分类
+        const moduleTagModules = [];
+        const contentTagModules = [];
+        const extraModules = [];
+
+        for (const mod of topLevelModules) {
+            if (contentRanges.length === 0) {
+                moduleTagModules.push(mod.raw);
+            } else if (mod.startIndex >= lastContentEnd) {
+                moduleTagModules.push(mod.raw);
+            } else if (this._isInsideContentRange(mod.startIndex, contentRanges)) {
+                contentTagModules.push(mod.raw);
+            } else {
+                extraModules.push(mod.raw);
+            }
+        }
+
+        return { moduleTagModules, contentTagModules, extraModules };
+    }
+
+    // ==========================================
     // 消息操作
     // ==========================================
 
@@ -158,7 +207,7 @@ class PerMessageStorageManager {
             this.batchSize,
         );
 
-        const result = await readContinuityCoreMessage(filePath, mesId);
+        const result = await readContinuityCoreMessage(filePath, mesId, getBatchStart(mesId, this.batchSize));
         if (result.success && result.data) {
             // 更新缓存
             if (!this.messageCache.has(batchKey)) {
@@ -172,24 +221,62 @@ class PerMessageStorageManager {
     }
 
     /**
-     * 追加新楼层的模块数据
+     * 写入楼层的模块数据（upsert 语义）
      * @param {number} mesId
-     * @param {object} swipeData - { [swipeId]: { inContentModules, extraModules } }
+     * @param {number} activeSwipeId - 写入时 chat[mesId].swipe_id 的值
+     * @param {object} swipesData - { "0": { moduleTagModules, contentTagModules, extraModules }, "1": ... }
+     *   如果只传单个 swipe 数据（含 moduleTagModules 数组），自动包装为 { "0": swipesData }
+     * @param {object} [options] - 可选配置
+     * @param {boolean} [options.merge=false] - 是否与已有 swipes 合并（updateMessage 场景）
+     * @param {boolean} [options.skipEmpty=true] - 新数据为空时跳过（不覆盖已有数据）
      */
-    async appendMessage(mesId, swipeData) {
+    async writeMessage(mesId, activeSwipeId, swipesData, { merge = false, skipEmpty = true } = {}) {
         this._ensureInitialized();
 
-        const data = { mesId, swipes: swipeData };
+        // 兼容：如果传入的是单个 swipe 数据，自动包装
+        let swipes;
+        if (swipesData && Array.isArray(swipesData.moduleTagModules)) {
+            swipes = { [activeSwipeId]: swipesData };
+        } else {
+            swipes = swipesData;
+        }
 
-        // 追加到服务端 JSONL 文件
         const filePath = getMessageBatchPath(
             this.currentChat.characterName,
             this.currentChat.chatFileName,
             mesId,
             this.batchSize,
         );
+        const batchStart = getBatchStart(mesId, this.batchSize);
 
-        await appendContinuityCoreMessage(filePath, data);
+        // 读取已有数据（合并模式或空值保护需要）
+        let existingData = null;
+        if (merge || skipEmpty) {
+            const result = await readContinuityCoreMessage(filePath, mesId, batchStart);
+            if (result.success && result.data) {
+                existingData = result.data;
+            }
+        }
+
+        // 空值保护：新数据为空且已有数据存在时，跳过
+        const hasNewData = Object.values(swipes).some(sd =>
+            sd.moduleTagModules.length > 0
+            || sd.contentTagModules.length > 0
+            || sd.extraModules.length > 0
+        );
+        if (skipEmpty && !hasNewData && existingData) {
+            debugLog('PerMessageStorage', `楼层 ${mesId} 新数据为空，跳过（已有数据保留）`);
+            return;
+        }
+
+        // 合并模式：与已有 swipes 合并
+        let finalSwipes = swipes;
+        if (merge && existingData?.swipes) {
+            finalSwipes = { ...existingData.swipes, ...swipes };
+        }
+
+        const data = { mesId, activeSwipeId, swipes: finalSwipes };
+        await writeContinuityCoreMessage(filePath, mesId, { swipes: finalSwipes, activeSwipeId }, batchStart);
 
         // 更新缓存
         const batchKey = this._getMessageBatchKey(mesId);
@@ -205,61 +292,17 @@ class PerMessageStorageManager {
             this._scheduleMetaSave();
         }
 
-        debugLog('PerMessageStorage', `追加楼层 ${mesId}`);
+        debugLog('PerMessageStorage', `写入楼层 ${mesId}，swipes: ${Object.keys(finalSwipes).join(',')}`);
     }
 
     /**
-     * 更新指定楼层的模块数据
-     * @param {number} mesId
-     * @param {number} swipeId
-     * @param {object} data - { inContentModules, extraModules }
+     * 更新指定楼层的模块数据（合并已有 swipes + 标记脏）
      */
-    async updateMessage(mesId, swipeId, data) {
-        this._ensureInitialized();
-
-        // 读取当前楼层完整数据
-        const batchKey = this._getMessageBatchKey(mesId);
-        let fullData = this.messageCache.get(batchKey)?.get(mesId);
-
-        if (!fullData) {
-            // 从服务端读取
-            const filePath = getMessageBatchPath(
-                this.currentChat.characterName,
-                this.currentChat.chatFileName,
-                mesId,
-                this.batchSize,
-            );
-            const result = await readContinuityCoreMessage(filePath, mesId);
-            if (result.success && result.data) {
-                fullData = result.data;
-            } else {
-                fullData = { mesId, swipes: {} };
-            }
-        }
-
-        // 更新指定 swipe
-        if (!fullData.swipes) fullData.swipes = {};
-        fullData.swipes[swipeId] = data;
-
-        // 写回服务端
-        const filePath = getMessageBatchPath(
-            this.currentChat.characterName,
-            this.currentChat.chatFileName,
-            mesId,
-            this.batchSize,
-        );
-        await writeContinuityCoreMessage(filePath, mesId, { swipes: fullData.swipes });
-
-        // 更新缓存
-        if (!this.messageCache.has(batchKey)) {
-            this.messageCache.set(batchKey, new Map());
-        }
-        this.messageCache.get(batchKey).set(mesId, fullData);
+    async updateMessage(mesId, activeSwipeId, swipesData) {
+        await this.writeMessage(mesId, activeSwipeId, swipesData, { merge: true, skipEmpty: false });
 
         // 标记后续快照为脏
         this._markSnapshotsDirty(mesId);
-
-        debugLog('PerMessageStorage', `更新楼层 ${mesId} swipe ${swipeId}`);
     }
 
     /**
@@ -547,51 +590,26 @@ class PerMessageStorageManager {
     }
 
     /**
-     * 合并 inContentModules 和 extraModules
-     * extraModules 覆盖 inContentModules 中同名模块的变量
+     * 合并三层模块 raw 字符串（去重：同名模块后者覆盖前者）
+     * 返回 raw 字符串数组，顺序：contentTag → moduleTag → extra
      */
     _mergeModules(swipeData) {
-        const inContent = swipeData.inContentModules?.modules || [];
-        const extra = swipeData.extraModules?.source !== 'none'
-            ? (swipeData.extraModules?.modules || [])
-            : [];
+        const moduleTag = swipeData.moduleTagModules || [];
+        const contentTag = swipeData.contentTagModules || [];
+        const extra = swipeData.extraModules || [];
 
-        const merged = new Map();
-
-        for (const mod of inContent) {
-            merged.set(mod.moduleName, { ...mod, source: 'inContent' });
-        }
-
-        for (const mod of extra) {
-            const existing = merged.get(mod.moduleName);
-            if (existing) {
-                // extra 覆盖 inContent 的变量
-                merged.set(mod.moduleName, {
-                    ...existing,
-                    ...mod,
-                    variables: { ...existing.variables, ...mod.variables },
-                    source: 'extra',
-                });
-            } else {
-                merged.set(mod.moduleName, { ...mod, source: 'extra' });
-            }
-        }
-
-        return Array.from(merged.values());
+        // 按优先级合并：contentTag < moduleTag < extra（后者覆盖同名）
+        const allRaws = [...contentTag, ...moduleTag, ...extra];
+        return allRaws;
     }
 
     /**
-     * 将模块数据应用到累积状态
+     * 将模块 raw 字符串应用到累积状态
+     * TODO: Phase 2 实现累积状态逻辑，届时需要解析 raw 提取模块名
      */
-    _applyModulesToState(moduleStates, modules, mesId) {
-        for (const mod of modules) {
-            moduleStates[mod.moduleName] = {
-                lastAppearanceMesId: mesId,
-                identifier: mod.identifier || null,
-                variables: mod.variables || {},
-                source: mod.source || 'unknown',
-            };
-        }
+    _applyModulesToState(moduleStates, raws, mesId) {
+        // Phase 2 实现：解析 raw 字符串，提取模块名和变量，合并到累积状态
+        debugLog('PerMessageStorage', `应用 ${raws.length} 条 raw 到楼层 ${mesId}（Phase 2 待实现）`);
     }
 
     /**
@@ -604,6 +622,91 @@ class PerMessageStorageManager {
             }
             this._scheduleMetaSave();
         }
+    }
+
+    /**
+     * 查找文本中所有 contentTag 区间
+     * @param {string} text
+     * @param {string[]} cotTags
+     * @returns {Array<{ tag: string, start: number, end: number, contentStart: number, contentEnd: number }>}
+     */
+    _findContentTagRanges(text, cotTags) {
+        const ranges = [];
+        if (!cotTags || !Array.isArray(cotTags) || cotTags.length === 0 || !text) return ranges;
+
+        for (const tag of cotTags) {
+            const openTag = `<${tag}>`;
+            const closeTag = `</${tag}>`;
+            let searchFrom = 0;
+
+            while (searchFrom < text.length) {
+                const openIdx = text.indexOf(openTag, searchFrom);
+                if (openIdx === -1) break;
+
+                const closeIdx = text.indexOf(closeTag, openIdx + openTag.length);
+                if (closeIdx === -1) break;
+
+                ranges.push({
+                    tag,
+                    start: openIdx,
+                    end: closeIdx + closeTag.length,
+                    contentStart: openIdx + openTag.length,
+                    contentEnd: closeIdx,
+                });
+
+                searchFrom = closeIdx + closeTag.length;
+            }
+        }
+
+        return ranges.sort((a, b) => a.start - b.start);
+    }
+
+    /**
+     * 检查位置是否在某个 contentTag 区间内
+     */
+    _isInsideContentRange(index, ranges) {
+        for (const range of ranges) {
+            if (index >= range.contentStart && index < range.contentEnd) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 用栈找所有顶层模块的 raw 字符串 + 起始位置
+     * 嵌套模块包含在顶层模块的 raw 内，不单独提取
+     * @param {string} text
+     * @returns {Array<{ raw: string, startIndex: number }>}
+     */
+    _findTopLevelModuleRanges(text) {
+        const results = [];
+        const stack = []; // { start, level }
+
+        for (let i = 0; i < text.length; i++) {
+            if (text[i] === '[') {
+                stack.push({ start: i, level: stack.length });
+            } else if (text[i] === ']' && stack.length > 0) {
+                const frame = stack.pop();
+                const content = text.substring(frame.start + 1, i);
+
+                if (content.includes('|')) {
+                    const pipeIdx = content.indexOf('|');
+                    const name = content.substring(0, pipeIdx).trim();
+
+                    // 模块名不含 : 或 | 才是有效模块
+                    if (!name.includes(':') && !name.includes('|')) {
+                        // 只在栈为空时（顶层）收集
+                        if (stack.length === 0) {
+                            results.push({
+                                raw: text.substring(frame.start, i + 1),
+                                startIndex: frame.start,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return results;
     }
 
     _scheduleMetaSave() {

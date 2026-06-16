@@ -170,7 +170,7 @@ export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFi
  * @param {string} content 包含模块的文本内容
  * @returns {Array} 提取到的所有模块对象，包含嵌套关系信息
  */
-function parseNestedModules(content) {
+export function parseNestedModules(content) {
     const modules = [];
     const stack = [];
     const moduleStack = []; // 用于跟踪嵌套模块层级

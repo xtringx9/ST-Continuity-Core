@@ -491,7 +491,7 @@ function bindDebugButtons(doc) {
             }
         };
 
-        await perMessageStorage.appendMessage(testMesId, swipeData);
+        await perMessageStorage.writeMessage(testMesId, swipeData);
         infoLog(`[Debug-Storage] 追加楼层 ${testMesId}:`, swipeData);
     });
 

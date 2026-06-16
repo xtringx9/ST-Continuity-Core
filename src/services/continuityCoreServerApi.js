@@ -60,12 +60,12 @@ export function appendContinuityCoreMessage(filePath, data, options = {}) {
     return continuityCoreServerRequest('appendMessage', { filePath, data }, options);
 }
 
-export function readContinuityCoreMessage(filePath, mesId, options = {}) {
-    return continuityCoreServerRequest('readMessage', { filePath, mesId }, options);
+export function readContinuityCoreMessage(filePath, mesId, batchStart, options = {}) {
+    return continuityCoreServerRequest('readMessage', { filePath, mesId, batchStart }, options);
 }
 
-export function writeContinuityCoreMessage(filePath, mesId, data, options = {}) {
-    return continuityCoreServerRequest('writeMessage', { filePath, mesId, data }, options);
+export function writeContinuityCoreMessage(filePath, mesId, data, batchStart, options = {}) {
+    return continuityCoreServerRequest('writeMessage', { filePath, mesId, data, batchStart }, options);
 }
 
 export function readContinuityCoreMessages(filePaths, fromMesId, toMesId, options = {}) {

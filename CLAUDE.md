@@ -116,14 +116,17 @@ continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 
     activeSwipeId: 0,           // 写入时 chat[5].swipe_id 的值
     swipes: {
         "0": {
-            moduleTagModules: { modules: [...] },     // [Module|...] 标签内 — 主要
-            contentTagModules: { modules: [...] },    // <content>...</content> 内
-            extraModules: { modules: [...] }          // 其他位置
+            moduleTagModules: ["[Location|name:Tavern]", "[Mood|val:happy]"],  // contentTag 后 — 主要
+            contentTagModules: ["[Inner|val:1]"],                                // <content>...</content> 内
+            extraModules: []                                                      // 其他位置
         },
         "1": { ... }
     }
 }
 ```
+
+- 三层分类只存 raw 字符串数组，不解析内部结构。读取时由 `moduleProcessor` 重新解析 raw
+- 嵌套模块包含在顶层模块的 raw 内，不单独存储
 
 三层分类提取逻辑：
 1. 先找所有 `moduleTag` 区间（`[Module|...]` 到配对结束，考虑嵌套）→ `moduleTagModules`
@@ -170,7 +173,7 @@ asyncModule: {
 | ST 事件 | 存储动作 |
 |---------|---------|
 | `CHAT_CHANGED` | `perMessageStorage.initChat(charName, chatFile)` |
-| `MESSAGE_RECEIVED` | 提取单条 → `appendMessage(mesId, swipeData)` → 检查快照 |
+| `MESSAGE_RECEIVED` | 提取单条 → `writeMessage(mesId, swipeData)` → 检查快照 |
 | `MESSAGE_SENT` | 同上 |
 | `MESSAGE_EDITED` | 提取单条 → `updateMessage(mesId, swipeId, data)` → 标记脏 |
 | `MESSAGE_DELETED` | `deleteMessage(mesId)` → 标记脏 |
@@ -329,6 +332,14 @@ el.addEventListener('dragend', (e) => handleDragEnd(e, doc, e.currentTarget));
 - **异步模式下模块内容判空**：开启异步生成后，模块原始内容可能直接写入存储而非聊天记录。读取时需判空 + 校验内容一致性。细节待实现时细化。
 - **chatIdHash 不可用于分支聊天**：分支聊天的 hash 与主聊天相同，不能作为唯一标识。使用 `charName + chatFile` 组合替代。
 - **异步存储 per-chat 操作按钮迁移**：当前"手动提取当前聊天"和"重建快照"按钮放在异步存储 tab（全局设置），但这些操作本质是 per-chat 的。角色绑定页（Profiles）做好后，应迁移到该页面，异步 tab 只保留全局配置（开关、快照间隔）。
+
+## 后续优化项
+
+- **提取时数据对比**：覆写已有楼层前，对比新旧数据差异，让用户选择保留哪个版本（当前策略：新数据直接覆写旧数据，空数据不覆盖）
+- **提取进度反馈**：提取当前聊天时，长聊天可能耗时较长，应加进度提示（如 toastr 或进度条）
+- **提取楼层输入优化**：改为更友好的 UI（如两个 number input），替代 prompt 弹窗
+- **JSONL 行号与 mesId 对齐**：已实现 — 服务端 `writeMessage`/`readMessage` 支持 `batchStart` 参数，按行号（mesId - batchStart）直接定位读写，铁律：第N行 = mesId - batchStart
+- **`appendMessage` 方法重命名**：已完成 — 改为 `writeMessage`，支持 `{ merge, skipEmpty }` 选项；`updateMessage` 委托给 `writeMessage({ merge: true, skipEmpty: false })`
 
 ## 国际化（i18n）
 

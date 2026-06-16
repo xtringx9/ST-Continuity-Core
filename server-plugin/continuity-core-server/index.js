@@ -184,7 +184,7 @@ export function init(router) {
     // ==========================================
     router.post('/readMessage', async (req, res) => {
         try {
-            const { userHandle, filePath, mesId } = req.body;
+            const { userHandle, filePath, mesId, batchStart } = req.body;
             if (!filePath || mesId === undefined) return res.status(400).json({ error: "缺少参数" });
 
             const absolutePath = getSafePath(userHandle, filePath);
@@ -196,9 +196,26 @@ export function init(router) {
             }
 
             const content = await fs.readFile(absolutePath, 'utf-8');
-            const lines = content.split('\n').filter(l => l.trim());
+            const lines = content.split('\n');
 
+            // 如果提供了 batchStart，按行号直接定位
+            if (batchStart !== undefined && batchStart !== null) {
+                const targetLineIndex = mesId - batchStart;
+                if (targetLineIndex >= 0 && targetLineIndex < lines.length) {
+                    const line = lines[targetLineIndex].trim();
+                    if (line) {
+                        try {
+                            const parsed = JSON.parse(line);
+                            return res.json({ success: true, data: parsed });
+                        } catch { /* 解析失败，继续 */ }
+                    }
+                }
+                return res.json({ success: true, data: null });
+            }
+
+            // 兼容旧逻辑：按 mesId 遍历匹配
             for (const line of lines) {
+                if (!line.trim()) continue;
                 try {
                     const parsed = JSON.parse(line);
                     if (parsed.mesId === mesId) {
@@ -220,7 +237,7 @@ export function init(router) {
     // ==========================================
     router.post('/writeMessage', async (req, res) => {
         try {
-            const { userHandle, filePath, mesId, data } = req.body;
+            const { userHandle, filePath, mesId, data, batchStart } = req.body;
             if (!filePath || mesId === undefined || !data) return res.status(400).json({ error: "缺少参数" });
 
             const absolutePath = getSafePath(userHandle, filePath);
@@ -230,25 +247,65 @@ export function init(router) {
             let lines = [];
             try {
                 const content = await fs.readFile(absolutePath, 'utf-8');
-                lines = content.split('\n').filter(l => l.trim());
+                // 保留空行（空行代表未写入的楼层）
+                lines = content.split('\n');
+                // 移除末尾空行（文件末尾的换行符产生的）
+                while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+                    lines.pop();
+                }
             } catch { /* 文件不存在，创建新文件 */ }
 
-            let found = false;
             const newLine = JSON.stringify({ mesId, ...data });
 
-            for (let i = 0; i < lines.length; i++) {
-                try {
-                    const parsed = JSON.parse(lines[i]);
-                    if (parsed.mesId === mesId) {
-                        lines[i] = newLine;
-                        found = true;
-                        break;
-                    }
-                } catch { /* 跳过 */ }
-            }
+            // 如果提供了 batchStart，按行号定位写入（铁律：第N行 = mesId - batchStart）
+            if (batchStart !== undefined && batchStart !== null) {
+                const targetLineIndex = mesId - batchStart;
 
-            if (!found) {
-                lines.push(newLine);
+                if (targetLineIndex < 0) {
+                    return res.status(400).json({ error: `mesId ${mesId} 小于 batchStart ${batchStart}` });
+                }
+
+                // 用空行填充到目标行
+                while (lines.length <= targetLineIndex) {
+                    lines.push('');
+                }
+
+                lines[targetLineIndex] = newLine;
+            } else {
+                // 兼容旧逻辑：按 mesId 匹配行覆写，找不到则按行号定位
+                let found = false;
+
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+                    try {
+                        const parsed = JSON.parse(lines[i]);
+                        if (parsed.mesId === mesId) {
+                            lines[i] = newLine;
+                            found = true;
+                            break;
+                        }
+                    } catch { /* 跳过 */ }
+                }
+
+                if (!found) {
+                    // 尝试按行号定位（假设文件按 mesId 有序排列）
+                    // 找到第一个空行或超出范围的行
+                    let insertIndex = lines.length;
+                    for (let i = 0; i < lines.length; i++) {
+                        if (lines[i].trim() === '') {
+                            insertIndex = i;
+                            break;
+                        }
+                        try {
+                            const parsed = JSON.parse(lines[i]);
+                            if (parsed.mesId > mesId) {
+                                insertIndex = i;
+                                break;
+                            }
+                        } catch { /* 跳过 */ }
+                    }
+                    lines.splice(insertIndex, 0, newLine);
+                }
             }
 
             await fs.writeFile(absolutePath, lines.join('\n') + '\n', 'utf-8');

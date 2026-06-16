@@ -1,7 +1,7 @@
 // src/ui/extensionSettingsManager.js
 
 import configManager, { extensionFolderPath } from "../singleton/configManager.js";
-import { infoLog, errorLog } from "../utils/logger.js";
+import { infoLog, errorLog, debugLog } from "../utils/logger.js";
 import { removeUIfromContextBottom } from "../core/contextBottomUI.js";
 import {
     addWorldBookToGlobalSettings,
@@ -10,6 +10,8 @@ import {
 } from "../utils/worldBookUtils.js"
 import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
 import { EntryButton } from "../features/entry/EntryButton.js";
+import perMessageStorage from "../services/perMessageStorage.js";
+import { chat, chat_metadata, this_chid, characters, getCurrentChatDetails } from '../../../../../../script.js';
 
 /**
  * Sets the global enabled state of the extension.
@@ -160,23 +162,198 @@ function updateAsyncActionsVisibility(visible) {
 /**
  * 提取当前聊天所有楼层的模块数据到存储
  */
-export function onAsyncExtractChat() {
-    infoLog('[AsyncStorage] 提取当前聊天 — 功能待实现');
-    // TODO: 调用 perMessageStorage 提取整个聊天
+export async function onAsyncExtractChat() {
+    try {
+        if (!chat || chat.length === 0) {
+            toastr.warning('没有打开的聊天');
+            return;
+        }
+
+        const charName = _getCurrentCharName();
+        const chatFile = _getCurrentChatFileName();
+        if (!charName || !chatFile) {
+            toastr.warning('无法获取当前聊天信息');
+            return;
+        }
+
+        const chatIdHash = _getCurrentChatIdHash();
+        const cotTags = configManager.getGlobalSettings().cotTags || [];
+
+        infoLog(`[AsyncStorage] 开始提取当前聊天: ${charName} / ${chatFile}, 共 ${chat.length} 条消息`);
+
+        // 初始化存储
+        await perMessageStorage.initChat(charName, chatFile, chatIdHash);
+
+        let extractedCount = 0;
+        for (let i = 0; i < chat.length; i++) {
+            const message = chat[i];
+            if (!message || (message.mes === undefined && message.content === undefined)) continue;
+
+            const activeSwipeId = message.swipe_id ?? 0;
+            const swipesData = _extractAllSwipes(message, cotTags);
+
+            // 检查是否有任何 swipe 含模块数据
+            const hasModules = Object.values(swipesData).some(sd =>
+                sd.moduleTagModules.length > 0
+                || sd.contentTagModules.length > 0
+                || sd.extraModules.length > 0
+            );
+
+            if (hasModules) {
+                await perMessageStorage.writeMessage(i, activeSwipeId, swipesData);
+                extractedCount++;
+            }
+        }
+
+        infoLog(`[AsyncStorage] 提取完成: ${extractedCount} 条消息含模块数据`);
+        toastr.success(`提取完成，${extractedCount} 条消息含模块数据`);
+    } catch (err) {
+        errorLog('[AsyncStorage] 提取当前聊天失败:', err);
+        toastr.error('提取失败，请查看控制台');
+    }
 }
 
 /**
  * 提取指定楼层的模块数据到存储
  */
-export function onAsyncExtractFloor() {
-    infoLog('[AsyncStorage] 提取指定楼层 — 功能待实现');
-    // TODO: 弹窗输入楼层范围，调用 perMessageStorage 提取
+export async function onAsyncExtractFloor() {
+    const input = prompt('输入楼层范围，楼层从0开始（如 5 或 5-10）:');
+    if (!input) return;
+
+    try {
+        let from, to;
+        if (input.includes('-')) {
+            const parts = input.split('-').map(s => parseInt(s.trim(), 10));
+            if (parts.length !== 2 || parts.some(isNaN)) {
+                toastr.warning('格式错误，请输入如 5 或 5-10');
+                return;
+            }
+            [from, to] = parts;
+        } else {
+            from = to = parseInt(input, 10);
+            if (isNaN(from)) {
+                toastr.warning('格式错误，请输入如 5 或 5-10');
+                return;
+            }
+        }
+
+        if (!chat || chat.length === 0) {
+            toastr.warning('没有打开的聊天');
+            return;
+        }
+
+        from = Math.max(0, from);
+        to = Math.min(chat.length - 1, to);
+
+        const charName = _getCurrentCharName();
+        const chatFile = _getCurrentChatFileName();
+        const chatIdHash = _getCurrentChatIdHash();
+        const cotTags = configManager.getGlobalSettings().cotTags || [];
+
+        await perMessageStorage.initChat(charName, chatFile, chatIdHash);
+
+        let extractedCount = 0;
+        for (let i = from; i <= to; i++) {
+            const message = chat[i];
+            if (!message || (message.mes === undefined && message.content === undefined)) continue;
+
+            const activeSwipeId = message.swipe_id ?? 0;
+            const swipesData = _extractAllSwipes(message, cotTags);
+
+            const hasModules = Object.values(swipesData).some(sd =>
+                sd.moduleTagModules.length > 0
+                || sd.contentTagModules.length > 0
+                || sd.extraModules.length > 0
+            );
+
+            if (hasModules) {
+                await perMessageStorage.updateMessage(i, activeSwipeId, swipesData);
+                extractedCount++;
+            }
+        }
+
+        infoLog(`[AsyncStorage] 提取楼层 ${from}-${to} 完成: ${extractedCount} 条含模块`);
+        toastr.success(`提取完成，${extractedCount} 条消息含模块数据`);
+    } catch (err) {
+        errorLog('[AsyncStorage] 提取指定楼层失败:', err);
+        toastr.error('提取失败，请查看控制台');
+    }
 }
 
 /**
  * 从脏标记层开始重建累积状态快照
  */
-export function onAsyncRebuildSnapshots() {
-    infoLog('[AsyncStorage] 重建快照 — 功能待实现');
-    // TODO: 调用 perMessageStorage 重建快照
+export async function onAsyncRebuildSnapshots() {
+    try {
+        if (!perMessageStorage.currentChat) {
+            toastr.warning('请先提取聊天数据');
+            return;
+        }
+
+        const meta = perMessageStorage.metaCache;
+        if (!meta) {
+            toastr.info('无 meta 数据，无需重建');
+            return;
+        }
+
+        const dirtyFrom = meta.dirtyFromMesId;
+        if (dirtyFrom === null || dirtyFrom === undefined) {
+            toastr.info('快照均为最新，无需重建');
+            return;
+        }
+
+        infoLog(`[AsyncStorage] 从楼层 ${dirtyFrom} 开始重建快照`);
+        // TODO: 实现快照重建逻辑（Phase 3）
+        toastr.info('快照重建功能将在后续阶段实现');
+    } catch (err) {
+        errorLog('[AsyncStorage] 重建快照失败:', err);
+        toastr.error('重建失败，请查看控制台');
+    }
+}
+
+// ==========================================
+// 内部辅助
+// ==========================================
+
+function _getCurrentCharName() {
+    const details = getCurrentChatDetails();
+    return details?.characterName || null;
+}
+
+function _getCurrentChatFileName() {
+    const details = getCurrentChatDetails();
+    return details?.sessionName || null;
+}
+
+function _getCurrentChatIdHash() {
+    return `${chat_metadata?.chat_id || ''}_${chat_metadata?.chat_id_hash || ''}`;
+}
+
+/**
+ * 从消息中提取所有 swipe 的模块数据
+ * ST 消息结构：mes（当前swipe文本）、swipes（所有swipe文本数组）、swipe_id（当前索引）
+ * @param {object} message - ST 聊天消息对象
+ * @param {string[]} cotTags - 内容标签列表
+ * @returns {Object<string, { moduleTagModules: string[], contentTagModules: string[], extraModules: string[] }>}
+ */
+function _extractAllSwipes(message, cotTags) {
+    const swipesData = {};
+
+    // 如果有 swipes 数组，提取所有 swipe
+    if (Array.isArray(message.swipes) && message.swipes.length > 0) {
+        for (let si = 0; si < message.swipes.length; si++) {
+            const swipeText = message.swipes[si];
+            if (swipeText) {
+                swipesData[si] = perMessageStorage.extractMessageModules(swipeText, cotTags);
+            }
+        }
+    } else {
+        // 无 swipes 数组，只提取 mes
+        const rawText = message.mes !== undefined ? message.mes : message.content;
+        if (rawText) {
+            swipesData[0] = perMessageStorage.extractMessageModules(rawText, cotTags);
+        }
+    }
+
+    return swipesData;
 }
