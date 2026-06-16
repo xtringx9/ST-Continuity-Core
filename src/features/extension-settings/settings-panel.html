@@ -67,6 +67,83 @@
                                 style="width:auto;" data-i18n="ccore_settings_async_rebuild_snapshots">重建快照</button>
                         </div>
                         <small data-i18n="ccore_settings_async_rebuild_snapshots_hint">从脏标记层开始重建累积状态快照。</small>
+
+                        <hr style="border-color: var(--SmartThemeEmColor); margin: 10px 0;">
+                        <h4 style="margin: 0 0 6px 0; color: var(--SmartThemeQuoteColor);" data-i18n="ccore_settings_ai_generation_title">AI 生成模块</h4>
+                        <div class="continuity-form-row" style="margin-top: 6px;">
+                            <label for="continuity_generation_mode" class="continuity-form-label" data-i18n="ccore_settings_generation_mode">生成模式:</label>
+                            <select id="continuity_generation_mode" class="continuity-form-input">
+                                <option value="pipeline" data-i18n="ccore_option_pipeline">走 ST 管线</option>
+                                <option value="raw" data-i18n="ccore_option_raw">自定义提示词</option>
+                            </select>
+                        </div>
+                        <small data-i18n="ccore_settings_generation_mode_hint">管线模式使用 ST 的角色卡/世界书/预设；自定义模式完全自定义提示词。</small>
+
+                        <div id="continuity_raw_settings" style="display:none; margin-top: 6px;">
+                            <div class="continuity-form-row">
+                                <label for="continuity_raw_system_prompt" class="continuity-form-label" data-i18n="ccore_settings_raw_system_prompt">系统提示词:</label>
+                            </div>
+                            <textarea id="continuity_raw_system_prompt" rows="3" class="continuity-form-input" style="width:100%;resize:vertical;" placeholder="你是一个模块数据提取助手..."></textarea>
+                            <div class="continuity-form-row" style="margin-top: 4px;">
+                                <label for="continuity_raw_user_prompt" class="continuity-form-label" data-i18n="ccore_settings_raw_user_prompt">用户提示词模板:</label>
+                            </div>
+                            <textarea id="continuity_raw_user_prompt" rows="3" class="continuity-form-input" style="width:100%;resize:vertical;" placeholder="留空则使用楼层原文"></textarea>
+                        </div>
+
+                        <div id="continuity_pipeline_settings" style="margin-top: 6px;">
+                            <div class="continuity-form-row">
+                                <label for="continuity_pipeline_modifier" class="continuity-form-label" data-i18n="ccore_settings_pipeline_modifier">追加指令:</label>
+                            </div>
+                            <textarea id="continuity_pipeline_modifier" rows="3" class="continuity-form-input" style="width:100%;resize:vertical;" placeholder="追加到提示词末尾的指令（留空则不追加）"></textarea>
+                        </div>
+
+                        <details style="margin-top: 8px;">
+                            <summary style="cursor:pointer; color: var(--SmartThemeQuoteColor);" data-i18n="ccore_settings_custom_api_summary">独立 API 配置（可选）</summary>
+                            <div style="margin-top: 6px;">
+                                <small data-i18n="ccore_settings_custom_api_hint">留空则使用 ST 当前配置的 API。填写后生成时使用独立 API，不影响主对话。</small>
+                                <div class="continuity-form-row" style="margin-top: 4px;">
+                                    <label for="continuity_custom_api_url" class="continuity-form-label">API URL:</label>
+                                    <input id="continuity_custom_api_url" type="text" class="continuity-form-input" placeholder="https://api.openai.com/v1" />
+                                </div>
+                                <div class="continuity-form-row">
+                                    <label for="continuity_custom_api_key" class="continuity-form-label">API Key:</label>
+                                    <input id="continuity_custom_api_key" type="password" class="continuity-form-input" placeholder="sk-..." />
+                                </div>
+                                <div class="continuity-form-row">
+                                    <label for="continuity_custom_api_model" class="continuity-form-label">模型:</label>
+                                    <input id="continuity_custom_api_model" type="text" class="continuity-form-input" placeholder="gpt-4o-mini" />
+                                </div>
+                                <div class="continuity-form-row">
+                                    <label for="continuity_custom_api_source" class="continuity-form-label">API 类型:</label>
+                                    <select id="continuity_custom_api_source" class="continuity-form-input">
+                                        <option value="openai">OpenAI</option>
+                                        <option value="claude">Claude</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                </div>
+                                <div class="continuity-form-row">
+                                    <label for="continuity_custom_api_temperature" class="continuity-form-label">Temperature:</label>
+                                    <input id="continuity_custom_api_temperature" type="number" min="0" max="2" step="0.1" class="continuity-form-input" />
+                                </div>
+                                <div class="continuity-form-row">
+                                    <label for="continuity_custom_api_max_tokens" class="continuity-form-label">Max Tokens:</label>
+                                    <input id="continuity_custom_api_max_tokens" type="number" min="1" max="32000" class="continuity-form-input" />
+                                </div>
+                            </div>
+                        </details>
+
+                        <div class="example-extension_block" style="margin: 6px 0;">
+                            <input id="continuity_show_debug" type="checkbox" checked />
+                            <label for="continuity_show_debug" data-i18n="ccore_settings_show_debug">生成后显示调试面板</label>
+                        </div>
+
+                        <div class="example-extension_block" style="margin: 8px 0;">
+                            <button id="continuity_ai_generate_floor" type="button" class="menu_button"
+                                style="width:auto;" data-i18n="ccore_settings_ai_generate_floor">AI 生成指定楼层</button>
+                            <button id="continuity_ai_generate_chat" type="button" class="menu_button"
+                                style="width:auto; margin-left: 6px;" data-i18n="ccore_settings_ai_generate_chat">AI 生成当前聊天</button>
+                        </div>
+                        <small data-i18n="ccore_settings_ai_generation_hint">调用 AI 为指定楼层生成模块数据并写入存储。</small>
                     </div>
                 </div>
                 

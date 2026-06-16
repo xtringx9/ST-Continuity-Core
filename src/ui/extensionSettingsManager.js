@@ -11,6 +11,7 @@ import {
 import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
 import { EntryButton } from "../features/entry/EntryButton.js";
 import perMessageStorage from "../services/perMessageStorage.js";
+import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { chat, chat_metadata, this_chid, characters, getCurrentChatDetails } from '../../../../../../script.js';
 
 /**
@@ -38,6 +39,25 @@ export function loadSettingsToUI() {
     const asyncModule = extensionConfig.asyncModule || {};
     $("#continuity_async_enabled").prop("checked", asyncModule.enabled || false);
     $("#continuity_snapshot_interval").val(asyncModule.snapshotInterval || 5);
+
+    // AI 生成设置
+    $("#continuity_generation_mode").val(asyncModule.generationMode || 'pipeline');
+    $("#continuity_raw_system_prompt").val(asyncModule.rawSystemPrompt || '');
+    $("#continuity_raw_user_prompt").val(asyncModule.rawUserPromptTemplate || '');
+    $("#continuity_pipeline_modifier").val(asyncModule.pipelineModifier || '');
+    $("#continuity_show_debug").prop("checked", asyncModule.showDebug !== false);
+
+    // 独立 API 设置
+    const customApi = asyncModule.customApi || {};
+    $("#continuity_custom_api_url").val(customApi.apiurl || '');
+    $("#continuity_custom_api_key").val(customApi.key || '');
+    $("#continuity_custom_api_model").val(customApi.model || '');
+    $("#continuity_custom_api_source").val(customApi.source || 'openai');
+    $("#continuity_custom_api_temperature").val(customApi.temperature ?? 0.3);
+    $("#continuity_custom_api_max_tokens").val(customApi.max_tokens ?? 500);
+
+    // 根据生成模式显示/隐藏对应设置
+    _updateGenerationModeVisibility(asyncModule.generationMode || 'pipeline');
 
     updateExtensionUIState(extensionConfig.enabled);
 }
@@ -317,12 +337,12 @@ export async function onAsyncRebuildSnapshots() {
 
 function _getCurrentCharName() {
     const details = getCurrentChatDetails();
-    return details?.characterName || null;
+    return details?.characterName || '';
 }
 
 function _getCurrentChatFileName() {
     const details = getCurrentChatDetails();
-    return details?.sessionName || null;
+    return details?.sessionName ?? '';
 }
 
 function _getCurrentChatIdHash() {
@@ -356,4 +376,173 @@ function _extractAllSwipes(message, cotTags) {
     }
 
     return swipesData;
+}
+
+// ==========================================
+// AI 生成相关函数
+// ==========================================
+
+/**
+ * 根据生成模式显示/隐藏对应设置区域
+ */
+function _updateGenerationModeVisibility(mode) {
+    $('#continuity_raw_settings').toggle(mode === 'raw');
+    $('#continuity_pipeline_settings').toggle(mode === 'pipeline');
+}
+
+/**
+ * 从 UI 读取 AI 生成配置
+ */
+function _getAiGenerationOptions() {
+    const extensionConfig = configManager.getExtensionConfig();
+    const asyncModule = extensionConfig.asyncModule || {};
+    const cotTags = configManager.getGlobalSettings().cotTags || [];
+
+    const customApi = {};
+    const apiUrl = $('#continuity_custom_api_url').val()?.trim();
+    if (apiUrl) {
+        customApi.apiurl = apiUrl;
+        customApi.key = $('#continuity_custom_api_key').val()?.trim() || '';
+        customApi.model = $('#continuity_custom_api_model').val()?.trim() || '';
+        customApi.source = $('#continuity_custom_api_source').val() || 'openai';
+        customApi.temperature = parseFloat($('#continuity_custom_api_temperature').val()) || 0.3;
+        customApi.max_tokens = parseInt($('#continuity_custom_api_max_tokens').val(), 10) || 500;
+    }
+
+    return {
+        mode: $('#continuity_generation_mode').val() || 'pipeline',
+        customApi: Object.keys(customApi).length > 0 ? customApi : null,
+        rawSystemPrompt: $('#continuity_raw_system_prompt').val()?.trim() || '',
+        rawUserPrompt: $('#continuity_raw_user_prompt').val()?.trim() || '',
+        pipelineModifier: $('#continuity_pipeline_modifier').val()?.trim() || '',
+        cotTags,
+        showDebug: $('#continuity_show_debug').prop('checked'),
+    };
+}
+
+/**
+ * 保存 AI 生成配置到 extensionConfig
+ */
+function _saveAiGenerationConfig() {
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.asyncModule = extensionConfig.asyncModule || {};
+
+    extensionConfig.asyncModule.generationMode = $('#continuity_generation_mode').val() || 'pipeline';
+    extensionConfig.asyncModule.rawSystemPrompt = $('#continuity_raw_system_prompt').val()?.trim() || '';
+    extensionConfig.asyncModule.rawUserPromptTemplate = $('#continuity_raw_user_prompt').val()?.trim() || '';
+    extensionConfig.asyncModule.pipelineModifier = $('#continuity_pipeline_modifier').val()?.trim() || '';
+    extensionConfig.asyncModule.showDebug = $('#continuity_show_debug').prop('checked');
+
+    extensionConfig.asyncModule.customApi = {
+        apiurl: $('#continuity_custom_api_url').val()?.trim() || '',
+        key: $('#continuity_custom_api_key').val()?.trim() || '',
+        model: $('#continuity_custom_api_model').val()?.trim() || '',
+        source: $('#continuity_custom_api_source').val() || 'openai',
+        temperature: parseFloat($('#continuity_custom_api_temperature').val()) || 0.3,
+        max_tokens: parseInt($('#continuity_custom_api_max_tokens').val(), 10) || 500,
+    };
+
+    configManager.setExtensionConfig(extensionConfig);
+}
+
+/**
+ * 生成模式切换
+ */
+export function onGenerationModeChange(event) {
+    const mode = $(event.target).val();
+    _updateGenerationModeVisibility(mode);
+    _saveAiGenerationConfig();
+}
+
+/**
+ * AI 生成配置字段变更（通用）
+ */
+export function onAiConfigChange() {
+    _saveAiGenerationConfig();
+}
+
+/**
+ * AI 生成指定楼层
+ */
+export async function onAiGenerateFloor() {
+    const input = prompt('输入楼层范围，楼层从0开始（如 5 或 5-10）:');
+    if (!input) return;
+
+    try {
+        let from, to;
+        if (input.includes('-')) {
+            const parts = input.split('-').map(s => parseInt(s.trim(), 10));
+            if (parts.length !== 2 || parts.some(isNaN)) {
+                toastr.warning('格式错误，请输入如 5 或 5-10');
+                return;
+            }
+            [from, to] = parts;
+        } else {
+            from = to = parseInt(input, 10);
+            if (isNaN(from)) {
+                toastr.warning('格式错误，请输入如 5 或 5-10');
+                return;
+            }
+        }
+
+        if (!chat || chat.length === 0) {
+            toastr.warning('没有打开的聊天');
+            return;
+        }
+
+        from = Math.max(0, from);
+        to = Math.min(chat.length - 1, to);
+
+        const charName = _getCurrentCharName();
+        const chatFile = _getCurrentChatFileName();
+        const chatIdHash = _getCurrentChatIdHash();
+
+        await perMessageStorage.initChat(charName, chatFile, chatIdHash);
+
+        const options = _getAiGenerationOptions();
+        infoLog(`[AiGenerate] 开始 AI 生成楼层 ${from}-${to}，模式: ${options.mode}`);
+
+        // 构建楼层 ID 列表，只做一次 AI 调用
+        const mesIds = [];
+        for (let i = from; i <= to; i++) mesIds.push(i);
+
+        const result = await moduleAiGenerator.generate(mesIds, options);
+
+        toastr.success(result.success ? 'AI 生成完成' : 'AI 回复中未提取到模块数据');
+    } catch (err) {
+        errorLog('[AiGenerate] AI 生成失败:', err);
+        toastr.error('AI 生成失败，请查看控制台');
+    }
+}
+
+/**
+ * AI 生成当前聊天所有楼层
+ */
+export async function onAiGenerateChat() {
+    try {
+        if (!chat || chat.length === 0) {
+            toastr.warning('没有打开的聊天');
+            return;
+        }
+
+        const charName = _getCurrentCharName();
+        const chatFile = _getCurrentChatFileName();
+        const chatIdHash = _getCurrentChatIdHash();
+
+        await perMessageStorage.initChat(charName, chatFile, chatIdHash);
+
+        const options = _getAiGenerationOptions();
+        infoLog(`[AiGenerate] 开始 AI 生成当前聊天，共 ${chat.length} 条消息，模式: ${options.mode}`);
+
+        // 构建楼层 ID 列表，只做一次 AI 调用
+        const mesIds = [];
+        for (let i = 0; i < chat.length; i++) mesIds.push(i);
+
+        const result = await moduleAiGenerator.generate(mesIds, options);
+
+        toastr.success(result.success ? 'AI 生成完成' : 'AI 回复中未提取到模块数据');
+    } catch (err) {
+        errorLog('[AiGenerate] AI 生成失败:', err);
+        toastr.error('AI 生成失败，请查看控制台');
+    }
 }

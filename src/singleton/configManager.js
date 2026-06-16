@@ -22,6 +22,19 @@ export const DEFAULT_EXTENSION_CONFIG = {
     asyncModule: {
         enabled: false, // 异步模块存储（需服务器插件）
         snapshotInterval: 5, // 快照间隔（层）
+        generationMode: 'pipeline', // AI 生成模式: 'pipeline' | 'raw'
+        customApi: { // 独立 API 配置（留空则使用 ST 主 API）
+            apiurl: '',
+            key: '',
+            model: '',
+            source: 'openai',
+            temperature: 0.3,
+            max_tokens: 500,
+        },
+        rawSystemPrompt: '', // raw 模式的系统提示词
+        rawUserPromptTemplate: '', // raw 模式的用户提示词模板
+        pipelineModifier: '', // pipeline 模式追加的指令
+        showDebug: true, // 生成后是否显示调试面板
     },
 };
 

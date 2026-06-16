@@ -46,6 +46,8 @@ src/services/             # 外部集成
   continuityCoreServerApi.js  #   ST 服务端插件客户端（保存/读取/列表/删除/追加/快照/迁移）
   storageKeyBuilder.js        #   存储路径构建工具（符号处理与后端一致）
   perMessageStorage.js        #   每楼层模块数据存储管理器（单例）
+  aiCaller.js                 #   AI 调用封装（raw/pipeline 两种模式 + 独立 API + debug 事件）
+  moduleAiGenerator.js        #   模块 AI 生成器（构建提示词 + 调用 aiCaller + 解析响应 + 存储）
 src/utils/                # 工具函数
   logger.js               #   日志（debugLog/infoLog/warnLog/errorLog）
   regexUtils.js           #   正则扩展集成
@@ -57,6 +59,7 @@ src/utils/                # 工具函数
   variableReplacer.js     #   变量替换
 src/ui/                   # UI 管理
   extensionSettingsManager.js  # 扩展设置面板逻辑
+  generatorDebugPanel.js       # AI 生成调试弹窗（提示词/响应展示 + 复制按钮）
 src/shared/               # 可复用 UI 组件
   IframeDialog.js, IframeModal.js
 locales/                  # 翻译资源（ST 标准 i18n）
@@ -160,13 +163,52 @@ meta.json 格式：
 asyncModule: {
     enabled: false,              // 异步模块存储（需服务器插件）
     snapshotInterval: 5,         // 快照间隔（层）
+    generationMode: 'pipeline',  // AI 生成模式: 'pipeline' | 'raw'
+    customApi: {                 // 独立 API 配置（留空则使用 ST 主 API）
+        apiurl: '',
+        key: '',
+        model: '',
+        source: 'openai',
+        temperature: 0.3,
+        max_tokens: 500,
+    },
+    rawSystemPrompt: '',         // raw 模式的系统提示词
+    rawUserPromptTemplate: '',   // raw 模式的用户提示词模板
+    pipelineModifier: '',        // pipeline 模式追加的指令
+    showDebug: true,             // 生成后是否显示调试面板
 }
 ```
 
 - `enabled`：开启后，非正文模块异步生成 + 分开存储，需安装服务器插件
 - `snapshotInterval`：快照间隔，默认5层，一般不需修改
+- `generationMode`：AI 生成模式
+  - `pipeline`：走 ST 完整管线（角色卡/世界书/预设），通过 `CHAT_COMPLETION_PROMPT_READY` 事件拦截修改提示词
+  - `raw`：完全自定义提示词，通过 `generateRaw` 调用
+- `customApi`：独立 API 配置，通过 `CHAT_COMPLETION_SETTINGS_READY` 事件拦截替换 API 参数
+- `rawSystemPrompt`/`rawUserPromptTemplate`：raw 模式的提示词模板
+- `pipelineModifier`：pipeline 模式追加到提示词末尾的指令
+- `showDebug`：生成后是否弹出调试面板（展示提示词/响应/提取结果 + 复制按钮）
 - `BATCH_SIZE = 100`：内部常量，不暴露给用户
 - 关闭 `enabled` 时，行为与现有全量同步处理完全一致
+
+### AI 调用架构
+
+```
+moduleAiGenerator（高层业务）
+  ├── generateForMessage(mesId)      — 单条生成
+  ├── generateForRange(from, to)     — 批量逐条生成
+  └── generateForMultipleMessages(ids) — 合并生成（多条消息一次调用）
+        │
+        ▼
+aiCaller（底层调用）
+  ├── mode: 'raw'     → generateRaw + CHAT_COMPLETION_PROMPT_READY 拦截
+  ├── mode: 'pipeline' → generateQuietPrompt + CHAT_COMPLETION_PROMPT_READY 拦截
+  └── customApi       → CHAT_COMPLETION_SETTINGS_READY 拦截替换 API
+        │
+        ▼
+generatorDebugPanel（调试弹窗）
+  └── 展示提示词/响应/提取结果 + 复制按钮（支持多个弹窗同时存在）
+```
 
 ### 存储集成事件映射
 
@@ -329,6 +371,7 @@ el.addEventListener('dragend', (e) => handleDragEnd(e, doc, e.currentTarget));
 ## 待确认项
 
 - **聊天重命名事件**：ST 没有 `CHAT_RENAMED` 事件。重命名后触发 `reloadCurrentChat()` → `CHAT_CHANGED`。需通过对比存储路径与新路径间接检测重命名。具体检测方案待定。
+- **角色重命名事件**：角色重命名后，存储路径中的 `safeCharName` 会变化，需迁移整个角色目录。检测方案同聊天重命名（对比存储路径）。
 - **异步模式下模块内容判空**：开启异步生成后，模块原始内容可能直接写入存储而非聊天记录。读取时需判空 + 校验内容一致性。细节待实现时细化。
 - **chatIdHash 不可用于分支聊天**：分支聊天的 hash 与主聊天相同，不能作为唯一标识。使用 `charName + chatFile` 组合替代。
 - **异步存储 per-chat 操作按钮迁移**：当前"手动提取当前聊天"和"重建快照"按钮放在异步存储 tab（全局设置），但这些操作本质是 per-chat 的。角色绑定页（Profiles）做好后，应迁移到该页面，异步 tab 只保留全局配置（开关、快照间隔）。

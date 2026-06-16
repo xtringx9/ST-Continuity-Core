@@ -11,6 +11,10 @@ import {
     onAsyncExtractChat,
     onAsyncExtractFloor,
     onAsyncRebuildSnapshots,
+    onGenerationModeChange,
+    onAiConfigChange,
+    onAiGenerateFloor,
+    onAiGenerateChat,
     loadSettingsToUI,
 } from '../../ui/extensionSettingsManager.js';
 import { sendToBackend } from '../../services/backendService.js';
@@ -67,6 +71,21 @@ export class SettingsPanel {
         $('#continuity_async_extract_chat').on('click', onAsyncExtractChat);
         $('#continuity_async_extract_floor').on('click', onAsyncExtractFloor);
         $('#continuity_async_rebuild_snapshots').on('click', onAsyncRebuildSnapshots);
+
+        // AI 生成相关事件
+        $('#continuity_generation_mode').on('change', onGenerationModeChange);
+        $('#continuity_raw_system_prompt').on('input', onAiConfigChange);
+        $('#continuity_raw_user_prompt').on('input', onAiConfigChange);
+        $('#continuity_pipeline_modifier').on('input', onAiConfigChange);
+        $('#continuity_show_debug').on('input', onAiConfigChange);
+        $('#continuity_custom_api_url').on('input', onAiConfigChange);
+        $('#continuity_custom_api_key').on('input', onAiConfigChange);
+        $('#continuity_custom_api_model').on('input', onAiConfigChange);
+        $('#continuity_custom_api_source').on('change', onAiConfigChange);
+        $('#continuity_custom_api_temperature').on('input', onAiConfigChange);
+        $('#continuity_custom_api_max_tokens').on('input', onAiConfigChange);
+        $('#continuity_ai_generate_floor').on('click', onAiGenerateFloor);
+        $('#continuity_ai_generate_chat').on('click', onAiGenerateChat);
 
         $('.continuity-tab-btn').on('click', function () {
             const tabId = $(this).data('tab');

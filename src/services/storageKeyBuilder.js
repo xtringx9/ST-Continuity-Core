@@ -21,7 +21,7 @@ export function getSafeCharName(characterName) {
  * @returns {string} - 如 "[user]CharName-Main- 2025-01-01_jsonl"
  */
 export function getSafeFileName(chatFileName) {
-    const baseName = chatFileName.replace(/\.jsonl$/i, '');
+    const baseName = (chatFileName || 'unknown').replace(/\.jsonl$/i, '');
     return baseName.replace(/\./g, '_');
 }
 
