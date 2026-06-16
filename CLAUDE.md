@@ -81,12 +81,13 @@ continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 
 4. **注入** — `macroManager` 注册 `{{CONTINUITY_PROMPT}}`、`{{CONTINUITY_ORDER}}`、`{{CONTINUITY_USAGE_GUIDE}}`、`{{CONTINUITY_MODULE_DATA}}`、逐消息 `{{CONTINUITY_MSG_MODULE_N}}` 宏；`promptInjector` 监听 `CHAT_COMPLETION_PROMPT_READY` 事件
 5. **UI** — `contextBottomUI` 渲染 3 种目标：上下文底部汇总、.mes_text 后的消息块、.mes_text 内的行内替换
 
-### 每楼层存储流程（开发中）
+### 每楼层存储流程
 1. **路径构建** — `storageKeyBuilder` 生成与后端一致的存储路径（`chats/{safeCharName}/{safeFileName}/messages/{batch}.jsonl`）
 2. **写入** — `perMessageStorage` 通过服务端插件将每楼层的模块数据追加到批量 JSONL 文件（每100层一个文件）
-3. **快照** — 每5层自动生成累积状态快照，存入 `snapshots/{batch}.json`，加速后续读取
+3. **快照** — 每 N 层（默认5）自动生成累积状态快照，存入 `snapshots/{batch}.json`，加速后续读取
 4. **读取** — 先查最近快照，再增量计算从快照到目标楼层的累积状态
-5. **迁移** — 聊天文件重命名时，通过 `moveChat` 接口自动迁移存储目录
+5. **迁移** — 聊天文件重命名时，通过 `moveChat` 接口自动迁移存储目录（Phase 3）
+6. **脏检测** — 切换 swipe 或编辑消息后，标记从该层起快照为脏；下次读取时按需重建
 
 ## 关键概念
 
@@ -96,13 +97,101 @@ continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 
 - **时间参考标准**：指定某个模块的时间作为同一消息中其他模块的时间参考
 - **变量**：模块内的字段，可设为主标识符、备用标识符、隐藏条件、不规范化
 
-### 存储层概念（开发中）
+### 存储层概念
 - **批量 JSONL**：每100层楼层的模块数据存储在一个 `.jsonl` 文件中，每行一条消息数据
-- **快照**：累积状态的检查点，每5层自动生成，存储在 `snapshots/` 目录下的 JSON 文件中
+- **快照**：累积状态的检查点，每 N 层（默认5，可配置）自动生成，存储在 `snapshots/` 目录下的 JSON 文件中
 - **累积状态**：从第0层到目标楼层的所有模块数据的合并结果
 - **符号处理**：角色名和文件名中的 `.` 替换为 `_`，与后端保持一致
 - **存储路径**：`chats/{safeCharName}/{safeFileName}/`，与 ST 的 `data/default-user/chats/` 结构对齐
 - **聊天标识**：`{safeCharName}::{safeFileName}` 作为唯一标识，Branch 聊天因文件名不同而自动隔离
+- **脏检测**：`meta.json` 记录 `dirtyFrom`（null=干净，数字=从该层起脏），切换 swipe 或编辑消息时标记；读取时按需重建受影响的快照
+- **Swipe 支持**：每条消息存储 `activeSwipeId`（写入时 `chat[mesId].swipe_id` 的值），用于脏检测（对比存储值与当前值是否一致）
+
+### 存储数据结构
+
+单条消息存储格式：
+```javascript
+{
+    mesId: 5,
+    activeSwipeId: 0,           // 写入时 chat[5].swipe_id 的值
+    swipes: {
+        "0": {
+            moduleTagModules: { modules: [...] },     // [Module|...] 标签内 — 主要
+            contentTagModules: { modules: [...] },    // <content>...</content> 内
+            extraModules: { modules: [...] }          // 其他位置
+        },
+        "1": { ... }
+    }
+}
+```
+
+三层分类提取逻辑：
+1. 先找所有 `moduleTag` 区间（`[Module|...]` 到配对结束，考虑嵌套）→ `moduleTagModules`
+2. `contentTag` 内但 `moduleTag` 外 → `contentTagModules`
+3. 其余位置 → `extraModules`
+
+快照存储格式（不含 activeSwipeId，swipe 信息从聊天记录实时读取）：
+```javascript
+{
+    mesId: 10,
+    moduleStates: { ... }       // 累积模块状态
+}
+```
+
+meta.json 格式：
+```javascript
+{
+    charName: "...",
+    chatFile: "...",
+    totalMessages: 100,
+    lastSnapshotMesId: 50,
+    dirtyFrom: null             // null = 干净，数字 = 从该层起脏
+}
+```
+
+### 异步模块存储配置
+
+存储在 `extension_config.asyncModule` 中（扩展级，非模块级）：
+
+```javascript
+asyncModule: {
+    enabled: false,              // 异步模块存储（需服务器插件）
+    snapshotInterval: 5,         // 快照间隔（层）
+}
+```
+
+- `enabled`：开启后，非正文模块异步生成 + 分开存储，需安装服务器插件
+- `snapshotInterval`：快照间隔，默认5层，一般不需修改
+- `BATCH_SIZE = 100`：内部常量，不暴露给用户
+- 关闭 `enabled` 时，行为与现有全量同步处理完全一致
+
+### 存储集成事件映射
+
+| ST 事件 | 存储动作 |
+|---------|---------|
+| `CHAT_CHANGED` | `perMessageStorage.initChat(charName, chatFile)` |
+| `MESSAGE_RECEIVED` | 提取单条 → `appendMessage(mesId, swipeData)` → 检查快照 |
+| `MESSAGE_SENT` | 同上 |
+| `MESSAGE_EDITED` | 提取单条 → `updateMessage(mesId, swipeId, data)` → 标记脏 |
+| `MESSAGE_DELETED` | `deleteMessage(mesId)` → 标记脏 |
+| `MESSAGE_SWIPED` | 对比 activeSwipeId → 不一致则标记脏 + 更新存储 |
+
+### 存储与缓存协调
+
+| | moduleCacheManager | perMessageStorage |
+|---|---|---|
+| 存储 | 内存（Map） | 磁盘（JSONL/JSON） |
+| 内容 | 管线处理后的结果 | 原始模块数据（三层分类） |
+| 生命周期 | 页面刷新丢失 | 持久化 |
+| 用途 | 即时 UI/提示词响应 | 历史数据持久化 + 加速 |
+
+写入顺序：先更新内存缓存（同步，即时响应），再写存储（异步，不阻塞）。
+
+### 实施阶段
+
+- **Phase 1**：写入管道 — 配置 + 单条提取 + 事件注册 + Toolbox 按钮 + 旧聊天构建
+- **Phase 2**：读取加速 — 累积状态 → 管线输入格式转换 + 加速开关
+- **Phase 3**：生命周期 + 脏快照 — 聊天重命名/删除处理 + 自动重建
 
 ## 构建与开发
 
@@ -170,10 +259,11 @@ output.js → normalize.js → deduplicate.js
 
 ## 配置系统
 
-- **双配置结构**：`extension_config`（全局开关、后端 URL、调试日志、按钮类型）和 `module_config`（模块、全局设置）
+- **双配置结构**：`extension_config`（全局开关、后端 URL、调试日志、按钮类型、异步模块存储）和 `module_config`（模块、全局设置）
 - **持久化**：通过 ST 的 `saveSettings` 存储在 `extension_settings[extensionName]` 中（见下方"保存机制"说明）
 - **DEV_SAVE_GUARD**（`configManager.js` 中的 `ENABLE_DEV_SAVE_GUARD`）— 为 `false` 时阻止所有保存，设置为 `true` 恢复正常操作
-- **normalizeConfig()**（`moduleConfigTemplate.js`）— 所有保存/导入/导出操作的规范化入口
+- **normalizeConfig()**（`moduleConfigTemplate.js`）— 所有保存/导入/导出操作的规范化入口（仅处理 `module_config`，不处理 `extension_config`）
+- **extension_config 字段补全** — `DEFAULT_EXTENSION_CONFIG` 定义默认值，`setExtensionConfig` 中做字段补全
 
 ### 保存机制
 
@@ -232,6 +322,12 @@ el.addEventListener('dragend', (e) => handleDragEnd(e, doc, e.currentTarget));
 `continuity-core.js` 在项目根目录（`src/` 外），到 ST 核心文件的路径比 `src/` 下1层目录少1层 `../`：
 - 到 `extensions.js` = `../../../extensions.js`（3 层）
 - 到 `script.js` = `../../../../script.js`（4 层）
+
+## 待确认项
+
+- **聊天重命名事件**：ST 没有 `CHAT_RENAMED` 事件。重命名后触发 `reloadCurrentChat()` → `CHAT_CHANGED`。需通过对比存储路径与新路径间接检测重命名。具体检测方案待定。
+- **异步模式下模块内容判空**：开启异步生成后，模块原始内容可能直接写入存储而非聊天记录。读取时需判空 + 校验内容一致性。细节待实现时细化。
+- **chatIdHash 不可用于分支聊天**：分支聊天的 hash 与主聊天相同，不能作为唯一标识。使用 `charName + chatFile` 组合替代。
 
 ## 国际化（i18n）
 
