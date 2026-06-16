@@ -84,9 +84,10 @@
 /* Tab 样式 */
 .continuity-tabs {
     display: flex;
-    gap: 2px;
+    gap: 0;
     margin-bottom: 10px;
     border-bottom: 1px solid var(--SmartThemeEmColor);
+    container-type: inline-size;
 }
 
 .continuity-tab-btn {
@@ -99,6 +100,23 @@
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
     transition: none;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+@container (max-width: 360px) {
+    .continuity-tab-btn {
+        font-size: 0.78em;
+        padding: 5px 8px;
+    }
+}
+
+@container (max-width: 260px) {
+    .continuity-tab-btn {
+        font-size: 0.65em;
+        padding: 4px 6px;
+    }
 }
 
 .continuity-tab-btn:hover {
@@ -106,9 +124,24 @@
 }
 
 .continuity-tab-btn.active {
-    border-bottom-color: var(--SmartThemeEmColor);
-    background-color: rgba(var(--SmartThemeEmColorRGB), 0.1);
+    border-bottom-color: transparent;
+    background-color: rgba(var(--SmartThemeEmColorRGB), 0.12);
     font-weight: 600;
+    border: 1px solid var(--SmartThemeEmColor);
+    border-bottom-color: transparent;
+    border-radius: 5px 5px 0 0;
+    margin-bottom: -1px;
+    position: relative;
+}
+
+.continuity-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background-color: rgba(var(--SmartThemeEmColorRGB), 0.12);
 }
 
 .continuity-tab-content {

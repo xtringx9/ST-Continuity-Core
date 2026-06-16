@@ -24,6 +24,7 @@
                 
                 <div class="continuity-tabs">
                     <button class="continuity-tab-btn active" data-tab="interface" data-i18n="ccore_settings_tab_interface">界面设置</button>
+                    <button class="continuity-tab-btn" data-tab="async" data-i18n="ccore_settings_tab_async">异步存储</button>
                     <button class="continuity-tab-btn" data-tab="backend" data-i18n="ccore_settings_tab_backend">后端配置</button>
                     <button class="continuity-tab-btn" data-tab="debug" data-i18n="ccore_settings_tab_debug">调试设置</button>
                 </div>
@@ -36,6 +37,19 @@
                             <option value="floating" data-i18n="ccore_settings_button_floating">浮动按钮</option>
                         </select>
                     </div>
+                </div>
+                
+                <div class="continuity-tab-content" id="tab-async">
+                    <div class="example-extension_block flex-container">
+                        <input id="continuity_async_enabled" type="checkbox" />
+                        <label for="continuity_async_enabled" data-i18n="ccore_settings_async_enabled">异步模块存储</label>
+                    </div>
+                    <small data-i18n="ccore_settings_async_enabled_hint">需安装服务器插件。开启后非正文模块异步生成并分开存储。</small>
+                    <div class="continuity-form-row" style="margin-top: 8px;">
+                        <label for="continuity_snapshot_interval" class="continuity-form-label" data-i18n="ccore_settings_snapshot_interval">快照间隔:</label>
+                        <input id="continuity_snapshot_interval" type="number" min="1" max="100" class="continuity-form-input" />
+                    </div>
+                    <small data-i18n="ccore_settings_snapshot_interval_hint">每隔多少层生成一次累积状态快照，默认5。</small>
                 </div>
                 
                 <div class="continuity-tab-content" id="tab-backend">

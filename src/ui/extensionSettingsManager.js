@@ -32,6 +32,11 @@ export function loadSettingsToUI() {
     $("#continuity_debug_logs").prop("checked", extensionConfig.debugLogs);
     $("#continuity_button_type").val(extensionConfig.buttonType || "embedded");
 
+    // 异步模块存储设置
+    const asyncModule = extensionConfig.asyncModule || {};
+    $("#continuity_async_enabled").prop("checked", asyncModule.enabled || false);
+    $("#continuity_snapshot_interval").val(asyncModule.snapshotInterval || 5);
+
     updateExtensionUIState(extensionConfig.enabled);
 }
 
@@ -86,6 +91,32 @@ export function onButtonTypeChange(event) {
     new EntryButton(extensionFolderPath).init();
 }
 
+/**
+ * Handles the async module storage enabled toggle change.
+ * @param {Event} event
+ */
+export function onAsyncEnabledToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.asyncModule.enabled = enabled;
+    configManager.setExtensionConfig(extensionConfig);
+}
+
+/**
+ * Handles the snapshot interval input change.
+ * @param {Event} event
+ */
+export function onSnapshotIntervalChange(event) {
+    let value = parseInt($(event.target).val(), 10);
+    if (isNaN(value) || value < 1) value = 1;
+    if (value > 100) value = 100;
+    $(event.target).val(value);
+
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.asyncModule.snapshotInterval = value;
+    configManager.setExtensionConfig(extensionConfig);
+}
+
 function enableContinuityCore() {
     try {
         new EntryButton(extensionFolderPath).init();
@@ -111,6 +142,7 @@ function disableContinuityCore() {
 }
 
 function updateExtensionUIState(enabled) {
-    const elementsToToggle = [$('#continuity_backend_url'), $('#continuity_debug_logs'), $('#continuity_button_type'), $('#continuity_test_backend')];
+    const elementsToToggle = [$('#continuity_backend_url'), $('#continuity_debug_logs'), $('#continuity_button_type'), $('#continuity_test_backend'),
+        $('#continuity_async_enabled'), $('#continuity_snapshot_interval')];
     elementsToToggle.forEach(el => el.prop("disabled", !enabled));
 }

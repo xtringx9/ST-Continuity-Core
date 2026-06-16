@@ -19,6 +19,10 @@ export const DEFAULT_EXTENSION_CONFIG = {
     buttonType: "embedded", // 按钮类型，默认嵌入按钮
     moduleConfigAuthor: "", // 模块配置作者，默认空字符串
     moduleConfigVersion: "", // 模块配置版本，默认1.0.0
+    asyncModule: {
+        enabled: false, // 异步模块存储（需服务器插件）
+        snapshotInterval: 5, // 快照间隔（层）
+    },
 };
 
 export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";
@@ -83,6 +87,11 @@ class ConfigManager {
             // 从扩展设置加载配置
             if (extension_settings[extensionName] && extension_settings[extensionName][EXTENSION_CONFIG_KEY]) {
                 this.extensionConfig = extension_settings[extensionName][EXTENSION_CONFIG_KEY];
+                // 字段补全：确保新字段有默认值
+                this.extensionConfig.asyncModule = {
+                    ...DEFAULT_EXTENSION_CONFIG.asyncModule,
+                    ...(this.extensionConfig.asyncModule || {}),
+                };
                 this.isExtensionConfigLoaded = true;
                 debugLog('扩展配置已从扩展设置加载到内存缓存:', this.extensionConfig);
                 return;
@@ -146,8 +155,15 @@ class ConfigManager {
                 throw new Error('无效的配置结构：配置必须是对象');
             }
 
+            // 字段补全：确保 asyncModule 子对象完整
+            const asyncModule = {
+                ...DEFAULT_EXTENSION_CONFIG.asyncModule,
+                ...(newConfig.asyncModule || {}),
+            };
+
             this.extensionConfig = {
                 ...newConfig,
+                asyncModule,
                 version: DEFAULT_EXTENSION_CONFIG.version,
                 lastUpdated: new Date().toISOString()
             };

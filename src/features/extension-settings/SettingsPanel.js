@@ -6,6 +6,8 @@ import {
     onBackendUrlChange,
     onDebugLogsToggle,
     onButtonTypeChange,
+    onAsyncEnabledToggle,
+    onSnapshotIntervalChange,
     loadSettingsToUI,
 } from '../../ui/extensionSettingsManager.js';
 import { sendToBackend } from '../../services/backendService.js';
@@ -57,6 +59,8 @@ export class SettingsPanel {
         $('#continuity_test_backend').on('click', sendToBackend);
         $('#continuity_debug_logs').on('input', onDebugLogsToggle);
         $('#continuity_button_type').on('change', onButtonTypeChange);
+        $('#continuity_async_enabled').on('input', onAsyncEnabledToggle);
+        $('#continuity_snapshot_interval').on('input', onSnapshotIntervalChange);
 
         $('.continuity-tab-btn').on('click', function () {
             const tabId = $(this).data('tab');
