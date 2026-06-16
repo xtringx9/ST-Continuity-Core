@@ -100,6 +100,7 @@ export function onAsyncEnabledToggle(event) {
     const extensionConfig = configManager.getExtensionConfig();
     extensionConfig.asyncModule.enabled = enabled;
     configManager.setExtensionConfig(extensionConfig);
+    updateAsyncActionsVisibility(enabled);
 }
 
 /**
@@ -145,4 +146,37 @@ function updateExtensionUIState(enabled) {
     const elementsToToggle = [$('#continuity_backend_url'), $('#continuity_debug_logs'), $('#continuity_button_type'), $('#continuity_test_backend'),
         $('#continuity_async_enabled'), $('#continuity_snapshot_interval')];
     elementsToToggle.forEach(el => el.prop("disabled", !enabled));
+
+    // 异步存储操作按钮显隐
+    const asyncEnabled = enabled && (configManager.getExtensionConfig().asyncModule?.enabled ?? false);
+    updateAsyncActionsVisibility(asyncEnabled);
+}
+
+function updateAsyncActionsVisibility(visible) {
+    $('#continuity_async_actions_divider').toggle(visible);
+    $('#continuity_async_actions').toggle(visible);
+}
+
+/**
+ * 提取当前聊天所有楼层的模块数据到存储
+ */
+export function onAsyncExtractChat() {
+    infoLog('[AsyncStorage] 提取当前聊天 — 功能待实现');
+    // TODO: 调用 perMessageStorage 提取整个聊天
+}
+
+/**
+ * 提取指定楼层的模块数据到存储
+ */
+export function onAsyncExtractFloor() {
+    infoLog('[AsyncStorage] 提取指定楼层 — 功能待实现');
+    // TODO: 弹窗输入楼层范围，调用 perMessageStorage 提取
+}
+
+/**
+ * 从脏标记层开始重建累积状态快照
+ */
+export function onAsyncRebuildSnapshots() {
+    infoLog('[AsyncStorage] 重建快照 — 功能待实现');
+    // TODO: 调用 perMessageStorage 重建快照
 }

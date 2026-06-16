@@ -328,6 +328,7 @@ el.addEventListener('dragend', (e) => handleDragEnd(e, doc, e.currentTarget));
 - **聊天重命名事件**：ST 没有 `CHAT_RENAMED` 事件。重命名后触发 `reloadCurrentChat()` → `CHAT_CHANGED`。需通过对比存储路径与新路径间接检测重命名。具体检测方案待定。
 - **异步模式下模块内容判空**：开启异步生成后，模块原始内容可能直接写入存储而非聊天记录。读取时需判空 + 校验内容一致性。细节待实现时细化。
 - **chatIdHash 不可用于分支聊天**：分支聊天的 hash 与主聊天相同，不能作为唯一标识。使用 `charName + chatFile` 组合替代。
+- **异步存储 per-chat 操作按钮迁移**：当前"手动提取当前聊天"和"重建快照"按钮放在异步存储 tab（全局设置），但这些操作本质是 per-chat 的。角色绑定页（Profiles）做好后，应迁移到该页面，异步 tab 只保留全局配置（开关、快照间隔）。
 
 ## 国际化（i18n）
 

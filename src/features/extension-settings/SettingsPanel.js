@@ -8,6 +8,9 @@ import {
     onButtonTypeChange,
     onAsyncEnabledToggle,
     onSnapshotIntervalChange,
+    onAsyncExtractChat,
+    onAsyncExtractFloor,
+    onAsyncRebuildSnapshots,
     loadSettingsToUI,
 } from '../../ui/extensionSettingsManager.js';
 import { sendToBackend } from '../../services/backendService.js';
@@ -61,6 +64,9 @@ export class SettingsPanel {
         $('#continuity_button_type').on('change', onButtonTypeChange);
         $('#continuity_async_enabled').on('input', onAsyncEnabledToggle);
         $('#continuity_snapshot_interval').on('input', onSnapshotIntervalChange);
+        $('#continuity_async_extract_chat').on('click', onAsyncExtractChat);
+        $('#continuity_async_extract_floor').on('click', onAsyncExtractFloor);
+        $('#continuity_async_rebuild_snapshots').on('click', onAsyncRebuildSnapshots);
 
         $('.continuity-tab-btn').on('click', function () {
             const tabId = $(this).data('tab');
