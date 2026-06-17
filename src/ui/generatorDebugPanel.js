@@ -1,8 +1,9 @@
 // src/ui/generatorDebugPanel.js
-// AI 生成调试弹窗：展示发送内容 / AI 完整响应 / 提取结果 + 复制按钮
+// AI 生成调试弹窗：iframe 隔离实现，展示发送内容 / AI 完整响应 / 提取结果 + 复制按钮
 // 支持多个弹窗同时存在，每个弹窗独立关闭
 
 let panelCounter = 0;
+let activePanels = 0; // 当前打开的弹窗数量
 
 /**
  * 显示 debug 弹窗
@@ -22,99 +23,99 @@ export function showDebugPanel(data) {
     panelCounter++;
     const panelId = `ccore-debug-panel-${panelCounter}`;
 
-    // 偏移多个弹窗位置
-    const offset = (panelCounter - 1) % 5;
+    // 偏移基于当前已打开的弹窗数量
+    const offset = activePanels % 5;
     const offsetX = offset * 30;
     const offsetY = offset * 30;
+    activePanels++;
 
-    // 创建弹窗容器
+    // 创建遮罩层
     const overlay = document.createElement('div');
     overlay.id = panelId;
     Object.assign(overlay.style, {
         position: 'fixed',
         top: '0',
         left: '0',
-        right: '0',
-        bottom: '0',
+        width: '100dvw',
+        height: '100dvh',
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        zIndex: '99999',
+        zIndex: '100000',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        animation: 'fadeIn 0.2s ease',
+        opacity: '0',
+        transition: 'opacity 0.2s ease',
     });
 
-    // 弹窗主体
-    const dialog = document.createElement('div');
-    Object.assign(dialog.style, {
-        backgroundColor: '#1a1a2e',
-        color: '#e0e0e0',
-        borderRadius: '8px',
+    // 创建 iframe 容器
+    const iframeWrapper = document.createElement('div');
+    Object.assign(iframeWrapper.style, {
         width: '90vw',
         maxWidth: '1200px',
-        maxHeight: '85vh',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-        fontFamily: "'Segoe UI', sans-serif",
-        fontSize: '13px',
+        height: '85vh',
         marginLeft: `${offsetX}px`,
         marginTop: `${offsetY}px`,
-    });
-
-    // 标题栏
-    const header = document.createElement('div');
-    Object.assign(header.style, {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '10px 16px',
-        borderBottom: '1px solid #333',
-        flexShrink: '0',
-    });
-
-    const titleEl = document.createElement('h3');
-    titleEl.textContent = data.title;
-    Object.assign(titleEl.style, { margin: '0', fontSize: '14px', color: '#7eb8da' });
-
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = '✕';
-    Object.assign(closeBtn.style, {
-        background: 'none',
-        border: 'none',
-        color: '#888',
-        cursor: 'pointer',
-        fontSize: '18px',
-        padding: '0 4px',
-    });
-    closeBtn.onmouseover = () => closeBtn.style.color = '#fff';
-    closeBtn.onmouseout = () => closeBtn.style.color = '#888';
-    closeBtn.onclick = () => removePanel(overlay);
-
-    header.appendChild(titleEl);
-    header.appendChild(closeBtn);
-
-    // 内容区
-    const body = document.createElement('div');
-    Object.assign(body.style, {
-        padding: '12px 16px',
-        overflowY: 'auto',
-        flex: '1',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
+        backgroundColor: '#1a1a2e',
     });
+
+    // 创建 iframe
+    const iframe = document.createElement('iframe');
+    Object.assign(iframe.style, {
+        width: '100%',
+        height: '100%',
+        border: 'none',
+        display: 'block',
+    });
+
+    // 构建 iframe 内容
+    const htmlContent = _buildIframeHtml(data);
+    iframe.srcdoc = htmlContent;
+
+    iframeWrapper.appendChild(iframe);
+    overlay.appendChild(iframeWrapper);
+
+    // 点击遮罩关闭
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) removePanel(overlay);
+    });
+
+    document.body.appendChild(overlay);
+
+    // 触发淡入动画
+    requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+    });
+
+    // 监听 iframe 内的关闭消息
+    const messageHandler = (event) => {
+        if (event.data && event.data.type === 'CLOSE_DEBUG_PANEL' && event.data.panelId === panelId) {
+            removePanel(overlay);
+            window.removeEventListener('message', messageHandler);
+        }
+    };
+    window.addEventListener('message', messageHandler);
+}
+
+/**
+ * 构建 iframe 的完整 HTML
+ */
+function _buildIframeHtml(data) {
+    const sections = [];
 
     // 错误信息
     if (data.error) {
-        body.appendChild(createSection('错误', data.error, '#ff6b6b', true));
+        sections.push(_buildSection('错误', data.error, '#ff6b6b', true));
     }
 
-    // ========== 1. 发送给 AI 的内容（最重要） ==========
+    // 1. 发送给 AI 的内容
     if (data.sentInfo) {
         let sentText = '';
         if (data.sentInfo.type === 'raw') {
-            // raw 模式：显示完整 prompt 数组
             if (Array.isArray(data.sentInfo.prompt)) {
                 sentText = data.sentInfo.prompt
                     .map(m => `[${m.role}]\n${m.content}`)
@@ -123,7 +124,6 @@ export function showDebugPanel(data) {
                 sentText = String(data.sentInfo.prompt);
             }
         } else if (data.sentInfo.type === 'pipeline') {
-            // pipeline 模式：显示 quietPrompt + injectPrompt
             const parts = [];
             parts.push('=== quietPrompt (发送给 AI 的消息) ===');
             parts.push(data.sentInfo.quietPrompt || '(空)');
@@ -132,10 +132,10 @@ export function showDebugPanel(data) {
             parts.push(data.sentInfo.injectPrompt || '(无)');
             sentText = parts.join('\n');
         }
-        body.appendChild(createSection('发送给 AI 的内容', sentText, '#7eb8da', true));
+        sections.push(_buildSection('发送给 AI 的内容', sentText, '#7eb8da', true));
     }
 
-    // ========== 2. 事件捕获的最终提示词 ==========
+    // 2. 事件捕获的最终提示词
     {
         let capturedText = '';
         if (Array.isArray(data.capturedPrompt) && data.capturedPrompt.length > 0) {
@@ -145,13 +145,13 @@ export function showDebugPanel(data) {
         } else if (typeof data.capturedPrompt === 'string' && data.capturedPrompt) {
             capturedText = data.capturedPrompt;
         }
-        body.appendChild(createSection('ST 管线最终提示词（事件捕获）', capturedText || '(未捕获到)', '#c0c0c0', false));
+        sections.push(_buildSection('ST 管线最终提示词（事件捕获）', capturedText || '(未捕获到)', '#c0c0c0', false));
     }
 
-    // ========== 3. AI 完整响应（最重要，始终显示） ==========
-    body.appendChild(createSection('AI 完整响应', data.response || '(空)', '#a8d8a8', true));
+    // 3. AI 完整响应
+    sections.push(_buildSection('AI 完整响应', data.response || '(空)', '#a8d8a8', true));
 
-    // ========== 4. 提取结果 ==========
+    // 4. 提取结果
     if (data.extracted) {
         const extractedText = [
             `moduleTagModules (${data.extracted.moduleTagModules.length}):`,
@@ -161,147 +161,202 @@ export function showDebugPanel(data) {
             `extraModules (${data.extracted.extraModules.length}):`,
             ...data.extracted.extraModules.map(m => `  ${m}`),
         ].join('\n');
-        body.appendChild(createSection('提取结果', extractedText, '#d8a8d8', false));
+        sections.push(_buildSection('提取结果', extractedText, '#d8a8d8', false));
     }
 
-    // ========== 5. API 信息 ==========
+    // 5. API 信息
     if (data.apiUsed && Object.keys(data.apiUsed).length > 0) {
-        body.appendChild(createSection('API 信息', JSON.stringify(data.apiUsed, null, 2), '#aaa', false));
+        sections.push(_buildSection('API 信息', JSON.stringify(data.apiUsed, null, 2), '#aaa', false));
     }
 
-    // 组装
-    dialog.appendChild(header);
-    dialog.appendChild(body);
-    overlay.appendChild(dialog);
+    const title = data.title || 'AI 生成调试';
+    const panelId = `ccore-debug-panel-${panelCounter}`;
 
-    // 点击遮罩关闭
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) removePanel(overlay);
+    return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+.header h3 { font-size: 14px; color: #7eb8da; }
+.close-btn {
+    background: none; border: none; color: #888; cursor: pointer;
+    font-size: 18px; padding: 0 4px;
+}
+.close-btn:hover { color: #fff; }
+.body {
+    padding: 12px 16px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.section {
+    border: 1px solid #333;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background-color: #222;
+    cursor: pointer;
+    user-select: none;
+}
+.section-title { font-weight: bold; font-size: 12px; }
+.btn-group { display: flex; gap: 6px; }
+.small-btn {
+    background: #333; border: 1px solid #555; color: #ccc;
+    border-radius: 3px; padding: 2px 8px; font-size: 11px; cursor: pointer;
+}
+.small-btn:hover { background: #444; }
+.content-pre {
+    margin: 0; padding: 8px 10px;
+    background-color: #111; color: #ddd;
+    font-size: 12px; line-height: 1.5;
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 300px; overflow-y: auto;
+}
+</style>
+</head>
+<body>
+<div class="header">
+    <h3>${title}</h3>
+    <button class="close-btn" onclick="window.parent.postMessage({type:'CLOSE_DEBUG_PANEL',panelId:'${panelId}'},'*')">&#x2715;</button>
+</div>
+<div class="body">
+    ${sections.join('')}
+</div>
+<script>
+// 折叠/复制功能
+document.querySelectorAll('.section-header').forEach(function(header) {
+    var pre = header.parentElement.querySelector('.content-pre');
+    var toggleBtn = header.querySelector('.toggle-btn');
+    var collapsed = pre.style.display === 'none';
+
+    header.addEventListener('click', function(e) {
+        if (e.target.classList.contains('copy-btn') || e.target.classList.contains('toggle-btn')) return;
+        collapsed = !collapsed;
+        pre.style.display = collapsed ? 'none' : 'block';
+        toggleBtn.textContent = collapsed ? '展开' : '收起';
     });
-
-    document.body.appendChild(overlay);
+});
+document.querySelectorAll('.copy-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var pre = btn.closest('.section').querySelector('.content-pre');
+        var text = pre.textContent;
+        var showOk = function() {
+            btn.textContent = '已复制!';
+            setTimeout(function() { btn.textContent = '复制'; }, 1500);
+        };
+        // 优先用 Clipboard API（需安全上下文），否则 fallback 到 execCommand
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(showOk).catch(function() {
+                if (_execCopy(text)) showOk();
+            });
+        } else {
+            if (_execCopy(text)) showOk();
+        }
+    });
+});
+function _execCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    return ok;
+}
+document.querySelectorAll('.toggle-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var pre = btn.closest('.section').querySelector('.content-pre');
+        var collapsed = pre.style.display === 'none';
+        collapsed = !collapsed;
+        pre.style.display = collapsed ? 'none' : 'block';
+        btn.textContent = collapsed ? '展开' : '收起';
+    });
+});
+</script>
+</body>
+</html>`;
 }
 
 /**
- * 创建一个可折叠的段落
- * @param {string} title - 标题
- * @param {string} content - 内容文本
- * @param {string} accentColor - 标题颜色
- * @param {boolean} defaultOpen - 默认是否展开
+ * 构建单个 section 的 HTML
  */
-function createSection(title, content, accentColor, defaultOpen = true) {
-    const section = document.createElement('div');
-    Object.assign(section.style, {
-        border: '1px solid #333',
-        borderRadius: '6px',
-        overflow: 'hidden',
-    });
+function _buildSection(title, content, accentColor, defaultOpen = true) {
+    const escapedContent = _escapeHtml(content);
+    const display = defaultOpen ? 'block' : 'none';
+    const toggleText = defaultOpen ? '收起' : '展开';
 
-    // 标题行
-    const headerRow = document.createElement('div');
-    Object.assign(headerRow.style, {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '6px 10px',
-        backgroundColor: '#222',
-        cursor: 'pointer',
-        userSelect: 'none',
-    });
-
-    const titleSpan = document.createElement('span');
-    titleSpan.textContent = title;
-    Object.assign(titleSpan.style, { color: accentColor, fontWeight: 'bold', fontSize: '12px' });
-
-    const btnGroup = document.createElement('div');
-    Object.assign(btnGroup.style, { display: 'flex', gap: '6px' });
-
-    // 复制按钮
-    const copyBtn = createSmallButton('复制', () => {
-        navigator.clipboard.writeText(content).then(() => {
-            copyBtn.textContent = '已复制!';
-            setTimeout(() => copyBtn.textContent = '复制', 1500);
-        });
-    });
-
-    // 折叠按钮
-    const toggleBtn = createSmallButton(defaultOpen ? '收起' : '展开', null);
-    let collapsed = !defaultOpen;
-    toggleBtn.onclick = () => {
-        collapsed = !collapsed;
-        contentPre.style.display = collapsed ? 'none' : 'block';
-        toggleBtn.textContent = collapsed ? '展开' : '收起';
-    };
-
-    btnGroup.appendChild(copyBtn);
-    btnGroup.appendChild(toggleBtn);
-
-    headerRow.appendChild(titleSpan);
-    headerRow.appendChild(btnGroup);
-
-    // 点击标题行也可折叠
-    headerRow.onclick = (e) => {
-        if (e.target === copyBtn) return;
-        collapsed = !collapsed;
-        contentPre.style.display = collapsed ? 'none' : 'block';
-        toggleBtn.textContent = collapsed ? '展开' : '收起';
-    };
-
-    // 内容
-    const contentPre = document.createElement('pre');
-    contentPre.textContent = content;
-    Object.assign(contentPre.style, {
-        margin: '0',
-        padding: '8px 10px',
-        backgroundColor: '#111',
-        color: '#ddd',
-        fontSize: '12px',
-        lineHeight: '1.5',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        maxHeight: '300px',
-        overflowY: 'auto',
-        display: collapsed ? 'none' : 'block',
-    });
-
-    section.appendChild(headerRow);
-    section.appendChild(contentPre);
-
-    return section;
+    return `<div class="section">
+    <div class="section-header">
+        <span class="section-title" style="color:${accentColor}">${_escapeHtml(title)}</span>
+        <div class="btn-group">
+            <button class="small-btn copy-btn">复制</button>
+            <button class="small-btn toggle-btn">${toggleText}</button>
+        </div>
+    </div>
+    <pre class="content-pre" style="display:${display}">${escapedContent}</pre>
+</div>`;
 }
 
 /**
- * 创建小按钮
+ * HTML 转义
  */
-function createSmallButton(text, onClick) {
-    const btn = document.createElement('button');
-    btn.textContent = text;
-    Object.assign(btn.style, {
-        background: '#333',
-        border: '1px solid #555',
-        color: '#ccc',
-        borderRadius: '3px',
-        padding: '2px 8px',
-        fontSize: '11px',
-        cursor: 'pointer',
-    });
-    btn.onmouseover = () => { btn.style.backgroundColor = '#444'; };
-    btn.onmouseout = () => { btn.style.backgroundColor = '#333'; };
-    if (onClick) btn.onclick = (e) => { e.stopPropagation(); onClick(); };
-    return btn;
+function _escapeHtml(text) {
+    if (text == null) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 /**
  * 移除弹窗
  */
 function removePanel(overlay) {
-    if (overlay && overlay.parentNode) {
-        overlay.style.opacity = '0';
-        overlay.style.transition = 'opacity 0.2s';
-        setTimeout(() => {
-            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        }, 200);
-    }
+    if (!overlay || !overlay.parentNode || overlay._closing) return;
+    overlay._closing = true; // 防止重复调用导致多次递减
+    if (activePanels > 0) activePanels--; // 立即递减，避免关闭动画期间打开新弹窗时偏移量计算错误
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+        if (overlay && overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+        }
+    }, 200);
 }
 
 export default { showDebugPanel };
