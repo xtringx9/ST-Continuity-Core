@@ -75,18 +75,22 @@ export const moduleAiGenerator = {
         let sentInfo = {};
 
         if (mode === 'raw') {
-            const systemPrompt = rawSystemPrompt || (isSingle
-                ? '你是一个模块数据提取助手。请从用户提供的文本中提取模块数据，使用 [模块名|键:值|键:值] 格式输出。只输出模块数据，不要输出其他内容。'
-                : '你是一个模块数据提取助手。请从用户提供的多条文本中分别提取模块数据，每条文本的模块数据前标注楼层号。使用 [模块名|键:值|键:值] 格式输出。只输出模块数据，不要输出其他内容。');
+            if (!rawSystemPrompt) {
+                warnLog(LOG_TAG, 'raw 模式未配置系统提示词，请在设置中填写');
+                return { success: false, text: '', debug: null, storedCount: 0 };
+            }
 
-            const userPrompt = rawUserPrompt || messages.map(m =>
-                `--- 楼层 ${m.mesId} (${m.is_user ? '用户' : m.name}) ---\n${m.text}`
-            ).join('\n\n');
+            // 用户提示词：用模板或默认格式
+            const userPrompt = rawUserPrompt
+                ? rawUserPrompt
+                : messages.map(m =>
+                    `--- 楼层 ${m.mesId} (${m.is_user ? '用户' : m.name}) ---\n${m.text}`
+                ).join('\n\n');
 
             callOptions = {
                 mode: 'raw',
                 prompt: [
-                    { role: 'system', content: systemPrompt },
+                    { role: 'system', content: rawSystemPrompt },
                     { role: 'user', content: userPrompt },
                 ],
                 customApi,
@@ -96,14 +100,13 @@ export const moduleAiGenerator = {
             sentInfo = { type: 'raw', prompt: callOptions.prompt };
 
         } else {
-            // Pipeline 模式
-            const defaultModifier = isSingle
-                ? '请根据以上对话内容，生成模块数据。使用 [模块名|键:值|键:值] 格式输出，每个模块占一行。只输出模块数据，不要输出其他内容。'
-                : '请根据以上对话内容，为每条消息生成模块数据。每条消息的模块数据前标注楼层号，使用 [模块名|键:值|键:值] 格式输出。只输出模块数据，不要输出其他内容。';
+            // Pipeline 模式：injectPrompt 完全来自用户配置
+            if (!pipelineModifier) {
+                warnLog(LOG_TAG, 'pipeline 模式未配置追加指令，请在设置中填写');
+                return { success: false, text: '', debug: null, storedCount: 0 };
+            }
 
-            const injectPrompt = pipelineModifier
-                ? `${pipelineModifier}\n${defaultModifier}`
-                : defaultModifier;
+            const injectPrompt = pipelineModifier;
 
             // quietPrompt 放所有消息内容
             const quietPrompt = messages.map(m =>

@@ -64,7 +64,7 @@ export const aiCaller = {
                 data.proxy_password = customApi.key || '';
                 if (customApi.model) data.model = customApi.model;
                 if (customApi.temperature !== undefined) data.temperature = customApi.temperature;
-                if (customApi.max_tokens !== undefined) data.max_tokens = customApi.max_tokens;
+                if (customApi.max_tokens > 0) data.max_tokens = customApi.max_tokens;
                 apiUsed = {
                     apiurl: customApi.apiurl,
                     model: customApi.model || data.model,
@@ -160,9 +160,6 @@ export const aiCaller = {
             );
             infoLog(LOG_TAG, '已注入 pipeline 指令到 extension_prompts');
         }
-
-        // 临时保存/恢复 responseLength
-        const savedResponseLength = responseLength || 500;
 
         try {
             // 构建消息数据

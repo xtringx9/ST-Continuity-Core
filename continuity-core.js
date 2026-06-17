@@ -12,6 +12,9 @@ import { default as configManager } from "./src/singleton/configManager.js";
 // 导入事件处理器
 import { EventHandler } from "./src/core/eventHandler.js";
 
+// 导入消息 AI 生成按钮
+import { initMessageAiButton } from "./src/ui/messageAiButton.js";
+
 // infoLog("♥️ Continuity Core LOADED!");
 
 jQuery(async function () {
@@ -37,4 +40,7 @@ jQuery(async function () {
 
     // 初始化入口按钮 (EntryButton 内部会根据配置决定显示方式)
     new EntryButton(extensionFolderPath).init();
+
+    // 初始化消息 AI 生成按钮
+    initMessageAiButton();
 });

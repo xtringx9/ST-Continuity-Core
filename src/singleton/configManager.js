@@ -29,11 +29,11 @@ export const DEFAULT_EXTENSION_CONFIG = {
             model: '',
             source: 'openai',
             temperature: 0.3,
-            max_tokens: 500,
+            max_tokens: 0, // 0=不限制
         },
-        rawSystemPrompt: '', // raw 模式的系统提示词
-        rawUserPromptTemplate: '', // raw 模式的用户提示词模板
-        pipelineModifier: '', // pipeline 模式追加的指令
+        rawSystemPrompt: '你是一个模块数据提取助手。请从用户提供的文本中提取模块数据，使用 [模块名|键:值|键:值] 格式输出。只输出模块数据，不要输出其他内容。', // raw 模式的系统提示词
+        rawUserPromptTemplate: '--- 楼层 {{mesId}} ({{senderType}}) ---\n{{messageText}}', // raw 模式的用户提示词模板
+        pipelineModifier: '请根据以上对话内容，生成模块数据。使用 [模块名|键:值|键:值] 格式输出，每个模块占一行。只输出模块数据，不要输出其他内容。', // pipeline 模式追加的指令
         showDebug: true, // 生成后是否显示调试面板
     },
 };
