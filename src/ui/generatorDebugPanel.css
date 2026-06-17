@@ -1,0 +1,117 @@
+/* src/ui/generatorDebugPanel.css */
+/* AI 生成调试弹窗专用样式 — 全部使用 themes.css 的 CSS 变量，零变量重复 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* === Header === */
+.ccore-debug-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background-color: var(--bg-panel);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.ccore-debug-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-color);
+}
+
+.ccore-debug-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.ccore-debug-close:hover {
+    color: var(--text-primary);
+}
+
+/* === Body === */
+.ccore-debug-body {
+    padding: 12px 16px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* === 可折叠 Section === */
+.ccore-debug-section {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: var(--bg-card);
+}
+
+.ccore-debug-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background-color: var(--bg-panel);
+    cursor: pointer;
+    user-select: none;
+}
+
+.ccore-debug-section-title {
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.ccore-debug-btn-group {
+    display: flex;
+    gap: 6px;
+}
+
+.ccore-debug-small-btn {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.ccore-debug-small-btn:hover {
+    background: var(--bg-hover);
+}
+
+/* === 代码内容 === */
+.ccore-debug-pre {
+    margin: 0;
+    padding: 8px 10px;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+}

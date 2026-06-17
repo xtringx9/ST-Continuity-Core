@@ -1,9 +1,13 @@
 // src/shared/IframeModal.js
+// 通用 iframe 模态窗口：支持多实例（每次 new 即独立实例），同实例不重复 open
+
+let modalCounter = 0;
 
 export class IframeModal {
     constructor(options = {}) {
-        this.modalId = options.modalId || 'st-continuity-iframe-modal';
-        this.iframeId = options.iframeId || 'st-continuity-iframe';
+        modalCounter++;
+        this.modalId = options.modalId || `st-continuity-iframe-modal-${modalCounter}`;
+        this.iframeId = options.iframeId || `st-continuity-iframe-${modalCounter}`;
         this.containerClass = options.containerClass || 'st-continuity-iframe-container';
         this.backdrop = null;
     }
@@ -14,12 +18,11 @@ export class IframeModal {
      * @param {string} title - (可选) 用于无障碍访问的标题
      * @param {Object} options - (可选) 配置项
      * @param {string} options.variant - 样式变体: 'drawer-left' (默认), 'drawer-right', 'center'
+     * @param {function} options.onLoad - iframe 加载完成回调，参数为 iframe 元素
      */
     open(url, title = 'Continuity Editor', options = {}) {
-        // 防止重复创建
-        if (document.getElementById(this.modalId)) {
-            return;
-        }
+        // 同实例已打开则不重复打开（保持单实例语义；多开请 new 新实例）
+        if (this.backdrop) return;
 
         // 1. 创建遮罩层 (Backdrop)
         this.backdrop = document.createElement('div');
@@ -61,14 +64,14 @@ export class IframeModal {
             this.backdrop.classList.add('open');
         });
 
-        // 6. 点击遮罩关闭 (可选，防止误触可以注释掉)
+        // 6. 点击遮罩关闭
         this.backdrop.addEventListener('click', (e) => {
             if (e.target === this.backdrop) {
                 this.close();
             }
         });
 
-        // 7. 监听来自 Iframe 的关闭消息 (预留)
+        // 7. 监听来自 Iframe 的关闭消息（需带 modalId 匹配，否则关闭所有）
         window.addEventListener('message', this._handleMessage);
     }
 
@@ -94,8 +97,9 @@ export class IframeModal {
      * 内部消息处理
      */
     _handleMessage = (event) => {
-        // 简单的安全检查，确保只处理本插件的消息
         if (event.data && event.data.type === 'CLOSE_CONTINUITY_MODAL') {
+            // 带 modalId 则只关匹配的实例，否则关所有（向后兼容）
+            if (event.data.modalId && event.data.modalId !== this.modalId) return;
             this.close();
         }
     }
