@@ -43,6 +43,7 @@ export const moduleAiGenerator = {
             cotTags = [],
             responseLength,
             showDebug: shouldShowDebug = true,
+            skipStorage = false,
         } = options;
 
         // 统一为数组
@@ -127,36 +128,36 @@ export const moduleAiGenerator = {
         try {
             const result = await aiCaller.call(callOptions);
 
-            // 解析 AI 回复中的模块数据
-            const extracted = perMessageStorage.extractMessageModules(result.text, cotTags);
-
-            const hasModules = extracted.moduleTagModules.length > 0
-                || extracted.contentTagModules.length > 0
-                || extracted.extraModules.length > 0;
-
-            // 存储到每条消息
+            let extracted = null;
             let storedCount = 0;
-            if (hasModules) {
-                if (isSingle) {
-                    // 单条：直接存储
-                    const msg = messages[0];
-                    const swipesData = { [msg.activeSwipeId]: extracted };
-                    await perMessageStorage.writeMessage(msg.mesId, msg.activeSwipeId, swipesData);
-                    storedCount = 1;
-                    infoLog(LOG_TAG, `楼层 ${msg.mesId} 模块数据已存储`);
-                } else {
-                    // 多条：把提取到的模块数据存到每条消息
-                    // 注意：AI 一次返回的模块数据可能包含多条消息的，这里简化处理
-                    // 将所有提取到的模块数据存到第一条消息（后续可优化按楼层分割）
-                    for (const msg of messages) {
+
+            if (!skipStorage) {
+                // 解析 AI 回复中的模块数据
+                extracted = perMessageStorage.extractMessageModules(result.text, cotTags);
+
+                const hasModules = extracted.moduleTagModules.length > 0
+                    || extracted.contentTagModules.length > 0
+                    || extracted.extraModules.length > 0;
+
+                // 存储到每条消息
+                if (hasModules) {
+                    if (isSingle) {
+                        const msg = messages[0];
                         const swipesData = { [msg.activeSwipeId]: extracted };
                         await perMessageStorage.writeMessage(msg.mesId, msg.activeSwipeId, swipesData);
-                        storedCount++;
+                        storedCount = 1;
+                        infoLog(LOG_TAG, `楼层 ${msg.mesId} 模块数据已存储`);
+                    } else {
+                        for (const msg of messages) {
+                            const swipesData = { [msg.activeSwipeId]: extracted };
+                            await perMessageStorage.writeMessage(msg.mesId, msg.activeSwipeId, swipesData);
+                            storedCount++;
+                        }
+                        infoLog(LOG_TAG, `${messages.length} 条消息模块数据已存储`);
                     }
-                    infoLog(LOG_TAG, `${messages.length} 条消息模块数据已存储`);
+                } else {
+                    infoLog(LOG_TAG, `AI 回复中未提取到模块数据`);
                 }
-            } else {
-                infoLog(LOG_TAG, `AI 回复中未提取到模块数据`);
             }
 
             // 显示 debug 面板

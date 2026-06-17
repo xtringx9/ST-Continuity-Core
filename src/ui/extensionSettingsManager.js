@@ -42,6 +42,7 @@ export function loadSettingsToUI() {
 
     // AI 生成设置
     $("#continuity_generation_mode").val(asyncModule.generationMode || 'pipeline');
+    $("#continuity_use_independent_api").prop("checked", asyncModule.useIndependentApi || false);
     $("#continuity_raw_system_prompt").val(asyncModule.rawSystemPrompt || '');
     $("#continuity_raw_user_prompt").val(asyncModule.rawUserPromptTemplate || '');
     $("#continuity_pipeline_modifier").val(asyncModule.pipelineModifier || '');
@@ -398,20 +399,25 @@ function _getAiGenerationOptions() {
     const asyncModule = extensionConfig.asyncModule || {};
     const cotTags = configManager.getGlobalSettings().cotTags || [];
 
-    const customApi = {};
-    const apiUrl = $('#continuity_custom_api_url').val()?.trim();
-    if (apiUrl) {
-        customApi.apiurl = apiUrl;
-        customApi.key = $('#continuity_custom_api_key').val()?.trim() || '';
-        customApi.model = $('#continuity_custom_api_model').val()?.trim() || '';
-        customApi.source = $('#continuity_custom_api_source').val() || 'openai';
-        customApi.temperature = parseFloat($('#continuity_custom_api_temperature').val()) || 0.3;
-        customApi.max_tokens = parseInt($('#continuity_custom_api_max_tokens').val(), 10) || 500;
+    const useIndependentApi = $('#continuity_use_independent_api').prop('checked');
+    let customApi = null;
+    if (useIndependentApi) {
+        const apiUrl = $('#continuity_custom_api_url').val()?.trim();
+        if (apiUrl) {
+            customApi = {
+                apiurl: apiUrl,
+                key: $('#continuity_custom_api_key').val()?.trim() || '',
+                model: $('#continuity_custom_api_model').val()?.trim() || '',
+                source: $('#continuity_custom_api_source').val() || 'openai',
+                temperature: parseFloat($('#continuity_custom_api_temperature').val()) || 0.3,
+                max_tokens: parseInt($('#continuity_custom_api_max_tokens').val(), 10) || 0,
+            };
+        }
     }
 
     return {
         mode: $('#continuity_generation_mode').val() || 'pipeline',
-        customApi: Object.keys(customApi).length > 0 ? customApi : null,
+        customApi,
         rawSystemPrompt: $('#continuity_raw_system_prompt').val()?.trim() || '',
         rawUserPrompt: $('#continuity_raw_user_prompt').val()?.trim() || '',
         pipelineModifier: $('#continuity_pipeline_modifier').val()?.trim() || '',
@@ -428,6 +434,7 @@ function _saveAiGenerationConfig() {
     extensionConfig.asyncModule = extensionConfig.asyncModule || {};
 
     extensionConfig.asyncModule.generationMode = $('#continuity_generation_mode').val() || 'pipeline';
+    extensionConfig.asyncModule.useIndependentApi = $('#continuity_use_independent_api').prop('checked');
     extensionConfig.asyncModule.rawSystemPrompt = $('#continuity_raw_system_prompt').val()?.trim() || '';
     extensionConfig.asyncModule.rawUserPromptTemplate = $('#continuity_raw_user_prompt').val()?.trim() || '';
     extensionConfig.asyncModule.pipelineModifier = $('#continuity_pipeline_modifier').val()?.trim() || '';

@@ -23,7 +23,8 @@ export const DEFAULT_EXTENSION_CONFIG = {
         enabled: false, // 异步模块存储（需服务器插件）
         snapshotInterval: 5, // 快照间隔（层）
         generationMode: 'pipeline', // AI 生成模式: 'pipeline' | 'raw'
-        customApi: { // 独立 API 配置（留空则使用 ST 主 API）
+        useIndependentApi: false, // 是否使用独立 API（false=主API, true=独立API）
+        customApi: { // 独立 API 配置（useIndependentApi=true 时生效）
             apiurl: '',
             key: '',
             model: '',

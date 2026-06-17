@@ -97,8 +97,14 @@
                             <textarea id="continuity_pipeline_modifier" rows="3" class="continuity-form-input" style="width:100%;resize:vertical;" placeholder="追加到提示词末尾的指令（留空则不追加）"></textarea>
                         </div>
 
+                        <div class="example-extension_block" style="margin: 6px 0;">
+                            <input id="continuity_use_independent_api" type="checkbox" />
+                            <label for="continuity_use_independent_api" data-i18n="ccore_settings_use_independent_api">使用独立 API</label>
+                        </div>
+                        <small data-i18n="ccore_settings_use_independent_api_hint">关闭时使用 ST 主 API；开启时使用下方独立 API 配置。</small>
+
                         <details style="margin-top: 8px;">
-                            <summary style="cursor:pointer; color: var(--SmartThemeQuoteColor);" data-i18n="ccore_settings_custom_api_summary">独立 API 配置（可选）</summary>
+                            <summary style="cursor:pointer; color: var(--SmartThemeQuoteColor);" data-i18n="ccore_settings_custom_api_summary">独立 API 配置</summary>
                             <div style="margin-top: 6px;">
                                 <small data-i18n="ccore_settings_custom_api_hint">留空则使用 ST 当前配置的 API。填写后生成时使用独立 API，不影响主对话。</small>
                                 <div class="continuity-form-row" style="margin-top: 4px;">
