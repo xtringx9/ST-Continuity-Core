@@ -2,8 +2,7 @@ import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
 import { initModuleEditor } from '../module-editor/ModuleEditor.js';
 import { warnLog, infoLog } from '../../utils/logger.js';
-import { openContextBottomAsModal } from '../../core/contextBottomUI.js';
-import { getCurrentChatId } from '../../../../../../../script.js';
+import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 
 export class EntryButton {
     /**
@@ -251,11 +250,11 @@ export class EntryButton {
             padding: '0',
             height: '30px', // 显式锁死，对齐触发器
             boxSizing: 'border-box',
-            backgroundColor: 'var(--smart-background, #202123)',
+            backgroundColor: 'transparent',
         });
 
-        // 判断是否在聊天页（有聊天 ID 才允许汇总/手机操作）
-        const inChat = !!getCurrentChatId();
+        // 判断是否在聊天页（复用 contextBottomUI.isInChatPage）
+        const inChat = isInChatPage();
 
         const items = [
             { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },

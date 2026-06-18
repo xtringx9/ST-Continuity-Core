@@ -11,6 +11,7 @@
  */
 
 import { debugLog, errorLog } from '../utils/logger.js';
+import { getContext } from '../../../../../extensions.js';
 import { groupProcessResultByMessageIndex } from './moduleProcessor.js';
 import configManager from '../singleton/configManager.js';
 import {
@@ -304,23 +305,22 @@ export function removeUIfromContextBottom() {
 
 /**
  * 检查是否在聊天页面
+ *
+ * 优先用上下文数据判断（比 DOM 检查更可靠）：
+ * - characterId = this_chid，非聊天页时 undefined
+ * - groupId = selected_group，群组聊天时有值
+ * 两者均为 undefined 即非聊天页。再用 #chat 容器存在/可见做兜底。
  */
 export function isInChatPage() {
     try {
-        // 检查是否存在聊天容器
+        const ctx = getContext();
+        if (ctx.characterId === undefined && ctx.groupId === null) {
+            return false;
+        }
+        // if ($('.mes.fade').length > 0) return false; 这个是可能有用但不确定可靠性的条件检查
+        // 兜底：检查聊天容器是否存在且可见
         const chatContainer = $('#chat');
-        if (!chatContainer.length) {
-            return false;
-        }
-
-        // 检查聊天容器是否可见
-        if (chatContainer.css('display') === 'none') {
-            return false;
-        }
-
-        // 检查是否有消息容器
-        const messageContainers = $('.mes');
-        if (messageContainers.length === 0) {
+        if (!chatContainer.length || chatContainer.css('display') === 'none') {
             return false;
         }
 

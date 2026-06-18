@@ -3,6 +3,7 @@
 // Cc 点击 → 同行右侧展开三个按钮：重新生成 / 编辑模块数据 / 模块汇总
 
 import { eventSource, event_types, chat } from '../../../../../../script.js';
+import { isInChatPage } from '../core/contextBottomUI.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
@@ -48,6 +49,7 @@ let currentTrigger = null;
  * @param {number} messageId - 消息 ID
  */
 function addAiButtonToMessage(messageId) {
+    if(!isInChatPage()) return;
     try {
         const messageBlock = $(`.mes[mesid="${messageId}"]`);
         if (!messageBlock.length) return;
@@ -264,16 +266,21 @@ function createInlineMenu(triggerButton, mesId) {
             boxSizing: 'border-box',
         });
 
-    // 三个操作按钮
+    // 异步模块存储开关：重新生成/编辑依赖异步存储，未开启时置灰
+    const asyncModule = configManager.getExtensionConfig().asyncModule || {};
+    const asyncEnabled = !!asyncModule.enabled;
+
+    // 三个操作按钮（needAsync: 该操作依赖异步模块存储）
     const actions = [
-        { action: 'regenerate', icon: 'fa-arrows-rotate', title: '重新生成模块' },
-        { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块数据' },
-        { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
+        { action: 'regenerate', icon: 'fa-arrows-rotate', title: '重新生成模块', needAsync: true },
+        { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块数据', needAsync: true },
+        { action: 'summary', icon: 'fa-table-list', title: '模块汇总', needAsync: false },
     ];
 
-    actions.forEach(({ action, icon, title }) => {
+    actions.forEach(({ action, icon, title, needAsync }) => {
+        const disabled = needAsync && !asyncEnabled;
         const btn = $('<div>')
-            .attr('title', title)
+            .attr('title', disabled ? `${title}（需开启异步模块存储）` : title)
             .attr('data-i18n', `[title]${title}`)
             .addClass('mes_button interactable')
             .attr('tabindex', '0')
@@ -286,22 +293,24 @@ function createInlineMenu(triggerButton, mesId) {
                 height: '18px',
                 padding: '0', // 覆盖 .mes_button 的 padding:1px 3px，让按钮紧贴
                 borderRadius: '4px',
-                cursor: 'pointer',
-                opacity: 0.7,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                opacity: disabled ? 0.4 : 0.7,
             })
             .html(`<i class="fa-solid ${icon}"></i>`);
 
-        // hover 提亮
-        btn.hover(
-            function () { $(this).css('opacity', 1); },
-            function () { $(this).css('opacity', 0.7); }
-        );
+        if (!disabled) {
+            // hover 提亮
+            btn.hover(
+                function () { $(this).css('opacity', 1); },
+                function () { $(this).css('opacity', 0.7); }
+            );
 
-        btn.on('click', (e) => {
-            e.stopPropagation();
-            closeInlineMenu();
-            onMenuAction(action, triggerButton, mesId);
-        });
+            btn.on('click', (e) => {
+                e.stopPropagation();
+                closeInlineMenu();
+                onMenuAction(action, triggerButton, mesId);
+            });
+        }
 
         menu.append(btn);
     });
@@ -502,13 +511,30 @@ function onSummaryPanel() {
  * 初始化消息模块操作按钮
  */
 export function initMessageAiButton() {
+    //todo 可能后面可以筛检一些事件注册。感觉可能不需要这么多？
     // 监听消息渲染事件，为新消息添加按钮
     eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, addAiButtonToMessage);
     eventSource.on(event_types.USER_MESSAGE_RENDERED, addAiButtonToMessage);
     eventSource.on(event_types.MESSAGE_RECEIVED, addAiButtonToMessage);
     eventSource.on(event_types.MESSAGE_SENT, addAiButtonToMessage);
     eventSource.on(event_types.MORE_MESSAGES_LOADED, addAiButtonsToAllMessages);
-    eventSource.on(event_types.CHAT_CHANGED, addAiButtonsToAllMessages);
+    // CHAT_CHANGED：聊天切换时，非聊天页移除按钮，聊天页添加按钮
+    // eventSource.on(event_types.CHAT_CHANGED, onChatChanged); 这个注释了也不影响，果然没必要
+
+    // swipe 切换时不触发 CHARACTER_MESSAGE_RENDERED（ST 源码 noEmitTypes 含 'swipe'），
+    // 需监听 MESSAGE_SWIPED 重新添加按钮，否则 swipe 后 Cc 按钮消失
+    // eventSource.on(event_types.MESSAGE_SWIPED, addAiButtonToMessage);
+
+    // 生成结束（含失败/中止）：兜底重新添加按钮
+    // 生成失败时 CHARACTER_MESSAGE_RENDERED 不触发，按钮会消失
+    eventSource.on(event_types.GENERATION_ENDED, () => {
+        setTimeout(addAiButtonsToAllMessages, 100);
+    });
+
+    // MutationObserver：监听 #chat 子元素变化，.mes 被重建时自动重新添加按钮
+    // ST 在 swipe 切换/生成/编辑等场景会重建 .mes 元素，append 到 .mes 内的浮动按钮被清除。
+    // 事件监听（MESSAGE_SWIPED/GENERATION_ENDED）无法覆盖所有场景，Observer 作为兜底。
+    setupChatObserver();
 
     // 事件委托：Cc 触发器点击
     $(document).on('click', `.${BUTTON_CLASS}`, onTriggerClick);
@@ -517,4 +543,60 @@ export function initMessageAiButton() {
     addAiButtonsToAllMessages();
 
     infoLog(LOG_TAG, '消息模块操作按钮初始化完成');
+}
+
+/**
+ * #chat 的 MutationObserver
+ *
+ * ST 重新渲染消息块（swipe 切换/生成/编辑等）时会重建 .mes 元素，
+ * 导致 append 到 .mes 内的浮动按钮被清除。Observer 监听 #chat 直接子元素
+ * 变化，.mes 被添加/删除/替换时触发防抖刷新，确保按钮始终存在。
+ */
+let chatObserver = null;
+let refreshDebounceTimer = null;
+
+function setupChatObserver() {
+    const chatEl = document.getElementById('chat');
+    if (!chatEl) {
+        // chat 元素尚未就绪，延迟重试
+        setTimeout(setupChatObserver, 500);
+        return;
+    }
+
+    if (chatObserver) chatObserver.disconnect();
+
+    chatObserver = new MutationObserver(() => {
+        if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+        refreshDebounceTimer = setTimeout(() => {
+            addAiButtonsToAllMessages();
+            refreshDebounceTimer = null;
+        }, 200);
+    });
+
+    // 只监听 #chat 直接子元素（.mes）的添加/删除/替换
+    // 不监听 subtree，避免流式生成时频繁触发
+    chatObserver.observe(chatEl, { childList: true });
+}
+
+/**
+ * CHAT_CHANGED 处理：聊天切换时判断是否在聊天页
+ * - 在聊天页 → 添加按钮
+ * - 非聊天页 → 移除所有按钮（参考 contextBottomUI.removeUIfromContextBottom 模式）
+ */
+function onChatChanged() {
+    // 复用 contextBottomUI.isInChatPage 判断聊天页
+    if (isInChatPage()) {
+        addAiButtonsToAllMessages();
+    } else {
+        debugLog(LOG_TAG, '非聊天页，移除所有 Cc 按钮');
+        removeAllAiButtons();
+    }
+}
+
+/**
+ * 移除所有消息的 Cc 浮动按钮（含展开的菜单）
+ */
+function removeAllAiButtons() {
+    if (currentMenu) closeInlineMenu();
+    $('.ccore-mes-float-wrap').remove();
 }
