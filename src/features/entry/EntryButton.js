@@ -228,6 +228,10 @@ export class EntryButton {
 
     /**
      * 创建并显示菜单（向右展开）
+     *
+     * 菜单容器有边框，内部按钮无边框，作为一个整体视觉组。
+     * 高度对齐：触发器 30px（border-box 含 2px border），
+     *   菜单 height:30px + box-sizing:border-box → 内容区 26px = 按钮 26x26
      */
     _createMenu(triggerBtn) {
         const menu = document.createElement('div');
@@ -239,8 +243,15 @@ export class EntryButton {
             left: `${rect.right + 4}px`,
             top: `${rect.top}px`,
             display: 'flex',
-            gap: '4px',
+            gap: '0',
             zIndex: '2001',
+            // 容器边框：与触发器边框样式一致，按钮作为整体
+            border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
+            borderRadius: '6px',
+            padding: '0',
+            height: '30px', // 显式锁死，对齐触发器
+            boxSizing: 'border-box',
+            backgroundColor: 'var(--smart-background, #202123)',
         });
 
         // 判断是否在聊天页（有聊天 ID 才允许汇总/手机操作）
@@ -258,11 +269,10 @@ export class EntryButton {
             btn.title = item.title;
             btn.innerHTML = `<i class="fa-solid ${item.icon}"></i>`;
             Object.assign(btn.style, {
-                width: '30px',
-                height: '30px',
-                border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
-                borderRadius: '6px',
-                backgroundColor: 'var(--smart-background, #202123)',
+                width: '26px',
+                height: '26px',
+                // 无边框：由父容器统一边框
+                borderRadius: '4px',
                 color: 'var(--smart-text-color, #fff)',
                 cursor: 'pointer',
                 display: 'flex',
@@ -284,7 +294,7 @@ export class EntryButton {
                     btn.style.backgroundColor = 'var(--smart-border-color, rgba(128,128,128,0.3))';
                 });
                 btn.addEventListener('mouseleave', () => {
-                    btn.style.backgroundColor = 'var(--smart-background, #202123)';
+                    btn.style.backgroundColor = '';
                 });
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();

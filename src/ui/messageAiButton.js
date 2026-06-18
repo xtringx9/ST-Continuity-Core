@@ -2,11 +2,13 @@
 // 为每条消息添加模块操作按钮（Cc 菜单触发器 + 展开的三个操作）
 // Cc 点击 → 同行右侧展开三个按钮：重新生成 / 编辑模块数据 / 模块汇总
 
-import { eventSource, event_types } from '../../../../../../script.js';
+import { eventSource, event_types, chat } from '../../../../../../script.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
 import { openContextBottomAsModal } from '../core/contextBottomUI.js';
+import perMessageStorage from '../services/perMessageStorage.js';
+import { CONTEXT_MSG_CONTAINER_ID } from '../core/context-ui/containerManager.js';
 
 const LOG_TAG = '[MessageAiButton]';
 const BUTTON_CLASS = 'mes_ai_generate';
@@ -30,6 +32,19 @@ let currentTrigger = null;
 
 /**
  * 为单条消息添加 Cc 菜单触发器
+ *
+ * 定位策略（仿 ST swipe 按钮）：
+ *   - .mes 是 position:relative，子元素 absolute 相对消息块定位
+ *   - swipe_left 在 left:20px; bottom:20px，swipe_right 在 right:5px，底部居中是 swipes-counter
+ *   - Cc 紧贴消息框左下角（left:0; bottom:0），与 swipe_left 错开（swipe 更靠右靠上）
+ *   - z-index:9999 浮在最上层，opacity 0.5（hover 1.0），比 swipe 的 0.3 更明显
+ *
+ * 历史方案（保留注释以防回退）：
+ *   之前 Cc 用 mes_button class 插入到 .mes_edit 前（顶部按钮栏），
+ *   占用按钮栏空间，且正文太长时编辑入口在顶部、textarea 在底部，需滚动。
+ *   改为浮动定位后，按钮始终在消息底部，点击编辑后 textarea 就在附近，无需滚动。
+ *   也试过 left:50px（中央偏左），最终采用紧贴左下角。
+ *
  * @param {number} messageId - 消息 ID
  */
 function addAiButtonToMessage(messageId) {
@@ -40,14 +55,29 @@ function addAiButtonToMessage(messageId) {
         // 避免重复添加
         if (messageBlock.find(`.${BUTTON_CLASS}`).length) return;
 
+        // 仍检查 editButton 以判断消息可编辑性（系统消息可能没有）
         const editButton = messageBlock.find('.mes_edit');
         if (!editButton.length) return;
 
-        // 创建 Cc 触发器，使用 Cc 文字图标，样式与编辑按钮对齐
+        // 浮动容器：承载 Cc 触发器 + 展开的菜单项（同一行横向排列）
+        const floatWrap = $('<div>')
+            .addClass('ccore-mes-float-wrap')
+            .css({
+                position: 'absolute',
+                bottom: '0',
+                left: '0',
+                zIndex: 9999,
+                display: 'inline-flex',
+                gap: '0',
+                alignItems: 'center',
+            });
+
+        // 创建 Cc 触发器，使用 Cc 文字图标
+        // 注意：不再用 mes_button class（顶部按钮栏样式），改用浮动定位
         const button = $('<div>')
             .attr('title', BUTTON_TITLE)
             .attr('data-i18n', `[title]${BUTTON_TITLE}`)
-            .addClass(`mes_button ${BUTTON_CLASS} interactable`)
+            .addClass(`${BUTTON_CLASS} interactable`)
             .attr('tabindex', '0')
             .attr('role', 'button')
             .css({
@@ -62,15 +92,22 @@ function addAiButtonToMessage(messageId) {
                 border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
                 borderRadius: '6px',
                 boxSizing: 'border-box',
-                transition: 'background-color 0.3s, border-color 0.3s, color 0.3s',
                 cursor: 'pointer',
+                opacity: 0.5,
+                transition: 'opacity 0.2s, background-color 0.3s, border-color 0.3s, color 0.3s',
             })
             .text('Cc');
 
-        // 插入到编辑按钮前面
-        editButton.before(button);
+        // hover 时变明显（仿 swipe 按钮 opacity 行为，但比 swipe 的 0.3 更明显）
+        button.hover(
+            function () { $(this).css('opacity', 1); },
+            function () { $(this).css('opacity', 0.5); }
+        );
 
-        debugLog(LOG_TAG, `已为消息 ${messageId} 添加 Cc 菜单触发器`);
+        floatWrap.append(button);
+        messageBlock.append(floatWrap);
+
+        debugLog(LOG_TAG, `已为消息 ${messageId} 添加 Cc 浮动触发器`);
     } catch (err) {
         debugLog(LOG_TAG, `为消息 ${messageId} 添加按钮失败:`, err);
     }
@@ -95,6 +132,11 @@ function addAiButtonsToAllMessages() {
 
 /**
  * 设置 Cc 触发器状态（用于重新生成反馈）
+ *
+ * opacity 管理：
+ *   - IDLE: 0.5（半透明，与浮动定位的轻量感一致，hover 时由 jQuery hover 事件提到 1.0）
+ *   - LOADING/SUCCESS/ERROR: 1.0（状态反馈需完全可见）
+ *
  * @param {jQuery} button - Cc 触发器元素
  * @param {string} state - 状态
  */
@@ -113,6 +155,7 @@ function setButtonState(button, state) {
                 .css({
                     backgroundColor: 'rgba(128, 128, 128, 0.3)',
                     borderColor: 'rgba(128, 128, 128, 0.8)',
+                    opacity: 1,
                 });
             break;
         case STATE.SUCCESS:
@@ -122,6 +165,7 @@ function setButtonState(button, state) {
                     backgroundColor: 'rgba(76, 175, 80, 0.3)',
                     borderColor: 'rgba(76, 175, 80, 0.8)',
                     color: 'rgba(76, 175, 80, 1)',
+                    opacity: 1,
                 });
             break;
         case STATE.ERROR:
@@ -131,11 +175,13 @@ function setButtonState(button, state) {
                     backgroundColor: 'rgba(244, 67, 54, 0.3)',
                     borderColor: 'rgba(244, 67, 54, 0.8)',
                     color: 'rgba(244, 67, 54, 1)',
+                    opacity: 1,
                 });
             break;
         default: // IDLE
             button.text('Cc')
-                .attr('title', BUTTON_TITLE);
+                .attr('title', BUTTON_TITLE)
+                .css('opacity', 0.5);
     }
 }
 
@@ -156,6 +202,15 @@ function onTriggerClick(event) {
 
 /**
  * 切换菜单显示（inline 同行展开）
+ *
+ * 展开方向：向右（Cc 之后插入菜单项）
+ *   - 与 EntryButton 保持一致的操作逻辑（向右展开）
+ *   - Cc 浮动在消息底部中央偏左，右侧空间充足
+ *
+ * 历史方案（保留注释以防回退）：
+ *   之前 Cc 在顶部按钮栏时，为避免遮挡右侧的编辑/删除按钮，采用向左展开：
+ *     triggerButton.before(currentMenu);
+ *   改为浮动定位后，右侧无其他按钮，改为向右展开更符合直觉。
  */
 function toggleInlineMenu(triggerButton, mesId) {
     // 已有菜单打开：先关闭
@@ -169,13 +224,14 @@ function toggleInlineMenu(triggerButton, mesId) {
     currentTrigger = triggerButton;
     currentMenu = createInlineMenu(triggerButton, mesId);
 
-    // 插入到 Cc 左侧（同一行，Cc 位置不变）
-    triggerButton.before(currentMenu);
+    // 向右展开：菜单插入到 Cc 之后（同一浮动容器内，横向排列）
+    triggerButton.after(currentMenu);
 
     // Cc 激活样式
     triggerButton.css({
         backgroundColor: 'rgba(128, 128, 128, 0.3)',
         borderColor: 'rgba(128, 128, 128, 0.9)',
+        opacity: 1, // 激活时完全可见
     });
 
     // 延迟绑定外部点击关闭（避免本次点击立即触发）
@@ -186,15 +242,26 @@ function toggleInlineMenu(triggerButton, mesId) {
 
 /**
  * 创建 inline 菜单（三个按钮，横向排列）
+ *
+ * 菜单项插入到 Cc 之后（向右展开），与 Cc 同处一个浮动容器，
+ * 由父容器 .ccore-mes-float-wrap 的 gap:0 控制间距（按钮紧贴）。
  */
 function createInlineMenu(triggerButton, mesId) {
     const menu = $('<div>')
         .addClass(MENU_CLASS)
         .css({
             display: 'inline-flex',
-            gap: '4px',
-            marginRight: '4px',
+            gap: '0',
             verticalAlign: 'middle',
+            // 容器边框：让三个按钮作为一个整体，视觉上像一个菜单
+            // 与 Cc 触发器边框样式一致，显得是同一组控件
+            // 高度对齐：Cc 总高 22px（border-box 含 2px border）
+            //   菜单 height:22px + box-sizing:border-box → 内容区 18px = 按钮 18px
+            border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
+            borderRadius: '6px',
+            padding: '0',
+            height: '22px', // 显式锁死高度，确保与 Cc 对齐
+            boxSizing: 'border-box',
         });
 
     // 三个操作按钮
@@ -215,12 +282,20 @@ function createInlineMenu(triggerButton, mesId) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '22px',
-                height: '22px',
+                width: '18px',
+                height: '18px',
+                padding: '0', // 覆盖 .mes_button 的 padding:1px 3px，让按钮紧贴
                 borderRadius: '4px',
                 cursor: 'pointer',
+                opacity: 0.7,
             })
             .html(`<i class="fa-solid ${icon}"></i>`);
+
+        // hover 提亮
+        btn.hover(
+            function () { $(this).css('opacity', 1); },
+            function () { $(this).css('opacity', 0.7); }
+        );
 
         btn.on('click', (e) => {
             e.stopPropagation();
@@ -327,16 +402,93 @@ async function onRegenerate(button, mesId) {
 }
 
 /**
- * 编辑模块数据（占位，待实现）
- * 仅在异步存储开启时可用
+ * 编辑模块数据（就地 textarea）
+ * 仅在异步存储开启时可用，编辑 moduleTagModules 的 raw
  */
-function onEditModules(mesId) {
+async function onEditModules(mesId) {
     const asyncModule = configManager.getExtensionConfig().asyncModule || {};
     if (!asyncModule.enabled) {
         infoLog(LOG_TAG, '编辑模块数据仅在异步存储开启时可用');
         return;
     }
-    infoLog(LOG_TAG, `编辑模块数据（功能开发中）: 消息 ${mesId}`);
+
+    const $message = $(`.mes[mesid="${mesId}"]`);
+    if (!$message.length) {
+        errorLog(LOG_TAG, `找不到消息 ${mesId}`);
+        return;
+    }
+
+    let $container = $message.find(`#${CONTEXT_MSG_CONTAINER_ID}`);
+    if (!$container.length) {
+        $container = $(`<div id="${CONTEXT_MSG_CONTAINER_ID}"></div>`);
+        $message.append($container);
+    }
+
+    // 已有编辑区则不重复创建
+    if ($container.find('.ccore-edit-area').length) return;
+
+    // 隐藏现有 iframe
+    const $iframe = $container.find('iframe');
+    $iframe.hide();
+
+    // 读取 perMessageStorage 数据
+    const swipeId = chat[mesId]?.swipe_id ?? 0;
+    let rawText = '';
+    let existingData = null;
+    try {
+        existingData = await perMessageStorage.readMessage(mesId, swipeId);
+        if (existingData?.moduleTagModules?.length) {
+            rawText = existingData.moduleTagModules.join('\n');
+        }
+    } catch (err) {
+        errorLog(LOG_TAG, `读取消息 ${mesId} 模块数据失败:`, err);
+    }
+
+    // 构建编辑区
+    // - textarea 不设 placeholder（用户要求：空着即可，无需提示）
+    // - 保存/取消按钮用 ST 原生编辑消息样式（menu_button fa-solid fa-check/fa-times），
+    //   与 ST 原生编辑消息按钮视觉一致
+    const $editArea = $(`
+        <div class="ccore-edit-area" style="margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
+            <textarea class="ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;background:var(--smart-background,#202123);color:var(--smart-text-color,#fff);border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:3px;padding:5px;font-family:monospace;font-size:13px;box-sizing:border-box;"></textarea>
+            <div class="ccore-edit-actions" style="margin-top:5px;display:flex;gap:5px;">
+                <div class="ccore-edit-save menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
+                <div class="ccore-edit-cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>
+            </div>
+        </div>
+    `);
+
+    $editArea.find('.ccore-edit-textarea').val(rawText);
+    $container.append($editArea);
+
+    // 保存（div 按钮，用 class 标记禁用状态而非 prop('disabled')）
+    $editArea.find('.ccore-edit-save').on('click', async (e) => {
+        const $btn = $(e.currentTarget);
+        if ($btn.hasClass('disabled')) return;
+        $btn.addClass('disabled').css('opacity', 0.5);
+        const text = $editArea.find('.ccore-edit-textarea').val();
+        const lines = String(text).split('\n').map(l => l.trim()).filter(l => l);
+        try {
+            await perMessageStorage.updateMessage(mesId, swipeId, {
+                moduleTagModules: lines,
+                contentTagModules: existingData?.contentTagModules || [],
+                extraModules: existingData?.extraModules || [],
+            });
+            infoLog(LOG_TAG, `消息 ${mesId} 模块数据已保存（${lines.length} 条）`);
+            $editArea.remove();
+            $iframe.show();
+            // TODO: 重新渲染该消息的模块展示区（需 updateUItoMsgBottom 接入异步数据源后实现）
+        } catch (err) {
+            errorLog(LOG_TAG, `保存消息 ${mesId} 模块数据失败:`, err);
+            $btn.removeClass('disabled').css('opacity', '');
+        }
+    });
+
+    // 取消
+    $editArea.find('.ccore-edit-cancel').on('click', () => {
+        $editArea.remove();
+        $iframe.show();
+    });
 }
 
 /**
