@@ -76,52 +76,56 @@ function _buildSectionsHtml(data) {
         sections.push(_buildSection('错误', data.error, 'var(--danger-color)', true));
     }
 
-    // 1. 发送的内容
+    // 1. 发送内容（调用输入 / 实际发送 切换 + JSON / 可读切换,默认可读+调用输入）
     if (data.sentInfo) {
-        let sentText = '';
+        // 1a. 调用输入(我们传给 aiCaller 的参数)
+        let inputReadable = '';
+        let inputData;
         if (data.sentInfo.type === 'raw') {
             if (Array.isArray(data.sentInfo.prompt)) {
-                sentText = data.sentInfo.prompt
+                inputReadable = data.sentInfo.prompt
                     .map(m => `[${m.role}]\n${m.content}`)
                     .join('\n\n---\n\n');
             } else {
-                sentText = String(data.sentInfo.prompt);
+                inputReadable = String(data.sentInfo.prompt);
             }
+            inputData = data.sentInfo.prompt;
         } else if (data.sentInfo.type === 'pipeline') {
             const parts = [];
-            parts.push('=== quietPrompt (发送的消息) ===');
+            parts.push('--- quietPrompt (发送的消息) ---');
             parts.push(data.sentInfo.quietPrompt || '(空)');
             parts.push('');
-            parts.push('=== injectPrompt (注入到 extension_prompts 的指令) ===');
+            parts.push('--- injectPrompt (注入到 extension_prompts 的指令) ---');
             parts.push(data.sentInfo.injectPrompt || '(无)');
-            sentText = parts.join('\n');
+            inputReadable = parts.join('\n');
+            inputData = {
+                quietPrompt: data.sentInfo.quietPrompt || '',
+                injectPrompt: data.sentInfo.injectPrompt || '',
+            };
         }
-        sections.push(_buildSection('发送内容', sentText, 'var(--accent-color)', true));
-    }
+        const inputJson = JSON.stringify(inputData, null, 2);
 
-    // 2. 事件捕获的最终提示词（JSON / 可读双格式,默认 JSON）
-    {
-        let capturedText = '';
-        let jsonText = '';
+        // 1b. 实际发送(ST 组装后发给 AI 的提示词)
+        let sentReadable = '';
+        let sentData = data.capturedPrompt ?? null;
         if (Array.isArray(data.capturedPrompt) && data.capturedPrompt.length > 0) {
-            capturedText = data.capturedPrompt
+            sentReadable = data.capturedPrompt
                 .map(m => `[${m.role}${m.name ? ` (${m.name})` : ''}]\n${m.content}`)
                 .join('\n\n---\n\n');
-            jsonText = JSON.stringify(data.capturedPrompt, null, 2);
         } else if (typeof data.capturedPrompt === 'string' && data.capturedPrompt) {
-            capturedText = data.capturedPrompt;
-            jsonText = data.capturedPrompt;
+            sentReadable = data.capturedPrompt;
         } else {
-            capturedText = '(未捕获到)';
-            jsonText = '(未捕获到)';
+            sentReadable = '(未捕获到)';
         }
-        sections.push(_buildDualFormatSection('ST 管线最终提示词（事件捕获）', jsonText, capturedText, 'var(--text-secondary)', false));
+        const sentJson = JSON.stringify(sentData, null, 2);
+
+        sections.push(_buildSentContentSection('发送内容', inputJson, inputReadable, sentJson, sentReadable, 'var(--accent-color)', true));
     }
 
-    // 3. 完整响应
+    // 2. 完整响应
     sections.push(_buildSection('完整响应', data.response || '(空)', 'var(--success-color)', true));
 
-    // 4. 提取结果
+    // 3. 提取结果
     if (data.extracted) {
         const extractedText = [
             `moduleTagModules (${data.extracted.moduleTagModules.length}):`,
@@ -134,7 +138,7 @@ function _buildSectionsHtml(data) {
         sections.push(_buildSection('提取结果', extractedText, 'var(--accent-color)', false));
     }
 
-    // 5. API 信息
+    // 4. API 信息
     if (data.apiUsed && Object.keys(data.apiUsed).length > 0) {
         sections.push(_buildSection('API 信息', JSON.stringify(data.apiUsed, null, 2), 'var(--text-muted)', false));
     }
@@ -147,10 +151,9 @@ function _buildSectionsHtml(data) {
  */
 function _buildSection(title, content, accentColor, defaultOpen = true) {
     const escapedContent = _escapeHtml(content);
-    const display = defaultOpen ? 'block' : 'none';
     const toggleText = defaultOpen ? '收起' : '展开';
 
-    return `<div class="ccore-debug-section">
+    return `<div class="ccore-debug-section" data-ccore-collapsed="${!defaultOpen}">
     <div class="ccore-debug-section-header">
         <span class="ccore-debug-section-title" style="color:${accentColor}">${_escapeHtml(title)}</span>
         <div class="ccore-debug-btn-group">
@@ -158,62 +161,115 @@ function _buildSection(title, content, accentColor, defaultOpen = true) {
             <button class="ccore-debug-small-btn ccore-debug-toggle-btn">${toggleText}</button>
         </div>
     </div>
-    <pre class="ccore-debug-pre" style="display:${display}">${escapedContent}</pre>
+    <pre class="ccore-debug-pre" style="display:${defaultOpen ? 'block' : 'none'}">${escapedContent}</pre>
 </div>`;
 }
 
 /**
  * 构建双格式 section（JSON / 可读切换）
- * 默认显示 JSON,点击格式按钮切换到可读格式
+ * @param {string} defaultFormat - 默认显示格式:'json' | 'readable'(默认 'readable')
  */
-function _buildDualFormatSection(title, jsonContent, readableContent, accentColor, defaultOpen = true) {
+function _buildDualFormatSection(title, jsonContent, readableContent, accentColor, defaultOpen = true, defaultFormat = 'readable') {
     const escapedJson = _escapeHtml(jsonContent);
     const escapedReadable = _escapeHtml(readableContent);
-    const display = defaultOpen ? 'block' : 'none';
     const toggleText = defaultOpen ? '收起' : '展开';
+    const jsonDisplay = defaultFormat === 'json' && defaultOpen ? 'block' : 'none';
+    const readableDisplay = defaultFormat === 'readable' && defaultOpen ? 'block' : 'none';
+    const formatLabel = defaultFormat === 'json' ? '可读' : 'JSON';
 
-    return `<div class="ccore-debug-section ccore-debug-dual">
+    return `<div class="ccore-debug-section ccore-debug-dual" data-ccore-format="${defaultFormat}" data-ccore-collapsed="${!defaultOpen}">
     <div class="ccore-debug-section-header">
         <span class="ccore-debug-section-title" style="color:${accentColor}">${_escapeHtml(title)}</span>
         <div class="ccore-debug-btn-group">
-            <button class="ccore-debug-small-btn ccore-debug-format-btn">可读</button>
+            <button class="ccore-debug-small-btn ccore-debug-format-btn">${formatLabel}</button>
             <button class="ccore-debug-small-btn ccore-debug-copy-btn">复制</button>
             <button class="ccore-debug-small-btn ccore-debug-toggle-btn">${toggleText}</button>
         </div>
     </div>
-    <pre class="ccore-debug-pre ccore-debug-pre-json" style="display:${display}">${escapedJson}</pre>
-    <pre class="ccore-debug-pre ccore-debug-pre-readable" style="display:none">${escapedReadable}</pre>
+    <pre class="ccore-debug-pre" data-ccore-format="json" style="display:${jsonDisplay}">${escapedJson}</pre>
+    <pre class="ccore-debug-pre" data-ccore-format="readable" style="display:${readableDisplay}">${escapedReadable}</pre>
 </div>`;
 }
 
 /**
- * 获取 section 当前可见的 pre（双格式 section 返回可见的那个,普通 section 返回唯一 pre）
+ * 构建发送内容 section（调用输入 / 实际发送 切换 + JSON / 可读切换 = 4 个 pre）
+ * 默认:可读 + 实际发送
+ */
+function _buildSentContentSection(title, inputJson, inputReadable, sentJson, sentReadable, accentColor, defaultOpen = true) {
+    const defaultFormat = 'readable';
+    const defaultContent = 'sent';
+    const toggleText = defaultOpen ? '收起' : '展开';
+    const formatLabel = 'JSON';        // 默认可读 → 按钮显示"JSON"(点击切到 JSON)
+    const contentLabel = '调用输入';    // 默认实际发送 → 按钮显示"调用输入"(点击切到调用输入)
+
+    const show = (fmt, cnt) => (fmt === defaultFormat && cnt === defaultContent && defaultOpen) ? 'block' : 'none';
+
+    return `<div class="ccore-debug-section ccore-debug-sent" data-ccore-format="${defaultFormat}" data-ccore-content="${defaultContent}" data-ccore-collapsed="${!defaultOpen}">
+    <div class="ccore-debug-section-header">
+        <span class="ccore-debug-section-title" style="color:${accentColor}">${_escapeHtml(title)}</span>
+        <div class="ccore-debug-btn-group">
+            <button class="ccore-debug-small-btn ccore-debug-content-btn">${contentLabel}</button>
+            <button class="ccore-debug-small-btn ccore-debug-format-btn">${formatLabel}</button>
+            <button class="ccore-debug-small-btn ccore-debug-copy-btn">复制</button>
+            <button class="ccore-debug-small-btn ccore-debug-toggle-btn">${toggleText}</button>
+        </div>
+    </div>
+    <pre class="ccore-debug-pre" data-ccore-format="json" data-ccore-content="input" style="display:${show('json', 'input')}">${_escapeHtml(inputJson)}</pre>
+    <pre class="ccore-debug-pre" data-ccore-format="readable" data-ccore-content="input" style="display:${show('readable', 'input')}">${_escapeHtml(inputReadable)}</pre>
+    <pre class="ccore-debug-pre" data-ccore-format="json" data-ccore-content="sent" style="display:${show('json', 'sent')}">${_escapeHtml(sentJson)}</pre>
+    <pre class="ccore-debug-pre" data-ccore-format="readable" data-ccore-content="sent" style="display:${show('readable', 'sent')}">${_escapeHtml(sentReadable)}</pre>
+</div>`;
+}
+
+/**
+ * 更新 section 内所有 pre 的可见性(基于 data-ccore-format / data-ccore-content / data-ccore-collapsed)
+ */
+function _updatePreVisibility(section) {
+    const format = section.dataset.ccoreFormat || 'readable';
+    const content = section.dataset.ccoreContent;
+    const collapsed = section.dataset.ccoreCollapsed === 'true';
+    section.querySelectorAll('.ccore-debug-pre').forEach(p => {
+        const matchFormat = p.dataset.ccoreFormat === format;
+        const pContent = p.dataset.ccoreContent;
+        // 无 content 属性的 pre(普通/dual section)总是匹配;有 content 属性的需匹配
+        const matchContent = !content || !pContent || pContent === content;
+        p.style.display = (matchFormat && matchContent && !collapsed) ? 'block' : 'none';
+    });
+}
+
+/**
+ * 获取 section 当前激活的 pre（按 data-ccore-format + data-ccore-content 匹配,用于复制)
  */
 function _getActivePre(section) {
     const pres = section.querySelectorAll('.ccore-debug-pre');
     if (pres.length <= 1) return pres[0];
-    for (const p of pres) {
-        if (p.style.display !== 'none') return p;
+    const format = section.dataset.ccoreFormat || 'readable';
+    const content = section.dataset.ccoreContent;
+    // 优先匹配 format + content
+    if (content) {
+        const found = section.querySelector(`.ccore-debug-pre[data-ccore-format="${format}"][data-ccore-content="${content}"]`);
+        if (found) return found;
     }
-    return pres[0];
+    // 其次匹配 format(无 content 属性的 pre)
+    const found = section.querySelector(`.ccore-debug-pre[data-ccore-format="${format}"]:not([data-ccore-content])`);
+    if (found) return found;
+    // 兜底:任意匹配 format 的 pre
+    return section.querySelector(`.ccore-debug-pre[data-ccore-format="${format}"]`) || pres[0];
 }
 
 /**
- * 绑定 section 折叠/复制/格式切换事件
+ * 绑定 section 折叠/复制/格式切换/内容切换事件
  */
 function _bindSectionEvents(doc) {
-    // 折叠（点击 header 区域）
+    // 折叠（点击 header 区域,排除按钮）
     doc.querySelectorAll('.ccore-debug-section-header').forEach(header => {
         const section = header.parentElement;
         const toggleBtn = header.querySelector('.ccore-debug-toggle-btn');
         header.addEventListener('click', (e) => {
-            if (e.target.classList.contains('ccore-debug-copy-btn') ||
-                e.target.classList.contains('ccore-debug-toggle-btn') ||
-                e.target.classList.contains('ccore-debug-format-btn')) return;
-            const pre = _getActivePre(section);
-            if (!pre) return;
-            const collapsed = pre.style.display === 'none';
-            pre.style.display = collapsed ? 'block' : 'none';
+            if (e.target.closest('button')) return;
+            const collapsed = section.dataset.ccoreCollapsed === 'true';
+            section.dataset.ccoreCollapsed = !collapsed;
+            _updatePreVisibility(section);
             if (toggleBtn) toggleBtn.textContent = collapsed ? '收起' : '展开';
         });
     });
@@ -223,15 +279,14 @@ function _bindSectionEvents(doc) {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const section = btn.closest('.ccore-debug-section');
-            const pre = _getActivePre(section);
-            if (!pre) return;
-            const collapsed = pre.style.display === 'none';
-            pre.style.display = collapsed ? 'block' : 'none';
+            const collapsed = section.dataset.ccoreCollapsed === 'true';
+            section.dataset.ccoreCollapsed = !collapsed;
+            _updatePreVisibility(section);
             btn.textContent = collapsed ? '收起' : '展开';
         });
     });
 
-    // 复制按钮（复制当前可见 pre 的内容）
+    // 复制按钮（复制当前激活 pre 的内容）
     doc.querySelectorAll('.ccore-debug-copy-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -242,27 +297,30 @@ function _bindSectionEvents(doc) {
         });
     });
 
-    // 格式切换（仅 dual section:JSON ↔ 可读）
+    // 格式切换（JSON ↔ 可读,dual/sent section）
     doc.querySelectorAll('.ccore-debug-format-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const section = btn.closest('.ccore-debug-section');
-            const jsonPre = section.querySelector('.ccore-debug-pre-json');
-            const readablePre = section.querySelector('.ccore-debug-pre-readable');
-            if (!jsonPre || !readablePre) return;
-            const jsonVisible = jsonPre.style.display !== 'none';
-            if (jsonVisible) {
-                jsonPre.style.display = 'none';
-                readablePre.style.display = 'block';
-                btn.textContent = 'JSON';
-            } else {
-                jsonPre.style.display = 'block';
-                readablePre.style.display = 'none';
-                btn.textContent = '可读';
-            }
-            // 同步折叠按钮文案（切换后视为展开状态）
-            const toggleBtn = section.querySelector('.ccore-debug-toggle-btn');
-            if (toggleBtn) toggleBtn.textContent = '收起';
+            const currentFormat = section.dataset.ccoreFormat || 'readable';
+            const newFormat = currentFormat === 'json' ? 'readable' : 'json';
+            section.dataset.ccoreFormat = newFormat;
+            _updatePreVisibility(section);
+            btn.textContent = newFormat === 'json' ? '可读' : 'JSON';
+        });
+    });
+
+    // 内容切换（调用输入 ↔ 实际发送,仅 sent section）
+    doc.querySelectorAll('.ccore-debug-content-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const section = btn.closest('.ccore-debug-section');
+            const currentContent = section.dataset.ccoreContent;
+            if (!currentContent) return;
+            const newContent = currentContent === 'input' ? 'sent' : 'input';
+            section.dataset.ccoreContent = newContent;
+            _updatePreVisibility(section);
+            btn.textContent = newContent === 'input' ? '实际发送' : '调用输入';
         });
     });
 }

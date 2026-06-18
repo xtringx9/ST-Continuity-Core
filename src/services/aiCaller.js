@@ -78,6 +78,7 @@ export const aiCaller = {
             settingsCleanup = () => eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, handler);
         }
 
+        let callError = null;
         try {
             if (mode === 'raw') {
                 result = await this._callRaw(options, capture);
@@ -88,6 +89,9 @@ export const aiCaller = {
             }
             infoLog(LOG_TAG, `AI 调用完成，响应类型: ${typeof result}，长度: ${result?.length ?? 'null'}`);
             infoLog(LOG_TAG, `AI 原始响应内容（前500字）: ${String(result).substring(0, 500)}`);
+        } catch (e) {
+            callError = e;
+            errorLog(LOG_TAG, `AI 调用失败(仍会触发 debug): ${e?.message || e}`);
         } finally {
             if (settingsCleanup) settingsCleanup();
         }
@@ -96,9 +100,17 @@ export const aiCaller = {
             prompt: capture.prompt,
             response: result,
             apiUsed,
+            error: callError?.message || null,
         };
 
         this._emitDebug(debugInfo);
+
+        if (callError) {
+            // 把 debugInfo 挂到 error 上,让上层 catch 能读取已捕获的提示词
+            callError.debugInfo = debugInfo;
+            throw callError;
+        }
+
         return { text: result, debug: debugInfo };
     },
 

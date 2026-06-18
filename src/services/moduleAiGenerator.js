@@ -208,6 +208,9 @@ export const moduleAiGenerator = {
                     : `#${ids[0]}-${ids[ids.length - 1]}`;
                 const titleBody = `${scope} - ${charName} / ${chatName}`;
 
+                // 从 err.debugInfo 读取 aiCaller 已捕获的提示词(API 失败时仍有值)
+                const errDebug = err.debugInfo || {};
+
                 showDebugPanel({
                     title: `生成失败 ${titleBody}`,
                     statusLabel: '生成失败',
@@ -216,16 +219,16 @@ export const moduleAiGenerator = {
                     mesIds: ids,
                     mode,
                     sentInfo,
-                    capturedPrompt: '',
-                    response: `错误: ${err.message}`,
+                    capturedPrompt: errDebug.prompt || '',
+                    response: errDebug.response || `错误: ${err.message}`,
                     extracted: { moduleTagModules: [], contentTagModules: [], extraModules: [] },
-                    apiUsed: {},
+                    apiUsed: errDebug.apiUsed || {},
                     hasModules: false,
                     error: err.message,
                 });
             }
 
-            return { success: false, text: '', debug: null, error: err.message, hasModules: false, storedCount: 0 };
+            return { success: false, text: '', debug: err.debugInfo || null, error: err.message, hasModules: false, storedCount: 0 };
         }
     },
 };
