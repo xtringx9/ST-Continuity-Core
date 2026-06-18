@@ -2,12 +2,11 @@
 // 为每条消息添加模块操作按钮（Cc 菜单触发器 + 展开的三个操作）
 // Cc 点击 → 同行右侧展开三个按钮：重新生成 / 编辑模块数据 / 模块汇总
 
-import { eventSource, event_types, chat } from '../../../../../../script.js';
-import { isInChatPage } from '../core/contextBottomUI.js';
+import { chat } from '../../../../../../script.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
-import { openContextBottomAsModal } from '../core/contextBottomUI.js';
+import { isInChatPage, openContextBottomAsModal } from '../core/contextBottomUI.js';
 import perMessageStorage from '../services/perMessageStorage.js';
 import { CONTEXT_MSG_CONTAINER_ID } from '../core/context-ui/containerManager.js';
 
@@ -48,7 +47,7 @@ let currentTrigger = null;
  *
  * @param {number} messageId - 消息 ID
  */
-function addAiButtonToMessage(messageId) {
+export function addAiButtonToMessage(messageId) {
     if(!isInChatPage()) return;
     try {
         const messageBlock = $(`.mes[mesid="${messageId}"]`);
@@ -118,7 +117,7 @@ function addAiButtonToMessage(messageId) {
 /**
  * 为当前聊天中所有消息添加按钮
  */
-function addAiButtonsToAllMessages() {
+export function addAiButtonsToAllMessages() {
     try {
         const messages = $('#chat .mes');
         messages.each(function () {
@@ -509,28 +508,11 @@ function onSummaryPanel() {
 
 /**
  * 初始化消息模块操作按钮
+ *
+ * 仅负责非事件初始化：MutationObserver + 事件委托 + 首次添加按钮。
+ * 事件注册由 eventHandler.initializeMessageAiButton 统一管理。
  */
 export function initMessageAiButton() {
-    //todo 可能后面可以筛检一些事件注册。感觉可能不需要这么多？
-    // 监听消息渲染事件，为新消息添加按钮
-    eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, addAiButtonToMessage);
-    eventSource.on(event_types.USER_MESSAGE_RENDERED, addAiButtonToMessage);
-    eventSource.on(event_types.MESSAGE_RECEIVED, addAiButtonToMessage);
-    eventSource.on(event_types.MESSAGE_SENT, addAiButtonToMessage);
-    eventSource.on(event_types.MORE_MESSAGES_LOADED, addAiButtonsToAllMessages);
-    // CHAT_CHANGED：聊天切换时，非聊天页移除按钮，聊天页添加按钮
-    // eventSource.on(event_types.CHAT_CHANGED, onChatChanged); 这个注释了也不影响，果然没必要
-
-    // swipe 切换时不触发 CHARACTER_MESSAGE_RENDERED（ST 源码 noEmitTypes 含 'swipe'），
-    // 需监听 MESSAGE_SWIPED 重新添加按钮，否则 swipe 后 Cc 按钮消失
-    // eventSource.on(event_types.MESSAGE_SWIPED, addAiButtonToMessage);
-
-    // 生成结束（含失败/中止）：兜底重新添加按钮
-    // 生成失败时 CHARACTER_MESSAGE_RENDERED 不触发，按钮会消失
-    eventSource.on(event_types.GENERATION_ENDED, () => {
-        setTimeout(addAiButtonsToAllMessages, 100);
-    });
-
     // MutationObserver：监听 #chat 子元素变化，.mes 被重建时自动重新添加按钮
     // ST 在 swipe 切换/生成/编辑等场景会重建 .mes 元素，append 到 .mes 内的浮动按钮被清除。
     // 事件监听（MESSAGE_SWIPED/GENERATION_ENDED）无法覆盖所有场景，Observer 作为兜底。

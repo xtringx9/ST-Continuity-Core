@@ -5,6 +5,7 @@ import configManager from "../singleton/configManager.js";
 import moduleCacheManager from "../singleton/moduleCacheManager.js";
 import { eventSource, event_types } from "../../../../../../script.js";
 import { checkUItoContextBottom, checkUItoMsgBottom, checkRenderCurrentMessageContext } from "./contextBottomUI.js"
+import { addAiButtonToMessage, addAiButtonsToAllMessages } from "../ui/messageAiButton.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 /**
  * 事件处理器类
@@ -37,6 +38,7 @@ export class EventHandler {
             this.initializeWorldBookIntegration();
             // 注册事件处理器
             this.registerUIEvents();
+            this.initializeMessageAiButton();
 
 
             this.isInitialized = true;
@@ -75,6 +77,30 @@ export class EventHandler {
             // infoLog('[EVENTS]UI相关事件处理器注册成功');
         } catch (error) {
             errorLog('[EVENTS]注册UI相关事件处理器失败:', error);
+        }
+    }
+
+    /**
+     * 注册消息 AI 按钮（Cc）相关事件
+     *
+     * 消息渲染事件触发 addAiButtonToMessage 为新消息添加 Cc 按钮；
+     * GENERATION_ENDED 兜底处理生成失败时按钮消失（CHARACTER_MESSAGE_RENDERED 不触发）。
+     * MutationObserver（在 initMessageAiButton 中设置）作为最终兜底。
+     */
+    initializeMessageAiButton() {
+        try {
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, addAiButtonToMessage);
+            this.registerEvent(event_types.USER_MESSAGE_RENDERED, addAiButtonToMessage);
+            this.registerEvent(event_types.MESSAGE_RECEIVED, addAiButtonToMessage);
+            this.registerEvent(event_types.MESSAGE_SENT, addAiButtonToMessage);
+            this.registerEvent(event_types.MORE_MESSAGES_LOADED, addAiButtonsToAllMessages);
+
+            // 生成结束（含失败/中止）：兜底重新添加按钮
+            this.registerEvent(event_types.GENERATION_ENDED, () => {
+                setTimeout(addAiButtonsToAllMessages, 100);
+            });
+        } catch (error) {
+            errorLog('[EVENTS]注册消息AI按钮事件失败:', error);
         }
     }
 
