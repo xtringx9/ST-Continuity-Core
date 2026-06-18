@@ -3,6 +3,7 @@
 import configManager, { extensionFolderPath } from "../singleton/configManager.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
 import { removeUIfromContextBottom } from "../core/contextBottomUI.js";
+import { addAiButtonsToAllMessages, removeAllAiButtons } from "../ui/messageAiButton.js";
 import {
     addWorldBookToGlobalSettings,
     removeWorldBookFromGlobalSettings,
@@ -146,6 +147,8 @@ function enableContinuityCore() {
         new EntryButton(extensionFolderPath).init();
         addWorldBookToGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
+        // 显式添加 Cc 按钮（不依赖事件/Observer 兜底，与 contextBottomUI 行为一致）
+        addAiButtonsToAllMessages();
         infoLog("♥️ Continuity Core has been enabled.");
     } catch (error) {
         errorLog("Failed to enable Continuity Core:", error);
@@ -157,6 +160,7 @@ function disableContinuityCore() {
     try {
         new EntryButton(extensionFolderPath).remove();
         removeUIfromContextBottom();
+        removeAllAiButtons();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
         infoLog("♥️ Continuity Core has been disabled.");
@@ -515,7 +519,7 @@ export async function onAiGenerateFloor() {
 
         const result = await moduleAiGenerator.generate(mesIds, options);
 
-        toastr.success(result.success ? 'AI 生成完成' : 'AI 回复中未提取到模块数据');
+        toastr.success(result.hasModules ? 'AI 生成完成' : 'AI 回复中未提取到模块数据');
     } catch (err) {
         errorLog('[AiGenerate] AI 生成失败:', err);
         toastr.error('AI 生成失败，请查看控制台');
@@ -547,7 +551,7 @@ export async function onAiGenerateChat() {
 
         const result = await moduleAiGenerator.generate(mesIds, options);
 
-        toastr.success(result.success ? 'AI 生成完成' : 'AI 回复中未提取到模块数据');
+        toastr.success(result.hasModules ? 'AI 生成完成' : 'AI 回复中未提取到模块数据');
     } catch (err) {
         errorLog('[AiGenerate] AI 生成失败:', err);
         toastr.error('AI 生成失败，请查看控制台');

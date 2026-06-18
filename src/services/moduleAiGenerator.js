@@ -31,7 +31,7 @@ export const moduleAiGenerator = {
      * @param {string[]} [options.cotTags] - contentTag 标签列表
      * @param {number} [options.responseLength] - 响应长度
      * @param {boolean} [options.showDebug=true] - 是否显示 debug 面板
-     * @returns {Promise<{success: boolean, text: string, debug: object, storedCount: number}>}
+     * @returns {Promise<{success: boolean, text: string, debug: object, hasModules: boolean, storedCount: number}>}
      */
     async generate(mesIds, options = {}) {
         const {
@@ -130,12 +130,13 @@ export const moduleAiGenerator = {
 
             let extracted = null;
             let storedCount = 0;
+            let hasModules = false;
 
             if (!skipStorage) {
                 // 解析 AI 回复中的模块数据
                 extracted = perMessageStorage.extractMessageModules(result.text, cotTags);
 
-                const hasModules = extracted.moduleTagModules.length > 0
+                hasModules = extracted.moduleTagModules.length > 0
                     || extracted.contentTagModules.length > 0
                     || extracted.extraModules.length > 0;
 
@@ -188,10 +189,11 @@ export const moduleAiGenerator = {
             }
 
             return {
-                success: hasModules,
+                success: !!result.text,
                 text: result.text,
                 debug: result.debug,
                 extracted,
+                hasModules,
                 storedCount,
             };
         } catch (err) {
@@ -223,7 +225,7 @@ export const moduleAiGenerator = {
                 });
             }
 
-            return { success: false, text: '', debug: null, error: err.message, storedCount: 0 };
+            return { success: false, text: '', debug: null, error: err.message, hasModules: false, storedCount: 0 };
         }
     },
 };

@@ -577,8 +577,11 @@ function onChatChanged() {
 
 /**
  * 移除所有消息的 Cc 浮动按钮（含展开的菜单）
+ *
+ * 插件关闭时由 extensionSettingsManager.disableContinuityCore 调用，
+ * 与 contextBottomUI.removeUIfromContextBottom 对齐。
  */
-function removeAllAiButtons() {
+export function removeAllAiButtons() {
     if (currentMenu) closeInlineMenu();
     $('.ccore-mes-float-wrap').remove();
 }
