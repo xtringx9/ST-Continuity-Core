@@ -1,5 +1,5 @@
 // src/ui/generatorDebugPanel.js
-// AI 生成调试弹窗：基于 IframeModal + 独立 HTML，复用 module-editor 主题系统
+// 生成调试弹窗：基于 IframeModal + 独立 HTML，复用 module-editor 主题系统
 // 支持多个弹窗同时存在（每次 new 新 IframeModal 实例）
 
 import { IframeModal } from '../shared/IframeModal.js';
@@ -17,7 +17,7 @@ let panelCounter = 0;
  * @param {string} data.mode - 调用模式
  * @param {object} data.sentInfo - 实际发送的信息
  * @param {string|Array} [data.capturedPrompt] - 事件捕获到的最终提示词（可能为空）
- * @param {string} data.response - AI 完整响应
+ * @param {string} data.response - 完整响应
  * @param {object|null} data.extracted - 提取的模块数据
  * @param {object} data.apiUsed - 使用的 API 信息
  * @param {boolean} [data.hasModules] - 是否有模块数据
@@ -25,7 +25,7 @@ let panelCounter = 0;
  */
 export function showDebugPanel(data) {
     panelCounter++;
-    const title = data.title || 'AI 生成调试';
+    const title = data.title || '生成调试';
 
     const modal = new IframeModal({
         modalId: `ccore-debug-modal-${panelCounter}`,
@@ -42,9 +42,14 @@ export function showDebugPanel(data) {
             const theme = localStorage.getItem('st_continuity_theme') || 'light';
             doc.documentElement.setAttribute('data-theme', theme);
 
-            // 2. 设置标题
+            // 2. 设置标题（带状态标签）
             const titleEl = doc.querySelector('.ccore-debug-title');
-            if (titleEl) titleEl.textContent = title;
+            if (titleEl) {
+                const statusLabel = data.statusLabel || '生成调试';
+                const statusType = data.statusType || 'info';
+                const titleBody = data.titleBody || '';
+                titleEl.innerHTML = `<span class="ccore-debug-badge ccore-debug-badge-${statusType}">${_escapeHtml(statusLabel)}</span>${_escapeHtml(titleBody)}`;
+            }
 
             // 3. 注入 sections
             const body = doc.querySelector('.ccore-debug-body');
@@ -71,7 +76,7 @@ function _buildSectionsHtml(data) {
         sections.push(_buildSection('错误', data.error, 'var(--danger-color)', true));
     }
 
-    // 1. 发送给 AI 的内容
+    // 1. 发送的内容
     if (data.sentInfo) {
         let sentText = '';
         if (data.sentInfo.type === 'raw') {
@@ -84,14 +89,14 @@ function _buildSectionsHtml(data) {
             }
         } else if (data.sentInfo.type === 'pipeline') {
             const parts = [];
-            parts.push('=== quietPrompt (发送给 AI 的消息) ===');
+            parts.push('=== quietPrompt (发送的消息) ===');
             parts.push(data.sentInfo.quietPrompt || '(空)');
             parts.push('');
             parts.push('=== injectPrompt (注入到 extension_prompts 的指令) ===');
             parts.push(data.sentInfo.injectPrompt || '(无)');
             sentText = parts.join('\n');
         }
-        sections.push(_buildSection('发送给 AI 的内容', sentText, 'var(--accent-color)', true));
+        sections.push(_buildSection('发送内容', sentText, 'var(--accent-color)', true));
     }
 
     // 2. 事件捕获的最终提示词
@@ -107,8 +112,8 @@ function _buildSectionsHtml(data) {
         sections.push(_buildSection('ST 管线最终提示词（事件捕获）', capturedText || '(未捕获到)', 'var(--text-secondary)', false));
     }
 
-    // 3. AI 完整响应
-    sections.push(_buildSection('AI 完整响应', data.response || '(空)', 'var(--success-color)', true));
+    // 3. 完整响应
+    sections.push(_buildSection('完整响应', data.response || '(空)', 'var(--success-color)', true));
 
     // 4. 提取结果
     if (data.extracted) {

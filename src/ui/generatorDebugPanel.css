@@ -33,6 +33,31 @@ body {
     font-size: 14px;
     font-weight: 600;
     color: var(--accent-color);
+    display: flex;
+    align-items: center;
+}
+
+/* 状态标签（生成调试 / 生成失败） */
+.ccore-debug-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 6px;
+    border: 1px solid transparent;
+    line-height: 1.4;
+}
+
+.ccore-debug-badge-info {
+    background-color: var(--accent-color);
+    color: var(--bg-app);
+}
+
+.ccore-debug-badge-fail {
+    background-color: var(--bg-card);
+    color: var(--danger-color);
+    border-color: var(--danger-color);
 }
 
 .ccore-debug-close {

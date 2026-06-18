@@ -4,7 +4,7 @@
 
 import { aiCaller } from './aiCaller.js';
 import perMessageStorage from './perMessageStorage.js';
-import { chat } from '../../../../../../script.js';
+import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { showDebugPanel } from '../ui/generatorDebugPanel.js';
 
@@ -162,10 +162,19 @@ export const moduleAiGenerator = {
 
             // 显示 debug 面板
             if (shouldShowDebug) {
+                const details = getCurrentChatDetails();
+                const charName = details?.characterName || '';
+                const chatName = details?.sessionName || '';
+                const scope = isSingle
+                    ? `#${messages[0].mesId}`
+                    : `#${ids[0]}-${ids[ids.length - 1]}`;
+                const titleBody = `${scope} - ${charName} / ${chatName}`;
+
                 showDebugPanel({
-                    title: isSingle
-                        ? `楼层 ${messages[0].mesId} - AI 生成调试`
-                        : `${messages.length} 条消息 - AI 生成调试`,
+                    title: `生成调试 ${titleBody}`,
+                    statusLabel: '生成调试',
+                    statusType: 'info',
+                    titleBody,
                     mesIds: ids,
                     mode,
                     sentInfo,
@@ -189,8 +198,19 @@ export const moduleAiGenerator = {
             errorLog(LOG_TAG, `AI 生成失败:`, err);
 
             if (shouldShowDebug) {
+                const details = getCurrentChatDetails();
+                const charName = details?.characterName || '';
+                const chatName = details?.sessionName || '';
+                const scope = isSingle
+                    ? `#${messages[0].mesId}`
+                    : `#${ids[0]}-${ids[ids.length - 1]}`;
+                const titleBody = `${scope} - ${charName} / ${chatName}`;
+
                 showDebugPanel({
-                    title: 'AI 生成失败',
+                    title: `生成失败 ${titleBody}`,
+                    statusLabel: '生成失败',
+                    statusType: 'fail',
+                    titleBody,
                     mesIds: ids,
                     mode,
                     sentInfo,
