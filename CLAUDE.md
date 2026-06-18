@@ -59,9 +59,13 @@ src/utils/                # 工具函数
   variableReplacer.js     #   变量替换
 src/ui/                   # UI 管理
   extensionSettingsManager.js  # 扩展设置面板逻辑
-  generatorDebugPanel.js       # AI 生成调试弹窗（提示词/响应展示 + 复制按钮）
+  generatorDebugPanel.js       # AI 生成调试弹窗（IframeModal + 独立 HTML/CSS，主题同步）
+  generatorDebugPanel.html     # 调试面板 HTML（<link> 引入 themes.css）
+  generatorDebugPanel.css      # 调试面板样式（全用 themes.css 变量，ccore-debug-* 前缀）
+  messageAiButton.js           # 消息内 Cc 菜单触发器（浮动定位 + 编辑模块数据）
 src/shared/               # 可复用 UI 组件
-  IframeDialog.js, IframeModal.js
+  IframeDialog.js
+  IframeModal.js               # 通用 iframe 模态窗口（多实例 + srcdoc 模式）
 locales/                  # 翻译资源（ST 标准 i18n）
   zh-cn.json              #   中文（默认）
   en.json                  #   英文
@@ -238,6 +242,50 @@ generatorDebugPanel（调试弹窗）
 - **Phase 2**：读取加速 — 累积状态 → 管线输入格式转换 + 加速开关
 - **Phase 3**：生命周期 + 脏快照 — 聊天重命名/删除处理 + 自动重建
 
+## UI 架构
+
+### 菜单触发器模式
+
+Cc 按钮（消息内）和 EntryButton（全局）都采用"触发器 + 展开菜单"模式：
+
+- **触发器**：单图标按钮，点击展开/收起菜单
+- **菜单容器**：带边框（`2px solid` + `border-radius:6px`），内部按钮无边框，作为整体视觉组
+- **展开方向**：向右展开（与 EntryButton 一致）
+- **高度对齐**：菜单容器高度显式锁死，确保与触发器对齐（Cc: 22px，EntryButton: 30px）
+- **激活样式**：触发器激活时用 `filter: brightness(0.85)`（主题无关，避免白色主题下半透明灰透出深色 body）
+
+**Cc 浮动定位**：紧贴消息左下角（`position:absolute; left:0; bottom:0; z-index:9999`），仿 ST 的 swipe 按钮。默认 `opacity:0.5`，hover `1.0`。
+
+**异步模块未开启时**：重新生成/编辑按钮置灰（`opacity:0.4 + cursor:not-allowed`），不绑定事件。
+
+### IframeModal 多实例 + srcdoc 模式
+
+`src/shared/IframeModal.js` 支持：
+- **多实例**：`modalCounter` 生成唯一 modalId/iframeId，`_handleMessage` 加 modalId 匹配。同实例 `if (this.backdrop) return` 防重开
+- **srcdoc 模式**：`open()` 新增 `options.srcdoc`，传 HTML 字符串时用 `iframe.srcdoc` 代替 `iframe.src`。用于 `openContextBottomAsModal` 汇总弹窗
+
+### 主题同步机制
+
+调试面板与 module-editor 主题系统统一：
+- 读 `localStorage.st_continuity_theme` 设置 `data-theme`
+- `<link>` 引入 `themes.css`（零变量重复，所有样式用 CSS 变量）
+- iframe 内 ST 的 MutationObserver 不运行，需手动调用 `applyI18nToStaticElements`
+
+### openContextBottomAsModal
+
+底部固定汇总改为弹窗模式（原 `checkUItoContextBottom` 调用注释保留）：
+- 用 IframeModal srcdoc 模式，单实例
+- 复用原渲染逻辑（`buildStyledProcessResult` + `getModulesDataAndStyles` + `interactionScript`）
+- container 背景设透明（`.st-continuity-iframe-container` 的默认深色背景不适用）
+
+### 编辑模块数据（就地 textarea）
+
+Cc 菜单的"编辑"操作：
+- 隐藏模块展示区 iframe，插入 textarea + 保存/取消按钮
+- 保存/取消按钮用 ST 原生样式（`menu_button fa-solid fa-check/fa-times interactable`）
+- 读取 `perMessageStorage.readMessage(mesId, swipeId)` 获取 `moduleTagModules` 的 raw
+- 保存用 `perMessageStorage.updateMessage`，保留 `contentTagModules`/`extraModules` 不变
+
 ## 构建与开发
 
 - **无构建步骤** — 纯 JavaScript，无打包工具。`continuity-core.js` 是编译输出，编辑 `src/` 下的文件
@@ -301,6 +349,27 @@ output.js → normalize.js → deduplicate.js
 1. 在源文件中定义并 `export`
 2. 需要该模块的文件直接 `import` 源文件
 3. 只有 `continuity-core.js` 需要的符号才直接在该文件中导入
+
+### 事件注册规范
+
+**所有 ST 事件注册必须走 `eventHandler.registerEvent`，不直接用 `eventSource.on`。**
+
+```javascript
+// ✓ 正确 — 走 eventHandler 统一注册
+this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, addAiButtonToMessage);
+
+// ✗ 错误 — 绕过 eventHandler，丢失统一错误处理/事件引用管理/调试支持
+eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, addAiButtonToMessage);
+```
+
+`registerEvent` 的好处：
+- 统一 try-catch 错误处理
+- 事件处理器引用纳入 `eventHandlers` Map（支持排查/卸载）
+- `printEvent` 参数支持调试
+
+**ST 事件知识点**：
+- `noEmitTypes = ['swipe', 'impersonate', 'continue']`（[script.js](file:///e:/Data/Apps/SillyTavern/public/script.js)）— 当 `addOneMessage` 的 `type` 为这三者时，**不触发** `MESSAGE_RECEIVED`/`CHARACTER_MESSAGE_RENDERED`。swipe 切换时需监听 `MESSAGE_SWIPED` 或用 MutationObserver 兜底
+- `GENERATION_ENDED` 在生成结束（含失败/中止）时触发，`CHARACTER_MESSAGE_RENDERED` 只在生成成功时触发
 
 ## 配置系统
 
@@ -367,6 +436,74 @@ el.addEventListener('dragend', (e) => handleDragEnd(e, doc, e.currentTarget));
 `continuity-core.js` 在项目根目录（`src/` 外），到 ST 核心文件的路径比 `src/` 下1层目录少1层 `../`：
 - 到 `extensions.js` = `../../../extensions.js`（3 层）
 - 到 `script.js` = `../../../../script.js`（4 层）
+
+### 5. `navigator.clipboard` 在非安全上下文不可用
+
+HTTP 局域网（非 HTTPS）下 `navigator.clipboard` 为 `undefined`，直接调用 `navigator.clipboard.writeText` 会报 `Cannot read properties of undefined`。
+
+```javascript
+// ✓ 正确 — 优先 clipboard API，不可用时 fallback 到 execCommand
+async function copyText(text) {
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+    }
+}
+```
+
+iframe 内的复制按钮尤其要注意（iframe 可能是非安全上下文）。
+
+### 6. swipe 类型不触发 `CHARACTER_MESSAGE_RENDERED`
+
+ST 源码 `noEmitTypes = ['swipe', 'impersonate', 'continue']`，当 `addOneMessage` 的 `type` 为这三者时，不触发 `MESSAGE_RECEIVED`/`CHARACTER_MESSAGE_RENDERED`。
+
+**影响**：Cc 按钮 append 到 `.mes` 内，ST 重新渲染消息块（swipe 切换/生成/编辑）时会清除 `.mes` 子元素，按钮消失。而 swipe 类型不触发 `CHARACTER_MESSAGE_RENDERED`，按钮不重新添加。
+
+**解决**：
+- 监听 `MESSAGE_SWIPED` + `GENERATION_ENDED` 事件（在 eventHandler 注册）
+- `MutationObserver` 监听 `#chat` 子元素变化作为兜底（200ms 防抖）
+
+### 7. `getCurrentChatId()` 判断聊天页不可靠
+
+`getCurrentChatId()` 在群组聊天无 `chat_id` 时也返回 `undefined`，误判为非聊天页。
+
+**正确做法**：用 `contextBottomUI.isInChatPage()`，它优先用 `getContext().characterId/groupId` 判断（`characterId = this_chid`，非聊天页时 `undefined`；`groupId = selected_group`，群组聊天时有值），DOM 检查作为兜底。
+
+```javascript
+// ✓ 正确 — 复用统一的 isInChatPage
+import { isInChatPage } from '../core/contextBottomUI.js';
+if (isInChatPage()) { ... }
+
+// ✗ 错误 — getCurrentChatId 在群组聊天时不可靠
+if (getCurrentChatId()) { ... }
+```
+
+### 8. Cc 按钮被 ST 重新渲染清除
+
+Cc 按钮 `append` 到 `.mes` 元素内部。ST 在 swipe 切换/生成新内容/编辑消息时会调用 `addOneMessage` 重建 `.mes` 元素，append 进去的浮动按钮作为 `.mes` 子元素被一起清除。
+
+**解决**：`MutationObserver` 监听 `#chat` 直接子元素（`.mes`）的添加/删除/替换，触发防抖刷新重新添加按钮。事件监听（`MESSAGE_SWIPED`/`GENERATION_ENDED`）无法覆盖所有场景，Observer 作为兜底。
+
+### 9. PowerShell 不支持 heredoc
+
+`$(cat <<'EOF')` 在 PowerShell 中不支持，git commit 会静默失败。
+
+```powershell
+# ✗ 错误 — PowerShell 不支持 heredoc
+git commit -m "$(cat <<'EOF'
+提交信息
+EOF
+)"
+
+# ✓ 正确 — 用多个 -m 参数
+git commit -m "标题" -m "正文行1" -m "正文行2"
+```
 
 ## 待确认项
 
