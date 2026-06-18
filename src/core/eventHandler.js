@@ -51,11 +51,12 @@ export class EventHandler {
      */
     registerUIEvents() {
         try {
-            this.registerEvent(event_types.CHAT_CHANGED, checkUItoContextBottom);
-            this.registerEvent(event_types.MESSAGE_EDITED, checkUItoContextBottom);
-            this.registerEvent(event_types.MESSAGE_SWIPED, checkUItoContextBottom);
-            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkUItoContextBottom);
-            this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkUItoContextBottom);
+            // 底部固定容器改为弹窗触发（见 openContextBottomAsModal），不再自动更新
+            // this.registerEvent(event_types.CHAT_CHANGED, checkUItoContextBottom);
+            // this.registerEvent(event_types.MESSAGE_EDITED, checkUItoContextBottom);
+            // this.registerEvent(event_types.MESSAGE_SWIPED, checkUItoContextBottom);
+            // this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkUItoContextBottom);
+            // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkUItoContextBottom);
 
             this.registerEvent(event_types.CHAT_CHANGED, checkUItoMsgBottom);
             this.registerEvent(event_types.MESSAGE_EDITED, checkUItoMsgBottom);

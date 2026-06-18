@@ -6,6 +6,7 @@ import { eventSource, event_types } from '../../../../../../script.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
+import { openContextBottomAsModal } from '../core/contextBottomUI.js';
 
 const LOG_TAG = '[MessageAiButton]';
 const BUTTON_CLASS = 'mes_ai_generate';
@@ -339,10 +340,10 @@ function onEditModules(mesId) {
 }
 
 /**
- * 模块汇总弹窗（占位，待接入）
+ * 模块汇总弹窗
  */
 function onSummaryPanel() {
-    infoLog(LOG_TAG, '模块汇总弹窗（功能开发中）');
+    openContextBottomAsModal();
 }
 
 /**

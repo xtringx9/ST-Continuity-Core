@@ -14,11 +14,12 @@ export class IframeModal {
 
     /**
      * 打开 Iframe 模态窗口
-     * @param {string} url - Iframe 要加载的 HTML 路径
+     * @param {string|null} url - Iframe 要加载的 HTML 路径（与 srcdoc 二选一）
      * @param {string} title - (可选) 用于无障碍访问的标题
      * @param {Object} options - (可选) 配置项
      * @param {string} options.variant - 样式变体: 'drawer-left' (默认), 'drawer-right', 'center'
      * @param {function} options.onLoad - iframe 加载完成回调，参数为 iframe 元素
+     * @param {string} options.srcdoc - HTML 字符串，用于 srcdoc 模式（与 url 二选一）
      */
     open(url, title = 'Continuity Editor', options = {}) {
         // 同实例已打开则不重复打开（保持单实例语义；多开请 new 新实例）
@@ -39,8 +40,14 @@ export class IframeModal {
         // 3. 创建 Iframe
         const iframe = document.createElement('iframe');
         iframe.id = this.iframeId;
-        iframe.src = url;
         iframe.title = title;
+
+        // srcdoc 模式：注入 HTML 字符串；否则加载 url
+        if (options.srcdoc) {
+            iframe.srcdoc = options.srcdoc;
+        } else {
+            iframe.src = url;
+        }
 
         // 支持 onLoad 回调 (用于注入逻辑)
         if (typeof options.onLoad === 'function') {

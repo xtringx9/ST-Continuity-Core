@@ -1,7 +1,9 @@
 import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
 import { initModuleEditor } from '../module-editor/ModuleEditor.js';
-import { warnLog } from '../../utils/logger.js';
+import { warnLog, infoLog } from '../../utils/logger.js';
+import { openContextBottomAsModal } from '../../core/contextBottomUI.js';
+import { getCurrentChatId } from '../../../../../../../script.js';
 
 export class EntryButton {
     /**
@@ -13,6 +15,8 @@ export class EntryButton {
         this.floatingId = 'continuity-new-fab-btn';
         this.iframeModal = new IframeModal();
         this._themeListener = null;
+        this._activeMenu = null;
+        this._activeTrigger = null;
     }
 
     /**
@@ -47,6 +51,8 @@ export class EntryButton {
      * 移除按钮
      */
     remove() {
+        this._closeMenu();
+
         const embeddedBtn = document.getElementById(this.embeddedId);
         if (embeddedBtn) embeddedBtn.remove();
 
@@ -78,7 +84,7 @@ export class EntryButton {
 
         // 使用 ST 的通用按钮类名，保持外观一致性
         btn.className = 'mes_text_paste';
-        btn.title = '打开 Continuity 配置 (Iframe)';
+        btn.title = 'Continuity 菜单';
 
         // 简单的图标样式
         btn.innerHTML = 'Cc';
@@ -99,7 +105,7 @@ export class EntryButton {
         });
 
         btn.addEventListener('click', () => {
-            this._handleClick();
+            this._toggleMenu(btn);
         });
 
         targetContainer.appendChild(btn);
@@ -111,7 +117,7 @@ export class EntryButton {
     _createFloatingButton() {
         const btn = document.createElement('div');
         btn.id = this.floatingId;
-        btn.title = '打开 Continuity 配置 (Iframe)';
+        btn.title = 'Continuity 菜单';
         btn.innerHTML = 'Cc';
 
         // 初始化主题
@@ -125,7 +131,7 @@ export class EntryButton {
         window.addEventListener('storage', this._themeListener);
         window.addEventListener('continuity-theme-change', this._themeListener);
 
-        btn.addEventListener('click', () => this._handleClick());
+        btn.addEventListener('click', () => this._toggleMenu(btn));
 
         document.body.appendChild(btn);
     }
@@ -210,7 +216,153 @@ export class EntryButton {
     }
 
     /**
-     * 处理点击事件
+     * 切换菜单显示
+     */
+    _toggleMenu(triggerBtn) {
+        if (this._activeMenu) {
+            this._closeMenu();
+            return;
+        }
+        this._createMenu(triggerBtn);
+    }
+
+    /**
+     * 创建并显示菜单（向右展开）
+     */
+    _createMenu(triggerBtn) {
+        const menu = document.createElement('div');
+        menu.className = 'continuity-entry-menu';
+
+        const rect = triggerBtn.getBoundingClientRect();
+        Object.assign(menu.style, {
+            position: 'fixed',
+            left: `${rect.right + 4}px`,
+            top: `${rect.top}px`,
+            display: 'flex',
+            gap: '4px',
+            zIndex: '2001',
+        });
+
+        // 判断是否在聊天页（有聊天 ID 才允许汇总/手机操作）
+        const inChat = !!getCurrentChatId();
+
+        const items = [
+            { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },
+            { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
+            { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式（开发中）' },
+        ];
+
+        items.forEach(item => {
+            const btn = document.createElement('div');
+            btn.className = 'continuity-entry-menu-item';
+            btn.title = item.title;
+            btn.innerHTML = `<i class="fa-solid ${item.icon}"></i>`;
+            Object.assign(btn.style, {
+                width: '30px',
+                height: '30px',
+                border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
+                borderRadius: '6px',
+                backgroundColor: 'var(--smart-background, #202123)',
+                color: 'var(--smart-text-color, #fff)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+                transition: 'background-color 0.2s',
+            });
+
+            // 非聊天页：汇总/手机按钮置灰禁用
+            const disabled = !inChat && item.action !== 'editor';
+            if (disabled) {
+                btn.style.opacity = '0.4';
+                btn.style.cursor = 'not-allowed';
+                btn.title = `${item.title}（需先打开聊天）`;
+            } else {
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.backgroundColor = 'var(--smart-border-color, rgba(128,128,128,0.3))';
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.backgroundColor = 'var(--smart-background, #202123)';
+                });
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this._handleMenuAction(item.action);
+                    this._closeMenu();
+                });
+            }
+            menu.appendChild(btn);
+        });
+
+        document.body.appendChild(menu);
+        this._activeMenu = menu;
+        this._activeTrigger = triggerBtn;
+
+        // 触发器激活样式（用 filter 避免主题色冲突）
+        triggerBtn.style.filter = 'brightness(0.85)';
+
+        // 外部点击 / 滚动 / 缩放 关闭
+        setTimeout(() => {
+            this._outsideHandler = (e) => {
+                if (this._activeMenu && !this._activeMenu.contains(e.target) && e.target !== triggerBtn) {
+                    this._closeMenu();
+                }
+            };
+            this._scrollHandler = () => this._closeMenu();
+            this._resizeHandler = () => this._closeMenu();
+            document.addEventListener('click', this._outsideHandler);
+            window.addEventListener('scroll', this._scrollHandler, true);
+            window.addEventListener('resize', this._resizeHandler);
+        }, 0);
+    }
+
+    /**
+     * 关闭菜单
+     */
+    _closeMenu() {
+        if (this._activeMenu) {
+            this._activeMenu.remove();
+            this._activeMenu = null;
+        }
+        // 恢复触发器样式
+        if (this._activeTrigger) {
+            this._activeTrigger.style.filter = '';
+            this._activeTrigger = null;
+        }
+        if (this._outsideHandler) {
+            document.removeEventListener('click', this._outsideHandler);
+            this._outsideHandler = null;
+        }
+        if (this._scrollHandler) {
+            window.removeEventListener('scroll', this._scrollHandler, true);
+            this._scrollHandler = null;
+        }
+        if (this._resizeHandler) {
+            window.removeEventListener('resize', this._resizeHandler);
+            this._resizeHandler = null;
+        }
+    }
+
+    /**
+     * 菜单项动作分发
+     */
+    _handleMenuAction(action) {
+        switch (action) {
+            case 'editor':
+                this._handleClick();
+                break;
+            case 'summary':
+                openContextBottomAsModal();
+                break;
+            case 'mobile':
+                infoLog('[Continuity] 手机模式功能开发中');
+                break;
+        }
+    }
+
+    /**
+     * 处理点击事件（打开编辑器）
      */
     _handleClick() {
         // 构建 HTML 文件的完整路径

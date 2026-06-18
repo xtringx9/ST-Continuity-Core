@@ -28,6 +28,13 @@ import {
 } from './context-ui/moduleFilters.js';
 import { buildStyledProcessResult } from './context-ui/processResultBuilder.js';
 import { renderCurrentMessageContext } from './context-ui/inlineMessageRenderer.js';
+import { IframeModal } from '../shared/IframeModal.js';
+
+// context-bottom-ui.css 路径（与原底部汇总一致，复用同一套样式）
+const contextBottomCssUrl = new URL('../../assets/css/context-bottom-ui.css', import.meta.url).href;
+
+// 汇总弹窗单例
+let summaryModal = null;
 
 let isUpdatingMsgUI = false;
 
@@ -522,4 +529,74 @@ export function checkRenderCurrentMessageContext() {
         // debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
         // removeUIfromContextBottom();
     }
+}
+
+/**
+ * 以弹窗形式打开模块汇总（替代原底部固定容器）
+ * 每次打开实时渲染最新数据，主题与 module-editor 同步
+ */
+export function openContextBottomAsModal() {
+    if (!configManager.isLoaded) return;
+    if (!configManager.isExtensionEnabled()) return;
+
+    // 实时渲染：提取全部聊天记录模块数据
+    const extractParams = {
+        startIndex: 0,
+        endIndex: null,
+        moduleFilters: getContextBottomUIFilteredModuleConfigs(),
+    };
+    const processResult = buildStyledProcessResult(null, extractParams);
+    if (!processResult) {
+        errorLog('汇总弹窗渲染失败：无数据');
+        return;
+    }
+
+    const resultString = getModulesDataAndStyles(processResult);
+    let bodyContent = configManager.getGlobalSettings().bottomStyles ||
+        '<div id="continuity-context-bottom-container" class="context-bottom-wrapper"><details class="bottom-summary"><summary class="summary-title">Modules</summary><div class="modules-content-container">${customStyles}</div></details></div>';
+    bodyContent = bodyContent.replace('${customStyles}', resultString);
+
+    // interactionScript：toggle 变量显示功能（与 injectHtmlToIframe 一致）
+    const interactionScript = `
+    <script>
+        window.toggleVariableDisplay = function(id, lastValue, currentValue) {
+            const container = document.getElementById(id);
+            if (!container) return;
+            const currentSpan = container.children[0];
+            const lastSpan = container.children[1];
+            if (!currentSpan || !lastSpan) return;
+            if (currentSpan.style.display !== 'none') {
+                currentSpan.style.display = 'none';
+                lastSpan.style.display = 'inline';
+                container.title = '点击显示新值: ' + currentValue;
+            } else {
+                currentSpan.style.display = 'inline';
+                lastSpan.style.display = 'none';
+                container.title = '点击显示旧值: ' + lastValue;
+            }
+        };
+    </script>`;
+
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="${contextBottomCssUrl}">
+<style>
+body { margin: 0; padding: 8px; background: transparent; }
+</style>
+</head>
+<body>
+${bodyContent}
+${interactionScript}
+</body>
+</html>`;
+
+    // 单实例：同时只开一个
+    if (!summaryModal) summaryModal = new IframeModal();
+    summaryModal.open(null, '模块汇总', { srcdoc: html, variant: 'center' });
+
+    // 汇总内容自带样式（context-bottom-ui.css），container 设透明避免深色背景透出
+    const container = summaryModal.backdrop?.querySelector('.st-continuity-iframe-container');
+    if (container) container.style.backgroundColor = 'transparent';
 }
