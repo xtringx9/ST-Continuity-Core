@@ -411,7 +411,7 @@ async function onRegenerate(button, mesId) {
 
 /**
  * 编辑模块数据（就地 textarea）
- * 仅在异步存储开启时可用，编辑 moduleTagModules 的 raw
+ * 仅在异步存储开启时可用，编辑 modules key 的文本
  */
 async function onEditModules(mesId) {
     const asyncModule = configManager.getExtensionConfig().asyncModule || {};
@@ -439,14 +439,14 @@ async function onEditModules(mesId) {
     const $iframe = $container.find('iframe');
     $iframe.hide();
 
-    // 读取 perMessageStorage 数据
+    // 读取 perMessageStorage 数据(新格式:swipe 数据是 { modules: string, ... })
     const swipeId = chat[mesId]?.swipe_id ?? 0;
     let rawText = '';
     let existingData = null;
     try {
-        existingData = await perMessageStorage.readMessage(mesId, swipeId);
-        if (existingData?.moduleTagModules?.length) {
-            rawText = existingData.moduleTagModules.join('\n');
+        existingData = await perMessageStorage.getMessage(mesId, swipeId);
+        if (existingData?.modules) {
+            rawText = existingData.modules;
         }
     } catch (err) {
         errorLog(LOG_TAG, `读取消息 ${mesId} 模块数据失败:`, err);
@@ -474,15 +474,13 @@ async function onEditModules(mesId) {
         const $btn = $(e.currentTarget);
         if ($btn.hasClass('disabled')) return;
         $btn.addClass('disabled').css('opacity', 0.5);
-        const text = $editArea.find('.ccore-edit-textarea').val();
-        const lines = String(text).split('\n').map(l => l.trim()).filter(l => l);
+        const text = String($editArea.find('.ccore-edit-textarea').val() || '');
         try {
+            // 新格式:只更新 modules key,保留其他 generator key
             await perMessageStorage.updateMessage(mesId, swipeId, {
-                moduleTagModules: lines,
-                contentTagModules: existingData?.contentTagModules || [],
-                extraModules: existingData?.extraModules || [],
+                modules: text,
             });
-            infoLog(LOG_TAG, `消息 ${mesId} 模块数据已保存（${lines.length} 条）`);
+            infoLog(LOG_TAG, `消息 ${mesId} 模块数据已保存（${text.length} 字符）`);
             $editArea.remove();
             $iframe.show();
             // TODO: 重新渲染该消息的模块展示区（需 updateUItoMsgBottom 接入异步数据源后实现）

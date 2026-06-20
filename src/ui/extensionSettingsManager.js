@@ -215,13 +215,11 @@ export async function onAsyncExtractChat() {
             if (!message || (message.mes === undefined && message.content === undefined)) continue;
 
             const activeSwipeId = message.swipe_id ?? 0;
-            const swipesData = _extractAllSwipes(message, cotTags);
+            const swipesData = _extractAllSwipes(message);
 
-            // 检查是否有任何 swipe 含模块数据
+            // 检查是否有任何 swipe 含模块数据(新格式:检查 modules 字符串非空)
             const hasModules = Object.values(swipesData).some(sd =>
-                sd.moduleTagModules.length > 0
-                || sd.contentTagModules.length > 0
-                || sd.extraModules.length > 0
+                sd.modules && sd.modules.length > 0
             );
 
             if (hasModules) {
@@ -283,12 +281,10 @@ export async function onAsyncExtractFloor() {
             if (!message || (message.mes === undefined && message.content === undefined)) continue;
 
             const activeSwipeId = message.swipe_id ?? 0;
-            const swipesData = _extractAllSwipes(message, cotTags);
+            const swipesData = _extractAllSwipes(message);
 
             const hasModules = Object.values(swipesData).some(sd =>
-                sd.moduleTagModules.length > 0
-                || sd.contentTagModules.length > 0
-                || sd.extraModules.length > 0
+                sd.modules && sd.modules.length > 0
             );
 
             if (hasModules) {
@@ -357,11 +353,11 @@ function _getCurrentChatIdHash() {
 /**
  * 从消息中提取所有 swipe 的模块数据
  * ST 消息结构：mes（当前swipe文本）、swipes（所有swipe文本数组）、swipe_id（当前索引）
+ * 新格式:每个 swipe 返回 { modules: string }
  * @param {object} message - ST 聊天消息对象
- * @param {string[]} cotTags - 内容标签列表
- * @returns {Object<string, { moduleTagModules: string[], contentTagModules: string[], extraModules: string[] }>}
+ * @returns {Object<string, { modules: string }>}
  */
-function _extractAllSwipes(message, cotTags) {
+function _extractAllSwipes(message) {
     const swipesData = {};
 
     // 如果有 swipes 数组，提取所有 swipe
@@ -369,14 +365,14 @@ function _extractAllSwipes(message, cotTags) {
         for (let si = 0; si < message.swipes.length; si++) {
             const swipeText = message.swipes[si];
             if (swipeText) {
-                swipesData[si] = perMessageStorage.extractMessageModules(swipeText, cotTags);
+                swipesData[si] = perMessageStorage.extractMessageModules(swipeText);
             }
         }
     } else {
         // 无 swipes 数组，只提取 mes
         const rawText = message.mes !== undefined ? message.mes : message.content;
         if (rawText) {
-            swipesData[0] = perMessageStorage.extractMessageModules(rawText, cotTags);
+            swipesData[0] = perMessageStorage.extractMessageModules(rawText);
         }
     }
 

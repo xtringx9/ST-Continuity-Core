@@ -480,18 +480,14 @@ function bindDebugButtons(doc) {
         const testMesId = parseInt(prompt(translate('ccore_prompt_input_mesid'), '0'));
         if (isNaN(testMesId)) return;
 
+        // 新格式:swipe 数据是 key→value map,modules 是特殊 key
         const swipeData = {
             '0': {
-                inContentModules: {
-                    modules: [
-                        { raw: `[Location|name:Tavern|time:afternoon]`, moduleName: 'Location', variables: { name: 'Tavern', time: 'afternoon' } }
-                    ]
-                },
-                extraModules: { source: 'none', modules: null }
+                modules: '[Location|name:Tavern|time:afternoon]\n[Character|name:Hero|mood:happy]',
             }
         };
 
-        await perMessageStorage.writeMessage(testMesId, swipeData);
+        await perMessageStorage.writeMessage(testMesId, 0, swipeData);
         infoLog(`[Debug-Storage] 追加楼层 ${testMesId}:`, swipeData);
     });
 
@@ -507,13 +503,9 @@ function bindDebugButtons(doc) {
         const testMesId = parseInt(prompt(translate('ccore_prompt_input_mesid'), '0'));
         if (isNaN(testMesId)) return;
 
+        // 新格式:只更新 modules key(单 swipe 数据,updateMessage 会自动包装)
         const newData = {
-            inContentModules: {
-                modules: [
-                    { raw: `[Location|name:Forest|time:night]`, moduleName: 'Location', variables: { name: 'Forest', time: 'night' } }
-                ]
-            },
-            extraModules: { source: 'manual', modules: [{ moduleName: 'Location', variables: { name: 'Forest', time: 'night', weather: 'rain' } }], manualEditedAt: new Date().toISOString() }
+            modules: '[Location|name:Forest|time:night|weather:rain]',
         };
 
         await perMessageStorage.updateMessage(testMesId, 0, newData);

@@ -131,49 +131,24 @@ class PerMessageStorageManager {
     // ==========================================
 
     /**
-     * 从单条消息文本中提取并分类模块 raw 字符串
-     * 三层分类：moduleTagModules（contentTag 后）、contentTagModules（contentTag 内）、extraModules（其他位置）
-     * 只存 raw 字符串，读取时由 moduleProcessor 重新解析
-     * @param {string} messageText - 消息原始文本（不经过 processMessageWithContentTags 处理）
-     * @param {string[]} cotTags - 内容标签列表，如 ["content", "game"]
-     * @returns {{ moduleTagModules: string[], contentTagModules: string[], extraModules: string[] }}
+     * 从单条消息文本中提取模块 raw 字符串,合并为单个文本块
+     * 新格式:key→value map,modules 是特殊 key,存大段带换行的文本
+     * 三层分类逻辑已废弃(moduleExtractor 那边独立处理,与存储无关)
+     * @param {string} messageText - 消息原始文本
+     * @returns {{ modules: string }} - 所有顶层模块 raw 用 '\n' 连接
      */
-    extractMessageModules(messageText, cotTags) {
-        const empty = {
-            moduleTagModules: [],
-            contentTagModules: [],
-            extraModules: [],
-        };
+    extractMessageModules(messageText) {
+        const empty = { modules: '' };
 
         if (!messageText || typeof messageText !== 'string') return empty;
 
-        // 1. 找到 contentTag 区间
-        const contentRanges = this._findContentTagRanges(messageText, cotTags);
-        const lastContentEnd = contentRanges.length > 0
-            ? Math.max(...contentRanges.map(r => r.end))
-            : -1;
-
-        // 2. 用栈找所有顶层模块的 raw + 位置
+        // 用栈找所有顶层模块的 raw + 位置
         const topLevelModules = this._findTopLevelModuleRanges(messageText);
 
-        // 3. 按位置分类
-        const moduleTagModules = [];
-        const contentTagModules = [];
-        const extraModules = [];
+        if (topLevelModules.length === 0) return empty;
 
-        for (const mod of topLevelModules) {
-            if (contentRanges.length === 0) {
-                moduleTagModules.push(mod.raw);
-            } else if (mod.startIndex >= lastContentEnd) {
-                moduleTagModules.push(mod.raw);
-            } else if (this._isInsideContentRange(mod.startIndex, contentRanges)) {
-                contentTagModules.push(mod.raw);
-            } else {
-                extraModules.push(mod.raw);
-            }
-        }
-
-        return { moduleTagModules, contentTagModules, extraModules };
+        // 合并所有顶层模块 raw 为单个文本块
+        return { modules: topLevelModules.map(m => m.raw).join('\n') };
     }
 
     // ==========================================
@@ -222,10 +197,11 @@ class PerMessageStorageManager {
 
     /**
      * 写入楼层的模块数据（upsert 语义）
+     * 新格式:swipe 数据是 key→value map,modules 是特殊 key,其他 key = generator.name
      * @param {number} mesId
      * @param {number} activeSwipeId - 写入时 chat[mesId].swipe_id 的值
-     * @param {object} swipesData - { "0": { moduleTagModules, contentTagModules, extraModules }, "1": ... }
-     *   如果只传单个 swipe 数据（含 moduleTagModules 数组），自动包装为 { "0": swipesData }
+     * @param {object} swipesData - { "0": { modules: "...", side_scene: "..." }, "1": ... }
+     *   如果只传单个 swipe 数据(含 modules 字段或任意 generator key),自动包装为 { [activeSwipeId]: swipesData }
      * @param {object} [options] - 可选配置
      * @param {boolean} [options.merge=false] - 是否与已有 swipes 合并（updateMessage 场景）
      * @param {boolean} [options.skipEmpty=true] - 新数据为空时跳过（不覆盖已有数据）
@@ -233,9 +209,10 @@ class PerMessageStorageManager {
     async writeMessage(mesId, activeSwipeId, swipesData, { merge = false, skipEmpty = true } = {}) {
         this._ensureInitialized();
 
-        // 兼容：如果传入的是单个 swipe 数据，自动包装
+        // 兼容：如果传入的是单个 swipe 数据（对象但不含 swipes 嵌套），自动包装
+        // 单 swipe 数据特征：含 modules 字段(字符串)或任意 generator key,但不是 { "0": {...}, "1": {...} } 结构
         let swipes;
-        if (swipesData && Array.isArray(swipesData.moduleTagModules)) {
+        if (swipesData && typeof swipesData === 'object' && !this._isSwipesMap(swipesData)) {
             swipes = { [activeSwipeId]: swipesData };
         } else {
             swipes = swipesData;
@@ -258,21 +235,27 @@ class PerMessageStorageManager {
             }
         }
 
-        // 空值保护：新数据为空且已有数据存在时，跳过
+        // 空值保护：新数据所有 swipe 的所有 key 都为空字符串时,跳过
         const hasNewData = Object.values(swipes).some(sd =>
-            sd.moduleTagModules.length > 0
-            || sd.contentTagModules.length > 0
-            || sd.extraModules.length > 0
+            Object.values(sd).some(v => typeof v === 'string' && v.length > 0)
         );
         if (skipEmpty && !hasNewData && existingData) {
             debugLog('PerMessageStorage', `楼层 ${mesId} 新数据为空，跳过（已有数据保留）`);
             return;
         }
 
-        // 合并模式：与已有 swipes 合并
+        // 合并模式：与已有 swipes 合并(同 key 的新值覆盖旧值)
         let finalSwipes = swipes;
         if (merge && existingData?.swipes) {
-            finalSwipes = { ...existingData.swipes, ...swipes };
+            const merged = { ...existingData.swipes };
+            for (const [swipeId, newData] of Object.entries(swipes)) {
+                if (merged[swipeId]) {
+                    merged[swipeId] = { ...merged[swipeId], ...newData };
+                } else {
+                    merged[swipeId] = newData;
+                }
+            }
+            finalSwipes = merged;
         }
 
         const data = { mesId, activeSwipeId, swipes: finalSwipes };
@@ -483,9 +466,9 @@ class PerMessageStorageManager {
                 const activeSwipe = msg.swipes['0'] || Object.values(msg.swipes)[0];
                 if (!activeSwipe) continue;
 
-                // 合并 inContentModules 和 extraModules
-                const mergedModules = this._mergeModules(activeSwipe);
-                this._applyModulesToState(moduleStates, mergedModules, msg.mesId);
+                // 合并 modules 文本(新格式:直接取 modules 字符串)
+                const modulesText = this._mergeModules(activeSwipe);
+                this._applyModulesToState(moduleStates, modulesText, msg.mesId);
             }
         }
 
@@ -590,26 +573,38 @@ class PerMessageStorageManager {
     }
 
     /**
-     * 合并三层模块 raw 字符串（去重：同名模块后者覆盖前者）
-     * 返回 raw 字符串数组，顺序：contentTag → moduleTag → extra
+     * 合并 swipe 数据中的模块文本
+     * 新格式:modules 是单个字符串,直接返回(供 _applyModulesToState 按行处理)
+     * @param {object} swipeData - { modules: string, ... }
+     * @returns {string} modules 文本
      */
     _mergeModules(swipeData) {
-        const moduleTag = swipeData.moduleTagModules || [];
-        const contentTag = swipeData.contentTagModules || [];
-        const extra = swipeData.extraModules || [];
-
-        // 按优先级合并：contentTag < moduleTag < extra（后者覆盖同名）
-        const allRaws = [...contentTag, ...moduleTag, ...extra];
-        return allRaws;
+        return swipeData.modules || '';
     }
 
     /**
-     * 将模块 raw 字符串应用到累积状态
-     * TODO: Phase 2 实现累积状态逻辑，届时需要解析 raw 提取模块名
+     * 将模块文本应用到累积状态
+     * TODO: Phase 2 实现累积状态逻辑,届时需要解析文本提取模块名
+     * @param {object} moduleStates - 累积状态
+     * @param {string} modulesText - 模块文本(可能含多个 [Module|...] 块)
+     * @param {number} mesId
      */
-    _applyModulesToState(moduleStates, raws, mesId) {
-        // Phase 2 实现：解析 raw 字符串，提取模块名和变量，合并到累积状态
-        debugLog('PerMessageStorage', `应用 ${raws.length} 条 raw 到楼层 ${mesId}（Phase 2 待实现）`);
+    _applyModulesToState(moduleStates, modulesText, mesId) {
+        if (!modulesText) return;
+        // Phase 2 实现:解析文本字符串,提取模块名和变量,合并到累积状态
+        debugLog('PerMessageStorage', `应用 ${modulesText.length} 字符模块文本到楼层 ${mesId}（累积逻辑待实现）`);
+    }
+
+    /**
+     * 判断对象是否是 swipes map 结构({ "0": {...}, "1": {...} })
+     * 用于区分单 swipe 数据和多 swipe 包装
+     */
+    _isSwipesMap(obj) {
+        if (!obj || typeof obj !== 'object') return false;
+        const keys = Object.keys(obj);
+        if (keys.length === 0) return false;
+        // 所有 key 都是数字字符串,且所有 value 都是对象 → 是 swipes map
+        return keys.every(k => /^\d+$/.test(k) && typeof obj[k] === 'object' && obj[k] !== null);
     }
 
     /**
@@ -622,53 +617,6 @@ class PerMessageStorageManager {
             }
             this._scheduleMetaSave();
         }
-    }
-
-    /**
-     * 查找文本中所有 contentTag 区间
-     * @param {string} text
-     * @param {string[]} cotTags
-     * @returns {Array<{ tag: string, start: number, end: number, contentStart: number, contentEnd: number }>}
-     */
-    _findContentTagRanges(text, cotTags) {
-        const ranges = [];
-        if (!cotTags || !Array.isArray(cotTags) || cotTags.length === 0 || !text) return ranges;
-
-        for (const tag of cotTags) {
-            const openTag = `<${tag}>`;
-            const closeTag = `</${tag}>`;
-            let searchFrom = 0;
-
-            while (searchFrom < text.length) {
-                const openIdx = text.indexOf(openTag, searchFrom);
-                if (openIdx === -1) break;
-
-                const closeIdx = text.indexOf(closeTag, openIdx + openTag.length);
-                if (closeIdx === -1) break;
-
-                ranges.push({
-                    tag,
-                    start: openIdx,
-                    end: closeIdx + closeTag.length,
-                    contentStart: openIdx + openTag.length,
-                    contentEnd: closeIdx,
-                });
-
-                searchFrom = closeIdx + closeTag.length;
-            }
-        }
-
-        return ranges.sort((a, b) => a.start - b.start);
-    }
-
-    /**
-     * 检查位置是否在某个 contentTag 区间内
-     */
-    _isInsideContentRange(index, ranges) {
-        for (const range of ranges) {
-            if (index >= range.contentStart && index < range.contentEnd) return true;
-        }
-        return false;
     }
 
     /**

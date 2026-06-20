@@ -125,17 +125,10 @@ function _buildSectionsHtml(data) {
     // 2. 完整响应
     sections.push(_buildSection('完整响应', data.response || '(空)', 'var(--success-color)', true));
 
-    // 3. 提取结果
+    // 3. 提取结果(新格式:{ modules: string })
     if (data.extracted) {
-        const extractedText = [
-            `moduleTagModules (${data.extracted.moduleTagModules.length}):`,
-            ...data.extracted.moduleTagModules.map(m => `  ${m}`),
-            `contentTagModules (${data.extracted.contentTagModules.length}):`,
-            ...data.extracted.contentTagModules.map(m => `  ${m}`),
-            `extraModules (${data.extracted.extraModules.length}):`,
-            ...data.extracted.extraModules.map(m => `  ${m}`),
-        ].join('\n');
-        sections.push(_buildSection('提取结果', extractedText, 'var(--accent-color)', false));
+        const modulesText = data.extracted.modules || '(空)';
+        sections.push(_buildSection('提取结果', modulesText, 'var(--accent-color)', false));
     }
 
     // 4. API 信息

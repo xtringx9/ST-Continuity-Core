@@ -133,12 +133,10 @@ export const moduleAiGenerator = {
             let hasModules = false;
 
             if (!skipStorage) {
-                // 解析 AI 回复中的模块数据
-                extracted = perMessageStorage.extractMessageModules(result.text, cotTags);
+                // 解析 AI 回复中的模块数据(新格式:返回 { modules: string })
+                extracted = perMessageStorage.extractMessageModules(result.text);
 
-                hasModules = extracted.moduleTagModules.length > 0
-                    || extracted.contentTagModules.length > 0
-                    || extracted.extraModules.length > 0;
+                hasModules = extracted.modules.length > 0;
 
                 // 存储到每条消息
                 if (hasModules) {
@@ -221,7 +219,7 @@ export const moduleAiGenerator = {
                     sentInfo,
                     capturedPrompt: errDebug.prompt || '',
                     response: errDebug.response || `错误: ${err.message}`,
-                    extracted: { moduleTagModules: [], contentTagModules: [], extraModules: [] },
+                    extracted: { modules: '' },
                     apiUsed: errDebug.apiUsed || {},
                     hasModules: false,
                     error: err.message,
