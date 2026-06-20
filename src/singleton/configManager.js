@@ -44,6 +44,7 @@ export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";
 
 // 配置在扩展设置中的键名
 const MODULE_CONFIG_KEY = 'module_config';
+const GENERATOR_CONFIG_KEY = 'generator_config';
 
 // 开发用保存开关（仅开发/重构时使用，不保存到配置）
 const ENABLE_DEV_SAVE_GUARD = true; // true=允许保存，false=禁止保存

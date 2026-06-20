@@ -6,6 +6,7 @@ import { chat } from '../../../../../../script.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
+import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal } from '../core/contextBottomUI.js';
 import perMessageStorage from '../services/perMessageStorage.js';
 import { CONTEXT_MSG_CONTAINER_ID } from '../core/context-ui/containerManager.js';
@@ -269,11 +270,12 @@ function createInlineMenu(triggerButton, mesId) {
     ];
     menu.append(createMenuBox(moduleActions, asyncEnabled, triggerButton, mesId));
 
-    // 2. 各 generator 框：每个启用的 generator 一个重新生成按钮
+    // 2. 各 generator 框：每个启用的 generator 一个重新生成 + 编辑按钮
     const generators = configManager.getGenerators(); // 默认只返回启用的
     for (const gen of generators) {
         const genActions = [
             { action: `generate:${gen.name}`, icon: 'fa-arrows-rotate', title: `生成${gen.displayName}`, needAsync: true },
+            { action: `edit:${gen.name}`, icon: 'fa-pen-to-square', title: `编辑${gen.displayName}`, needAsync: true },
         ];
         menu.append(createMenuBox(genActions, asyncEnabled, triggerButton, mesId));
     }
@@ -382,6 +384,13 @@ async function onMenuAction(action, triggerButton, mesId) {
     if (action.startsWith('generate:')) {
         const generatorName = action.substring('generate:'.length);
         await onRegenerate(triggerButton, mesId, generatorName);
+        return;
+    }
+
+    // edit:xxx — 编辑其他生成内容(xxx = generator.name)
+    if (action.startsWith('edit:')) {
+        const generatorName = action.substring('edit:'.length);
+        await onEditGeneratedContent(mesId, generatorName);
         return;
     }
 
@@ -530,6 +539,93 @@ async function onEditModules(mesId) {
             // TODO: 重新渲染该消息的模块展示区（需 updateUItoMsgBottom 接入异步数据源后实现）
         } catch (err) {
             errorLog(LOG_TAG, `保存消息 ${mesId} 模块数据失败:`, err);
+            $btn.removeClass('disabled').css('opacity', '');
+        }
+    });
+
+    // 取消
+    $editArea.find('.ccore-edit-cancel').on('click', () => {
+        $editArea.remove();
+        $iframe.show();
+    });
+}
+
+/**
+ * 编辑生成内容（小剧场、角色心理等）
+ * 逻辑同 onEditModules，但读写 generatorName key，保存后更新内存缓存
+ * @param {number} mesId
+ * @param {string} generatorName - generator.name
+ */
+async function onEditGeneratedContent(mesId, generatorName) {
+    const asyncModule = configManager.getExtensionConfig().asyncModule || {};
+    if (!asyncModule.enabled) {
+        infoLog(LOG_TAG, '编辑生成内容仅在异步存储开启时可用');
+        return;
+    }
+
+    const $message = $(`.mes[mesid="${mesId}"]`);
+    if (!$message.length) {
+        errorLog(LOG_TAG, `找不到消息 ${mesId}`);
+        return;
+    }
+
+    let $container = $message.find(`#${CONTEXT_MSG_CONTAINER_ID}`);
+    if (!$container.length) {
+        $container = $(`<div id="${CONTEXT_MSG_CONTAINER_ID}"></div>`);
+        $message.append($container);
+    }
+
+    // 已有编辑区则不重复创建
+    if ($container.find('.ccore-edit-area').length) return;
+
+    // 隐藏现有 iframe
+    const $iframe = $container.find('iframe');
+    $iframe.hide();
+
+    // 读取 perMessageStorage 数据
+    const swipeId = chat[mesId]?.swipe_id ?? 0;
+    let rawText = '';
+    try {
+        const existingData = await perMessageStorage.getMessage(mesId, swipeId);
+        if (existingData?.[generatorName]) {
+            rawText = existingData[generatorName];
+        }
+    } catch (err) {
+        errorLog(LOG_TAG, `读取消息 ${mesId} ${generatorName} 数据失败:`, err);
+    }
+
+    // 构建编辑区（样式与 onEditModules 一致）
+    const $editArea = $(`
+        <div class="ccore-edit-area" style="margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
+            <textarea class="ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;background:var(--smart-background,#202123);color:var(--smart-text-color,#fff);border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:3px;padding:5px;font-family:monospace;font-size:13px;box-sizing:border-box;"></textarea>
+            <div class="ccore-edit-actions" style="margin-top:5px;display:flex;gap:5px;">
+                <div class="ccore-edit-save menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
+                <div class="ccore-edit-cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>
+            </div>
+        </div>
+    `);
+
+    $editArea.find('.ccore-edit-textarea').val(rawText);
+    $container.append($editArea);
+
+    // 保存
+    $editArea.find('.ccore-edit-save').on('click', async (e) => {
+        const $btn = $(e.currentTarget);
+        if ($btn.hasClass('disabled')) return;
+        $btn.addClass('disabled').css('opacity', 0.5);
+        const text = String($editArea.find('.ccore-edit-textarea').val() || '');
+        try {
+            // 只更新 generatorName key，保留其他 key
+            await perMessageStorage.updateMessage(mesId, swipeId, {
+                [generatorName]: text,
+            });
+            // 更新内存缓存（注入时同步读取）
+            generatedContentCache.set(mesId, generatorName, text);
+            infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 数据已保存（${text.length} 字符）`);
+            $editArea.remove();
+            $iframe.show();
+        } catch (err) {
+            errorLog(LOG_TAG, `保存消息 ${mesId} ${generatorName} 数据失败:`, err);
             $btn.removeClass('disabled').css('opacity', '');
         }
     });
