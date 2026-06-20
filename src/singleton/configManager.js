@@ -2,7 +2,8 @@
 import { extension_settings } from "../../../../../extensions.js";
 import { saveSettings } from "../../../../../../script.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
-import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../modules/moduleConfigTemplate.js';
+import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../config/moduleConfigTemplate.js';
+import { normalizeGeneratorConfig, DEFAULT_GENERATOR_CONFIG_VALUES } from '../config/generatorConfigTemplate.js';
 
 // 扩展基本信息
 export const extensionName = "ST-Continuity-Core";
@@ -54,8 +55,11 @@ class ConfigManager {
         this.isExtensionConfigLoaded = false; // 配置是否已加载
         this.moduleConfig = null; // 内存中的配置缓存
         this.isModuleConfigLoaded = false; // 配置是否已加载
+        this.generatorConfig = null; // 生成内容配置缓存
+        this.isGeneratorConfigLoaded = false;
         this.autoSaveTimeout = null; // 自动保存的超时ID
         this.autoSaveDelay = 1000; // 自动保存延迟（毫秒）
+        this.generatorAutoSaveTimeout = null; // 生成内容配置自动保存的超时ID
         // 事件监听系统
         this.loadCallbacks = []; // 存储加载完成时的回调函数
         this.loadCallbacksExecuted = false; // 标记回调是否已执行
@@ -124,11 +128,36 @@ class ConfigManager {
     }
 
     /**
+     * 加载生成内容配置到内存缓存
+     */
+    loadGeneratorConfig() {
+        try {
+            debugLog(`开始加载生成内容配置，配置键名: ${GENERATOR_CONFIG_KEY}`);
+
+            if (extension_settings[extensionName] && extension_settings[extensionName][GENERATOR_CONFIG_KEY]) {
+                this.generatorConfig = extension_settings[extensionName][GENERATOR_CONFIG_KEY];
+                this.isGeneratorConfigLoaded = true;
+                debugLog('生成内容配置已从扩展设置加载到内存缓存:', this.generatorConfig);
+                return;
+            }
+
+            this.generatorConfig = { ...DEFAULT_GENERATOR_CONFIG_VALUES };
+            this.isGeneratorConfigLoaded = true;
+            debugLog('使用默认生成内容配置初始化内存缓存');
+        } catch (error) {
+            errorLog('加载生成内容配置失败:', error);
+            this.generatorConfig = { ...DEFAULT_GENERATOR_CONFIG_VALUES };
+            this.isGeneratorConfigLoaded = true;
+        }
+    }
+
+    /**
      * 加载所有配置到内存缓存
      */
     load() {
         this.loadExtensionConfig();
         this.loadModuleConfig();
+        this.loadGeneratorConfig();
         this.isLoaded = true;
 
         // 执行所有注册的加载完成回调
@@ -522,7 +551,110 @@ class ConfigManager {
     }
 
     outputCache() {
-        infoLog("[Module Cache]打印当前配置缓存数据:", configManager.extensionConfig, configManager.moduleConfig);
+        infoLog("[Module Cache]打印当前配置缓存数据:", configManager.extensionConfig, configManager.moduleConfig, configManager.generatorConfig);
+    }
+
+    // ===== 生成内容配置（generator_config）=====
+
+    /**
+     * 获取生成内容配置（从内存缓存）
+     * @returns {Object} 生成内容配置
+     */
+    getGeneratorConfig() {
+        if (!this.isGeneratorConfigLoaded) {
+            this.loadGeneratorConfig();
+        }
+        return this.generatorConfig;
+    }
+
+    /**
+     * 获取启用的生成内容配置数组
+     * @param {boolean} needAll 是否返回全部（含禁用）
+     * @returns {Array} 生成内容配置数组
+     */
+    getGenerators(needAll = false) {
+        const config = this.getGeneratorConfig();
+        const generators = config.generators || [];
+        if (needAll) return generators;
+        return generators.filter(g => g.enabled !== false);
+    }
+
+    /**
+     * 按 name 获取生成内容配置
+     * @param {string} name 配置 name
+     * @returns {Object|null}
+     */
+    getGeneratorByName(name) {
+        if (!name) return null;
+        return this.getGenerators(true).find(g => g.name === name) || null;
+    }
+
+    /**
+     * 设置生成内容配置并触发自动保存
+     * @param {Object} newConfig 新的生成内容配置
+     */
+    setGeneratorConfig(newConfig) {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，setGeneratorConfig 阻止保存。');
+            return;
+        }
+        try {
+            if (!newConfig.generators || !Array.isArray(newConfig.generators)) {
+                throw new Error('无效的生成内容配置结构：缺少generators数组');
+            }
+            this.generatorConfig = {
+                ...newConfig,
+                metadata: {
+                    ...(newConfig.metadata || {}),
+                    lastUpdated: new Date().toISOString(),
+                },
+            };
+            debugLog('生成内容配置已更新到内存缓存');
+            this.scheduleGeneratorAutoSave();
+        } catch (error) {
+            errorLog('设置生成内容配置失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 立即保存生成内容配置到存储
+     * @returns {boolean} 是否保存成功
+     */
+    saveGeneratorConfigNow() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，已阻止生成内容配置保存。');
+            return false;
+        }
+        try {
+            if (!this.isGeneratorConfigLoaded) {
+                this.loadGeneratorConfig();
+            }
+            this.generatorConfig = normalizeGeneratorConfig(this.generatorConfig);
+            if (!extension_settings[extensionName]) {
+                extension_settings[extensionName] = {};
+            }
+            extension_settings[extensionName][GENERATOR_CONFIG_KEY] = this.generatorConfig;
+            saveSettings();
+            debugLog('生成内容配置已保存');
+            return true;
+        } catch (error) {
+            errorLog('保存生成内容配置失败:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 安排生成内容配置自动保存
+     */
+    scheduleGeneratorAutoSave() {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        if (this.generatorAutoSaveTimeout) {
+            clearTimeout(this.generatorAutoSaveTimeout);
+        }
+        this.generatorAutoSaveTimeout = setTimeout(() => {
+            this.saveGeneratorConfigNow();
+        }, this.autoSaveDelay);
     }
 
     /**

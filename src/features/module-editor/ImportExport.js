@@ -1,6 +1,6 @@
 import { IframeDialog } from '../../shared/IframeDialog.js';
 import { translate } from '../../../../../../i18n.js';
-import { normalizeConfig, validateConfig } from '../../modules/moduleConfigTemplate.js';
+import { normalizeConfig, validateConfig } from '../../config/moduleConfigTemplate.js';
 import { infoLog, errorLog, debugLog } from '../../utils/logger.js';
 import configManager from '../../singleton/configManager.js';
 import { backupModuleConfig } from '../../singleton/moduleConfigService.js';

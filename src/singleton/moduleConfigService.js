@@ -1,6 +1,6 @@
 // 模块配置服务 — 负责导入/导出/合并逻辑
 import { infoLog, errorLog, debugLog } from '../utils/logger.js';
-import { normalizeConfig } from '../modules/moduleConfigTemplate.js';
+import { normalizeConfig } from '../config/moduleConfigTemplate.js';
 import configManager, { CONTINUITY_CORE_IDENTIFIER } from './configManager.js';
 
 /**

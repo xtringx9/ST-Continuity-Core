@@ -10,6 +10,9 @@ src/singleton/            # 全局单例状态
   configManager.js        #   配置读写：加载、缓存、自动保存（纯读写职责）
   moduleConfigService.js  #   模块配置业务逻辑：导入/导出/合并/重置
   moduleCacheManager.js   #   每个聊天的模块数据缓存（嵌套 Map）
+src/config/                # 配置 schema 定义
+  moduleConfigTemplate.js #   模块配置 JSON schema、校验、规范化、默认值
+  generatorConfigTemplate.js # 生成内容配置 schema、校验、规范化、默认值
 src/core/                 # 核心逻辑
   moduleExtractor.js      #   从聊天 + 世界书中解析 [模块名|键:值|...] 格式
   moduleProcessor.js      #   处理管线入口：processModuleData + groupProcessResultByMessageIndex
@@ -24,8 +27,7 @@ src/core/                 # 核心逻辑
   eventHandler.js         #   注册 ST 事件 → UI 更新、缓存刷新、正则初始化、世界书
   contextBottomUI.js      #   UI 协调：上下文底部、消息底部、行内渲染
   context-ui/             #   子模块：容器管理、iframe 渲染、过滤器、样式
-src/modules/              # 模块数据类型和提示词
-  moduleConfigTemplate.js #   配置 JSON schema、校验、规范化、默认值
+src/modules/              # 模块数据解析和提示词
   moduleParser.js         #   字符串 ↔ 结构化模块数据互转
   promptGenerator.js      #   从配置 + 缓存数据构建正式提示词字符串
   styleCombiner.js        #   样式组合器（customStyles 变量替换与容器样式处理）
@@ -116,35 +118,38 @@ continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 
 
 ### 存储数据结构
 
-单条消息存储格式：
+单条消息存储格式（key→value,所有内容当文本存,不解析）：
 ```javascript
 {
     mesId: 5,
     activeSwipeId: 0,           // 写入时 chat[5].swipe_id 的值
     swipes: {
         "0": {
-            moduleTagModules: ["[Location|name:Tavern]", "[Mood|val:happy]"],  // contentTag 后 — 主要
-            contentTagModules: ["[Inner|val:1]"],                                // <content>...</content> 内
-            extraModules: []                                                      // 其他位置
+            "modules": "大段带换行的模块文本...",     // 特殊 key,模块专用(有单独按钮)
+            "side_scene": "小剧场文本...",            // generator.name 作 key
+            "char_thoughts": "角色心理文本..."        // generator.name 作 key
         },
         "1": { ... }
     }
 }
 ```
 
-- 三层分类只存 raw 字符串数组，不解析内部结构。读取时由 `moduleProcessor` 重新解析 raw
-- 嵌套模块包含在顶层模块的 raw 内，不单独存储
+- **全部当文本存**,不解析内部结构。读取时由 `moduleProcessor` 等模块重新解析
+- **`"modules"` 是特殊 key**,模块专用,始终存在,有单独按钮
+- **其他 key = `generator.name`**,对应 `generator_config.generators[].name`
+- **moduleExtractor 不参与存储流程** — 它只管从聊天文本提取→注入管线,与存储无关
+- **不需要兼容迁移** — 旧的三层格式(`moduleTagModules`/`contentTagModules`/`extraModules`)已废弃,直接替换
 
-三层分类提取逻辑：
-1. 先找所有 `moduleTag` 区间（`[Module|...]` 到配对结束，考虑嵌套）→ `moduleTagModules`
-2. `contentTag` 内但 `moduleTag` 外 → `contentTagModules`
-3. 其余位置 → `extraModules`
+三层分类提取逻辑（仅用于 `moduleExtractor` 从消息文本提取,不用于存储）：
+1. 先找所有 `moduleTag` 区间（`[Module|...]` 到配对结束，考虑嵌套）
+2. `contentTag` 内但 `moduleTag` 外
+3. 其余位置
 
 快照存储格式（不含 activeSwipeId，swipe 信息从聊天记录实时读取）：
 ```javascript
 {
     mesId: 10,
-    moduleStates: { ... }       // 累积模块状态
+    moduleStates: { ... }       // 累积模块状态（仅模块,其他生成内容独立不累积）
 }
 ```
 
@@ -158,6 +163,48 @@ meta.json 格式：
     dirtyFrom: null             // null = 干净，数字 = 从该层起脏
 }
 ```
+
+### 生成内容配置（generator_config）
+
+独立于 `module_config` 和 `extension_config` 的第三套配置,定义"生成内容"（小剧场、角色心理等）。
+
+**配置结构**：
+```javascript
+// 存储位置:extension_settings[extensionName]['generator_config']
+{
+    generators: [
+        {
+            id: 1,                      // 数字,排序用,可变
+            name: "side_scene",         // 唯一标识(英文),= 存储 key
+            displayName: "默认小剧场",   // 显示名称
+            enabled: true,              // 是否启用(同 module_config 模块)
+            prompts: [                  // 提示词数组(支持多情况)
+                { label: "日常场景", content: "..." },
+                { label: "战斗场景", content: "..." }
+            ],
+            promptMode: "random"        // 'random' | 'select'
+            // random: 每次随机选一个提示词
+            // select: 面板多选,合并一次调用
+            // fixed 不需要 — 面板里直接选用哪个
+        }
+    ]
+}
+```
+
+**不要的字段**（已确认不需要,记录备忘）：
+- ~~`type`~~ — 都当文本存
+- ~~`inject`~~ — 默认注入,空 = 不注入
+- ~~`storage`~~ — 全局配置(非 per-generator),决定存文件/chat 变量,后续实现
+- ~~`style`~~ — 显示样式,后续功能做到再加
+
+**与 module_config 的关系**：
+- 模块是特殊的"生成内容" — 有单独按钮,始终在 Cc 菜单排第一
+- 模块配置仍在 `module_config`,不在 `generator_config`
+- 其他生成内容配置在 `generator_config`
+
+**chat 变量存储兼容**（后续实现）：
+- key→value 格式天然映射 `chat_metadata.variables["ccore_{name}"]`
+- `storage` 全局配置决定存文件还是 chat 变量
 
 ### 异步模块存储配置
 
@@ -373,10 +420,10 @@ eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, addAiButtonToMessage);
 
 ## 配置系统
 
-- **双配置结构**：`extension_config`（全局开关、后端 URL、调试日志、按钮类型、异步模块存储）和 `module_config`（模块、全局设置）
+- **三配置结构**：`extension_config`（全局开关、后端 URL、调试日志、按钮类型、异步模块存储）、`module_config`（模块、全局设置）和 `generator_config`（生成内容配置：小剧场、角色心理等）
 - **持久化**：通过 ST 的 `saveSettings` 存储在 `extension_settings[extensionName]` 中（见下方"保存机制"说明）
 - **DEV_SAVE_GUARD**（`configManager.js` 中的 `ENABLE_DEV_SAVE_GUARD`）— 为 `false` 时阻止所有保存，设置为 `true` 恢复正常操作
-- **normalizeConfig()**（`moduleConfigTemplate.js`）— 所有保存/导入/导出操作的规范化入口（仅处理 `module_config`，不处理 `extension_config`）
+- **normalizeConfig()**（`moduleConfigTemplate.js`）— 所有保存/导入/导出操作的规范化入口（仅处理 `module_config`，不处理 `extension_config`/`generator_config`）
 - **extension_config 字段补全** — `DEFAULT_EXTENSION_CONFIG` 定义默认值，`setExtensionConfig` 中做字段补全
 
 ### 保存机制
@@ -512,6 +559,47 @@ git commit -m "标题" -m "正文行1" -m "正文行2"
 - **异步模式下模块内容判空**：开启异步生成后，模块原始内容可能直接写入存储而非聊天记录。读取时需判空 + 校验内容一致性。细节待实现时细化。
 - **chatIdHash 不可用于分支聊天**：分支聊天的 hash 与主聊天相同，不能作为唯一标识。使用 `charName + chatFile` 组合替代。
 - **异步存储 per-chat 操作按钮迁移**：当前"手动提取当前聊天"和"重建快照"按钮放在异步存储 tab（全局设置），但这些操作本质是 per-chat 的。角色绑定页（Profiles）做好后，应迁移到该页面，异步 tab 只保留全局配置（开关、快照间隔）。
+
+## 实施计划：生成内容配置（generator_config）
+
+6 个 Phase,按依赖顺序执行:
+
+### Phase 1: 配置基础 ⭐高优先
+- 新建 `src/config/` 目录,把 `moduleConfigTemplate.js` 从 `modules/` 移过来
+- 创建 `src/config/generatorConfigTemplate.js`(schema/normalize/defaults)
+- 改 `configManager.js` — 加 `generatorConfig` 加载/保存(key=`'generator_config'`)
+- 改 3 个 importer 路径(configManager / moduleConfigService / ImportExport)
+- **验证**:能读写 generator_config,字段补全正常
+
+### Phase 2: 存储格式 ⭐高优先
+- 改 `perMessageStorage.js` — swipe 数据从三层分类改为 key→value map
+- 改服务端插件 — `writeMessage`/`readMessage` 适配新格式(透传,不关心结构)
+- **验证**:能按 `"modules"` / `generator.name` 读写
+
+### Phase 3: 生成逻辑 ⭐高优先
+- 重构 `moduleAiGenerator.js` — 抽象为支持按 config.name 生成
+  - 模块:用现有 module_config 提示词
+  - 其他:用 generator_config 的 prompts(按 promptMode 选提示词)
+- **验证**:能按指定 config name 生成内容并存入对应 key
+
+### Phase 4: Cc 菜单 UI
+- 改 `messageAiButton.js` — 横向多框布局
+  - 第一框:模块(无标签,3 按钮:重新生成/编辑/汇总)
+  - 后续框:各 enabled generator(displayName 标签 + 重新生成/编辑)
+- **验证**:Cc 点击后横向展开所有配置框
+
+### Phase 5: 配置面板 UI
+- 改 `EntryButton.js` — 设置和汇总之间加"生成内容配置"按钮
+- 新建 `src/features/generator-editor/` — 配置编辑器(参考 module-editor/)
+  - 列表 + 详情(id/name/displayName/enabled/prompts/promptMode)
+  - prompts 数组编辑(label + content)
+- **验证**:能增删改 generator 配置并保存
+
+### Phase 6: 提示词注入
+- 改 `promptInjector.js` — 注入生成内容(默认注入,空=不注入)
+- **验证**:生成内容出现在 AI 请求中
+
+**执行顺序**:Phase 1→2→3 是核心链路(配置→存储→生成),做完能跑通"配置→生成→存储"。Phase 4→5 是 UI。Phase 6 最后。
 
 ## 后续优化项
 
