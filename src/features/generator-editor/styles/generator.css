@@ -7,26 +7,6 @@ aside.module-list-panel {
     flex-shrink: 0;
 }
 
-/* generator 列表项启用状态指示 */
-.gen-toggle {
-    width: 14px;
-    height: 14px;
-    border: 1px solid var(--border-color);
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    flex-shrink: 0;
-    color: var(--text-muted);
-}
-
-.gen-toggle.enabled {
-    background: var(--accent-color);
-    border-color: var(--accent-color);
-    color: #fff;
-}
-
 /* prompts 编辑区 */
 .prompts-section {
     border: 1px solid var(--border-color);
@@ -118,21 +98,4 @@ aside.module-list-panel {
     background: var(--danger-color);
     color: #fff;
     border-color: var(--danger-color);
-}
-
-/* 删除 generator 按钮 */
-.btn-delete-gen {
-    margin-top: 20px;
-    padding: 6px 16px;
-    cursor: pointer;
-    border: 1px solid var(--danger-color);
-    border-radius: 4px;
-    background: transparent;
-    color: var(--danger-color);
-    font-size: 13px;
-}
-
-.btn-delete-gen:hover {
-    background: var(--danger-color);
-    color: #fff;
 }

@@ -5,11 +5,33 @@
 
 import configManager from '../../singleton/configManager.js';
 import { infoLog, errorLog } from '../../utils/logger.js';
+import { translate } from '../../../../../../i18n.js';
 
 let doc = null;
 let currentGenerators = [];
 let selectedGenId = null;
 let savedGeneratorsJson = ''; // 保存后的 JSON 字符串（用于 hasChanges 检测）
+
+/**
+ * iframe 内静态文本 i18n（与 module-editor 一致）
+ * ST 的 MutationObserver 在 iframe 内不运行，需手动遍历翻译
+ */
+function applyI18nToStaticElements(doc) {
+    doc.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const translated = translate(key);
+        if (translated && translated !== key) {
+            el.textContent = translated;
+        }
+    });
+    doc.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const translated = translate(key);
+        if (translated && translated !== key) {
+            el.placeholder = translated;
+        }
+    });
+}
 
 /**
  * 初始化生成内容配置编辑器
@@ -26,7 +48,7 @@ export function initGeneratorEditor(iframeDocument) {
     const headerTitle = doc.querySelector('.header-title');
     if (headerTitle) {
         headerTitle.style.cursor = 'pointer';
-        headerTitle.title = '切换主题';
+        headerTitle.title = translate('ccore_title_toggle_theme');
         headerTitle.addEventListener('click', () => {
             const current = doc.documentElement.getAttribute('data-theme') || 'light';
             const next = current === 'light' ? 'dark' : 'light';
@@ -35,6 +57,9 @@ export function initGeneratorEditor(iframeDocument) {
             window.dispatchEvent(new CustomEvent('continuity-theme-change'));
         });
     }
+
+    // === i18n 静态文本 ===
+    applyI18nToStaticElements(doc);
 
     // === 加载数据（深拷贝避免直接修改引用）===
     const config = configManager.getGeneratorConfig();
@@ -64,10 +89,10 @@ export function initGeneratorEditor(iframeDocument) {
             if (saveGenerators()) {
                 // saved 绿色状态反馈（与 module-editor 一致）
                 saveBtn.dataset.saving = 'true';
-                saveBtn.textContent = '已保存';
+                saveBtn.textContent = translate('ccore_msg_saved');
                 saveBtn.classList.add('saved');
                 setTimeout(() => {
-                    saveBtn.textContent = '保存';
+                    saveBtn.textContent = translate('ccore_btn_save');
                     saveBtn.dataset.saving = 'false';
                     saveBtn.classList.remove('saved');
                     checkForChanges();
@@ -109,7 +134,7 @@ function renderGeneratorList() {
     listEl.innerHTML = '';
 
     if (currentGenerators.length === 0) {
-        listEl.innerHTML = '<div style="padding: 10px; text-align: center; color: var(--text-secondary); font-size: 12px;">暂无生成内容</div>';
+        listEl.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--text-secondary); font-size: 12px;">${escapeHtml(translate('ccore_gen_empty'))}</div>`;
         return;
     }
 
@@ -124,12 +149,12 @@ function renderGeneratorList() {
         item.innerHTML = `
             <div class="module-item-content">
                 <div class="module-item-header">
-                    <span class="module-item-name">${escapeHtml(gen.displayName || gen.name || '(未命名)')}</span>
+                    <span class="module-item-name">${escapeHtml(gen.displayName || gen.name || translate('ccore_gen_msg_new'))}</span>
                     <small style="opacity: 0.5; font-size: 0.8em;">#${escapeHtml(gen.name || '')}</small>
                 </div>
             </div>
             <div class="module-item-actions">
-                <label class="toggle-switch" title="启用/禁用">
+                <label class="toggle-switch" title="${escapeHtml(translate('ccore_title_toggle_enabled'))}">
                     <input type="checkbox" class="gen-enable-toggle" ${gen.enabled !== false ? 'checked' : ''}>
                     <span class="slider round"></span>
                 </label>
@@ -144,15 +169,22 @@ function renderGeneratorList() {
             renderGeneratorDetail();
         });
 
-        // 启用/禁用开关（与 module-editor 一致）
+        // 绑定启用/禁用开关事件（与 module-editor 一致）
         const toggle = item.querySelector('.gen-enable-toggle');
         toggle.addEventListener('click', (e) => {
-            e.stopPropagation(); // 防止触发选中
             gen.enabled = e.target.checked;
             if (gen.enabled === false) item.classList.add('disabled');
             else item.classList.remove('disabled');
             checkForChanges();
         });
+
+        // 阻止开关容器的点击冒泡，防止触发列表项选中（与 module-editor 一致）
+        const actions = item.querySelector('.module-item-actions');
+        if (actions) {
+            actions.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
 
         listEl.appendChild(item);
     });
@@ -161,6 +193,7 @@ function renderGeneratorList() {
 /**
  * 渲染右侧详情（复用 settings-container / form-grid / form-group class）
  * 加 module-detail-view class 使 form-group 保持行布局（与 module-editor 详情页一致）
+ * 顶部 sticky-title-group 含 displayName + 🗑️ 删除按钮（与 module-editor 一致）
  */
 function renderGeneratorDetail() {
     const detailEl = doc.getElementById('gen-detail');
@@ -168,47 +201,44 @@ function renderGeneratorDetail() {
 
     const gen = currentGenerators.find(g => g.id === selectedGenId);
     if (!gen) {
-        detailEl.innerHTML = '<div style="text-align: center; margin-top: 50px; color: var(--text-muted);"><p>请从左侧选择一个生成内容进行编辑</p><p>或者点击 + 号创建新内容</p></div>';
+        detailEl.innerHTML = `<div style="text-align: center; margin-top: 50px; color: var(--text-muted);"><p>${escapeHtml(translate('ccore_gen_select_prompt'))}</p><p>${escapeHtml(translate('ccore_gen_or_create'))}</p></div>`;
         return;
     }
 
+    const displayName = gen.displayName || gen.name || translate('ccore_gen_msg_new');
     detailEl.innerHTML = `
         <div class="settings-container module-detail-view">
-            <div class="form-section-title">基本信息</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>标识 (name, 英文)</label>
-                    <input type="text" id="gen-name" value="${escapeHtml(gen.name || '')}" placeholder="如 side_scene">
-                </div>
-                <div class="form-group">
-                    <label>显示名称</label>
-                    <input type="text" id="gen-display-name" value="${escapeHtml(gen.displayName || '')}" placeholder="如 默认小剧场">
+            <div class="detail-tabs">
+                <div class="sticky-title-group">
+                    <span class="sticky-module-name" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+                    <button id="btn-delete-gen" class="btn-delete-small" title="${escapeHtml(translate('ccore_gen_title_delete'))}">🗑️</button>
                 </div>
             </div>
+            <div class="form-section-title">${escapeHtml(translate('ccore_gen_title_basic'))}</div>
             <div class="form-grid">
-                <div class="form-group">
-                    <label>启用</label>
-                    <select id="gen-enabled">
-                        <option value="true" ${gen.enabled !== false ? 'selected' : ''}>启用</option>
-                        <option value="false" ${gen.enabled === false ? 'selected' : ''}>禁用</option>
-                    </select>
+                <div class="form-group form-full-width">
+                    <label>${escapeHtml(translate('ccore_gen_label_name'))}</label>
+                    <input type="text" id="gen-name" value="${escapeHtml(gen.name || '')}" placeholder="side_scene">
                 </div>
-                <div class="form-group">
-                    <label>提示词模式</label>
+                <div class="form-group form-full-width">
+                    <label>${escapeHtml(translate('ccore_label_display_name'))}</label>
+                    <input type="text" id="gen-display-name" value="${escapeHtml(gen.displayName || '')}" placeholder="${escapeHtml(translate('ccore_gen_msg_new'))}">
+                </div>
+                <div class="form-group form-full-width">
+                    <label>${escapeHtml(translate('ccore_gen_label_prompt_mode'))}</label>
                     <select id="gen-prompt-mode">
-                        <option value="random" ${gen.promptMode === 'random' ? 'selected' : ''}>random (随机选一个)</option>
-                        <option value="select" ${gen.promptMode === 'select' ? 'selected' : ''}>select (面板多选合并)</option>
+                        <option value="random" ${gen.promptMode === 'random' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_random'))}</option>
+                        <option value="select" ${gen.promptMode === 'select' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_select'))}</option>
                     </select>
                 </div>
             </div>
             <div class="prompts-section">
                 <h3>
-                    <span>提示词列表 (${(gen.prompts || []).length})</span>
+                    <span>${escapeHtml(translate('ccore_gen_title_prompts'))} (${(gen.prompts || []).length})</span>
                 </h3>
                 <div id="prompts-container"></div>
-                <div class="btn-add-prompt" id="btn-add-prompt">+ 新增提示词</div>
+                <div class="btn-add-prompt" id="btn-add-prompt">${escapeHtml(translate('ccore_gen_btn_add_prompt'))}</div>
             </div>
-            <button class="btn-delete-gen" id="btn-delete-gen">删除此生成内容</button>
         </div>
     `;
 
@@ -240,7 +270,7 @@ function renderPrompts(gen) {
     container.innerHTML = '';
 
     if (!gen.prompts || gen.prompts.length === 0) {
-        container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:5px;">暂无提示词，点击下方"新增提示词"添加。</div>';
+        container.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:5px;">${escapeHtml(translate('ccore_gen_no_prompts'))}</div>`;
         return;
     }
 
@@ -249,10 +279,10 @@ function renderPrompts(gen) {
         item.className = 'prompt-item';
         item.innerHTML = `
             <div class="prompt-header">
-                <input type="text" class="prompt-label-input" value="${escapeHtml(prompt.label || '')}" placeholder="标签（如 日常场景）" data-prompt-index="${index}" data-field="label">
-                <div class="btn-delete-prompt" data-prompt-index="${index}">删除</div>
+                <input type="text" class="prompt-label-input" value="${escapeHtml(prompt.label || '')}" placeholder="${escapeHtml(translate('ccore_gen_prompt_label_placeholder'))}" data-prompt-index="${index}" data-field="label">
+                <div class="btn-delete-prompt" data-prompt-index="${index}">${escapeHtml(translate('ccore_gen_title_delete'))}</div>
             </div>
-            <textarea data-prompt-index="${index}" data-field="content" placeholder="提示词内容...">${escapeHtml(prompt.content || '')}</textarea>
+            <textarea data-prompt-index="${index}" data-field="content" placeholder="${escapeHtml(translate('ccore_gen_prompt_content_placeholder'))}">${escapeHtml(prompt.content || '')}</textarea>
         `;
         container.appendChild(item);
     });
@@ -273,6 +303,7 @@ function renderPrompts(gen) {
 /**
  * 从当前详情表单收集数据到 currentGenerators
  * 切换选中或保存前调用
+ * 注意：启用状态由左侧列表 toggle-switch 管理，不在详情区收集
  */
 function collectCurrentDetail() {
     const gen = currentGenerators.find(g => g.id === selectedGenId);
@@ -280,12 +311,10 @@ function collectCurrentDetail() {
 
     const nameEl = doc.getElementById('gen-name');
     const displayNameEl = doc.getElementById('gen-display-name');
-    const enabledEl = doc.getElementById('gen-enabled');
     const promptModeEl = doc.getElementById('gen-prompt-mode');
 
     if (nameEl) gen.name = nameEl.value.trim();
     if (displayNameEl) gen.displayName = displayNameEl.value.trim();
-    if (enabledEl) gen.enabled = enabledEl.value === 'true';
     if (promptModeEl) gen.promptMode = promptModeEl.value;
 
     const labelInputs = doc.querySelectorAll('.prompt-label-input');
@@ -328,7 +357,7 @@ function addGenerator() {
  * 删除 generator
  */
 function deleteGenerator(genId) {
-    if (!confirm('确认删除此生成内容？')) return;
+    if (!confirm(translate('ccore_gen_confirm_delete'))) return;
 
     currentGenerators = currentGenerators.filter(g => g.id !== genId);
     selectedGenId = currentGenerators.length > 0 ? currentGenerators[0].id : null;
@@ -381,23 +410,23 @@ function saveGenerators() {
     const errors = [];
     const names = new Set();
     currentGenerators.forEach((gen, index) => {
-        const prefix = `第${index + 1}个`;
+        const prefix = translate('ccore_gen_error_prefix').replace('{n}', index + 1);
         if (!gen.name) {
-            errors.push(`${prefix}: name 不能为空`);
+            errors.push(`${prefix}: ${translate('ccore_gen_error_name_empty')}`);
         } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(gen.name)) {
-            errors.push(`${prefix}: name "${gen.name}" 只能含英文/数字/下划线，且不以数字开头`);
+            errors.push(`${prefix}: "${gen.name}" ${translate('ccore_gen_error_name_format')}`);
         } else if (names.has(gen.name)) {
-            errors.push(`${prefix}: name "${gen.name}" 重复`);
+            errors.push(`${prefix}: "${gen.name}" ${translate('ccore_gen_error_name_duplicate')}`);
         } else {
             names.add(gen.name);
         }
         if (!gen.displayName) {
-            errors.push(`${prefix}: 显示名称不能为空`);
+            errors.push(`${prefix}: ${translate('ccore_gen_error_display_name_empty')}`);
         }
     });
 
     if (errors.length > 0) {
-        alert('保存失败：\n' + errors.join('\n'));
+        alert(translate('ccore_gen_error_save_failed') + '\n' + errors.join('\n'));
         return false;
     }
 
@@ -411,7 +440,7 @@ function saveGenerators() {
         return true;
     } catch (err) {
         errorLog('[GeneratorEditor] 保存失败:', err);
-        alert('保存失败：' + err.message);
+        alert(translate('ccore_gen_error_save_failed') + ': ' + err.message);
         return false;
     }
 }

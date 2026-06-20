@@ -16,10 +16,10 @@
 <body>
     <header class="app-header">
         <div class="header-title">
-            <span>生成内容配置</span>
+            <span data-i18n="ccore_gen_title">生成内容配置</span>
         </div>
         <div class="header-actions">
-            <button id="header-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;">保存</button>
+            <button id="header-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;" data-i18n="ccore_btn_save">保存</button>
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
         </div>
@@ -29,13 +29,13 @@
         <!-- 左侧：生成内容列表 -->
         <aside class="module-list-panel">
             <div class="list-toolbar">
-                <input type="text" id="gen-search" placeholder="搜索..."
+                <input type="text" id="gen-search" data-i18n-placeholder="ccore_gen_search_placeholder" placeholder="搜索..."
                     style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
                 <button id="btn-add-generator" style="padding: 6px 10px; cursor: pointer;">+</button>
             </div>
             <div class="list-content" id="gen-list">
                 <div style="padding: 10px; text-align: center; color: var(--text-secondary);">
-                    加载中...
+                    ...
                 </div>
             </div>
         </aside>
@@ -44,8 +44,8 @@
         <section class="module-detail-panel">
             <div class="detail-content" id="gen-detail">
                 <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
-                    <p>请从左侧选择一个生成内容进行编辑</p>
-                    <p>或者点击 + 号创建新内容</p>
+                    <p data-i18n="ccore_gen_select_prompt">请从左侧选择一个生成内容进行编辑</p>
+                    <p data-i18n="ccore_gen_or_create">或者点击 + 号创建新内容</p>
                 </div>
             </div>
         </section>
