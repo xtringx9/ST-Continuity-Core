@@ -7,6 +7,12 @@ aside.module-list-panel {
     flex-shrink: 0;
 }
 
+/* 详情面板占满剩余空间（module-editor 用 grid 1fr，generator 用 flex 需显式声明） */
+section.module-detail-panel {
+    flex: 1;
+    min-width: 0;
+}
+
 /* prompts 编辑区 */
 .prompts-section {
     border: 1px solid var(--border-color);
@@ -98,4 +104,14 @@ aside.module-list-panel {
     background: var(--danger-color);
     color: #fff;
     border-color: var(--danger-color);
+}
+
+/* === 移动端适配（与 module-editor 一致） === */
+/* generator-editor 无 #view-modules grid 包装，需显式处理列栏宽度与高度 */
+@media (max-width: 768px) {
+    aside.module-list-panel {
+        width: 100%;
+        flex: 1;
+        min-height: 0;
+    }
 }

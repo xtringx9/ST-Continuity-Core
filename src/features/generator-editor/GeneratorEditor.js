@@ -167,6 +167,10 @@ function renderGeneratorList() {
             selectedGenId = gen.id;
             renderGeneratorList();
             renderGeneratorDetail();
+            // 移动端适配：点击后切换到详情视图（与 module-editor 一致）
+            if (window.innerWidth <= 768) {
+                doc.body.classList.add('mobile-view-detail');
+            }
         });
 
         // 绑定启用/禁用开关事件（与 module-editor 一致）
@@ -210,6 +214,7 @@ function renderGeneratorDetail() {
         <div class="settings-container module-detail-view">
             <div class="detail-tabs">
                 <div class="sticky-title-group">
+                    <button id="btn-back-to-list" class="mobile-only btn-back-icon" title="${escapeHtml(translate('ccore_title_back_to_list'))}">❮</button>
                     <span class="sticky-module-name" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
                     <button id="btn-delete-gen" class="btn-delete-small" title="${escapeHtml(translate('ccore_gen_title_delete'))}">🗑️</button>
                 </div>
@@ -258,6 +263,14 @@ function renderGeneratorDetail() {
     const deleteGenBtn = doc.getElementById('btn-delete-gen');
     if (deleteGenBtn) {
         deleteGenBtn.addEventListener('click', () => deleteGenerator(gen.id));
+    }
+
+    // 移动端返回按钮（与 module-editor 一致）
+    const backBtn = doc.getElementById('btn-back-to-list');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            doc.body.classList.remove('mobile-view-detail');
+        });
     }
 }
 
@@ -365,6 +378,9 @@ function deleteGenerator(genId) {
     renderGeneratorList();
     renderGeneratorDetail();
     checkForChanges();
+
+    // 移动端：删除后返回列表视图（与 module-editor 一致）
+    doc.body.classList.remove('mobile-view-detail');
 
     infoLog('[GeneratorEditor] 删除生成内容, id:', genId);
 }
