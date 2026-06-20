@@ -1,6 +1,6 @@
 // src/ui/messageAiButton.js
-// 为每条消息添加模块操作按钮（Cc 菜单触发器 + 展开的三个操作）
-// Cc 点击 → 同行右侧展开三个按钮：重新生成 / 编辑模块数据 / 模块汇总
+// 为每条消息添加模块操作按钮（Cc 菜单触发器 + 展开的多框菜单）
+// Cc 点击 → 同行右侧展开：[模块框: 重新生成 编辑 汇总] [各 generator 框: 重新生成] ...
 
 import { chat } from '../../../../../../script.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
@@ -242,79 +242,108 @@ function toggleInlineMenu(triggerButton, mesId) {
 }
 
 /**
- * 创建 inline 菜单（三个按钮，横向排列）
+ * 创建 inline 菜单（多框横向排列）
  *
- * 菜单项插入到 Cc 之后（向右展开），与 Cc 同处一个浮动容器，
- * 由父容器 .ccore-mes-float-wrap 的 gap:0 控制间距（按钮紧贴）。
+ * 布局：[模块框: 重新生成 编辑 汇总] [gen1框: 重新生成] [gen2框: 重新生成] ...
+ * 每个框是独立的带边框容器，框之间有间距(gap:4px)，框内按钮紧贴(gap:0)。
+ * 模块框始终存在；generator 框从 generator_config 读取启用的 generators 动态生成。
  */
 function createInlineMenu(triggerButton, mesId) {
     const menu = $('<div>')
         .addClass(MENU_CLASS)
         .css({
             display: 'inline-flex',
-            gap: '0',
+            gap: '4px', // 框之间间距
             verticalAlign: 'middle',
-            // 容器边框：让三个按钮作为一个整体，视觉上像一个菜单
-            // 与 Cc 触发器边框样式一致，显得是同一组控件
-            // 高度对齐：Cc 总高 22px（border-box 含 2px border）
-            //   菜单 height:22px + box-sizing:border-box → 内容区 18px = 按钮 18px
-            border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
-            borderRadius: '6px',
-            padding: '0',
-            height: '22px', // 显式锁死高度，确保与 Cc 对齐
-            boxSizing: 'border-box',
+            alignItems: 'center',
         });
 
-    // 异步模块存储开关：重新生成/编辑依赖异步存储，未开启时置灰
     const asyncModule = configManager.getExtensionConfig().asyncModule || {};
     const asyncEnabled = !!asyncModule.enabled;
 
-    // 三个操作按钮（needAsync: 该操作依赖异步模块存储）
-    const actions = [
+    // 1. 模块框：重新生成 + 编辑 + 汇总
+    const moduleActions = [
         { action: 'regenerate', icon: 'fa-arrows-rotate', title: '重新生成模块', needAsync: true },
         { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块数据', needAsync: true },
         { action: 'summary', icon: 'fa-table-list', title: '模块汇总', needAsync: false },
     ];
+    menu.append(createMenuBox(moduleActions, asyncEnabled, triggerButton, mesId));
 
-    actions.forEach(({ action, icon, title, needAsync }) => {
-        const disabled = needAsync && !asyncEnabled;
-        const btn = $('<div>')
-            .attr('title', disabled ? `${title}（需开启异步模块存储）` : title)
-            .attr('data-i18n', `[title]${title}`)
-            .addClass('mes_button interactable')
-            .attr('tabindex', '0')
-            .attr('role', 'button')
-            .css({
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '18px',
-                height: '18px',
-                padding: '0', // 覆盖 .mes_button 的 padding:1px 3px，让按钮紧贴
-                borderRadius: '4px',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                opacity: disabled ? 0.4 : 0.7,
-            })
-            .html(`<i class="fa-solid ${icon}"></i>`);
-
-        if (!disabled) {
-            // hover 提亮
-            btn.hover(
-                function () { $(this).css('opacity', 1); },
-                function () { $(this).css('opacity', 0.7); }
-            );
-
-            btn.on('click', (e) => {
-                e.stopPropagation();
-                closeInlineMenu();
-                onMenuAction(action, triggerButton, mesId);
-            });
-        }
-
-        menu.append(btn);
-    });
+    // 2. 各 generator 框：每个启用的 generator 一个重新生成按钮
+    const generators = configManager.getGenerators(); // 默认只返回启用的
+    for (const gen of generators) {
+        const genActions = [
+            { action: `generate:${gen.name}`, icon: 'fa-arrows-rotate', title: `生成${gen.displayName}`, needAsync: true },
+        ];
+        menu.append(createMenuBox(genActions, asyncEnabled, triggerButton, mesId));
+    }
 
     return menu;
+}
+
+/**
+ * 创建菜单框（带边框容器，内含多个紧贴的按钮）
+ * @param {Array} actions - 按钮配置数组
+ * @param {boolean} asyncEnabled - 异步存储是否开启
+ * @param {jQuery} triggerButton - Cc 触发器
+ * @param {number} mesId
+ */
+function createMenuBox(actions, asyncEnabled, triggerButton, mesId) {
+    const box = $('<div>').css({
+        display: 'inline-flex',
+        gap: '0',
+        border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
+        borderRadius: '6px',
+        padding: '0',
+        height: '22px',
+        boxSizing: 'border-box',
+    });
+
+    for (const { action, icon, title, needAsync } of actions) {
+        const disabled = needAsync && !asyncEnabled;
+        box.append(createMenuButton(action, icon, title, disabled, triggerButton, mesId));
+    }
+
+    return box;
+}
+
+/**
+ * 创建单个菜单按钮
+ */
+function createMenuButton(action, icon, title, disabled, triggerButton, mesId) {
+    const btn = $('<div>')
+        .attr('title', disabled ? `${title}（需开启异步模块存储）` : title)
+        .attr('data-i18n', `[title]${title}`)
+        .addClass('mes_button interactable')
+        .attr('tabindex', '0')
+        .attr('role', 'button')
+        .css({
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '18px',
+            height: '18px',
+            padding: '0',
+            borderRadius: '4px',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.4 : 0.7,
+        })
+        .html(`<i class="fa-solid ${icon}"></i>`);
+
+    if (!disabled) {
+        btn.hover(
+            function () { $(this).css('opacity', 1); },
+            function () { $(this).css('opacity', 0.7); }
+        );
+
+        btn.on('click', (e) => {
+            e.stopPropagation();
+            closeInlineMenu();
+            onMenuAction(action, triggerButton, mesId);
+        });
+    }
+
+    return btn;
 }
 
 /**
@@ -349,6 +378,13 @@ function handleOutsideClick(e) {
  * 菜单项动作分发
  */
 async function onMenuAction(action, triggerButton, mesId) {
+    // generate:xxx — 生成其他内容(xxx = generator.name)
+    if (action.startsWith('generate:')) {
+        const generatorName = action.substring('generate:'.length);
+        await onRegenerate(triggerButton, mesId, generatorName);
+        return;
+    }
+
     switch (action) {
         case 'regenerate':
             await onRegenerate(triggerButton, mesId);
@@ -363,11 +399,15 @@ async function onMenuAction(action, triggerButton, mesId) {
 }
 
 /**
- * 重新生成模块
+ * 重新生成（模块或其他生成内容）
+ * @param {jQuery} button - Cc 触发器
+ * @param {number} mesId
+ * @param {string} [generatorName='modules'] - 'modules' 或 generator.name
  */
-async function onRegenerate(button, mesId) {
+async function onRegenerate(button, mesId, generatorName = 'modules') {
     // 从配置读取选项
     const asyncModule = configManager.getExtensionConfig().asyncModule || {};
+    const isModule = generatorName === 'modules';
     const useIndependentApi = asyncModule.useIndependentApi || false;
     let customApi = null;
     if (useIndependentApi) {
@@ -378,14 +418,19 @@ async function onRegenerate(button, mesId) {
     }
 
     const options = {
+        generatorName,
         mode: asyncModule.generationMode || 'pipeline',
         customApi,
-        rawSystemPrompt: asyncModule.rawSystemPrompt || '',
-        rawUserPrompt: asyncModule.rawUserPromptTemplate || '',
-        pipelineModifier: asyncModule.pipelineModifier || '',
         showDebug: asyncModule.showDebug !== false,
         skipStorage: true, // 先展示不存储
     };
+
+    // 模块才需要传提示词配置(其他生成内容从 generator_config 读)
+    if (isModule) {
+        options.rawSystemPrompt = asyncModule.rawSystemPrompt || '';
+        options.rawUserPrompt = asyncModule.rawUserPromptTemplate || '';
+        options.pipelineModifier = asyncModule.pipelineModifier || '';
+    }
 
     setButtonState(button, STATE.LOADING);
 
@@ -394,14 +439,14 @@ async function onRegenerate(button, mesId) {
 
         if (result.success) {
             setButtonState(button, STATE.SUCCESS);
-            infoLog(LOG_TAG, `消息 ${mesId} 生成成功`);
+            infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成成功`);
         } else {
             setButtonState(button, STATE.ERROR);
-            errorLog(LOG_TAG, `消息 ${mesId} 生成失败: ${result.error || '未知错误'}`);
+            errorLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成失败: ${result.error || '未知错误'}`);
         }
     } catch (err) {
         setButtonState(button, STATE.ERROR);
-        errorLog(LOG_TAG, `消息 ${mesId} 生成异常:`, err);
+        errorLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成异常:`, err);
     }
 
     // 一定时间后恢复
