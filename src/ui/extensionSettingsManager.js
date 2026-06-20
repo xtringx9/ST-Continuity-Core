@@ -202,7 +202,6 @@ export async function onAsyncExtractChat() {
         }
 
         const chatIdHash = _getCurrentChatIdHash();
-        const cotTags = configManager.getGlobalSettings().cotTags || [];
 
         infoLog(`[AsyncStorage] 开始提取当前聊天: ${charName} / ${chatFile}, 共 ${chat.length} 条消息`);
 
@@ -271,7 +270,6 @@ export async function onAsyncExtractFloor() {
         const charName = _getCurrentCharName();
         const chatFile = _getCurrentChatFileName();
         const chatIdHash = _getCurrentChatIdHash();
-        const cotTags = configManager.getGlobalSettings().cotTags || [];
 
         await perMessageStorage.initChat(charName, chatFile, chatIdHash);
 
@@ -397,7 +395,6 @@ function _updateGenerationModeVisibility(mode) {
 function _getAiGenerationOptions() {
     const extensionConfig = configManager.getExtensionConfig();
     const asyncModule = extensionConfig.asyncModule || {};
-    const cotTags = configManager.getGlobalSettings().cotTags || [];
 
     const useIndependentApi = $('#continuity_use_independent_api').prop('checked');
     let customApi = null;
@@ -421,7 +418,6 @@ function _getAiGenerationOptions() {
         rawSystemPrompt: $('#continuity_raw_system_prompt').val()?.trim() || '',
         rawUserPrompt: $('#continuity_raw_user_prompt').val()?.trim() || '',
         pipelineModifier: $('#continuity_pipeline_modifier').val()?.trim() || '',
-        cotTags,
         showDebug: $('#continuity_show_debug').prop('checked'),
     };
 }

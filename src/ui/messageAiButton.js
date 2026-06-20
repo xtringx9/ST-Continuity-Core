@@ -383,7 +383,6 @@ async function onRegenerate(button, mesId) {
         rawSystemPrompt: asyncModule.rawSystemPrompt || '',
         rawUserPrompt: asyncModule.rawUserPromptTemplate || '',
         pipelineModifier: asyncModule.pipelineModifier || '',
-        cotTags: configManager.getGlobalSettings().cotTags || [],
         showDebug: asyncModule.showDebug !== false,
         skipStorage: true, // 先展示不存储
     };
