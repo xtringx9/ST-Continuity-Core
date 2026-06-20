@@ -1,7 +1,7 @@
 import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
 import { initModuleEditor } from '../module-editor/ModuleEditor.js';
-import { openGeneratorEditor } from '../generator-editor/GeneratorEditor.js';
+import { initGeneratorEditor } from '../generator-editor/GeneratorEditor.js';
 import { warnLog, infoLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 
@@ -363,9 +363,23 @@ export class EntryButton {
             case 'editor':
                 this._handleClick();
                 break;
-            case 'generator-editor':
-                openGeneratorEditor(this.iframeModal, this.extensionPath);
+            case 'generator-editor': {
+                const pageUrl = `${this.extensionPath}/src/features/generator-editor/index.html`;
+                this.iframeModal.open(pageUrl, '生成内容配置', {
+                    variant: 'drawer-left',
+                    onLoad: (iframe) => {
+                        const doc = iframe.contentDocument;
+                        if (doc) {
+                            initGeneratorEditor(doc);
+                            const closeBtn = doc.getElementById('close-btn');
+                            if (closeBtn) {
+                                closeBtn.addEventListener('click', () => this.iframeModal.close());
+                            }
+                        }
+                    }
+                });
                 break;
+            }
             case 'summary':
                 openContextBottomAsModal();
                 break;

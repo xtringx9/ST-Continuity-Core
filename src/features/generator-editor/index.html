@@ -1,0 +1,56 @@
+<!-- src/features/generator-editor/index.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Continuity Generator Editor</title>
+
+    <!-- 引入样式表：共享主题 + module-editor 通用布局 + generator 专属 -->
+    <link rel="stylesheet" href="../../shared/styles/themes.css">
+    <link rel="stylesheet" href="../module-editor/styles/layout.css">
+    <link rel="stylesheet" href="styles/generator.css">
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="header-title">
+            <span>生成内容配置</span>
+        </div>
+        <div class="header-actions">
+            <button id="header-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;">保存</button>
+            <button id="close-btn"
+                style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- 左侧：生成内容列表 -->
+        <aside class="module-list-panel">
+            <div class="list-toolbar">
+                <input type="text" id="gen-search" placeholder="搜索..."
+                    style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
+                <button id="btn-add-generator" style="padding: 6px 10px; cursor: pointer;">+</button>
+            </div>
+            <div class="list-content" id="gen-list">
+                <div style="padding: 10px; text-align: center; color: var(--text-secondary);">
+                    加载中...
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右侧：详情编辑 -->
+        <section class="module-detail-panel">
+            <div class="detail-content" id="gen-detail">
+                <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
+                    <p>请从左侧选择一个生成内容进行编辑</p>
+                    <p>或者点击 + 号创建新内容</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+</body>
+
+</html>
