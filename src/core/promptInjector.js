@@ -1,6 +1,8 @@
 // 提示词注入管理器
 import { extension_settings } from "../../../../../extensions.js";
 import { extensionName } from '../singleton/configManager.js';
+import configManager from '../singleton/configManager.js';
+import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat } from '../../../../../../script.js';
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { generateFormalPrompt } from "../modules/promptGenerator.js";
@@ -80,16 +82,24 @@ export class PromptInjector {
 
     /**
      * 生成要注入的提示词对象
+     * 模块提示词 + 生成内容（小剧场、角色心理等）
      * @returns {Object} 提示词对象
      */
     generateInjectionPrompt() {
         try {
-            const promptContent = generateFormalPrompt();
+            const modulePrompt = generateFormalPrompt();
+            const generatedContentPrompt = generateGeneratedContentPrompt();
+
+            // 合并模块提示词和生成内容
+            let content = modulePrompt;
+            if (generatedContentPrompt) {
+                content = content ? `${content}\n\n${generatedContentPrompt}` : generatedContentPrompt;
+            }
 
             return {
                 depth: this.injectionDepth,
                 role: this.injectionRole,
-                content: promptContent
+                content: content
             };
         } catch (error) {
             errorLog('生成注入提示词失败:', error);
@@ -238,6 +248,51 @@ export class PromptInjector {
         } catch (error) {
             errorLog('停止提示词注入管理器功能失败:', error);
         }
+    }
+}
+
+/**
+ * 生成生成内容提示词（小剧场、角色心理等）
+ * 从 generatedContentCache 读取最近 N 条消息的生成内容，按 generator 分组构建
+ * 空内容不注入
+ * @returns {string} 生成内容提示词，无内容时返回空字符串
+ */
+function generateGeneratedContentPrompt() {
+    try {
+        // 获取启用的 generators
+        const generators = configManager.getGenerators();
+        if (generators.length === 0) return '';
+
+        // 从缓存读取最近 5 条消息的生成内容
+        const recentContents = generatedContentCache.getRecent(5);
+        if (recentContents.length === 0) return '';
+
+        // 按 generator name 分组
+        const grouped = new Map(); // name -> [{mesId, text}]
+        for (const item of recentContents) {
+            if (!grouped.has(item.name)) grouped.set(item.name, []);
+            grouped.get(item.name).push(item);
+        }
+
+        // 按 generators 配置顺序构建文本
+        const sections = [];
+        for (const gen of generators) {
+            const items = grouped.get(gen.name);
+            if (!items || items.length === 0) continue;
+
+            const lines = [`--- ${gen.displayName} ---`];
+            for (const item of items) {
+                lines.push(`[楼层${item.mesId}]`);
+                lines.push(item.text);
+            }
+            sections.push(lines.join('\n'));
+        }
+
+        if (sections.length === 0) return '';
+        return `=== 生成内容 ===\n\n${sections.join('\n\n')}`;
+    } catch (error) {
+        errorLog('生成生成内容提示词失败:', error);
+        return '';
     }
 }
 

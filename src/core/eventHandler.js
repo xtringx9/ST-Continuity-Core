@@ -3,6 +3,7 @@ import { registerContinuityRegexPattern } from "../utils/regexUtils.js";
 import { updateCurrentCharWorldBookCache, checkAndInitializeWorldBook, getCurrentCharBooks, getTestData } from "../utils/worldBookUtils.js";
 import configManager from "../singleton/configManager.js";
 import moduleCacheManager from "../singleton/moduleCacheManager.js";
+import generatedContentCache from "../singleton/generatedContentCache.js";
 import { eventSource, event_types } from "../../../../../../script.js";
 import { checkUItoContextBottom, checkUItoMsgBottom, checkRenderCurrentMessageContext } from "./contextBottomUI.js"
 import { addAiButtonToMessage, addAiButtonsToAllMessages } from "../ui/messageAiButton.js";
@@ -229,6 +230,7 @@ export class EventHandler {
 
     initializeModuleCache() {
         this.registerEvent(event_types.CHAT_CHANGED, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
+        this.registerEvent(event_types.CHAT_CHANGED, () => generatedContentCache.clear(), true, "Generated Content Cache");
         this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
         this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
         this.registerEvent(event_types.MESSAGE_RECEIVED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");

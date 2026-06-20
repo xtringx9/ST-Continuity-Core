@@ -6,6 +6,7 @@
 import { aiCaller } from './aiCaller.js';
 import perMessageStorage from './perMessageStorage.js';
 import configManager from '../singleton/configManager.js';
+import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { showDebugPanel } from '../ui/generatorDebugPanel.js';
@@ -201,6 +202,13 @@ export const moduleAiGenerator = {
                 if (hasModules) {
                     // 构造 swipe 数据:模块用 extracted,其他用 { [generatorName]: result.text }
                     const swipeData = isModule ? extracted : { [generatorName]: result.text };
+
+                    // 非模块生成内容写入内存缓存（供 promptInjector 注入时同步读取）
+                    if (!isModule) {
+                        for (const msg of messages) {
+                            generatedContentCache.set(msg.mesId, generatorName, result.text);
+                        }
+                    }
 
                     if (isSingle) {
                         const msg = messages[0];
