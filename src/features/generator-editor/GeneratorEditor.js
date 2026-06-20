@@ -9,6 +9,7 @@ import { infoLog, errorLog } from '../../utils/logger.js';
 let doc = null;
 let currentGenerators = [];
 let selectedGenId = null;
+let savedGeneratorsJson = ''; // 保存后的 JSON 字符串（用于 hasChanges 检测）
 
 /**
  * 初始化生成内容配置编辑器
@@ -18,33 +19,59 @@ let selectedGenId = null;
 export function initGeneratorEditor(iframeDocument) {
     doc = iframeDocument;
 
-    // 加载数据（深拷贝避免直接修改引用）
+    // === 主题同步（与 module-editor 一致）===
+    const savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
+    doc.documentElement.setAttribute('data-theme', savedTheme);
+
+    const headerTitle = doc.querySelector('.header-title');
+    if (headerTitle) {
+        headerTitle.style.cursor = 'pointer';
+        headerTitle.title = '切换主题';
+        headerTitle.addEventListener('click', () => {
+            const current = doc.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : 'light';
+            doc.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('st_continuity_theme', next);
+            window.dispatchEvent(new CustomEvent('continuity-theme-change'));
+        });
+    }
+
+    // === 加载数据（深拷贝避免直接修改引用）===
     const config = configManager.getGeneratorConfig();
     currentGenerators = JSON.parse(JSON.stringify(config.generators || []));
+    savedGeneratorsJson = JSON.stringify(currentGenerators);
 
     // 选中第一个（如果有）
     if (currentGenerators.length > 0) {
         selectedGenId = currentGenerators[0].id;
     }
 
-    // 渲染
+    // === 渲染 ===
     renderGeneratorList();
     renderGeneratorDetail();
+    checkForChanges();
 
-    // 绑定新增按钮
+    // === 绑定新增按钮 ===
     const addBtn = doc.getElementById('btn-add-generator');
     if (addBtn) {
         addBtn.addEventListener('click', addGenerator);
     }
 
-    // 绑定保存按钮（顶部 header 内，与 module-editor 一致）
+    // === 绑定保存按钮（顶部 header 内，与 module-editor 一致）===
     const saveBtn = doc.getElementById('header-save-btn');
     if (saveBtn) {
         saveBtn.addEventListener('click', () => {
             if (saveGenerators()) {
                 // saved 绿色状态反馈（与 module-editor 一致）
+                saveBtn.dataset.saving = 'true';
+                saveBtn.textContent = '已保存';
                 saveBtn.classList.add('saved');
-                setTimeout(() => saveBtn.classList.remove('saved'), 1500);
+                setTimeout(() => {
+                    saveBtn.textContent = '保存';
+                    saveBtn.dataset.saving = 'false';
+                    saveBtn.classList.remove('saved');
+                    checkForChanges();
+                }, 1000);
             }
         });
     }
@@ -53,7 +80,28 @@ export function initGeneratorEditor(iframeDocument) {
 }
 
 /**
- * 渲染左侧列表（复用 module-list-item class）
+ * 检测变更，更新保存按钮状态（与 module-editor 一致）
+ */
+function checkForChanges() {
+    collectCurrentDetail();
+    const currentJson = JSON.stringify(currentGenerators);
+    const hasChanges = currentJson !== savedGeneratorsJson;
+
+    const saveBtn = doc.getElementById('header-save-btn');
+    if (saveBtn) {
+        saveBtn.disabled = !hasChanges;
+        if (hasChanges) {
+            saveBtn.classList.remove('btn-secondary');
+            saveBtn.classList.add('btn-primary');
+        } else {
+            saveBtn.classList.remove('btn-primary');
+            saveBtn.classList.add('btn-secondary');
+        }
+    }
+}
+
+/**
+ * 渲染左侧列表（复用 module-list-item / module-item-content / toggle-switch class）
  */
 function renderGeneratorList() {
     const listEl = doc.getElementById('gen-list');
@@ -67,35 +115,43 @@ function renderGeneratorList() {
 
     currentGenerators.forEach(gen => {
         const item = doc.createElement('div');
-        item.className = 'module-list-item' + (gen.id === selectedGenId ? ' active' : '');
+        item.className = 'module-list-item';
+        if (gen.id === selectedGenId) item.classList.add('active');
+        if (gen.enabled === false) item.classList.add('disabled');
         item.dataset.genId = gen.id;
 
-        // 内容区（复用 module-item-content / module-item-header / module-item-name）
-        const content = doc.createElement('div');
-        content.className = 'module-item-content';
+        // 列表项结构（与 module-editor 一致：content + actions）
+        item.innerHTML = `
+            <div class="module-item-content">
+                <div class="module-item-header">
+                    <span class="module-item-name">${escapeHtml(gen.displayName || gen.name || '(未命名)')}</span>
+                    <small style="opacity: 0.5; font-size: 0.8em;">#${escapeHtml(gen.name || '')}</small>
+                </div>
+            </div>
+            <div class="module-item-actions">
+                <label class="toggle-switch" title="启用/禁用">
+                    <input type="checkbox" class="gen-enable-toggle" ${gen.enabled !== false ? 'checked' : ''}>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        `;
 
-        const header = doc.createElement('div');
-        header.className = 'module-item-header';
-
-        const name = doc.createElement('span');
-        name.className = 'module-item-name';
-        name.textContent = gen.displayName || gen.name || '(未命名)';
-
-        header.appendChild(name);
-        content.appendChild(header);
-        item.appendChild(content);
-
-        // 启用状态指示（generator 专属）
-        const toggle = doc.createElement('div');
-        toggle.className = 'gen-toggle' + (gen.enabled !== false ? ' enabled' : '');
-        toggle.textContent = gen.enabled !== false ? '✓' : '';
-        item.appendChild(toggle);
-
+        // 点击选中
         item.addEventListener('click', () => {
             collectCurrentDetail();
             selectedGenId = gen.id;
             renderGeneratorList();
             renderGeneratorDetail();
+        });
+
+        // 启用/禁用开关（与 module-editor 一致）
+        const toggle = item.querySelector('.gen-enable-toggle');
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation(); // 防止触发选中
+            gen.enabled = e.target.checked;
+            if (gen.enabled === false) item.classList.add('disabled');
+            else item.classList.remove('disabled');
+            checkForChanges();
         });
 
         listEl.appendChild(item);
@@ -104,6 +160,7 @@ function renderGeneratorList() {
 
 /**
  * 渲染右侧详情（复用 settings-container / form-grid / form-group class）
+ * 加 module-detail-view class 使 form-group 保持行布局（与 module-editor 详情页一致）
  */
 function renderGeneratorDetail() {
     const detailEl = doc.getElementById('gen-detail');
@@ -116,7 +173,7 @@ function renderGeneratorDetail() {
     }
 
     detailEl.innerHTML = `
-        <div class="settings-container">
+        <div class="settings-container module-detail-view">
             <div class="form-section-title">基本信息</div>
             <div class="form-grid">
                 <div class="form-group">
@@ -157,6 +214,12 @@ function renderGeneratorDetail() {
 
     renderPrompts(gen);
 
+    // 绑定详情区输入事件 → checkForChanges
+    detailEl.querySelectorAll('input, select, textarea').forEach(el => {
+        el.addEventListener('input', checkForChanges);
+        el.addEventListener('change', checkForChanges);
+    });
+
     const addPromptBtn = doc.getElementById('btn-add-prompt');
     if (addPromptBtn) {
         addPromptBtn.addEventListener('click', addPrompt);
@@ -192,6 +255,11 @@ function renderPrompts(gen) {
             <textarea data-prompt-index="${index}" data-field="content" placeholder="提示词内容...">${escapeHtml(prompt.content || '')}</textarea>
         `;
         container.appendChild(item);
+    });
+
+    // 绑定 prompts 输入事件 → checkForChanges
+    container.querySelectorAll('input, textarea').forEach(el => {
+        el.addEventListener('input', checkForChanges);
     });
 
     container.querySelectorAll('.btn-delete-prompt').forEach(btn => {
@@ -251,6 +319,7 @@ function addGenerator() {
 
     renderGeneratorList();
     renderGeneratorDetail();
+    checkForChanges();
 
     infoLog('[GeneratorEditor] 新增生成内容, id:', newGen.id);
 }
@@ -266,6 +335,7 @@ function deleteGenerator(genId) {
 
     renderGeneratorList();
     renderGeneratorDetail();
+    checkForChanges();
 
     infoLog('[GeneratorEditor] 删除生成内容, id:', genId);
 }
@@ -283,6 +353,7 @@ function addPrompt() {
     gen.prompts.push({ label: '', content: '' });
 
     renderPrompts(gen);
+    checkForChanges();
 }
 
 /**
@@ -296,6 +367,7 @@ function deletePrompt(index) {
 
     gen.prompts.splice(index, 1);
     renderPrompts(gen);
+    checkForChanges();
 }
 
 /**
@@ -334,6 +406,7 @@ function saveGenerators() {
         config.generators = currentGenerators;
         configManager.setGeneratorConfig(config);
         configManager.saveGeneratorConfigNow();
+        savedGeneratorsJson = JSON.stringify(currentGenerators);
         infoLog('[GeneratorEditor] 保存成功，共', currentGenerators.length, '个生成内容');
         return true;
     } catch (err) {
