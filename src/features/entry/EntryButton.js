@@ -1,6 +1,7 @@
 import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
 import { initModuleEditor } from '../module-editor/ModuleEditor.js';
+import { openGeneratorEditor } from '../generator-editor/GeneratorEditor.js';
 import { warnLog, infoLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 
@@ -258,6 +259,7 @@ export class EntryButton {
 
         const items = [
             { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },
+            { action: 'generator-editor', icon: 'fa-wand-magic-sparkles', title: '生成内容配置' },
             { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
             { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式（开发中）' },
         ];
@@ -360,6 +362,9 @@ export class EntryButton {
         switch (action) {
             case 'editor':
                 this._handleClick();
+                break;
+            case 'generator-editor':
+                openGeneratorEditor(this.iframeModal, this.extensionPath);
                 break;
             case 'summary':
                 openContextBottomAsModal();
