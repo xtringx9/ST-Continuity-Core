@@ -284,8 +284,8 @@ export class EntryButton {
                 transition: 'background-color 0.2s',
             });
 
-            // 非聊天页：汇总/手机按钮置灰禁用
-            const disabled = !inChat && item.action !== 'editor';
+            // 非聊天页：汇总/手机按钮置灰禁用（编辑器、生成内容配置是全局配置，不依赖聊天）
+            const disabled = !inChat && item.action !== 'editor' && item.action !== 'generator-editor';
             if (disabled) {
                 btn.style.opacity = '0.4';
                 btn.style.cursor = 'not-allowed';
