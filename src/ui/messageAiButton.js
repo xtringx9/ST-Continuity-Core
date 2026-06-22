@@ -262,22 +262,24 @@ function createInlineMenu(triggerButton, mesId) {
     const asyncModule = configManager.getExtensionConfig().asyncModule || {};
     const asyncEnabled = !!asyncModule.enabled;
 
-    // 1. 模块框：重新生成 + 编辑 + 汇总
+    // 1. 模块框：重新生成 + 编辑 + 汇总（无 label）
+    const moduleRegenIcon = hasPendingResult('modules') ? 'fa-hourglass-half' : 'fa-arrows-rotate';
     const moduleActions = [
-        { action: 'regenerate', icon: 'fa-arrows-rotate', title: '重新生成模块', needAsync: true },
+        { action: 'regenerate', icon: moduleRegenIcon, title: '重新生成模块', needAsync: true },
         { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块数据', needAsync: true },
         { action: 'summary', icon: 'fa-table-list', title: '模块汇总', needAsync: false },
     ];
     menu.append(createMenuBox(moduleActions, asyncEnabled, triggerButton, mesId));
 
-    // 2. 各 generator 框：每个启用的 generator 一个重新生成 + 编辑按钮
+    // 2. 各 generator 框：每个启用的 generator 一个重新生成 + 编辑按钮（带 displayName label）
     const generators = configManager.getGenerators(); // 默认只返回启用的
     for (const gen of generators) {
+        const genRegenIcon = hasPendingResult(gen.name) ? 'fa-hourglass-half' : 'fa-arrows-rotate';
         const genActions = [
-            { action: `generate:${gen.name}`, icon: 'fa-arrows-rotate', title: `生成${gen.displayName}`, needAsync: true },
+            { action: `generate:${gen.name}`, icon: genRegenIcon, title: `生成${gen.displayName}`, needAsync: true },
             { action: `edit:${gen.name}`, icon: 'fa-pen-to-square', title: `编辑${gen.displayName}`, needAsync: true },
         ];
-        menu.append(createMenuBox(genActions, asyncEnabled, triggerButton, mesId));
+        menu.append(createMenuBox(genActions, asyncEnabled, triggerButton, mesId, gen.displayName));
     }
 
     return menu;
@@ -289,17 +291,33 @@ function createInlineMenu(triggerButton, mesId) {
  * @param {boolean} asyncEnabled - 异步存储是否开启
  * @param {jQuery} triggerButton - Cc 触发器
  * @param {number} mesId
+ * @param {string} [label] - 框内前置 label 文本（如 generator 的 displayName）
  */
-function createMenuBox(actions, asyncEnabled, triggerButton, mesId) {
+function createMenuBox(actions, asyncEnabled, triggerButton, mesId, label) {
     const box = $('<div>').css({
         display: 'inline-flex',
         gap: '0',
+        alignItems: 'center',
         border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
         borderRadius: '6px',
         padding: '0',
         height: '22px',
         boxSizing: 'border-box',
     });
+
+    // 前置 label（非模块框用）
+    if (label) {
+        const labelEl = $('<span>')
+            .text(label)
+            .css({
+                fontSize: '11px',
+                padding: '0 4px 0 3px',
+                whiteSpace: 'nowrap',
+                color: 'var(--smart-body-text-color, inherit)',
+                lineHeight: '1',
+            });
+        box.append(labelEl);
+    }
 
     for (const { action, icon, title, needAsync } of actions) {
         const disabled = needAsync && !asyncEnabled;
@@ -313,13 +331,28 @@ function createMenuBox(actions, asyncEnabled, triggerButton, mesId) {
  * 创建单个菜单按钮
  */
 function createMenuButton(action, icon, title, disabled, triggerButton, mesId) {
+    // 提取 generatorName 用于 data-generator 属性
+    let generatorName = 'modules';
+    if (action.startsWith('generate:')) {
+        generatorName = action.substring('generate:'.length);
+    } else if (action === 'regenerate') {
+        generatorName = 'modules';
+    } else {
+        generatorName = null; // 非生成按钮不加 data-generator
+    }
+
     const btn = $('<div>')
         .attr('title', disabled ? `${title}（需开启异步模块存储）` : title)
         .attr('data-i18n', `[title]${title}`)
         .addClass('mes_button interactable')
         .attr('tabindex', '0')
-        .attr('role', 'button')
-        .css({
+        .attr('role', 'button');
+
+    if (generatorName) {
+        btn.attr('data-generator', generatorName);
+    }
+
+    btn.css({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -422,6 +455,9 @@ async function onMenuAction(action, triggerButton, mesId, clickedBtn) {
  * @param {string} [generatorName='modules'] - 'modules' 或 generator.name
  */
 async function onRegenerate(button, mesId, generatorName = 'modules') {
+    // 正在生成中（按钮显示 spinner）则不重复触发
+    if (button && button.find('i.fa-spinner').length) return;
+
     // 有该 generator 的未处理结果时，重新打开调试面板而非发起新生成
     if (hasPendingResult(generatorName)) {
         reopenPendingDebugPanel(generatorName);
@@ -461,19 +497,19 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
         const result = await moduleAiGenerator.generate(mesId, options);
 
         if (result.success) {
-            setRegenButtonState(button, STATE.SUCCESS);
+            setRegenButtonState(button, STATE.SUCCESS, generatorName);
             infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成成功`);
         } else {
-            setRegenButtonState(button, STATE.ERROR);
+            setRegenButtonState(button, STATE.ERROR, generatorName);
             errorLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成失败: ${result.error || '未知错误'}`);
         }
     } catch (err) {
-        setRegenButtonState(button, STATE.ERROR);
+        setRegenButtonState(button, STATE.ERROR, generatorName);
         errorLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成异常:`, err);
     }
 
     // 一定时间后恢复
-    setTimeout(() => setRegenButtonState(button, STATE.IDLE), RESET_DELAY);
+    setTimeout(() => setRegenButtonState(button, STATE.IDLE, generatorName), RESET_DELAY);
 }
 
 /**
@@ -481,16 +517,10 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
  * 与 setButtonState(Cc 触发器) 不同，这里通过替换 fa 图标展示状态
  * @param {jQuery} button - 被点击的菜单按钮
  * @param {string} state - STATE 常量
+ * @param {string} [generatorName='modules'] - 用于判断 IDLE 时是否有待处理结果
  */
-function setRegenButtonState(button, state) {
+function setRegenButtonState(button, state, generatorName = 'modules') {
     if (!button || !button.length) return;
-
-    // 首次调用时记录原始图标
-    if (!button.data('original-icon')) {
-        const iconEl = button.find('i.fa-solid');
-        button.data('original-icon', iconEl.length ? iconEl.attr('class') : 'fa-solid fa-arrows-rotate');
-    }
-    const originalIcon = button.data('original-icon');
 
     // 清除状态样式
     button.css({
@@ -525,10 +555,13 @@ function setRegenButtonState(button, state) {
                     opacity: 1,
                 });
             break;
-        default: // IDLE
-            button.html(`<i class="${originalIcon}"></i>`)
-                .attr('title', '重新生成')
+        default: { // IDLE — 根据是否有待处理结果决定图标
+            const hasPending = hasPendingResult(generatorName);
+            const idleIcon = hasPending ? 'fa-hourglass-half' : 'fa-arrows-rotate';
+            button.html(`<i class="fa-solid ${idleIcon}"></i>`)
+                .attr('title', hasPending ? '有待处理结果，点击查看' : '重新生成')
                 .css('opacity', 0.7);
+        }
     }
 }
 
@@ -728,6 +761,16 @@ export function initMessageAiButton() {
 
     // 事件委托：Cc 触发器点击
     $(document).on('click', `.${BUTTON_CLASS}`, onTriggerClick);
+
+    // 监听待处理结果清除事件，更新当前菜单中对应按钮的图标
+    window.addEventListener('ccore-pending-cleared', (e) => {
+        const { generatorName } = e.detail;
+        if (!currentMenu) return;
+        const btn = currentMenu.find(`[data-generator="${generatorName}"]`);
+        if (btn.length) {
+            setRegenButtonState(btn, STATE.IDLE, generatorName);
+        }
+    });
 
     // 为当前已加载的消息添加按钮
     addAiButtonsToAllMessages();

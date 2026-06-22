@@ -102,6 +102,8 @@ export function hasPendingResult(generatorName) {
 export function clearPendingResult(generatorName) {
     pendingResults.delete(generatorName);
     _savePendingToStorage();
+    // 通知 UI 更新按钮图标
+    window.dispatchEvent(new CustomEvent('ccore-pending-cleared', { detail: { generatorName } }));
 }
 
 /**
