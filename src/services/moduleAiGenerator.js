@@ -14,11 +14,28 @@ import { showDebugPanel } from '../ui/generatorDebugPanel.js';
 const LOG_TAG = 'ModuleAiGenerator';
 
 // === 待处理结果状态管理 ===
-// 手动重新生成(skipStorage=true)成功后,结果按 generatorName 独立暂存
-// 用户关闭面板后此结果仍保留,再次点击"重新生成"会重新打开面板显示该结果
+// 手动重新生成(skipStorage=true)成功后,结果按 聊天标识 + generatorName + mesId 组合暂存
+// 不同聊天/角色/楼层的待处理结果互相独立
 // 持久化到 sessionStorage,刷新页面后仍可恢复
 const PENDING_STORAGE_KEY = 'ccore_pending_results';
-const pendingResults = new Map(); // key: generatorName, value: { context, debugData }
+const pendingResults = new Map(); // key: `${chatKey}::${generatorName}::${mesId}`, value: { context, debugData }
+
+/**
+ * 获取当前聊天标识（角色名 + 聊天文件名）
+ * 不同聊天/角色的 mesId 重复,需用聊天标识隔离
+ */
+function _getChatKey() {
+    try {
+        const details = getCurrentChatDetails();
+        return `${details?.characterName || ''}::${details?.sessionName || ''}`;
+    } catch {
+        return 'unknown';
+    }
+}
+
+function _pendingKey(generatorName, mesId) {
+    return `${_getChatKey()}::${generatorName}::${mesId}`;
+}
 
 // 初始化时从 sessionStorage 恢复
 (function _loadPendingFromStorage() {
@@ -26,8 +43,8 @@ const pendingResults = new Map(); // key: generatorName, value: { context, debug
         const raw = sessionStorage.getItem(PENDING_STORAGE_KEY);
         if (!raw) return;
         const data = JSON.parse(raw);
-        for (const [name, result] of Object.entries(data)) {
-            pendingResults.set(name, result);
+        for (const [key, result] of Object.entries(data)) {
+            pendingResults.set(key, result);
         }
         if (pendingResults.size > 0) {
             infoLog(LOG_TAG, `从 sessionStorage 恢复 ${pendingResults.size} 个待处理结果`);
@@ -40,8 +57,8 @@ const pendingResults = new Map(); // key: generatorName, value: { context, debug
 function _savePendingToStorage() {
     try {
         const data = {};
-        for (const [name, result] of pendingResults) {
-            data[name] = result;
+        for (const [key, result] of pendingResults) {
+            data[key] = result;
         }
         sessionStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
@@ -61,7 +78,7 @@ function _createSaveCallback(ctx) {
         if (!isModule) {
             generatedContentCache.set(mesId, generatorName, text);
         }
-        clearPendingResult(generatorName);
+        clearPendingResult(generatorName, mesId);
         infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认）`);
     };
 }
@@ -69,10 +86,10 @@ function _createSaveCallback(ctx) {
 /**
  * 创建抛弃回调（供调试面板"抛弃"按钮调用）
  */
-function _createDiscardCallback(generatorName) {
+function _createDiscardCallback(generatorName, mesId) {
     return () => {
-        clearPendingResult(generatorName);
-        infoLog(LOG_TAG, `用户抛弃了 ${generatorName} 的生成结果`);
+        clearPendingResult(generatorName, mesId);
+        infoLog(LOG_TAG, `用户抛弃了 楼层${mesId} ${generatorName} 的生成结果`);
     };
 }
 
@@ -89,37 +106,39 @@ function _createLoadCurrentCallback(ctx) {
 }
 
 /**
- * 是否有指定 generator 的待处理结果
+ * 是否有指定 generator + 楼层的待处理结果
  * @param {string} generatorName - 'modules' 或 generator.name
+ * @param {number} mesId - 楼层 ID
  */
-export function hasPendingResult(generatorName) {
-    return pendingResults.has(generatorName);
+export function hasPendingResult(generatorName, mesId) {
+    return pendingResults.has(_pendingKey(generatorName, mesId));
 }
 
 /**
- * 清除指定 generator 的待处理结果
+ * 清除指定 generator + 楼层的待处理结果
  */
-export function clearPendingResult(generatorName) {
-    pendingResults.delete(generatorName);
+export function clearPendingResult(generatorName, mesId) {
+    const key = _pendingKey(generatorName, mesId);
+    pendingResults.delete(key);
     _savePendingToStorage();
     // 通知 UI 更新按钮图标
-    window.dispatchEvent(new CustomEvent('ccore-pending-cleared', { detail: { generatorName } }));
+    window.dispatchEvent(new CustomEvent('ccore-pending-cleared', { detail: { generatorName, mesId } }));
 }
 
 /**
  * 重新打开调试面板显示待处理结果
  * 用户手误关闭面板后,再次点击"重新生成"时调用
  */
-export function reopenPendingDebugPanel(generatorName) {
-    const pending = pendingResults.get(generatorName);
+export function reopenPendingDebugPanel(generatorName, mesId) {
+    const pending = pendingResults.get(_pendingKey(generatorName, mesId));
     if (!pending) return false;
     const { context, debugData } = pending;
     // 重新绑定回调（每次 showDebugPanel 创建新 IframeModal）
     debugData.onSave = _createSaveCallback(context);
-    debugData.onDiscard = _createDiscardCallback(generatorName);
+    debugData.onDiscard = _createDiscardCallback(generatorName, mesId);
     debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
     showDebugPanel(debugData);
-    infoLog(LOG_TAG, `重新打开 ${generatorName} 的待处理结果调试面板`);
+    infoLog(LOG_TAG, `重新打开 楼层${mesId} ${generatorName} 的待处理结果调试面板`);
     return true;
 }
 
@@ -368,18 +387,19 @@ export const moduleAiGenerator = {
 
                 // 手动重新生成(skipStorage)且单条成功时,暂存结果供用户在面板中决定保存/抛弃
                 if (skipStorage && result.text && isSingle) {
+                    const mesId = messages[0].mesId;
                     const context = {
-                        mesId: messages[0].mesId,
+                        mesId,
                         swipeId: messages[0].activeSwipeId,
                         generatorName,
                         isModule,
                         extracted,
                         text: result.text,
                     };
-                    pendingResults.set(generatorName, { context, debugData });
+                    pendingResults.set(_pendingKey(generatorName, mesId), { context, debugData });
                     _savePendingToStorage();
                     debugData.onSave = _createSaveCallback(context);
-                    debugData.onDiscard = _createDiscardCallback(generatorName);
+                    debugData.onDiscard = _createDiscardCallback(generatorName, mesId);
                     debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
                 }
 

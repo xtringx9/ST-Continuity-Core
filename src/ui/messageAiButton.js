@@ -30,6 +30,7 @@ const RESET_DELAY = 2000;
 // 当前打开的菜单
 let currentMenu = null;
 let currentTrigger = null;
+let currentMenuMesId = null;
 
 /**
  * 为单条消息添加 Cc 菜单触发器
@@ -225,6 +226,7 @@ function toggleInlineMenu(triggerButton, mesId) {
 
     currentTrigger = triggerButton;
     currentMenu = createInlineMenu(triggerButton, mesId);
+    currentMenuMesId = mesId;
 
     // 向右展开：菜单插入到 Cc 之后（同一浮动容器内，横向排列）
     triggerButton.after(currentMenu);
@@ -263,7 +265,7 @@ function createInlineMenu(triggerButton, mesId) {
     const asyncEnabled = !!asyncModule.enabled;
 
     // 1. 模块框：重新生成 + 编辑 + 汇总（无 label）
-    const moduleRegenIcon = hasPendingResult('modules') ? 'fa-hourglass-half' : 'fa-arrows-rotate';
+    const moduleRegenIcon = hasPendingResult('modules', mesId) ? 'fa-hourglass-half' : 'fa-arrows-rotate';
     const moduleActions = [
         { action: 'regenerate', icon: moduleRegenIcon, title: '重新生成模块', needAsync: true },
         { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块数据', needAsync: true },
@@ -274,7 +276,7 @@ function createInlineMenu(triggerButton, mesId) {
     // 2. 各 generator 框：每个启用的 generator 一个重新生成 + 编辑按钮（带 displayName label）
     const generators = configManager.getGenerators(); // 默认只返回启用的
     for (const gen of generators) {
-        const genRegenIcon = hasPendingResult(gen.name) ? 'fa-hourglass-half' : 'fa-arrows-rotate';
+        const genRegenIcon = hasPendingResult(gen.name, mesId) ? 'fa-hourglass-half' : 'fa-arrows-rotate';
         const genActions = [
             { action: `generate:${gen.name}`, icon: genRegenIcon, title: `生成${gen.displayName}`, needAsync: true },
             { action: `edit:${gen.name}`, icon: 'fa-pen-to-square', title: `编辑${gen.displayName}`, needAsync: true },
@@ -393,6 +395,7 @@ function closeInlineMenu() {
         currentMenu.remove();
         currentMenu = null;
     }
+    currentMenuMesId = null;
     if (currentTrigger) {
         // 恢复 Cc 默认样式
         setButtonState(currentTrigger, STATE.IDLE);
@@ -458,9 +461,9 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
     // 正在生成中（按钮显示 spinner）则不重复触发
     if (button && button.find('i.fa-spinner').length) return;
 
-    // 有该 generator 的未处理结果时，重新打开调试面板而非发起新生成
-    if (hasPendingResult(generatorName)) {
-        reopenPendingDebugPanel(generatorName);
+    // 有该 generator + 楼层的未处理结果时，重新打开调试面板而非发起新生成
+    if (hasPendingResult(generatorName, mesId)) {
+        reopenPendingDebugPanel(generatorName, mesId);
         return;
     }
 
@@ -491,7 +494,7 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
         options.pipelineModifier = asyncModule.pipelineModifier || '';
     }
 
-    setRegenButtonState(button, STATE.LOADING);
+    setRegenButtonState(button, STATE.LOADING, generatorName);
 
     try {
         const result = await moduleAiGenerator.generate(mesId, options);
@@ -509,7 +512,7 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
     }
 
     // 一定时间后恢复
-    setTimeout(() => setRegenButtonState(button, STATE.IDLE, generatorName), RESET_DELAY);
+    setTimeout(() => setRegenButtonState(button, STATE.IDLE, generatorName, mesId), RESET_DELAY);
 }
 
 /**
@@ -518,8 +521,9 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
  * @param {jQuery} button - 被点击的菜单按钮
  * @param {string} state - STATE 常量
  * @param {string} [generatorName='modules'] - 用于判断 IDLE 时是否有待处理结果
+ * @param {number} [mesId] - 楼层 ID，IDLE 状态判断 hasPendingResult 时需要
  */
-function setRegenButtonState(button, state, generatorName = 'modules') {
+function setRegenButtonState(button, state, generatorName = 'modules', mesId) {
     if (!button || !button.length) return;
 
     // 清除状态样式
@@ -556,7 +560,7 @@ function setRegenButtonState(button, state, generatorName = 'modules') {
                 });
             break;
         default: { // IDLE — 根据是否有待处理结果决定图标
-            const hasPending = hasPendingResult(generatorName);
+            const hasPending = mesId !== undefined && hasPendingResult(generatorName, mesId);
             const idleIcon = hasPending ? 'fa-hourglass-half' : 'fa-arrows-rotate';
             button.html(`<i class="fa-solid ${idleIcon}"></i>`)
                 .attr('title', hasPending ? '有待处理结果，点击查看' : '重新生成')
@@ -764,11 +768,12 @@ export function initMessageAiButton() {
 
     // 监听待处理结果清除事件，更新当前菜单中对应按钮的图标
     window.addEventListener('ccore-pending-cleared', (e) => {
-        const { generatorName } = e.detail;
-        if (!currentMenu) return;
+        const { generatorName, mesId } = e.detail;
+        // 只更新当前打开菜单对应楼层的按钮
+        if (!currentMenu || mesId !== currentMenuMesId) return;
         const btn = currentMenu.find(`[data-generator="${generatorName}"]`);
         if (btn.length) {
-            setRegenButtonState(btn, STATE.IDLE, generatorName);
+            setRegenButtonState(btn, STATE.IDLE, generatorName, mesId);
         }
     });
 
