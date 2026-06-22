@@ -13,6 +13,84 @@ import { showDebugPanel } from '../ui/generatorDebugPanel.js';
 
 const LOG_TAG = 'ModuleAiGenerator';
 
+// === 待处理结果状态管理 ===
+// 手动重新生成(skipStorage=true)成功后,结果暂存于此,等用户在调试面板中决定保存/抛弃
+// 用户关闭面板后此结果仍保留,再次点击"重新生成"会重新打开面板显示该结果
+let pendingResult = null;
+// {
+//     context: { mesId, swipeId, generatorName, isModule, extracted, text },
+//     debugData: { ...传给 showDebugPanel 的完整数据 }
+// }
+
+/**
+ * 创建保存回调（供调试面板"保存"按钮调用）
+ */
+function _createSaveCallback(ctx) {
+    return async () => {
+        const { mesId, swipeId, generatorName, isModule, extracted, text } = ctx;
+        const swipeData = isModule ? extracted : { [generatorName]: text };
+        const swipesData = { [swipeId]: swipeData };
+        await perMessageStorage.writeMessage(mesId, swipeId, swipesData);
+        if (!isModule) {
+            generatedContentCache.set(mesId, generatorName, text);
+        }
+        clearPendingResult();
+        infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认）`);
+    };
+}
+
+/**
+ * 创建抛弃回调（供调试面板"抛弃"按钮调用）
+ */
+function _createDiscardCallback() {
+    return () => {
+        clearPendingResult();
+        infoLog(LOG_TAG, '用户抛弃了上次生成结果');
+    };
+}
+
+/**
+ * 创建"查看当前内容"回调（供调试面板按钮调用，异步返回当前存储内容）
+ */
+function _createLoadCurrentCallback(ctx) {
+    return async () => {
+        const { mesId, swipeId, generatorName, isModule } = ctx;
+        const msgData = await perMessageStorage.getMessage(mesId, swipeId);
+        if (!msgData) return '';
+        return isModule ? (msgData.modules || '') : (msgData[generatorName] || '');
+    };
+}
+
+/**
+ * 是否有待处理结果（用户尚未决定保存/抛弃）
+ */
+export function hasPendingResult() {
+    return pendingResult !== null;
+}
+
+/**
+ * 清除待处理结果
+ */
+export function clearPendingResult() {
+    pendingResult = null;
+}
+
+/**
+ * 重新打开调试面板显示待处理结果
+ * 用户手误关闭面板后,再次点击"重新生成"时调用
+ */
+export function reopenPendingDebugPanel() {
+    if (!pendingResult) return false;
+    const { context, debugData } = pendingResult;
+    // 重新绑定回调（每次 showDebugPanel 创建新 IframeModal）
+    debugData.onSave = _createSaveCallback(context);
+    debugData.onDiscard = _createDiscardCallback();
+    debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
+    showDebugPanel(debugData);
+    infoLog(LOG_TAG, '重新打开待处理结果的调试面板');
+    return true;
+}
+
 /**
  * 生成内容 AI 生成器
  *
@@ -240,7 +318,7 @@ export const moduleAiGenerator = {
                 const titleBody = `${scope} - ${charName} / ${chatName}`;
                 const titleLabel = isModule ? '生成调试' : `生成调试 [${generatorName}]`;
 
-                showDebugPanel({
+                const debugData = {
                     title: `${titleLabel} ${titleBody}`,
                     statusLabel: titleLabel,
                     statusType: 'info',
@@ -254,7 +332,25 @@ export const moduleAiGenerator = {
                     apiUsed: result.debug.apiUsed,
                     hasModules,
                     storedCount,
-                });
+                };
+
+                // 手动重新生成(skipStorage)且单条成功时,暂存结果供用户在面板中决定保存/抛弃
+                if (skipStorage && result.text && isSingle) {
+                    const context = {
+                        mesId: messages[0].mesId,
+                        swipeId: messages[0].activeSwipeId,
+                        generatorName,
+                        isModule,
+                        extracted,
+                        text: result.text,
+                    };
+                    pendingResult = { context, debugData };
+                    debugData.onSave = _createSaveCallback(context);
+                    debugData.onDiscard = _createDiscardCallback();
+                    debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
+                }
+
+                showDebugPanel(debugData);
             }
 
             return {

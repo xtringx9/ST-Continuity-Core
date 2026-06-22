@@ -4,7 +4,7 @@
 
 import { chat } from '../../../../../../script.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
-import { moduleAiGenerator } from '../services/moduleAiGenerator.js';
+import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal } from '../core/contextBottomUI.js';
@@ -414,6 +414,12 @@ async function onMenuAction(action, triggerButton, mesId) {
  * @param {string} [generatorName='modules'] - 'modules' 或 generator.name
  */
 async function onRegenerate(button, mesId, generatorName = 'modules') {
+    // 有未处理的生成结果时，重新打开调试面板而非发起新生成
+    if (hasPendingResult()) {
+        reopenPendingDebugPanel();
+        return;
+    }
+
     // 从配置读取选项
     const asyncModule = configManager.getExtensionConfig().asyncModule || {};
     const isModule = generatorName === 'modules';

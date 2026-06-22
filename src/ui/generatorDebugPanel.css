@@ -140,3 +140,74 @@ body {
     max-height: 300px;
     overflow-y: auto;
 }
+
+/* === 操作按钮区域（保存/抛弃/查看当前内容） === */
+.ccore-debug-action-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border-color);
+    margin-top: 4px;
+}
+
+.ccore-debug-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.ccore-debug-btn:hover {
+    background: var(--bg-hover);
+}
+
+.ccore-debug-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ccore-debug-btn-save {
+    background: var(--accent-color);
+    color: var(--bg-app);
+    border-color: var(--accent-color);
+    font-weight: 600;
+}
+
+.ccore-debug-btn-save:hover {
+    filter: brightness(1.1);
+}
+
+.ccore-debug-btn-discard {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+.ccore-debug-btn-discard:hover {
+    background: var(--danger-color);
+    color: #fff;
+}
+
+/* === 当前内容对比区 === */
+.ccore-debug-current-content {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: var(--bg-card);
+}
+
+.ccore-debug-current-header {
+    padding: 6px 10px;
+    background-color: var(--bg-panel);
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ccore-debug-current-pre {
+    max-height: 200px;
+}

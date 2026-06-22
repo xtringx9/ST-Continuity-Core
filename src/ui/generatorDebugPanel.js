@@ -1,8 +1,10 @@
 // src/ui/generatorDebugPanel.js
 // 生成调试弹窗：基于 IframeModal + 独立 HTML，复用 module-editor 主题系统
 // 支持多个弹窗同时存在（每次 new 新 IframeModal 实例）
+// 当 data.onSave 存在时，显示"保存/抛弃/查看当前内容"按钮（手动重新生成流程）
 
 import { IframeModal } from '../shared/IframeModal.js';
+import { translate } from '../../../../../../i18n.js';
 
 // 调试弹窗 HTML 文件路径（基于当前 JS 文件位置解析）
 const PANEL_HTML_URL = new URL('generatorDebugPanel.html', import.meta.url).href;
@@ -61,6 +63,11 @@ export function showDebugPanel(data) {
 
             // 5. 绑定折叠/复制按钮
             _bindSectionEvents(doc);
+
+            // 6. 绑定操作按钮（保存/抛弃/查看当前内容，仅手动重新生成流程）
+            if (data.onSave) {
+                _bindActionButtons(doc, data, modal);
+            }
         },
     });
 }
@@ -136,7 +143,82 @@ function _buildSectionsHtml(data) {
         sections.push(_buildSection('API 信息', JSON.stringify(data.apiUsed, null, 2), 'var(--text-muted)', false));
     }
 
+    // 5. 操作按钮（保存/抛弃/查看当前内容，仅手动重新生成流程）
+    if (data.onSave) {
+        sections.push(_buildActionSection());
+    }
+
     return sections.join('');
+}
+
+/**
+ * 构建操作按钮区域 HTML
+ */
+function _buildActionSection() {
+    return `<div class="ccore-debug-action-bar">
+        <button class="ccore-debug-btn ccore-debug-btn-save">${_escapeHtml(translate('ccore_debug_save'))}</button>
+        <button class="ccore-debug-btn ccore-debug-btn-discard">${_escapeHtml(translate('ccore_debug_discard'))}</button>
+        <button class="ccore-debug-btn ccore-debug-btn-current">${_escapeHtml(translate('ccore_debug_view_current'))}</button>
+    </div>
+    <div class="ccore-debug-current-content" style="display:none;">
+        <div class="ccore-debug-current-header">${_escapeHtml(translate('ccore_debug_current_content'))}</div>
+        <pre class="ccore-debug-pre ccore-debug-current-pre"></pre>
+    </div>`;
+}
+
+/**
+ * 绑定操作按钮事件
+ */
+function _bindActionButtons(doc, data, modal) {
+    const saveBtn = doc.querySelector('.ccore-debug-btn-save');
+    const discardBtn = doc.querySelector('.ccore-debug-btn-discard');
+    const currentBtn = doc.querySelector('.ccore-debug-btn-current');
+    const currentArea = doc.querySelector('.ccore-debug-current-content');
+    const currentPre = doc.querySelector('.ccore-debug-current-pre');
+
+    // 保存
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+            saveBtn.disabled = true;
+            saveBtn.textContent = translate('ccore_debug_saving');
+            try {
+                await data.onSave();
+                saveBtn.textContent = translate('ccore_debug_saved');
+                setTimeout(() => modal.close(), 800);
+            } catch (err) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = translate('ccore_debug_save');
+                alert(translate('ccore_debug_save_failed') + ': ' + err.message);
+            }
+        });
+    }
+
+    // 抛弃
+    if (discardBtn) {
+        discardBtn.addEventListener('click', () => {
+            if (data.onDiscard) data.onDiscard();
+            modal.close();
+        });
+    }
+
+    // 查看当前内容
+    if (currentBtn && currentArea && currentPre) {
+        currentBtn.addEventListener('click', async () => {
+            if (currentArea.style.display !== 'none') {
+                // 已展开 → 收起
+                currentArea.style.display = 'none';
+                return;
+            }
+            currentPre.textContent = translate('ccore_debug_loading');
+            currentArea.style.display = 'block';
+            try {
+                const content = await data.onLoadCurrentContent();
+                currentPre.textContent = content || translate('ccore_debug_no_current');
+            } catch (err) {
+                currentPre.textContent = translate('ccore_debug_load_failed') + ': ' + err.message;
+            }
+        });
+    }
 }
 
 /**

@@ -273,5 +273,15 @@
     "ccore_gen_error_name_duplicate": "duplicate name",
     "ccore_gen_error_display_name_empty": "display name cannot be empty",
     "ccore_gen_error_prefix": "Item {n}",
-    "ccore_gen_error_save_failed": "Save failed"
+    "ccore_gen_error_save_failed": "Save failed",
+    "ccore_debug_save": "Save",
+    "ccore_debug_discard": "Discard",
+    "ccore_debug_view_current": "View Current",
+    "ccore_debug_saving": "Saving...",
+    "ccore_debug_saved": "✔ Saved",
+    "ccore_debug_save_failed": "Save failed",
+    "ccore_debug_current_content": "Current stored content",
+    "ccore_debug_loading": "Loading...",
+    "ccore_debug_no_current": "(empty)",
+    "ccore_debug_load_failed": "Load failed"
 }

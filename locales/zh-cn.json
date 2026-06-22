@@ -273,5 +273,15 @@
     "ccore_gen_error_name_duplicate": "name 重复",
     "ccore_gen_error_display_name_empty": "显示名称不能为空",
     "ccore_gen_error_prefix": "第 {n} 个",
-    "ccore_gen_error_save_failed": "保存失败"
+    "ccore_gen_error_save_failed": "保存失败",
+    "ccore_debug_save": "保存",
+    "ccore_debug_discard": "抛弃",
+    "ccore_debug_view_current": "查看当前内容",
+    "ccore_debug_saving": "保存中...",
+    "ccore_debug_saved": "✔ 已保存",
+    "ccore_debug_save_failed": "保存失败",
+    "ccore_debug_current_content": "当前存储内容",
+    "ccore_debug_loading": "加载中...",
+    "ccore_debug_no_current": "(无内容)",
+    "ccore_debug_load_failed": "加载失败"
 }
