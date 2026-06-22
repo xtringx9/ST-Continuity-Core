@@ -14,13 +14,40 @@ import { showDebugPanel } from '../ui/generatorDebugPanel.js';
 const LOG_TAG = 'ModuleAiGenerator';
 
 // === 待处理结果状态管理 ===
-// 手动重新生成(skipStorage=true)成功后,结果暂存于此,等用户在调试面板中决定保存/抛弃
+// 手动重新生成(skipStorage=true)成功后,结果按 generatorName 独立暂存
 // 用户关闭面板后此结果仍保留,再次点击"重新生成"会重新打开面板显示该结果
-let pendingResult = null;
-// {
-//     context: { mesId, swipeId, generatorName, isModule, extracted, text },
-//     debugData: { ...传给 showDebugPanel 的完整数据 }
-// }
+// 持久化到 sessionStorage,刷新页面后仍可恢复
+const PENDING_STORAGE_KEY = 'ccore_pending_results';
+const pendingResults = new Map(); // key: generatorName, value: { context, debugData }
+
+// 初始化时从 sessionStorage 恢复
+(function _loadPendingFromStorage() {
+    try {
+        const raw = sessionStorage.getItem(PENDING_STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        for (const [name, result] of Object.entries(data)) {
+            pendingResults.set(name, result);
+        }
+        if (pendingResults.size > 0) {
+            infoLog(LOG_TAG, `从 sessionStorage 恢复 ${pendingResults.size} 个待处理结果`);
+        }
+    } catch (e) {
+        // 忽略解析错误
+    }
+})();
+
+function _savePendingToStorage() {
+    try {
+        const data = {};
+        for (const [name, result] of pendingResults) {
+            data[name] = result;
+        }
+        sessionStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+        // 忽略写入错误（如 sessionStorage 已满）
+    }
+}
 
 /**
  * 创建保存回调（供调试面板"保存"按钮调用）
@@ -34,7 +61,7 @@ function _createSaveCallback(ctx) {
         if (!isModule) {
             generatedContentCache.set(mesId, generatorName, text);
         }
-        clearPendingResult();
+        clearPendingResult(generatorName);
         infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认）`);
     };
 }
@@ -42,10 +69,10 @@ function _createSaveCallback(ctx) {
 /**
  * 创建抛弃回调（供调试面板"抛弃"按钮调用）
  */
-function _createDiscardCallback() {
+function _createDiscardCallback(generatorName) {
     return () => {
-        clearPendingResult();
-        infoLog(LOG_TAG, '用户抛弃了上次生成结果');
+        clearPendingResult(generatorName);
+        infoLog(LOG_TAG, `用户抛弃了 ${generatorName} 的生成结果`);
     };
 }
 
@@ -62,32 +89,35 @@ function _createLoadCurrentCallback(ctx) {
 }
 
 /**
- * 是否有待处理结果（用户尚未决定保存/抛弃）
+ * 是否有指定 generator 的待处理结果
+ * @param {string} generatorName - 'modules' 或 generator.name
  */
-export function hasPendingResult() {
-    return pendingResult !== null;
+export function hasPendingResult(generatorName) {
+    return pendingResults.has(generatorName);
 }
 
 /**
- * 清除待处理结果
+ * 清除指定 generator 的待处理结果
  */
-export function clearPendingResult() {
-    pendingResult = null;
+export function clearPendingResult(generatorName) {
+    pendingResults.delete(generatorName);
+    _savePendingToStorage();
 }
 
 /**
  * 重新打开调试面板显示待处理结果
  * 用户手误关闭面板后,再次点击"重新生成"时调用
  */
-export function reopenPendingDebugPanel() {
-    if (!pendingResult) return false;
-    const { context, debugData } = pendingResult;
+export function reopenPendingDebugPanel(generatorName) {
+    const pending = pendingResults.get(generatorName);
+    if (!pending) return false;
+    const { context, debugData } = pending;
     // 重新绑定回调（每次 showDebugPanel 创建新 IframeModal）
     debugData.onSave = _createSaveCallback(context);
-    debugData.onDiscard = _createDiscardCallback();
+    debugData.onDiscard = _createDiscardCallback(generatorName);
     debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
     showDebugPanel(debugData);
-    infoLog(LOG_TAG, '重新打开待处理结果的调试面板');
+    infoLog(LOG_TAG, `重新打开 ${generatorName} 的待处理结果调试面板`);
     return true;
 }
 
@@ -344,9 +374,10 @@ export const moduleAiGenerator = {
                         extracted,
                         text: result.text,
                     };
-                    pendingResult = { context, debugData };
+                    pendingResults.set(generatorName, { context, debugData });
+                    _savePendingToStorage();
                     debugData.onSave = _createSaveCallback(context);
-                    debugData.onDiscard = _createDiscardCallback();
+                    debugData.onDiscard = _createDiscardCallback(generatorName);
                     debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
                 }
 

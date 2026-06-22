@@ -340,8 +340,12 @@ function createMenuButton(action, icon, title, disabled, triggerButton, mesId) {
 
         btn.on('click', (e) => {
             e.stopPropagation();
-            closeInlineMenu();
-            onMenuAction(action, triggerButton, mesId);
+            // generate 操作不关闭菜单，让按钮自身显示生成状态
+            const isGenerate = action === 'regenerate' || action.startsWith('generate:');
+            if (!isGenerate) {
+                closeInlineMenu();
+            }
+            onMenuAction(action, triggerButton, mesId, btn);
         });
     }
 
@@ -378,12 +382,16 @@ function handleOutsideClick(e) {
 
 /**
  * 菜单项动作分发
+ * @param {string} action
+ * @param {jQuery} triggerButton - Cc 触发器
+ * @param {number} mesId
+ * @param {jQuery} [clickedBtn] - 被点击的菜单按钮（generate 操作传入，用于显示状态）
  */
-async function onMenuAction(action, triggerButton, mesId) {
+async function onMenuAction(action, triggerButton, mesId, clickedBtn) {
     // generate:xxx — 生成其他内容(xxx = generator.name)
     if (action.startsWith('generate:')) {
         const generatorName = action.substring('generate:'.length);
-        await onRegenerate(triggerButton, mesId, generatorName);
+        await onRegenerate(clickedBtn, mesId, generatorName);
         return;
     }
 
@@ -396,7 +404,7 @@ async function onMenuAction(action, triggerButton, mesId) {
 
     switch (action) {
         case 'regenerate':
-            await onRegenerate(triggerButton, mesId);
+            await onRegenerate(clickedBtn, mesId);
             break;
         case 'edit':
             onEditModules(mesId);
@@ -409,14 +417,14 @@ async function onMenuAction(action, triggerButton, mesId) {
 
 /**
  * 重新生成（模块或其他生成内容）
- * @param {jQuery} button - Cc 触发器
+ * @param {jQuery} button - 被点击的"重新生成"菜单按钮
  * @param {number} mesId
  * @param {string} [generatorName='modules'] - 'modules' 或 generator.name
  */
 async function onRegenerate(button, mesId, generatorName = 'modules') {
-    // 有未处理的生成结果时，重新打开调试面板而非发起新生成
-    if (hasPendingResult()) {
-        reopenPendingDebugPanel();
+    // 有该 generator 的未处理结果时，重新打开调试面板而非发起新生成
+    if (hasPendingResult(generatorName)) {
+        reopenPendingDebugPanel(generatorName);
         return;
     }
 
@@ -447,25 +455,81 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
         options.pipelineModifier = asyncModule.pipelineModifier || '';
     }
 
-    setButtonState(button, STATE.LOADING);
+    setRegenButtonState(button, STATE.LOADING);
 
     try {
         const result = await moduleAiGenerator.generate(mesId, options);
 
         if (result.success) {
-            setButtonState(button, STATE.SUCCESS);
+            setRegenButtonState(button, STATE.SUCCESS);
             infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成成功`);
         } else {
-            setButtonState(button, STATE.ERROR);
+            setRegenButtonState(button, STATE.ERROR);
             errorLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成失败: ${result.error || '未知错误'}`);
         }
     } catch (err) {
-        setButtonState(button, STATE.ERROR);
+        setRegenButtonState(button, STATE.ERROR);
         errorLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成异常:`, err);
     }
 
     // 一定时间后恢复
-    setTimeout(() => setButtonState(button, STATE.IDLE), RESET_DELAY);
+    setTimeout(() => setRegenButtonState(button, STATE.IDLE), RESET_DELAY);
+}
+
+/**
+ * 设置"重新生成"按钮状态（图标替换式）
+ * 与 setButtonState(Cc 触发器) 不同，这里通过替换 fa 图标展示状态
+ * @param {jQuery} button - 被点击的菜单按钮
+ * @param {string} state - STATE 常量
+ */
+function setRegenButtonState(button, state) {
+    if (!button || !button.length) return;
+
+    // 首次调用时记录原始图标
+    if (!button.data('original-icon')) {
+        const iconEl = button.find('i.fa-solid');
+        button.data('original-icon', iconEl.length ? iconEl.attr('class') : 'fa-solid fa-arrows-rotate');
+    }
+    const originalIcon = button.data('original-icon');
+
+    // 清除状态样式
+    button.css({
+        backgroundColor: '',
+        color: '',
+    });
+
+    switch (state) {
+        case STATE.LOADING:
+            button.html('<i class="fa-solid fa-spinner fa-spin"></i>')
+                .attr('title', '生成中...')
+                .css({
+                    backgroundColor: 'rgba(128, 128, 128, 0.3)',
+                    opacity: 1,
+                });
+            break;
+        case STATE.SUCCESS:
+            button.html('<i class="fa-solid fa-check"></i>')
+                .attr('title', '生成成功')
+                .css({
+                    backgroundColor: 'rgba(76, 175, 80, 0.3)',
+                    color: 'rgba(76, 175, 80, 1)',
+                    opacity: 1,
+                });
+            break;
+        case STATE.ERROR:
+            button.html('<i class="fa-solid fa-xmark"></i>')
+                .attr('title', '生成失败')
+                .css({
+                    backgroundColor: 'rgba(244, 67, 54, 0.3)',
+                    color: 'rgba(244, 67, 54, 1)',
+                    opacity: 1,
+                });
+            break;
+        default: // IDLE
+            button.html(`<i class="${originalIcon}"></i>`)
+                .attr('title', '重新生成')
+                .css('opacity', 0.7);
+    }
 }
 
 /**
