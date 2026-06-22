@@ -4,7 +4,7 @@
 // 当 data.onSave 存在时，显示"保存/抛弃/查看当前内容"按钮（手动重新生成流程）
 
 import { IframeModal } from '../shared/IframeModal.js';
-import { translate } from '../../../../../../i18n.js';
+import { translate } from '../../../../../i18n.js';
 
 // 调试弹窗 HTML 文件路径（基于当前 JS 文件位置解析）
 const PANEL_HTML_URL = new URL('generatorDebugPanel.html', import.meta.url).href;
