@@ -10,6 +10,7 @@ src/singleton/            # 全局单例状态
   configManager.js        #   配置读写：加载、缓存、自动保存（纯读写职责）
   moduleConfigService.js  #   模块配置业务逻辑：导入/导出/合并/重置
   moduleCacheManager.js   #   每个聊天的模块数据缓存（嵌套 Map）
+  generatedContentCache.js #  生成内容内存缓存（per mesId + generatorName）
 src/config/                # 配置 schema 定义
   moduleConfigTemplate.js #   模块配置 JSON schema、校验、规范化、默认值
   generatorConfigTemplate.js # 生成内容配置 schema、校验、规范化、默认值
@@ -43,6 +44,9 @@ src/features/             # UI 功能面板
     Toolbox.js            #     工具箱面板
     ChangesSummary.js     #     变更检测与保存确认弹窗
     ImportExport.js       #     导入导出逻辑
+  generator-editor/       #   生成内容配置编辑器（结构与 module-editor 一致）
+    GeneratorEditor.js    #     主编排：初始化、导航、列表渲染、保存/恢复
+    index.html            #     iframe.src 模式 HTML（link themes.css + layout.css）
 src/services/             # 外部集成
   backendService.js           #   HTTP POST 到用户配置的后端
   continuityCoreServerApi.js  #   ST 服务端插件客户端（保存/读取/列表/删除/追加/快照/迁移）
@@ -68,6 +72,8 @@ src/ui/                   # UI 管理
 src/shared/               # 可复用 UI 组件
   IframeDialog.js
   IframeModal.js               # 通用 iframe 模态窗口（多实例 + srcdoc 模式）
+  styles/
+    themes.css                 # 共享主题变量（module-editor/generator-editor/debug 面板共用）
 locales/                  # 翻译资源（ST 标准 i18n）
   zh-cn.json              #   中文（默认）
   en.json                  #   英文
@@ -333,6 +339,36 @@ Cc 菜单的"编辑"操作：
 - 读取 `perMessageStorage.readMessage(mesId, swipeId)` 获取 `moduleTagModules` 的 raw
 - 保存用 `perMessageStorage.updateMessage`，保留 `contentTagModules`/`extraModules` 不变
 
+### 待处理结果管理（pendingResults）
+
+手动"重新生成"（`skipStorage: true`）成功后，结果不立即写入存储，而是暂存到 `moduleAiGenerator.js` 的 `pendingResults` Map，等用户在调试面板中决定保存或抛弃。
+
+**隔离粒度**：key = `${chatKey}::${generatorName}::${mesId}`（聊天标识 + 生成内容名 + 楼层）。mesId 在不同聊天间重复，必须用 chatKey 隔离。
+
+**持久化**：`sessionStorage`（key: `ccore_pending_results`），刷新页面后仍可恢复。
+
+**导出 API**：
+- `hasPendingResult(generatorName, mesId)` — 是否有该楼层 + 生成内容的待处理结果
+- `clearPendingResult(generatorName, mesId)` — 清除并触发 `ccore-pending-cleared` CustomEvent（带 `{ generatorName, mesId }`）
+- `reopenPendingDebugPanel(generatorName, mesId)` — 重开调试面板显示上次结果
+
+**用户流程**：
+1. 点"重新生成" → `skipStorage: true` 生成 → 成功后暂存 + 显示调试面板（含保存/抛弃/查看当前内容按钮）
+2. 点"保存" → 写入 `perMessageStorage` → `clearPendingResult` → 关闭面板
+3. 点"抛弃" → `clearPendingResult` → 关闭面板
+4. 关闭面板（不选）→ 暂存保留 → 再次点"重新生成" → `hasPendingResult` 为真 → 重开面板，不发起新生成
+
+### 重新生成按钮状态反馈
+
+每个"重新生成"按钮（模块 + 各 generator 各自一个）通过替换 fa 图标展示状态，**不**用 Cc 触发器展示：
+
+- `setRegenButtonState(button, state, generatorName, mesId)` — 状态：LOADING（`fa-spinner fa-spin`）/ SUCCESS（`fa-check` 绿）/ ERROR（`fa-xmark` 红）/ IDLE
+- IDLE 状态根据 `hasPendingResult(generatorName, mesId)` 决定图标：有待处理 → `fa-hourglass-half`，无 → `fa-arrows-rotate`
+- 按钮加 `data-generator` 属性，方便事件监听器按 generatorName 查找
+- `ccore-pending-cleared` 事件监听器按 `currentMenuMesId` 过滤，只更新当前打开菜单对应楼层的按钮
+- generate 操作不关闭菜单，保持按钮可见以展示状态
+- 正在生成中（按钮含 `fa-spinner`）时再次点击不重复触发
+
 ## 构建与开发
 
 - **无构建步骤** — 纯 JavaScript，无打包工具。`continuity-core.js` 是编译输出，编辑 `src/` 下的文件
@@ -552,6 +588,21 @@ EOF
 git commit -m "标题" -m "正文行1" -m "正文行2"
 ```
 
+### 10. mesId 跨聊天不唯一
+
+每个聊天的 mesId 都从 0 开始，不同聊天/角色的楼层 2 是不同的消息。用 mesId 单独作为 key 会导致跨聊天串数据。
+
+**正确做法**：需要跨聊天隔离时，用 `getCurrentChatDetails()` 获取 `characterName::sessionName` 作为 chatKey，与 mesId 组合：
+
+```javascript
+// ✓ 正确 — chatKey + mesId 组合隔离
+const chatKey = `${details.characterName}::${details.sessionName}`;
+const key = `${chatKey}::${generatorName}::${mesId}`;
+
+// ✗ 错误 — mesId 跨聊天重复
+const key = `${generatorName}::${mesId}`;
+```
+
 ## 待确认项
 
 - **聊天重命名事件**：ST 没有 `CHAT_RENAMED` 事件。重命名后触发 `reloadCurrentChat()` → `CHAT_CHANGED`。需通过对比存储路径与新路径间接检测重命名。具体检测方案待定。
@@ -561,6 +612,8 @@ git commit -m "标题" -m "正文行1" -m "正文行2"
 - **异步存储 per-chat 操作按钮迁移**：当前"手动提取当前聊天"和"重建快照"按钮放在异步存储 tab（全局设置），但这些操作本质是 per-chat 的。角色绑定页（Profiles）做好后，应迁移到该页面，异步 tab 只保留全局配置（开关、快照间隔）。
 
 ## 实施计划：生成内容配置（generator_config）
+
+> **状态：6 个 Phase 全部完成** ✅
 
 6 个 Phase,按依赖顺序执行:
 
@@ -618,6 +671,7 @@ git commit -m "标题" -m "正文行1" -m "正文行2"
 - `locales/zh-cn.json` — 中文（默认语言，ST 回退语言）
 - `locales/en.json` — 英文
 - 所有 key 统一使用 `ccore_` 前缀，避免与其他扩展冲突
+- key 命名细分前缀：`ccore_gen_*`（generator-editor）、`ccore_debug_*`（调试面板）、`ccore_msg_*`（消息提示）等
 - 两个文件必须保持 key 一一对应
 
 ### 使用方式
