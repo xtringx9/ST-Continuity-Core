@@ -44,8 +44,8 @@ function generateAutoStyles(moduleConfig) {
                 autoStyles += `
 
     <!-- ${variable.displayName || variable.name} -->
-    <span style="white-space: nowrap;">
-        <span style="color: #6c757d; font-weight: 500;">${variable.displayName || variable.name}:</span>
+    <span style="display: inline-flex; align-items: baseline; flex-wrap: wrap;">
+        <span style="color: #6c757d; font-weight: 500; white-space: nowrap;">${variable.displayName || variable.name}:</span>
         <span style="color: #495057; margin-left: 0.3em;">\${${variable.name}.value}</span>
     </span>`;
             }
