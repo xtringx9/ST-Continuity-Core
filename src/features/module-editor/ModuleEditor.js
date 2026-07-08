@@ -75,6 +75,15 @@ export function initModuleEditor(iframeDocument) {
 
     // 初始化视图
     renderModuleList();
+
+    // 恢复上次选中的模块详情
+    if (selectedModuleId) {
+        const selectedIndex = currentModules.findIndex(m => m.name === selectedModuleId);
+        if (selectedIndex !== -1) {
+            renderModuleDetail(currentModules[selectedIndex], selectedIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; });
+        }
+    }
+
     renderToolbox(doc, currentModules);
     renderGlobalSettings(doc, currentGlobalSettings, checkForChanges);
 
