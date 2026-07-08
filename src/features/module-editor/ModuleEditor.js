@@ -65,8 +65,9 @@ export function initModuleEditor(iframeDocument) {
 
     // 加载真实数据 (深拷贝以避免直接修改引用，直到保存)
     const modules = configManager.getModules(true); // true 表示获取所有模块(包括禁用的)
-    originalModules = JSON.parse(JSON.stringify(modules));
-    currentModules = JSON.parse(JSON.stringify(originalModules));
+    currentModules = JSON.parse(JSON.stringify(modules));
+    resyncModuleOrders(); // 让 order 与数组 index 保持一致，避免宏输出顺序与编辑器显示顺序脱节
+    originalModules = JSON.parse(JSON.stringify(currentModules));
 
     // 加载全局设置
     originalGlobalSettings = JSON.parse(JSON.stringify(configManager.getGlobalSettings()));
@@ -265,9 +266,20 @@ function bindSidebarEvents() {
 }
 
 /**
+ * 将 currentModules 中每个模块的 order 同步为其当前数组 index
+ * 在 renderModuleList 开头调用，保证拖拽/新建/删除/导入后 order 与显示顺序一致
+ */
+function resyncModuleOrders() {
+    currentModules.forEach((mod, index) => {
+        mod.order = index;
+    });
+}
+
+/**
  * 渲染模块列表
  */
 function renderModuleList() {
+    resyncModuleOrders();
     const listContainer = doc.getElementById('module-list');
     listContainer.innerHTML = ''; // 清空
 
