@@ -768,6 +768,11 @@ button:disabled,
     margin-bottom: 4px !important;
 }
 
+/* 全局设置页面：textarea 高度由 rows 控制，不参与 flex 分配，否则 resize 失效 */
+.settings-container:not(.module-detail-view) .form-group textarea {
+    flex: none;
+}
+
 /* 模块详情页的容器，移除顶部padding以统一粘性标题栏的位置 */
 .settings-container.module-detail-view {
     padding-top: 0;
