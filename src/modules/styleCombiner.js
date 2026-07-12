@@ -151,8 +151,12 @@ export function processContainerStyles(moduleData) {
 
         moduleData.containerStyles = monduleConfig.containerStyles || '';
 
-        // 处理容器样式中的变量替换（包括${count}/${length}）
+        // 处理容器样式中的变量替换
         if (moduleData.containerStyles) {
+            // 先处理嵌套的customStyles引用（如${cond.customStyles}），将${var.xxx}转换为${varName.xxx}
+            moduleData.containerStyles = resolveNestedCustomStyles(moduleData.containerStyles, monduleConfig);
+
+            // 再处理其他变量替换（包括${count}/${length}/${varName.value}等）
             // 传递isProcessingContainer=true，保留${customStyles}占位符
             moduleData.containerStyles = replaceVariablesInStyles(moduleData.containerStyles, monduleConfig, moduleData, true);
         }
@@ -204,21 +208,36 @@ function resolveNestedCustomStyles(styles, moduleConfig) {
         const variables = moduleConfig.variables || [];
         const targetVariable = variables.find(v => v.name === varName);
 
-        if (targetVariable && targetVariable.customStyles) {
-            // 递归处理嵌套的customStyles
-            let nestedStyles = resolveNestedCustomStyles(targetVariable.customStyles, moduleConfig);
+        if (targetVariable) {
+            // 禁用变量不渲染customStyles，输出HTML注释占位符
+            if (targetVariable.enabled === false) {
+                processedStyles = processedStyles.replace(match[0], `<!-- ${varName} (disabled) -->`);
+                customStylesRegex.lastIndex = 0;
+                maxDepth--;
+                continue;
+            }
+            if (targetVariable.customStyles) {
+                // 递归处理嵌套的customStyles
+                let nestedStyles = resolveNestedCustomStyles(targetVariable.customStyles, moduleConfig);
 
-            // 处理${var.xxx}和${variable.xxx}变量替换，将var/variable替换为当前变量名
-            nestedStyles = replaceRelativeVariables(nestedStyles, varName);
+                // 处理${var.xxx}和${variable.xxx}变量替换，将var/variable替换为当前变量名
+                nestedStyles = replaceRelativeVariables(nestedStyles, varName);
 
-            // 替换当前引用
-            processedStyles = processedStyles.replace(match[0], nestedStyles);
+                // 替换当前引用
+                processedStyles = processedStyles.replace(match[0], nestedStyles);
 
-            // 重置正则表达式的lastIndex，以便重新匹配
-            customStylesRegex.lastIndex = 0;
+                // 重置正则表达式的lastIndex，以便重新匹配
+                customStylesRegex.lastIndex = 0;
+            }
+            else {
+                // 变量存在但没有customStyles，替换为空
+                processedStyles = processedStyles.replace(match[0], '');
+                customStylesRegex.lastIndex = 0;
+            }
         }
         else {
-            processedStyles = processedStyles.replace(match[0], '');
+            // 变量不存在，输出HTML注释占位符
+            processedStyles = processedStyles.replace(match[0], `<!-- ${varName} (not found) -->`);
         }
 
         maxDepth--;
@@ -296,11 +315,20 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
             const targetVariable = variables.find(v => v.name === varName);
 
             if (targetVariable) {
+                // 禁用变量返回HTML注释占位符（不渲染但方便调试）
+                if (targetVariable.enabled === false) {
+                    return `<!-- ${varName} (disabled) -->`;
+                }
                 // 特殊处理${id.value}，从模块数据中获取值
                 if (propName === 'value' && moduleData) {
                     // 处理moduleData是数组的情况（如从processContainerStyles传递的moduleEntries）
                     if (moduleData.data !== undefined && Array.isArray(moduleData.data)) {
-                        // 在容器样式中使用变量.value时，尝试从模块配置的默认值获取
+                        // 容器样式中使用变量.value时，优先从最后一条条目数据获取实际值
+                        const lastEntry = moduleData.data[moduleData.data.length - 1];
+                        if (lastEntry?.moduleData?.variables && lastEntry.moduleData.variables[varName] !== undefined) {
+                            return String(lastEntry.moduleData.variables[varName]);
+                        }
+                        // 回退到默认值
                         return String(targetVariable.defaultValue || '');
                     }
                     // 首先尝试从moduleData.variables获取（支持标准模块数据结构）
@@ -316,13 +344,21 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
                     }
                     else return `暂无${targetVariable.displayName || varName}`;
                 }
+                // 处理${varName.customStyles}，需要递归解析内部的${var.xxx}和值
+                else if (propName === 'customStyles' && targetVariable.customStyles) {
+                    // 先替换相对变量引用，再递归替换值
+                    let resolvedStyles = replaceRelativeVariables(targetVariable.customStyles, varName);
+                    resolvedStyles = replaceVariablesInStyles(resolvedStyles, moduleConfig, moduleData, isProcessingContainer, isTimeline);
+                    return resolvedStyles;
+                }
                 // 处理其他属性，如${id.name}
                 else if (targetVariable[propName] !== undefined) {
                     return String(targetVariable[propName]);
                 }
             }
             else {
-                return `配置中不存在${varName}`;
+                debugLog(`[CUSTOM STYLES] 变量${varName}在配置中不存在，替换为HTML注释占位符`);
+                return `<!-- ${varName} (not found) -->`;
             }
         }
 
