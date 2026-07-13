@@ -183,6 +183,33 @@ aside.module-list-panel {
     /* 补偿左边框宽度 */
 }
 
+/* 模块列表项右侧操作区 */
+.module-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* 复制格式按钮 */
+.module-copy-format-btn {
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.module-list-item:hover .module-copy-format-btn,
+.module-list-item.active .module-copy-format-btn {
+    opacity: 0.6;
+}
+
+.module-copy-format-btn:hover {
+    opacity: 1 !important;
+    color: var(--accent-color);
+}
+
 .module-item-content {
     flex: 1;
     min-width: 0;

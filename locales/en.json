@@ -234,6 +234,7 @@
     "ccore_msg_new_module": "New Module",
     "ccore_msg_no_variables": "No variables yet",
     "ccore_title_toggle_enabled": "Toggle Enabled",
+    "ccore_title_copy_format": "Copy Module Format",
     "ccore_title_drag_sort": "Drag to Sort",
     "ccore_title_delete_module": "Delete Module",
     "ccore_title_delete_variable": "Delete Variable",

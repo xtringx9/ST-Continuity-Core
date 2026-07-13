@@ -77,14 +77,18 @@ export function generateFormalPrompt() {
     }
 }
 
-export function generateModuleFormat(module, needIdentifier = true) {
+export function generateModuleFormat(module, needIdentifier = true, showDisplayName = false) {
     let result = '';
     // 格式：生成变量描述格式
     if (module.variables && module.variables.length > 0) {
         const variableDescriptions = module.variables.map(variable => {
             const variableName = variable.name;
             const variableDesc = variable.description ? `${variable.description}` : '';
-            return `${module.outputMode === 'full' ? '' : needIdentifier && variable.isIdentifier ? '*' : needIdentifier && variable.isBackupIdentifier ? '^' : ''}${variableName}:${variableDesc}`;
+            const prefix = module.outputMode === 'full' ? '' : needIdentifier && variable.isIdentifier ? '*' : needIdentifier && variable.isBackupIdentifier ? '^' : '';
+            const namePart = (showDisplayName && variable.displayName && variable.displayName !== variableName)
+                ? `${variableName}(${variable.displayName})`
+                : variableName;
+            return `${prefix}${namePart}:${variableDesc}`;
         }).join('|');
 
         result = `[${module.name}|${variableDescriptions}]\n`;

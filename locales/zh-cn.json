@@ -234,6 +234,7 @@
     "ccore_msg_new_module": "新模块",
     "ccore_msg_no_variables": "暂无变量",
     "ccore_title_toggle_enabled": "启用/禁用",
+    "ccore_title_copy_format": "复制模块格式",
     "ccore_title_drag_sort": "拖拽排序",
     "ccore_title_delete_module": "删除模块",
     "ccore_title_delete_variable": "删除变量",

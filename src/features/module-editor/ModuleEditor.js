@@ -13,6 +13,7 @@ import { IframeDialog } from '../../shared/IframeDialog.js';
 import { generateChangesSummary } from './ChangesSummary.js';
 import { handleExport, handleImport } from './ImportExport.js';
 import { renderModuleDetail } from './ModuleDetailRenderer.js';
+import { generateModuleFormat } from '../../modules/promptGenerator.js';
 import { handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd } from './DragHandler.js';
 
 // === 状态管理 ===
@@ -47,6 +48,28 @@ function applyI18nToStaticElements(doc) {
             el.placeholder = translated;
         }
     });
+}
+
+/**
+ * 复制文本到剪贴板（兼容非安全上下文，如 HTTP 局域网）
+ */
+async function copyToClipboard(text) {
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+        }
+    } catch (err) {
+        console.error('[ModuleEditor] 复制失败:', err);
+    }
 }
 
 /**
@@ -321,6 +344,7 @@ function renderModuleList() {
                 </div>
             </div>
             <div class="module-item-actions">
+                <span class="module-copy-format-btn" title="${translate('ccore_title_copy_format')}">⧉</span>
                 <label class="toggle-switch" title="${translate('ccore_title_toggle_enabled')}">
                     <input type="checkbox" class="module-enable-toggle" ${mod.enabled ? 'checked' : ''}>
                     <span class="slider round"></span>
@@ -352,6 +376,19 @@ function renderModuleList() {
 
             checkForChanges(); // 检查变更
         });
+
+        // 绑定复制格式按钮事件
+        const copyBtn = item.querySelector('.module-copy-format-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const formatStr = generateModuleFormat(mod, true, true).trim();
+                copyToClipboard(formatStr);
+                // 短暂反馈
+                copyBtn.textContent = '✓';
+                setTimeout(() => { copyBtn.textContent = '⧉'; }, 1000);
+            });
+        }
 
         // 阻止开关容器的点击冒泡，防止触发列表项选中 (特别是点击 label/span 时)
         const actions = item.querySelector('.module-item-actions');
