@@ -187,7 +187,8 @@ export function processContainerStyles(moduleData) {
  */
 function resolveNestedCustomStyles(styles, moduleConfig) {
     // 查找${variableName.customStyles}格式的引用
-    const customStylesRegex = /\$\{([^.]+)\.customStyles\}/g;
+    // [^.}]+ 确保变量名不跨过 } 或 .，避免误匹配 ${mesid}层...${level.customStyles} 这种跨标签的情况
+    const customStylesRegex = /\$\{([^.}]+)\.customStyles\}/g;
     let processedStyles = styles;
     let match;
     const processedVariables = new Set();
@@ -238,6 +239,7 @@ function resolveNestedCustomStyles(styles, moduleConfig) {
         else {
             // 变量不存在，输出HTML注释占位符
             processedStyles = processedStyles.replace(match[0], `<!-- ${varName} (not found) -->`);
+            customStylesRegex.lastIndex = 0;
         }
 
         maxDepth--;
@@ -315,7 +317,7 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
             const targetVariable = variables.find(v => v.name === varName);
 
             if (targetVariable) {
-                // 禁用变量返回HTML注释占位符（不渲染但方便调试）
+                // 禁用变量不渲染，输出HTML注释占位符
                 if (targetVariable.enabled === false) {
                     return `<!-- ${varName} (disabled) -->`;
                 }
