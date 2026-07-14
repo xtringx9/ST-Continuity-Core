@@ -344,7 +344,8 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
                         }
                         return resultString;
                     }
-                    else return `暂无${targetVariable.displayName || varName}`;
+                    // else return `暂无${targetVariable.displayName || varName}`;
+                    else return `<!-- ${targetVariable.displayName || varName} (null) -->`;
                 }
                 // 处理${varName.customStyles}，需要递归解析内部的${var.xxx}和值
                 else if (propName === 'customStyles' && targetVariable.customStyles) {
