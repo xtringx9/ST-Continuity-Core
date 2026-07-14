@@ -5,6 +5,7 @@
 
 import { translate } from '../../../../../../i18n.js';
 import { renderVariableList } from './VariableListRenderer.js';
+import { generateModuleStylesText, parseAndApplyModuleStylesText } from '../../modules/promptGenerator.js';
 
 /**
  * 渲染模块详情页
@@ -131,7 +132,15 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
                     </div>
 
                     <!-- 样式设置 -->
-                    <div class="form-section-title">${translate('ccore_title_style_config')}</div>
+                    <div class="form-section-title" style="display:flex;align-items:center;gap:6px;">
+                        <span>${translate('ccore_title_style_config')}</span>
+                        <label class="styles-include-label" title="${translate('ccore_title_include_container_hint')}">
+                            <input type="checkbox" id="chk-include-container">
+                            <span class="styles-include-text">${translate('ccore_title_include_container')}</span>
+                        </label>
+                        <button id="btn-copy-module-styles" class="copy-styles-btn" title="${translate('ccore_title_copy_styles')}">⧉</button>
+                        <button id="btn-import-module-styles" class="copy-styles-btn" title="${translate('ccore_title_import_styles')}">⤓</button>
+                    </div>
 
                     <div class="form-group form-full-width">
                         <label>${translate('ccore_label_styles_custom')}</label>
@@ -282,6 +291,41 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
         });
     }
 
+    // 绑定复制样式按钮
+    const copyStylesBtn = doc.getElementById('btn-copy-module-styles');
+    const chkIncludeContainer = doc.getElementById('chk-include-container');
+    if (copyStylesBtn) {
+        copyStylesBtn.addEventListener('click', async () => {
+            const includeContainer = chkIncludeContainer ? chkIncludeContainer.checked : true;
+            const stylesText = generateModuleStylesText(module, { includeContainer });
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(stylesText);
+                } else {
+                    const ta = doc.createElement('textarea');
+                    ta.value = stylesText;
+                    doc.body.appendChild(ta);
+                    ta.select();
+                    doc.execCommand('copy');
+                    ta.remove();
+                }
+                copyStylesBtn.textContent = '✓';
+                setTimeout(() => { copyStylesBtn.textContent = '⧉'; }, 1000);
+            } catch (e) {
+                copyStylesBtn.textContent = '✗';
+                setTimeout(() => { copyStylesBtn.textContent = '⧉'; }, 1000);
+            }
+        });
+    }
+
+    // 绑定导入样式按钮
+    const importStylesBtn = doc.getElementById('btn-import-module-styles');
+    if (importStylesBtn) {
+        importStylesBtn.addEventListener('click', () => {
+            showImportStylesDialog(doc, module, checkForChanges, updateModuleData);
+        });
+    }
+
     // 绑定添加变量按钮
     doc.getElementById('btn-add-variable').addEventListener('click', () => {
         if (!module.variables) module.variables = [];
@@ -306,4 +350,68 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
         el.addEventListener('input', updateModuleData);
         el.addEventListener('change', updateModuleData);
     });
+}
+
+/**
+ * 显示导入样式对话框
+ */
+function showImportStylesDialog(doc, module, checkForChanges, updateModuleData) {
+    // 移除已有对话框
+    const existing = doc.getElementById('import-styles-dialog');
+    if (existing) existing.remove();
+
+    const overlay = doc.createElement('div');
+    overlay.id = 'import-styles-dialog';
+    overlay.innerHTML = `
+        <div class="import-styles-overlay"></div>
+        <div class="import-styles-dialog">
+            <div class="import-styles-title">${translate('ccore_title_import_styles')}</div>
+            <textarea class="import-styles-textarea" placeholder="${translate('ccore_placeholder_import_styles')}" rows="12"></textarea>
+            <div class="import-styles-actions">
+                <button class="import-styles-confirm">${translate('ccore_btn_import_confirm')}</button>
+                <button class="import-styles-cancel">${translate('ccore_btn_import_cancel')}</button>
+            </div>
+            <div class="import-styles-result" style="display:none;"></div>
+        </div>
+    `;
+    doc.body.appendChild(overlay);
+
+    const textarea = overlay.querySelector('.import-styles-textarea');
+    const resultDiv = overlay.querySelector('.import-styles-result');
+
+    overlay.querySelector('.import-styles-cancel').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('.import-styles-overlay').addEventListener('click', () => overlay.remove());
+
+    overlay.querySelector('.import-styles-confirm').addEventListener('click', () => {
+        const text = textarea.value.trim();
+        if (!text) return;
+
+        const { applied, skipped } = parseAndApplyModuleStylesText(text, module);
+
+        // 同步到 textarea 控件
+        const customTa = doc.getElementById('edit-styles-custom');
+        const containerTa = doc.getElementById('edit-styles-container');
+        const externalTa = doc.getElementById('edit-styles-external');
+        if (customTa) customTa.value = module.customStyles || '';
+        if (containerTa) containerTa.value = module.containerStyles || '';
+        if (externalTa) externalTa.value = module.externalStyles || '';
+
+        // 同步变量 customStyles（重新渲染变量列表）
+        const varListContainer = doc.getElementById('variable-list-container');
+        if (varListContainer) renderVariableList(module, varListContainer, doc, checkForChanges);
+
+        updateModuleData();
+        checkForChanges();
+
+        // 显示结果
+        let resultText = '';
+        if (applied.length > 0) resultText += `✓ ${applied.join(', ')}`;
+        if (skipped.length > 0) resultText += `\n✗ ${skipped.join(', ')}`;
+        resultDiv.textContent = resultText;
+        resultDiv.style.display = 'block';
+
+        setTimeout(() => overlay.remove(), 2000);
+    });
+
+    textarea.focus();
 }

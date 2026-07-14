@@ -77,6 +77,131 @@ export function generateFormalPrompt() {
     }
 }
 
+/**
+ * 生成模块的样式文本（供AI审查/修改用）
+ * 包含模块的 customStyles 及可选的 containerStyles/externalStyles，以及各变量的 customStyles
+ * @param {Object} module 模块对象
+ * @param {Object} options 选项
+ * @param {boolean} options.includeContainer 是否包含 containerStyles/externalStyles，默认 true
+ * @returns {string} 结构化的样式文本
+ */
+export function generateModuleStylesText(module, { includeContainer = true } = {}) {
+    const moduleName = module.name;
+    let result = `[模块: ${moduleName}]\n\n`;
+
+    // 模块级样式 — customStyles 始终包含
+    result += `customStyles:\n`;
+    result += module.customStyles ? `${module.customStyles}\n` : `(空)\n`;
+    result += '\n';
+
+    // containerStyles/externalStyles 按需包含
+    if (includeContainer) {
+        result += `containerStyles:\n`;
+        result += module.containerStyles ? `${module.containerStyles}\n` : `(空)\n`;
+        result += '\n';
+        result += `externalStyles:\n`;
+        result += module.externalStyles ? `${module.externalStyles}\n` : `(空)\n`;
+        result += '\n';
+    }
+
+    // 变量级样式
+    if (module.variables && module.variables.length > 0) {
+        const varsWithStyles = module.variables.filter(v => v.enabled !== false && v.customStyles);
+        if (varsWithStyles.length > 0) {
+            result += `--- 变量样式 ---\n\n`;
+            varsWithStyles.forEach(v => {
+                const varName = v.name;
+                result += `[${varName}] customStyles:\n${v.customStyles}\n\n`;
+            });
+        }
+    }
+
+    return result.trimEnd();
+}
+
+/**
+ * 解析样式文本并应用到模块
+ * 格式与 generateModuleStylesText 输出一致
+ * @param {string} text 样式文本
+ * @param {Object} module 模块对象（会被就地修改）
+ * @returns {{ applied: string[], skipped: string[] }} 应用结果
+ */
+export function parseAndApplyModuleStylesText(text, module) {
+    const applied = [];
+    const skipped = [];
+    const lines = text.split('\n');
+    let i = 0;
+
+    // 跳过 [模块: ...] 头
+    while (i < lines.length && !lines[i].match(/^(customStyles|containerStyles|externalStyles):$/)) i++;
+
+    // 解析模块级样式字段
+    const moduleStyleKeys = ['customStyles', 'containerStyles', 'externalStyles'];
+    while (i < lines.length) {
+        const match = lines[i].match(/^(customStyles|containerStyles|externalStyles):$/);
+        if (match) {
+            const key = match[1];
+            i++;
+            // 收集内容直到下一个 section header
+            const contentLines = [];
+            while (i < lines.length) {
+                // 遇到下一个 section header 或分隔符停止
+                if (lines[i].match(/^(customStyles|containerStyles|externalStyles):$/) ||
+                    lines[i].match(/^---/) ||
+                    lines[i].match(/^\[.+\]\s*customStyles:$/)) break;
+                contentLines.push(lines[i]);
+                i++;
+            }
+            // 去除首尾空行，合并
+            let content = contentLines.join('\n').trim();
+            // (空) 视为空
+            if (content === '(空)') content = '';
+            module[key] = content;
+            applied.push(key);
+        } else if (lines[i].match(/^---/) || lines[i].match(/^\[.+\]\s*customStyles:$/)) {
+            // 进入变量样式区
+            break;
+        } else {
+            i++;
+        }
+    }
+
+    // 解析变量级样式
+    while (i < lines.length) {
+        if (lines[i].match(/^---/)) { i++; continue; }
+        const varMatch = lines[i].match(/^\[(.+?)\]\s*customStyles:$/);
+        if (varMatch) {
+            // 提取变量名（括号前的部分）
+            let varName = varMatch[1].trim();
+            const parenIdx = varName.indexOf('(');
+            if (parenIdx > 0) varName = varName.substring(0, parenIdx).trim();
+
+            i++;
+            const contentLines = [];
+            while (i < lines.length) {
+                if (lines[i].match(/^\[.+\]\s*customStyles:$/) || lines[i].match(/^---/)) break;
+                contentLines.push(lines[i]);
+                i++;
+            }
+            let content = contentLines.join('\n').trim();
+            if (content === '(空)') content = '';
+
+            // 查找对应变量
+            const targetVar = module.variables?.find(v => v.name === varName);
+            if (targetVar) {
+                targetVar.customStyles = content;
+                applied.push(`变量 ${varName} customStyles`);
+            } else {
+                skipped.push(`变量 ${varName} 不存在`);
+            }
+        } else {
+            i++;
+        }
+    }
+
+    return { applied, skipped };
+}
+
 export function generateModuleFormat(module, needIdentifier = true, showDisplayName = false) {
     let result = '';
     // 格式：生成变量描述格式
