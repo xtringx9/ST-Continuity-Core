@@ -321,11 +321,12 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
                 if (targetVariable.enabled === false) {
                     return `<!-- ${varName} (disabled) -->`;
                 }
-                // 特殊处理${id.value}，从模块数据中获取值
-                if (propName === 'value' && moduleData) {
+
+                // 【核心修改】特殊处理 ${id.value} 和 ${id.rawValue}，从模块数据中获取值
+                if ((propName === 'value' || propName === 'rawValue'|| propName === 'raw') && moduleData) {
                     // 处理moduleData是数组的情况（如从processContainerStyles传递的moduleEntries）
                     if (moduleData.data !== undefined && Array.isArray(moduleData.data)) {
-                        // 容器样式中使用变量.value时，优先从最后一条条目数据获取实际值
+                        // 容器样式中使用变量时，优先从最后一条条目数据获取实际值
                         const lastEntry = moduleData.data[moduleData.data.length - 1];
                         if (lastEntry?.moduleData?.variables && lastEntry.moduleData.variables[varName] !== undefined) {
                             return String(lastEntry.moduleData.variables[varName]);
@@ -336,7 +337,9 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
                     // 首先尝试从moduleData.variables获取（支持标准模块数据结构）
                     else if (moduleData.variables && moduleData.variables[varName] !== undefined) {
                         let resultString = String(moduleData.variables[varName]);
-                        if (isTimeline) {
+
+                        // 【核心修改】仅在请求属性为 'value' 且处于时间线模式时，应用新旧变动样式；'rawValue' 会直接跳过此段，保留纯文本
+                        if (propName === 'value' && isTimeline) {
                             if (moduleData.changedKeys != undefined && moduleData.changedKeys.includes(varName)) {
                                 let lastString = moduleData.lastVariables && moduleData.lastVariables[varName] !== undefined ? String(moduleData.lastVariables[varName]) : '';
                                 resultString = generateVariableChangeHTML(lastString, resultString);
@@ -414,27 +417,7 @@ function generateVariableChangeHTML(lastString, currentString) {
         // 生成唯一ID避免冲突
         const uniqueId = 'var-change-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-        resultString = `
-        <span id="${uniqueId}" style="
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            cursor: pointer;
-            user-select: none;
-        " onclick="toggleVariableDisplay('${uniqueId}', '${lastString.replace(/'/g, "\\'")}', '${currentString.replace(/'/g, "\\'")}')">
-            <span style="
-                color: #28a745;
-                font-weight: 600;
-            ">${currentString}</span>
-            <span style="
-                color: #6c757d;
-                text-decoration: line-through;
-                opacity: 0.7;
-                font-weight: 500;
-                display: none;
-            ">${lastString}</span>
-        </span>
-    `;
+        resultString = `<span id="${uniqueId}" style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;" onclick="toggleVariableDisplay('${uniqueId}', '${lastString.replace(/'/g, "\\'")}', '${currentString.replace(/'/g, "\\'")}')"><span style="color: #28a745; font-weight: 600; display: inline;">${currentString}</span><span style="color: #6c757d; text-decoration: line-through; opacity: 0.7; font-weight: 500; display: none;">${lastString}</span></span>`;
     } else {
         resultString = `<span style="
                                         color: #28a745;
