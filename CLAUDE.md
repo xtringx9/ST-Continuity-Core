@@ -23,7 +23,7 @@ src/core/                 # 核心逻辑
     sort.js               #     排序：标识符排序、层级压缩、ID补全
     normalize.js          #     标准化：变量名映射、兼容名处理、管线编排
     output.js             #     输出：增量/全量/提取/自动处理、字符串构建
-  promptInjector.js       #   在 CHAT_COMPLETION_PROMPT_READY 事件中注入提示词
+  promptInjector.js       #   ⚠️ 僵尸代码：定义了但从未实例化，主聊天注入实际靠宏+世界书（见 docs/PROMPT_INJECTION_ANALYSIS.md 问题1）
   macroManager.js         #   注册 {{CONTINUITY_PROMPT}} 等宏到 SillyTavern
   eventHandler.js         #   注册 ST 事件 → UI 更新、缓存刷新、正则初始化、世界书
   contextBottomUI.js      #   UI 协调：上下文底部、消息底部、行内渲染
@@ -108,6 +108,8 @@ continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 
 
 - **模块**：结构化数据，格式如 `[Location|name:Tavern|time:afternoon]`
 - **输出模式**：`full`（全部变量）、`incremental`（仅变更变量 + 标识符）、`extract`（原始）
+- **输出位置（outputPosition）**：决定模块数据渲染到哪里。`after_body` 的模块进 `{{CONTINUITY_MODULE_DATA}}` 汇总提示词 + 上下文底部 UI；非 `after_body`（`body`/`embedded`/`specific_position` 等）走消息内部渲染
+- **outputPosition 与 outputMode 的过滤关系**：`{{CONTINUITY_MODULE_DATA}}`（`generateModuleDataPrompt`）只包含 `outputPosition==='after_body' && outputMode==='full' && retainLayers!==0` 的全量模块 + 所有增量模块；`retainLayers===0` 的全量模块被过滤掉。逐消息宏 `{{CONTINUITY_MSG_MODULE_N}}`（`getChatFilteredModuleConfigs`）条件类似但无 `retainLayers` 检查。过滤逻辑见 `promptGenerator.js` 的 `getContextBottomFilteredModuleConfigs` / `getChatFilteredModuleConfigs` 和 `moduleFilters.js`
 - **层级压缩**：高级别模块隐藏其时间/ID 范围内的低级别模块
 - **时间参考标准**：指定某个模块的时间作为同一消息中其他模块的时间参考
 - **变量**：模块内的字段，可设为主标识符、备用标识符、隐藏条件、不规范化

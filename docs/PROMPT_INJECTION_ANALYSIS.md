@@ -172,6 +172,8 @@ moduleAiGenerator.generate()           ← 高层业务
 
 ### 问题 1：`promptInjector.js` 是僵尸代码
 
+> **状态（2026-07-15）**：未修。CLAUDE.md 已标注其为僵尸代码。
+
 **现象**：`PromptInjector` 类被定义，但全项目从未实例化、从未注册到 `CHAT_COMPLETION_PROMPT_READY` 事件。`continuity-core.js` 入口未引入它。
 
 **影响**：CLAUDE.md 第 26 行"`promptInjector` 监听 `CHAT_COMPLETION_PROMPT_READY` 事件"的描述与代码不符。实际主聊天提示词注入完全依赖**宏 + 世界书条目展开**，`promptInjector.js` 对运行时毫无影响。
@@ -181,6 +183,8 @@ moduleAiGenerator.generate()           ← 高层业务
 ---
 
 ### 问题 2：生成内容（generator_config）注入路径未通
+
+> **状态（2026-07-15）**：未修。
 
 **现象**：`promptInjector.generateInjectionPrompt()` 内部调用 `generateGeneratedContentPrompt()`，从 `generatedContentCache` 读最近 5 条生成内容拼到模块提示词后。但因为问题 1，这函数**永远不会被调用**。
 
@@ -194,6 +198,8 @@ moduleAiGenerator.generate()           ← 高层业务
 
 ### 问题 3：异步模式下宏数据源未切换
 
+> **状态（2026-07-15）**：未修。
+
 **现象**：异步模式走 `moduleAiGenerator` 生成模块 → 存 `perMessageStorage`。但宏 `{{CONTINUITY_MODULE_DATA}}` 读的是 `moduleCacheManager`（来自 `moduleExtractor` 从聊天文本提取）。
 
 **影响**：两套数据源没有桥接，异步模式下宏注入的模块数据跟实际存储的不一致。
@@ -206,6 +212,8 @@ moduleAiGenerator.generate()           ← 高层业务
 ---
 
 ### 问题 4：`perMessageStorage.initChat()` 状态依赖问题
+
+> **状态（2026-07-15）**：未修。`moduleCacheManager` 的跨聊天缓存累积已通过 `eventHandler.js`（CHAT_CHANGED 时 clearAllCache）+ `moduleCacheManager.js`（set 时清理过期 rangeKey）修复，但 `perMessageStorage` 的 `initChat` 状态依赖仍在，重构计划见 `REFACTOR_STATELESS_STORAGE.md`（未执行）。
 
 #### 4.1 `initChat` 的作用
 
@@ -275,6 +283,8 @@ writeMessage(charName, chatFile, mesId, ...)  ← 每次传完整参数
 ---
 
 ### 问题 5：`DEFAULT_EXTENSION_CONFIG.asyncModule` 与 CLAUDE.md 不一致
+
+> **状态（2026-07-15）**：未修。
 
 **现象**：
 - 代码有 `useIndependentApi` 字段，CLAUDE.md 没记
