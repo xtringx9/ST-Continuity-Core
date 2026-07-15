@@ -27,7 +27,7 @@ details.bottom-summary {
     line-height: 1.2;
     font-size: 11px;
     font-weight: bold;
-    color: #6D6A67;
+    color: var(--SmartThemeBodyColor);
     cursor: pointer;
     outline: none;
     user-select: none;
@@ -42,7 +42,7 @@ details.bottom-summary {
 .summary-title::before {
     content: '▶';
     font-size: 10px;
-    color: #6D6A67;
+    color: var(--SmartThemeBodyColor);
 }
 
 /* 在iPhone上隐藏通用三角符号，避免重复显示 */
@@ -104,7 +104,7 @@ details.bottom-summary[open]>.summary-title::marker {
 details.bottom-summary[open]>.summary-title::before {
     content: '▼';
     font-size: 10px;
-    color: #6D6A67;
+    color: var(--SmartThemeBodyColor);
     /* 确保三角符号可见 */
     position: absolute;
     top: 50%;
@@ -137,7 +137,7 @@ details.bottom-summary[open]>.summary-title::before {
 }
 
 .module-data {
-    color: #495057;
+    color: var(--SmartThemeBodyColor);
     /* white-space: pre-wrap; */
     word-wrap: break-word;
     /* overflow-wrap: break-word; */
@@ -159,7 +159,7 @@ details.bottom-summary[open]>.summary-title::before {
     line-height: 1.2;
     font-size: 11px;
     font-weight: bold;
-    color: #6c757d;
+    color: var(--SmartThemeBodyColor);
     cursor: pointer;
     outline: none;
     user-select: none;
@@ -173,7 +173,7 @@ details.bottom-summary[open]>.summary-title::before {
     line-height: 1.2;
     font-size: 11px;
     font-weight: bold;
-    color: #6c757d;
+    color: var(--SmartThemeBodyColor);
     cursor: pointer;
     outline: none;
     user-select: none;
@@ -221,7 +221,7 @@ details.module-data[open]>summary:hover {
 details.module-data[open]>summary::before {
     content: '▼';
     font-size: 9px;
-    color: #6c757d;
+    color: var(--SmartThemeBodyColor);
     position: absolute;
     top: 50%;
     left: 50%;

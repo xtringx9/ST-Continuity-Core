@@ -1,3 +1,5 @@
+import { syncStThemeToIframe } from '../../shared/iframeThemeSync.js';
+
 /**
  * Renders Continuity custom HTML inside an isolated iframe.
  *
@@ -67,14 +69,14 @@ export function injectHtmlToIframe(container, htmlString) {
     </script>`;
 
     const fullHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head><link rel="stylesheet" href="./scripts/extensions/third-party/ST-Continuity-Core/assets/css/context-bottom-ui.css"></head>
-    <body style="margin:0;padding:0;background:transparent;">${htmlString}${interactionScript}${resizeScript}</body>
-    </html>`;
+<!DOCTYPE html>
+<html>
+<head><link rel="stylesheet" href="./scripts/extensions/third-party/ST-Continuity-Core/assets/css/context-bottom-ui.css"></head>
+<body style="margin:0;padding:0;background:transparent;">${htmlString}${interactionScript}${resizeScript}</body>
+</html>`;
 
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    doc.open();
-    doc.write(fullHtml);
-    doc.close();
+    // 继承 ST 主题（消息内 iframe 保持透明背景，不继承 ST body 背景）
+    iframe.onload = () => syncStThemeToIframe(iframe, { inheritBackground: false });
+    // 使用 srcdoc 完全替换文档:旧 window/observer 自动销毁,避免 ResizeObserver 与事件监听器累积
+    iframe.srcdoc = fullHtml;
 }
