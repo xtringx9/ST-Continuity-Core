@@ -145,6 +145,18 @@ class ModuleCacheManager {
         const chatCache = this.cache.get(chatIdHash);
         const rangeKey = this.generateRangeKey(startIndex, endIndex);
 
+        // 清理同 startIndex 下过期的数字 rangeKey(单聊天内累积主因)
+        // endIndex 为 null 的是全量缓存,set 会自动覆盖旧值,无需额外清理
+        // 保留 updateModuleCache 两次写入的 0-N 和 0-null 各一份
+        if (endIndex !== null && endIndex !== undefined) {
+            const prefix = `${startIndex}-`;
+            for (const existingKey of Array.from(chatCache.keys())) {
+                if (existingKey.startsWith(prefix) && existingKey !== rangeKey && !existingKey.endsWith('-null')) {
+                    chatCache.delete(existingKey);
+                }
+            }
+        }
+
         chatCache.set(rangeKey, data);
         infoLog(`[Module Cache]${haveData ? '更新缓存' : '存入缓存'},缓存数据已设置：chatIdHash=${chatIdHash}, range=${rangeKey}`, data);
     }

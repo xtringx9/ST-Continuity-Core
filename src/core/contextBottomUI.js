@@ -86,10 +86,7 @@ export async function updateUItoMsgBottom() {
                 container = await createContextContainer(CONTEXT_MSG_CONTAINER_ID, message);
                 messageText.after(container);
             }
-            if (container) {
-                container.innerHTML = '';
-                debugLog('[CUSTOM STYLES] 已清空模块内容容器');
-            }
+            // 不在此处清空 container — 让 iframeRenderer 复用现有 iframe,避免每次重建导致的内存泄漏
 
             // const contentContainer = container?.querySelector('.modules-content-container');
             // const externalContainer = container?.querySelector('#continuity-context-bottom-external-container');

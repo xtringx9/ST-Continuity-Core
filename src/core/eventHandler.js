@@ -229,7 +229,11 @@ export class EventHandler {
     }
 
     initializeModuleCache() {
-        this.registerEvent(event_types.CHAT_CHANGED, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
+        // CHAT_CHANGED:先清空旧聊天缓存(跨聊天累积主因),再重建当前聊天缓存
+        this.registerEvent(event_types.CHAT_CHANGED, () => {
+            moduleCacheManager.clearAllCache();
+            moduleCacheManager.updateModuleCacheNoForce();
+        }, true, "Module Cache");
         this.registerEvent(event_types.CHAT_CHANGED, () => generatedContentCache.clear(), true, "Generated Content Cache");
         this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
         this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
