@@ -23,6 +23,7 @@
     "ccore_label_retain_layers": "保留层数",
     "ccore_label_time_ref": "作为时间基准",
     "ccore_label_external": "外部显示",
+    "ccore_label_include_in_module_data": "进汇总数据",
     "ccore_label_compatible_modules": "兼容模块",
     "ccore_label_compatible_variables": "兼容变量",
     "ccore_label_prompt_timing": "生成时机提示词",

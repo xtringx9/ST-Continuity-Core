@@ -196,17 +196,12 @@ aside.module-list-panel {
     font-size: 11px;
     color: var(--text-muted);
     cursor: pointer;
-    opacity: 0;
+    opacity: 0.6;
     transition: opacity 0.2s;
 }
 
-.module-list-item:hover .module-copy-format-btn,
-.module-list-item.active .module-copy-format-btn {
-    opacity: 0.6;
-}
-
 .module-copy-format-btn:hover {
-    opacity: 1 !important;
+    opacity: 1;
     color: var(--accent-color);
 }
 

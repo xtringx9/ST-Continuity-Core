@@ -746,11 +746,11 @@ export function generateModuleDataPrompt() {
 function getContextBottomFilteredModuleConfigs() {
     // 获取所有模块配置
     const allModuleConfigs = configManager.getModules();
-    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
+    // 过滤出符合条件的模块：after_body 且 outputMode 为 full 且 retainLayers!==0 的模块，
+    // 或 includeInModuleData=true 的全量模块（任意 outputPosition），或所有 outputMode 为 incremental 的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full' && config.retainLayers !== 0) ||
+        const result = ((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full' && config.retainLayers !== 0) ||
             config.outputMode === 'incremental';
-        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
         return result;
     });
     // debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
@@ -842,11 +842,11 @@ export function generateSingleChatModuleData(index) {
 function getChatFilteredModuleConfigs() {
     // 获取所有模块配置
     const allModuleConfigs = configManager.getModules();
-    // 过滤出符合条件的模块：outputPosition为after_body且outputMode为full的模块，和所有outputMode为incremental的模块
+    // 过滤出符合条件的模块：after_body 且 outputMode 为 full 的模块，
+    // 或 includeInModuleData=true 的全量模块（任意 outputPosition），或所有 outputMode 为 incremental 的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full') ||
+        const result = ((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full') ||
             config.outputMode === 'incremental';
-        // debugLog(`模块 ${config.name} 过滤结果: ${result}, outputPosition: ${config.outputPosition}, outputMode: ${config.outputMode}`);
         return result;
     });
     // debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);

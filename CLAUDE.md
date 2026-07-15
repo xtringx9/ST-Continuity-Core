@@ -110,6 +110,7 @@ continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 
 - **输出模式**：`full`（全部变量）、`incremental`（仅变更变量 + 标识符）、`extract`（原始）
 - **输出位置（outputPosition）**：决定模块数据渲染到哪里。`after_body` 的模块进 `{{CONTINUITY_MODULE_DATA}}` 汇总提示词 + 上下文底部 UI；非 `after_body`（`body`/`embedded`/`specific_position` 等）走消息内部渲染
 - **outputPosition 与 outputMode 的过滤关系**：`{{CONTINUITY_MODULE_DATA}}`（`generateModuleDataPrompt`）只包含 `outputPosition==='after_body' && outputMode==='full' && retainLayers!==0` 的全量模块 + 所有增量模块；`retainLayers===0` 的全量模块被过滤掉。逐消息宏 `{{CONTINUITY_MSG_MODULE_N}}`（`getChatFilteredModuleConfigs`）条件类似但无 `retainLayers` 检查。过滤逻辑见 `promptGenerator.js` 的 `getContextBottomFilteredModuleConfigs` / `getChatFilteredModuleConfigs` 和 `moduleFilters.js`
+- **includeInModuleData**：模块级布尔开关（默认 true）。开启后，非 `after_body` 位置的全量模块也能进 `{{CONTINUITY_MODULE_DATA}}` 汇总提示词 + 上下文底部/消息底部 UI。仅对全量模块生效，增量模块始终包含。过滤条件改为 `(outputPosition==='after_body' || includeInModuleData) && outputMode==='full' && retainLayers!==0`
 - **层级压缩**：高级别模块隐藏其时间/ID 范围内的低级别模块
 - **时间参考标准**：指定某个模块的时间作为同一消息中其他模块的时间参考
 - **变量**：模块内的字段，可设为主标识符、备用标识符、隐藏条件、不规范化

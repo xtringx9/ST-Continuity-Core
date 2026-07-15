@@ -15,7 +15,7 @@ function toModuleFilters(moduleConfigs) {
 export function getContextBottomUIFilteredModuleConfigs() {
     const allModuleConfigs = configManager.getModules();
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = (config.outputPosition === 'after_body' && config.outputMode === 'full' && config.retainLayers != 0) ||
+        const result = ((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full' && config.retainLayers != 0) ||
             config.outputMode === 'incremental';
         return result;
     });
@@ -31,7 +31,7 @@ export function getContextBottomUIFilteredModuleConfigs() {
 export function getMsgUIFilteredModuleConfigs() {
     const allModuleConfigs = configManager.getModules();
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = (config.outputPosition === 'after_body') ||
+        const result = (config.outputPosition === 'after_body' || config.includeInModuleData) ||
             config.outputMode === 'incremental';
         return result;
     });

@@ -58,6 +58,10 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
                     <!-- 模块属性 -->
                     <div class="form-section-title">${translate('ccore_title_module_attributes')}</div>
                     <div class="form-group form-full-width module-toggles" style="margin-bottom: 15px;">
+                        <button id="btn-edit-include-in-module-data" class="btn-text-toggle ${module.includeInModuleData ? 'active' : ''}">
+                            <input type="checkbox" ${module.includeInModuleData ? 'checked' : ''}>
+                            ${translate('ccore_label_include_in_module_data')}
+                        </button>
                         <button id="btn-edit-external" class="btn-text-toggle ${module.isExternalDisplay ? 'active' : ''}">
                             <input type="checkbox" ${module.isExternalDisplay ? 'checked' : ''}>
                             ${translate('ccore_label_external')}
@@ -246,6 +250,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
 
         module.isExternalDisplay = doc.getElementById('btn-edit-external').classList.contains('active');
         module.timeReferenceStandard = doc.getElementById('btn-edit-time-reference-standard').classList.contains('active');
+        module.includeInModuleData = doc.getElementById('btn-edit-include-in-module-data').classList.contains('active');
 
         module.prompt = doc.getElementById('edit-prompt').value;
         module.timingPrompt = doc.getElementById('edit-prompt-timing').value;
@@ -270,6 +275,11 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
         updateModuleData();
     });
     doc.getElementById('btn-edit-time-reference-standard').addEventListener('click', function () {
+        this.classList.toggle('active');
+        const cb = this.querySelector('input'); if (cb) cb.checked = this.classList.contains('active');
+        updateModuleData();
+    });
+    doc.getElementById('btn-edit-include-in-module-data').addEventListener('click', function () {
         this.classList.toggle('active');
         const cb = this.querySelector('input'); if (cb) cb.checked = this.classList.contains('active');
         updateModuleData();

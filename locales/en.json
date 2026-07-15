@@ -23,6 +23,7 @@
     "ccore_label_retain_layers": "Retain Layers",
     "ccore_label_time_ref": "Time Reference",
     "ccore_label_external": "External Display",
+    "ccore_label_include_in_module_data": "In Module Data",
     "ccore_label_compatible_modules": "Compatible Modules",
     "ccore_label_compatible_variables": "Compatible Variables",
     "ccore_label_prompt_timing": "Timing Prompt",

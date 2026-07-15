@@ -192,6 +192,11 @@ export const MODULE_CONFIG_TEMPLATE = {
                 default: false,
                 description: '是否在外部显示模块'
             },
+            includeInModuleData: {
+                type: 'boolean',
+                default: true,
+                description: '是否包含在 {{CONTINUITY_MODULE_DATA}} 汇总提示词中（仅全量模块生效，增量模块始终包含）'
+            },
             externalStyles: {
                 type: 'string',
                 default: '',
@@ -488,6 +493,7 @@ export function normalizeConfig(config, extension_config = null) {
             itemMax: typeof module.itemMax === 'number' ? module.itemMax : 1,
             timeReferenceStandard: module.timeReferenceStandard || false,
             isExternalDisplay: module.isExternalDisplay || false,
+            includeInModuleData: module.includeInModuleData !== undefined ? module.includeInModuleData : true,
             externalStyles: module.externalStyles || '',
             containerStyles: module.containerStyles || '',
             customStyles: module.customStyles || '',
