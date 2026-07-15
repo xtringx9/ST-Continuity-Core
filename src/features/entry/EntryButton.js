@@ -52,6 +52,11 @@ export class EntryButton {
      */
     remove() {
         this._closeMenu();
+        // 清理可能由其他 EntryButton 实例遗留的菜单 DOM
+        // （切换按钮类型时 extensionSettingsManager 会 new 新实例，旧实例的 _activeMenu 引用丢失）
+        document.querySelectorAll('.continuity-entry-menu').forEach(el => el.remove());
+        // 关闭可能打开的编辑器 modal,避免 window 上的 message listener 持有引用导致 modal + iframe 无法 GC
+        this.iframeModal?.close();
 
         const embeddedBtn = document.getElementById(this.embeddedId);
         if (embeddedBtn) embeddedBtn.remove();
@@ -237,14 +242,13 @@ export class EntryButton {
         const menu = document.createElement('div');
         menu.className = 'continuity-entry-menu';
 
-        const rect = triggerBtn.getBoundingClientRect();
-        Object.assign(menu.style, {
-            position: 'fixed',
-            left: `${rect.right + 4}px`,
-            top: `${rect.top}px`,
+        // 嵌入式：菜单作为 #leftSendForm 的 flex 子元素，推开输入框避免覆盖
+        // 浮动式：菜单 fixed 定位向右展开
+        const isEmbedded = triggerBtn.id === this.embeddedId;
+
+        const baseStyle = {
             display: 'flex',
             gap: '0',
-            zIndex: '2001',
             // 容器边框：与触发器边框样式一致，按钮作为整体
             border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
             borderRadius: '6px',
@@ -252,7 +256,23 @@ export class EntryButton {
             height: '30px', // 显式锁死，对齐触发器
             boxSizing: 'border-box',
             backgroundColor: 'transparent',
-        });
+        };
+
+        if (isEmbedded) {
+            Object.assign(menu.style, baseStyle, {
+                width: 'auto', // inline 覆盖 #leftSendForm>div 的 width:var(--bottomFormBlockSize)
+                marginLeft: '2px',
+                order: '10000', // 排在 Cc 触发器(order:9999)之后，紧贴其右侧
+            });
+        } else {
+            const rect = triggerBtn.getBoundingClientRect();
+            Object.assign(menu.style, baseStyle, {
+                position: 'fixed',
+                left: `${rect.right + 4}px`,
+                top: `${rect.top}px`,
+                zIndex: '2001',
+            });
+        }
 
         // 判断是否在聊天页（复用 contextBottomUI.isInChatPage）
         const inChat = isInChatPage();
@@ -300,32 +320,27 @@ export class EntryButton {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this._handleMenuAction(item.action);
-                    this._closeMenu();
+                    // 不自动关闭：菜单保持展开，仅再次点击 Cc 触发器才收起
                 });
             }
             menu.appendChild(btn);
         });
 
-        document.body.appendChild(menu);
+        if (isEmbedded) {
+            // 放回 #leftSendForm（Cc 按钮父容器），紧贴 Cc 按钮右侧像衍生
+            // inline width:auto 覆盖 #leftSendForm>div 的固定正方形尺寸
+            triggerBtn.parentElement.appendChild(menu);
+        } else {
+            document.body.appendChild(menu);
+        }
         this._activeMenu = menu;
         this._activeTrigger = triggerBtn;
 
         // 触发器激活样式（用 filter 避免主题色冲突）
         triggerBtn.style.filter = 'brightness(0.85)';
 
-        // 外部点击 / 滚动 / 缩放 关闭
-        setTimeout(() => {
-            this._outsideHandler = (e) => {
-                if (this._activeMenu && !this._activeMenu.contains(e.target) && e.target !== triggerBtn) {
-                    this._closeMenu();
-                }
-            };
-            this._scrollHandler = () => this._closeMenu();
-            this._resizeHandler = () => this._closeMenu();
-            document.addEventListener('click', this._outsideHandler);
-            window.addEventListener('scroll', this._scrollHandler, true);
-            window.addEventListener('resize', this._resizeHandler);
-        }, 0);
+        // 菜单常驻：不注册外部点击/滚动/resize 关闭监听，
+        // 仅再次点击 Cc 触发器（_toggleMenu）才会收起。
     }
 
     /**
@@ -340,18 +355,6 @@ export class EntryButton {
         if (this._activeTrigger) {
             this._activeTrigger.style.filter = '';
             this._activeTrigger = null;
-        }
-        if (this._outsideHandler) {
-            document.removeEventListener('click', this._outsideHandler);
-            this._outsideHandler = null;
-        }
-        if (this._scrollHandler) {
-            window.removeEventListener('scroll', this._scrollHandler, true);
-            this._scrollHandler = null;
-        }
-        if (this._resizeHandler) {
-            window.removeEventListener('resize', this._resizeHandler);
-            this._resizeHandler = null;
         }
     }
 
