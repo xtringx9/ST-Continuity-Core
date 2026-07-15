@@ -49,17 +49,35 @@ export class IframeModal {
             iframe.src = url;
         }
 
-        // 支持 onLoad 回调 (用于注入逻辑)
-        if (typeof options.onLoad === 'function') {
-            iframe.onload = () => options.onLoad(iframe);
+        // fitContent：容器随内容自适应（去除深色外框），iframe 先给定尺寸避免加载前塌陷
+        if (options.fitContent) {
+            Object.assign(iframeContainer.style, {
+                width: 'fit-content',
+                height: 'fit-content',
+                maxWidth: '95vw',
+                maxHeight: '95vh',
+                background: 'transparent',
+                boxShadow: 'none',
+            });
+            Object.assign(iframe.style, {
+                width: '390px',
+                height: '780px',
+                border: 'none',
+                display: 'block',
+            });
+            iframe.onload = () => this._fitToContent(iframe);
+        } else {
+            Object.assign(iframe.style, {
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                display: 'block',
+            });
+            // 支持 onLoad 回调 (用于注入逻辑)
+            if (typeof options.onLoad === 'function') {
+                iframe.onload = () => options.onLoad(iframe);
+            }
         }
-
-        Object.assign(iframe.style, {
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            display: 'block'
-        });
 
         // 4. 组装
         iframeContainer.appendChild(iframe);
@@ -109,5 +127,45 @@ export class IframeModal {
             if (event.data.modalId && event.data.modalId !== this.modalId) return;
             this.close();
         }
+    }
+
+    /**
+     * 使 iframe 尺寸贴合内容（fitContent 用）
+     * 同域 srcdoc 可直接读取 contentDocument；内容变化时由 ResizeObserver 自动重适配。
+     */
+    _fitToContent(iframe) {
+        try {
+            const doc = iframe.contentDocument;
+            if (!doc) return;
+            const phone = doc.querySelector('.phone');
+            const w = phone ? phone.offsetWidth : doc.body.scrollWidth;
+            const h = phone ? phone.offsetHeight : doc.body.scrollHeight;
+            const maxW = window.innerWidth * 0.95;
+            const maxH = window.innerHeight * 0.95;
+            const newW = Math.min(w || 390, maxW);
+            const newH = Math.min(h || 780, maxH);
+            // 尺寸无变化则跳过，避免任何残留的来回抖动
+            if (iframe.style.width === newW + 'px' && iframe.style.height === newH + 'px') return;
+            iframe.style.width = newW + 'px';
+            iframe.style.height = newH + 'px';
+
+            // 内容变化时重新适配（仅挂一次）
+            if (!iframe._fitObserver) {
+                iframe._fitObserver = new ResizeObserver(() => this._fitToContent(iframe));
+                iframe._fitObserver.observe(phone || doc.body);
+            }
+        } catch (e) {
+            // 跨域或尚未就绪时静默跳过
+        }
+    }
+
+    /**
+     * 直接替换 iframe 内容（用于同实例内重渲染，如保存设置后刷新手机视图）
+     * @param {string} html srcdoc HTML 字符串
+     */
+    setSrcdoc(html) {
+        if (!this.backdrop) return;
+        const iframe = this.backdrop.querySelector('iframe');
+        if (iframe) iframe.srcdoc = html;
     }
 }

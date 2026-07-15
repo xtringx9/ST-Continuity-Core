@@ -4,6 +4,7 @@ import { saveSettings } from "../../../../../../script.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
 import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../config/moduleConfigTemplate.js';
 import { normalizeGeneratorConfig, DEFAULT_GENERATOR_CONFIG_VALUES } from '../config/generatorConfigTemplate.js';
+import { normalizePhoneConfig, DEFAULT_PHONE_CONFIG_VALUES } from '../config/phoneConfigTemplate.js';
 
 // 扩展基本信息
 export const extensionName = "ST-Continuity-Core";
@@ -45,6 +46,7 @@ export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";
 // 配置在扩展设置中的键名
 const MODULE_CONFIG_KEY = 'module_config';
 const GENERATOR_CONFIG_KEY = 'generator_config';
+const PHONE_CONFIG_KEY = 'phone_config';
 
 // 开发用保存开关（仅开发/重构时使用，不保存到配置）
 const ENABLE_DEV_SAVE_GUARD = true; // true=允许保存，false=禁止保存
@@ -58,9 +60,12 @@ class ConfigManager {
         this.isModuleConfigLoaded = false; // 配置是否已加载
         this.generatorConfig = null; // 生成内容配置缓存
         this.isGeneratorConfigLoaded = false;
+        this.phoneConfig = null; // 手机模式配置缓存
+        this.isPhoneConfigLoaded = false;
         this.autoSaveTimeout = null; // 自动保存的超时ID
         this.autoSaveDelay = 1000; // 自动保存延迟（毫秒）
         this.generatorAutoSaveTimeout = null; // 生成内容配置自动保存的超时ID
+        this.phoneAutoSaveTimeout = null; // 手机模式配置自动保存的超时ID
         // 事件监听系统
         this.loadCallbacks = []; // 存储加载完成时的回调函数
         this.loadCallbacksExecuted = false; // 标记回调是否已执行
@@ -153,12 +158,37 @@ class ConfigManager {
     }
 
     /**
+     * 加载手机模式配置到内存缓存
+     */
+    loadPhoneConfig() {
+        try {
+            debugLog(`开始加载手机模式配置，配置键名: ${PHONE_CONFIG_KEY}`);
+
+            if (extension_settings[extensionName] && extension_settings[extensionName][PHONE_CONFIG_KEY]) {
+                this.phoneConfig = extension_settings[extensionName][PHONE_CONFIG_KEY];
+                this.isPhoneConfigLoaded = true;
+                debugLog('手机模式配置已从扩展设置加载到内存缓存:', this.phoneConfig);
+                return;
+            }
+
+            this.phoneConfig = { ...DEFAULT_PHONE_CONFIG_VALUES };
+            this.isPhoneConfigLoaded = true;
+            debugLog('使用默认手机模式配置初始化内存缓存');
+        } catch (error) {
+            errorLog('加载手机模式配置失败:', error);
+            this.phoneConfig = { ...DEFAULT_PHONE_CONFIG_VALUES };
+            this.isPhoneConfigLoaded = true;
+        }
+    }
+
+    /**
      * 加载所有配置到内存缓存
      */
     load() {
         this.loadExtensionConfig();
         this.loadModuleConfig();
         this.loadGeneratorConfig();
+        this.loadPhoneConfig();
         this.isLoaded = true;
 
         // 执行所有注册的加载完成回调
@@ -657,6 +687,110 @@ class ConfigManager {
             this.saveGeneratorConfigNow();
         }, this.autoSaveDelay);
     }
+
+    // ===== 手机模式配置（phone_config）=====
+
+    /**
+     * 获取手机模式配置（从内存缓存）
+     * @returns {Object} 手机模式配置
+     */
+    getPhoneConfig() {
+        if (!this.isPhoneConfigLoaded) {
+            this.loadPhoneConfig();
+        }
+        return this.phoneConfig;
+    }
+
+    /**
+     * 获取启用的手机场景数组
+     * @param {boolean} needAll 是否返回全部（含禁用）
+     * @returns {Array} 手机场景数组
+     */
+    getPhoneScenes(needAll = false) {
+        const config = this.getPhoneConfig();
+        const scenes = config.scenes || [];
+        if (needAll) return scenes;
+        return scenes.filter(s => s.enabled !== false);
+    }
+
+    /**
+     * 按 moduleName 获取手机场景
+     * @param {string} moduleName 引用的模块名
+     * @returns {Object|null}
+     */
+    getPhoneSceneByModule(moduleName) {
+        if (!moduleName) return null;
+        return this.getPhoneScenes(true).find(s => s.moduleName === moduleName) || null;
+    }
+
+    /**
+     * 设置手机模式配置并触发自动保存
+     * @param {Object} newConfig 新的手机模式配置
+     */
+    setPhoneConfig(newConfig) {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，setPhoneConfig 阻止保存。');
+            return;
+        }
+        try {
+            if (!newConfig.scenes || !Array.isArray(newConfig.scenes)) {
+                throw new Error('无效的手机模式配置结构：缺少scenes数组');
+            }
+            this.phoneConfig = {
+                ...newConfig,
+                metadata: {
+                    ...(newConfig.metadata || {}),
+                    updatedAt: new Date().toISOString(),
+                },
+            };
+            debugLog('手机模式配置已更新到内存缓存');
+            this.schedulePhoneAutoSave();
+        } catch (error) {
+            errorLog('设置手机模式配置失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 立即保存手机模式配置到存储
+     * @returns {boolean} 是否保存成功
+     */
+    savePhoneConfigNow() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，已阻止手机模式配置保存。');
+            return false;
+        }
+        try {
+            if (!this.isPhoneConfigLoaded) {
+                this.loadPhoneConfig();
+            }
+            this.phoneConfig = normalizePhoneConfig(this.phoneConfig);
+            if (!extension_settings[extensionName]) {
+                extension_settings[extensionName] = {};
+            }
+            extension_settings[extensionName][PHONE_CONFIG_KEY] = this.phoneConfig;
+            saveSettings();
+            debugLog('手机模式配置已保存');
+            return true;
+        } catch (error) {
+            errorLog('保存手机模式配置失败:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 安排手机模式配置自动保存
+     */
+    schedulePhoneAutoSave() {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        if (this.phoneAutoSaveTimeout) {
+            clearTimeout(this.phoneAutoSaveTimeout);
+        }
+        this.phoneAutoSaveTimeout = setTimeout(() => {
+            this.savePhoneConfigNow();
+        }, this.autoSaveDelay);
+    }
+
 
     /**
      * 判断模块配置是否包含特定变量
