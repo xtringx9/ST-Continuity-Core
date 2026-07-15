@@ -582,7 +582,20 @@ class ConfigManager {
     }
 
     outputCache() {
-        infoLog("[Module Cache]打印当前配置缓存数据:", configManager.extensionConfig, configManager.moduleConfig, configManager.generatorConfig);
+        // 1) 打印各内存缓存（便于对比是否一致）
+        infoLog("[Module Cache]内存缓存数据:", {
+            extensionConfig: configManager.extensionConfig,
+            moduleConfig: configManager.moduleConfig,
+            generatorConfig: configManager.generatorConfig,
+            phoneConfig: configManager.phoneConfig,
+        });
+        // 2) 直接打印 extension_settings[extensionName] 的完整落盘内容（最权威，含 phone_config 等所有键）
+        if (typeof extension_settings !== 'undefined' && extension_settings[extensionName]) {
+            infoLog(`[Module Cache]extension_settings["${extensionName}"] 完整内容:`,
+                JSON.parse(JSON.stringify(extension_settings[extensionName])));
+        } else {
+            infoLog(`[Module Cache]未找到 extension_settings["${extensionName}"]`);
+        }
     }
 
     // ===== 生成内容配置（generator_config）=====

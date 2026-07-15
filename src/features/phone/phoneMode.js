@@ -39,19 +39,26 @@ export function openPhoneModeModal(extensionPath) {
 function handlePhoneMessage(event) {
     if (!event.data || event.data.type !== 'SAVE_PHONE_CONFIG') return;
     const scene = event.data.scene;
+    console.info('[Continuity][手机] 收到 SAVE_PHONE_CONFIG：', JSON.parse(JSON.stringify(scene)));
+
     const existing = configManager.getPhoneConfig();
     const scenes = Array.isArray(existing.scenes) ? existing.scenes.slice() : [];
     if (scenes.length) scenes[0] = scene;
     else scenes.push(scene);
     const newConfig = { ...existing, scenes };
-    // 立即更新内存缓存，保证保存后视图即时刷新（不受 dev guard 影响）
+
+    // 直接落盘（不依赖 setPhoneConfig 内部的 guard/调度，杜绝静默不保存）
     if (configManager.isPhoneConfigLoaded) configManager.phoneConfig = newConfig;
     try {
-        configManager.setPhoneConfig(newConfig); // 非 dev 时规范化 + 排程落盘
-        configManager.savePhoneConfigNow();       // 非 dev 时立即落盘
+        configManager.setPhoneConfig(newConfig);
     } catch (e) {
-        errorLog('保存手机配置失败:', e);
+        errorLog('[手机] setPhoneConfig 失败:', e);
     }
+    const ok = configManager.savePhoneConfigNow();
+    console.info('[Continuity][手机] 保存结果：', ok,
+        'extension_settings 现有 phone_config =',
+        JSON.parse(JSON.stringify(configManager.getPhoneConfig())));
+
     // 保存后同实例重渲染
     const html = renderPhoneHtml();
     if (html && phoneModal) phoneModal.setSrcdoc(html);

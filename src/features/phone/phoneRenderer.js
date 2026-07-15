@@ -31,9 +31,10 @@ function buildSettingsOverlay(settings) {
     const modules = settings.modules || [];
     const scene = settings.scene || { moduleName: '', enabled: true };
 
-    // 模块下拉选项；若当前 scene.moduleName 已失效（不在 modules 中），追加一个红色已失效项
+    // 模块下拉选项；预选中当前 scene.moduleName（否则浏览器默认选第一个，看起来像没保存）
+    const sel = scene.moduleName || '';
     let moduleOptions = modules
-        .map((m) => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.displayName || m.name)}</option>`)
+        .map((m) => `<option value="${escapeHtml(m.name)}"${m.name === sel ? ' selected' : ''}>${escapeHtml(m.displayName || m.name)}</option>`)
         .join('');
     if (scene.moduleName && !modules.some((m) => m.name === scene.moduleName)) {
         moduleOptions = `<option value="${escapeHtml(scene.moduleName)}" class="ps-invalid-opt" selected>已失效：${escapeHtml(scene.moduleName)}</option>` + moduleOptions;
