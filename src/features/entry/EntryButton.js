@@ -2,8 +2,9 @@ import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
 import { initModuleEditor } from '../module-editor/ModuleEditor.js';
 import { initGeneratorEditor } from '../generator-editor/GeneratorEditor.js';
-import { warnLog, infoLog } from '../../utils/logger.js';
+import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
+import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
 
 export class EntryButton {
     /**
@@ -281,7 +282,7 @@ export class EntryButton {
             { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },
             { action: 'generator-editor', icon: 'fa-wand-magic-sparkles', title: '生成内容配置' },
             { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
-            { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式（开发中）' },
+            { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式' },
         ];
 
         items.forEach(item => {
@@ -387,7 +388,7 @@ export class EntryButton {
                 openContextBottomAsModal();
                 break;
             case 'mobile':
-                infoLog('[Continuity] 手机模式功能开发中');
+                openPhoneModeModal(this.extensionPath);
                 break;
         }
     }
