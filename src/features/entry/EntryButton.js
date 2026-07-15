@@ -5,6 +5,7 @@ import { initGeneratorEditor } from '../generator-editor/GeneratorEditor.js';
 import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
+import { eventSource, event_types } from '../../../../../../../script.js';
 
 export class EntryButton {
     /**
@@ -18,6 +19,8 @@ export class EntryButton {
         this._themeListener = null;
         this._activeMenu = null;
         this._activeTrigger = null;
+        // 菜单展开期间监听 CHAT_CHANGED，进入/离开聊天时实时刷新按钮禁用状态
+        this._menuChatChangedListener = null;
     }
 
     /**
@@ -275,9 +278,6 @@ export class EntryButton {
             });
         }
 
-        // 判断是否在聊天页（复用 contextBottomUI.isInChatPage）
-        const inChat = isInChatPage();
-
         const items = [
             { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },
             { action: 'generator-editor', icon: 'fa-wand-magic-sparkles', title: '生成内容配置' },
@@ -288,7 +288,8 @@ export class EntryButton {
         items.forEach(item => {
             const btn = document.createElement('div');
             btn.className = 'continuity-entry-menu-item';
-            btn.title = item.title;
+            btn.dataset.action = item.action;
+            btn.dataset.title = item.title;
             btn.innerHTML = `<i class="fa-solid ${item.icon}"></i>`;
             Object.assign(btn.style, {
                 width: '26px',
@@ -296,7 +297,6 @@ export class EntryButton {
                 // 无边框：由父容器统一边框
                 borderRadius: '4px',
                 color: 'var(--smart-text-color, #fff)',
-                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -305,25 +305,22 @@ export class EntryButton {
                 transition: 'background-color 0.2s',
             });
 
-            // 非聊天页：汇总/手机按钮置灰禁用（编辑器、生成内容配置是全局配置，不依赖聊天）
-            const disabled = !inChat && item.action !== 'editor' && item.action !== 'generator-editor';
-            if (disabled) {
-                btn.style.opacity = '0.4';
-                btn.style.cursor = 'not-allowed';
-                btn.title = `${item.title}（需先打开聊天）`;
-            } else {
-                btn.addEventListener('mouseenter', () => {
-                    btn.style.backgroundColor = 'var(--smart-border-color, rgba(128,128,128,0.3))';
-                });
-                btn.addEventListener('mouseleave', () => {
-                    btn.style.backgroundColor = '';
-                });
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this._handleMenuAction(item.action);
-                    // 不自动关闭：菜单保持展开，仅再次点击 Cc 触发器才收起
-                });
-            }
+            // 事件常驻绑定：点击/hover 时按当前禁用状态实时判断，
+            // 使得进入聊天后无需重建菜单即可生效。
+            btn.addEventListener('mouseenter', () => {
+                if (btn.dataset.disabled === 'true') return;
+                btn.style.backgroundColor = 'var(--smart-border-color, rgba(128,128,128,0.3))';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.backgroundColor = '';
+            });
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (btn.dataset.disabled === 'true') return;
+                this._handleMenuAction(btn.dataset.action);
+                // 不自动关闭：菜单保持展开，仅再次点击 Cc 触发器才收起
+            });
+
             menu.appendChild(btn);
         });
 
@@ -337,17 +334,57 @@ export class EntryButton {
         this._activeMenu = menu;
         this._activeTrigger = triggerBtn;
 
+        // 依据当前聊天状态设置各按钮的禁用样式
+        this._refreshMenuItemsState();
+
         // 触发器激活样式（用 filter 避免主题色冲突）
         triggerBtn.style.filter = 'brightness(0.85)';
+
+        // 菜单展开期间监听 CHAT_CHANGED：进入聊天后实时解禁按钮，
+        // 无需再次折叠/展开。菜单关闭时（_closeMenu）会移除该监听。
+        this._menuChatChangedListener = () => this._refreshMenuItemsState();
+        eventSource.on(event_types.CHAT_CHANGED, this._menuChatChangedListener);
 
         // 菜单常驻：不注册外部点击/滚动/resize 关闭监听，
         // 仅再次点击 Cc 触发器（_toggleMenu）才会收起。
     }
 
     /**
+     * 根据当前是否在聊天页，刷新菜单内各按钮的禁用状态。
+     *
+     * 非聊天页：汇总/手机按钮置灰禁用（编辑器、生成内容配置是全局配置，不依赖聊天）。
+     * 通过 dataset.disabled 标记状态，常驻的 click/hover 监听据此实时判断。
+     */
+    _refreshMenuItemsState() {
+        if (!this._activeMenu) return;
+        const inChat = isInChatPage();
+        this._activeMenu.querySelectorAll('.continuity-entry-menu-item').forEach(btn => {
+            const action = btn.dataset.action;
+            const title = btn.dataset.title || '';
+            const disabled = !inChat && action !== 'editor' && action !== 'generator-editor';
+            btn.dataset.disabled = disabled ? 'true' : 'false';
+            if (disabled) {
+                btn.style.opacity = '0.4';
+                btn.style.cursor = 'not-allowed';
+                btn.style.backgroundColor = '';
+                btn.title = `${title}（需先打开聊天）`;
+            } else {
+                btn.style.opacity = '';
+                btn.style.cursor = 'pointer';
+                btn.title = title;
+            }
+        });
+    }
+
+    /**
      * 关闭菜单
      */
     _closeMenu() {
+        // 移除菜单展开期间的 CHAT_CHANGED 监听，避免泄漏
+        if (this._menuChatChangedListener) {
+            eventSource.removeListener(event_types.CHAT_CHANGED, this._menuChatChangedListener);
+            this._menuChatChangedListener = null;
+        }
         if (this._activeMenu) {
             this._activeMenu.remove();
             this._activeMenu = null;
