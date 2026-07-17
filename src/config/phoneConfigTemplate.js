@@ -28,7 +28,17 @@ export const PHONE_CONFIG_TEMPLATE = {
             enabled: {
                 type: 'boolean',
                 default: true,
-                description: '是否作为当前手机视图渲染'
+                description: '是否在手机桌面显示此 App'
+            },
+            appLabel: {
+                type: 'string',
+                default: '',
+                description: '桌面 App 名称，留空则用模块显示名'
+            },
+            appIcon: {
+                type: 'string',
+                default: '💬',
+                description: '桌面 App 图标 emoji，留空则用 💬'
             },
             fieldMap: {
                 type: 'object',
@@ -68,6 +78,8 @@ export function createEmptyScene(moduleName = '') {
     return {
         moduleName,
         enabled: true,
+        appLabel: '',
+        appIcon: '',
         fieldMap: {},
     };
 }
@@ -141,6 +153,8 @@ export function normalizePhoneConfig(config) {
         normalized.scenes = config.scenes.map((scene) => ({
             moduleName: scene.moduleName || '',
             enabled: scene.enabled !== undefined ? scene.enabled : true,
+            appLabel: typeof scene.appLabel === 'string' ? scene.appLabel : '',
+            appIcon: typeof scene.appIcon === 'string' ? scene.appIcon : '',
             fieldMap: scene.fieldMap && typeof scene.fieldMap === 'object'
                 ? { ...scene.fieldMap }
                 : {},

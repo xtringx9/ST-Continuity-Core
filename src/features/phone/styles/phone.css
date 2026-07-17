@@ -48,6 +48,15 @@ body {
     align-items: center;
     gap: 8px;
 }
+.phone-statusbar .ps-back {
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.8;
+    padding: 0 2px;
+}
+.phone-statusbar .ps-back:hover { opacity: 1; }
+.phone-statusbar .ps-back[hidden] { display: none; }
 .phone-statusbar .ps-title {
     font-weight: 600;
     overflow: hidden;
@@ -72,6 +81,70 @@ body {
     opacity: 1;
     transform: rotate(30deg);
 }
+
+/* 屏幕容器：承载桌面 + 各 App 视图 */
+.phone-screen-host {
+    flex: 1 1 auto;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+    background: #ededed;
+}
+
+/* 桌面（首页）：App 图标网格 */
+.phone-home {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 22px 16px;
+}
+.phone-home-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px 10px;
+}
+.app-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    font-family: inherit;
+}
+.app-icon-img {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #4f8cff, #2f6bff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transition: transform 0.12s;
+}
+.app-icon:hover .app-icon-img { transform: scale(1.06); }
+.app-icon:active .app-icon-img { transform: scale(0.94); }
+.app-icon-label {
+    font-size: 12px;
+    color: #333;
+    max-width: 64px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* App 消息视图 */
+.phone-app {
+    flex: 1 1 auto;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+}
+.phone-app[hidden] { display: none; }
 
 /* 聊天区 */
 .phone-screen {

@@ -43,7 +43,9 @@ function handlePhoneMessage(event) {
 
     const existing = configManager.getPhoneConfig();
     const scenes = Array.isArray(existing.scenes) ? existing.scenes.slice() : [];
-    if (scenes.length) scenes[0] = scene;
+    // 按 moduleName 匹配更新对应 App（支持多 App；未匹配则新增）
+    const idx = scenes.findIndex((s) => s.moduleName === scene.moduleName);
+    if (idx >= 0) scenes[idx] = { ...scenes[idx], ...scene };
     else scenes.push(scene);
     const newConfig = { ...existing, scenes };
 
@@ -65,43 +67,32 @@ function handlePhoneMessage(event) {
 }
 
 /**
- * 构建手机视图 HTML（含设置面板数据）
+ * 构建手机视图 HTML（含桌面 App 图标 + 设置面板数据）
  * @returns {string|null}
  */
 function renderPhoneHtml() {
     const cssUrl = `${currentExtensionPath}/src/features/phone/styles/phone.css`;
     const phoneConfig = configManager.getPhoneConfig();
-
-    // 取首个启用场景；若无启用场景则退而取 scenes[0]（可能未启用，仅用于设置面板预填）
-    const enabledScenes = (phoneConfig.scenes || []).filter((s) => s.enabled !== false);
-    const scene = enabledScenes[0] || (phoneConfig.scenes && phoneConfig.scenes[0]) || null;
+    const scenes = Array.isArray(phoneConfig.scenes) ? phoneConfig.scenes : [];
 
     // 所有模块（含未启用）用于设置下拉
     const allModules = configManager.getModules(true);
     const modules = allModules.map((m) => ({ name: m.name, displayName: m.displayName || m.name }));
 
-    const settings = {
-        scene: scene
-            ? { moduleName: scene.moduleName, enabled: scene.enabled !== false }
-            : { moduleName: '', enabled: true },
-        modules,
-    };
-
-    let title = '';
-    let emptyStateHtml = '';
-    let styledHtml = '';
-
-    if (!scene || !scene.moduleName) {
-        // 空状态 1：尚未配置场景（但齿轮仍可达，用户可在此选择模块）
-        emptyStateHtml = '请在手机设置（右上角 ⚙️）中选择要渲染的模块';
-    } else {
+    // 每个启用场景 = 手机桌面上一个 App 图标；点击打开该场景的消息视图
+    const apps = [];
+    for (const scene of scenes) {
+        if (!scene || scene.enabled === false || !scene.moduleName) continue;
         const moduleConfig = configManager.getModuleByName(scene.moduleName);
+        const label = (scene.appLabel && scene.appLabel.trim()) ||
+            (moduleConfig ? (moduleConfig.displayName || scene.moduleName) : scene.moduleName);
+        const icon = (scene.appIcon && scene.appIcon.trim()) || '💬';
+        let contentHtml = '';
+        let emptyStateHtml = '';
         if (!moduleConfig) {
             // 模块级失配：红字提示 + 齿轮内可重选
-            title = scene.moduleName;
             emptyStateHtml = `模块「${scene.moduleName}」不存在，请在手机设置中重新选择`;
         } else {
-            title = moduleConfig.displayName || scene.moduleName;
             const processResult = buildStyledProcessResult(null, {
                 startIndex: 0,
                 endIndex: null,
@@ -109,13 +100,25 @@ function renderPhoneHtml() {
             });
             const moduleData = processResult?.content?.[scene.moduleName];
             // 直接复用 styleCombiner 产出的完整气泡 HTML（已含变量替换）
-            styledHtml = moduleData?.containerStyles || '';
-            if (!styledHtml) {
+            contentHtml = moduleData?.containerStyles || '';
+            if (!contentHtml) {
                 // 空状态：本会话尚未生成内容
                 emptyStateHtml = '该模块本会话尚未生成内容，请先触发一次';
             }
         }
+        apps.push({ key: scene.moduleName, label, icon, contentHtml, emptyStateHtml });
     }
 
-    return buildPhoneHtml({ cssUrl, title, styledHtml, emptyStateHtml, settings });
+    // 设置面板数据：全部场景 + 模块列表（齿轮内按当前打开的 App 编辑）
+    const settings = {
+        scenes: scenes.map((s) => ({
+            moduleName: s.moduleName || '',
+            enabled: s.enabled !== false,
+            appLabel: s.appLabel || '',
+            appIcon: s.appIcon || '',
+        })),
+        modules,
+    };
+
+    return buildPhoneHtml({ cssUrl, apps, settings });
 }
