@@ -144,7 +144,7 @@ body {
     flex-direction: column !important;
     overflow: hidden;
 }
-.phone-app[hidden] { display: none; }
+.phone-app[hidden] { display: none !important; } /* !important 必须，否则被 .phone-app{display:flex !important} 覆盖，导致首页误显 App 内容 */
 
 /* 聊天区 */
 .phone-screen {
