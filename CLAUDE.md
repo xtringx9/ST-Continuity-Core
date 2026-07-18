@@ -96,6 +96,30 @@ continuity-core.js        # 打包后的输出文件（ST 实际加载的文件 
 4. **注入** — `macroManager` 注册 `{{CONTINUITY_PROMPT}}`、`{{CONTINUITY_ORDER}}`、`{{CONTINUITY_USAGE_GUIDE}}`、`{{CONTINUITY_MODULE_DATA}}`、逐消息 `{{CONTINUITY_MSG_MODULE_N}}` 宏；`promptInjector` 监听 `CHAT_COMPLETION_PROMPT_READY` 事件
 5. **UI** — `contextBottomUI` 渲染 3 种目标：上下文底部汇总、.mes_text 后的消息块、.mes_text 内的行内替换
 
+### 取数入口（processModuleData 调用方）
+所有取数最终汇聚到 `moduleProcessor.processModuleData()`，只有两条数据来源：①`moduleCacheManager` 缓存命中（仅 `auto` 类型且当前范围已有缓存时）；②未命中 → `extractModulesFromChat()`（`moduleExtractor.js`）从 `chat[]` 每条 `mes` 正则解析 `[模块名|k:v]`（嵌套栈解析）+ 世界书条目（`getCurrentCharBooksModuleEntries`，source:'worldbook'）。
+
+样式合成 `buildStyledProcessResult`（processResultBuilder.js）= `processModuleData('auto')` + `insertCombinedStylesToDetails()`（styleCombiner），产出 `content[m].containerStyles`（完整气泡 HTML，含变量替换）与每条 `entry.customStyles`。
+
+各入口区别仅在过滤器、取哪个字段、是否套样式：
+
+| 入口 | 调用函数 | 过滤器 | 取字段 | 套样式 |
+|------|---------|--------|--------|--------|
+| 消息内行内替换 | `inlineMessageRenderer.renderCurrentMessageContext` | `getRenderUIFilteredModuleConfigs`（非 after_body） | `entry.customStyles` 替换 .mes_text raw | 是 |
+| 消息底部块 | `contextBottomUI.updateUItoMsgBottom` | `getMsgUIFilteredModuleConfigs` | 按 mesid 分组渲染到 .mes_text 下方 | 是 |
+| 上下文底部汇总 | `contextBottomUI.updateUItoContextBottom` | `getContextBottomUIFilteredModuleConfigs` | `getModulesDataAndStyles` 拼 bottomStyles 模板 | 是 |
+| 汇总弹窗 | `contextBottomUI.openContextBottomAsModal` | `getContextBottomUIFilteredModuleConfigs` | 同上 | 是 |
+| 汇总→LLM 宏 | `promptGenerator` `{{CONTINUITY_MODULE_DATA}}`（:724） | `getContextBottomFilteredModuleConfigs`（after_body+full+retainLayers≠0 或 includeInModuleData 或 incremental） | `contentString` | 否 |
+| 逐消息宏 | `promptGenerator` `{{CONTINUITY_MSG_MODULE_N}}`（:787） | `getChatFilteredModuleConfigs`（无 retainLayers 检查） | `contentString` | 否 |
+| 手机 | `phoneMode.renderPhoneHtml` | `[{name: scene.moduleName}]`（唯一按单模块过滤） | `content[m].containerStyles` | 是 |
+| 缓存预热（写） | `moduleCacheManager.updateModuleCache` | `null`（全量） | 写入缓存，不直接展示 | 否 |
+| 编辑器预览 | `Toolbox.js` 提取按钮（:593） | 用户选定模块（selectedModuleNames + isForce/show* 参数） | `contentString` 显示到 resultArea | 否 |
+
+要点：
+- `buildStyledProcessResult` = `processModuleData('auto')` + styleCombiner 样式合成。消息内行内替换、消息底部块、上下文底部/弹窗汇总、手机都走它；发给 LLM 的宏与编辑器预览是唯一直连 `processModuleData` 不套样式的入口。
+- 手机是**唯一按单个 moduleName 过滤**的入口；其余均按 outputPosition/outputMode/retainLayers 批量过滤。
+- 缓存写入只发生在 `processModuleData` 内部当 `processType==='auto' && moduleFilters===null`（全量）时，由 `moduleCacheManager.updateModuleCache` 触发。带 `moduleFilters` 的调用（如手机）自身不写缓存，但会命中已有全量缓存再过滤。
+
 ### 每楼层存储流程
 1. **路径构建** — `storageKeyBuilder` 生成与后端一致的存储路径（`chats/{safeCharName}/{safeFileName}/messages/{batch}.jsonl`）
 2. **写入** — `perMessageStorage` 通过服务端插件将每楼层的模块数据追加到批量 JSONL 文件（每100层一个文件）
