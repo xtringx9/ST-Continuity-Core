@@ -49,8 +49,30 @@ export class IframeModal {
             iframe.src = url;
         }
 
+        // 手机模式：iframe 用父视口单位自适应（桌面居中、移动设备撑满），手机填满 iframe。
+        // 关键：尺寸用父文档的 vw/vh（iframe 元素本身在父文档里），且不在 iframe 内用 vw/vh/fitContent，
+        // 否则会与 iframe 自身尺寸形成循环；阴影放父容器且为圆角，避免被 iframe 矩形裁出直角黑角。
+        if (options.phone) {
+            Object.assign(iframeContainer.style, {
+                width: 'fit-content',
+                height: 'fit-content',
+                background: 'transparent',
+                overflow: 'visible',
+                borderRadius: '61px',                       // 与手机壳外圆角一致 → 阴影为圆角，无直角黑角
+                boxShadow: '0 30px 70px rgba(0, 0, 0, 0.5)', // 整机投影（因 border-radius 跟随为圆角）
+            });
+            Object.assign(iframe.style, {
+                width: 'min(96vw, 440px)',
+                height: 'min(94vh, 900px)',
+                maxWidth: '96vw',
+                maxHeight: '94vh',
+                border: 'none',
+                display: 'block',
+                background: 'transparent',
+            });
+        }
         // fitContent：容器随内容自适应（去除深色外框），iframe 先给定尺寸避免加载前塌陷
-        if (options.fitContent) {
+        else if (options.fitContent) {
             Object.assign(iframeContainer.style, {
                 width: 'fit-content',
                 height: 'fit-content',
@@ -58,6 +80,8 @@ export class IframeModal {
                 maxHeight: '95vh',
                 background: 'transparent',
                 boxShadow: 'none',
+                overflow: 'visible',   // 取消 modal.css .center 容器的 overflow:hidden，避免裁切手机黑边
+                borderRadius: '0',     // 取消 .center 容器的 8px 圆角，与手机 61px 圆角统一、避免双层边缘
             });
             Object.assign(iframe.style, {
                 width: '390px',
@@ -137,9 +161,13 @@ export class IframeModal {
         try {
             const doc = iframe.contentDocument;
             if (!doc) return;
+            // 优先测量 .phone-frame（含黑边，box-shadow 方案的黑边不计入 offset 会被裁），
+            // 旧内容无 frame 时回退到 .phone / body
+            const frame = doc.querySelector('.phone-frame');
             const phone = doc.querySelector('.phone');
-            const w = phone ? phone.offsetWidth : doc.body.scrollWidth;
-            const h = phone ? phone.offsetHeight : doc.body.scrollHeight;
+            const ref = frame || phone || null;
+            const w = ref ? ref.offsetWidth : doc.body.scrollWidth;
+            const h = ref ? ref.offsetHeight : doc.body.scrollHeight;
             const maxW = window.innerWidth * 0.95;
             const maxH = window.innerHeight * 0.95;
             const newW = Math.min(w || 390, maxW);
@@ -152,7 +180,7 @@ export class IframeModal {
             // 内容变化时重新适配（仅挂一次）
             if (!iframe._fitObserver) {
                 iframe._fitObserver = new ResizeObserver(() => this._fitToContent(iframe));
-                iframe._fitObserver.observe(phone || doc.body);
+                iframe._fitObserver.observe(ref || doc.body);
             }
         } catch (e) {
             // 跨域或尚未就绪时静默跳过

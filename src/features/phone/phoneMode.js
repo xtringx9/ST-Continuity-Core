@@ -2,7 +2,7 @@
 // 详见 docs/PHONE_MODE_PLAN.md §五。
 //
 // 与「模块汇总」同构，但额外：
-// - 使用 fitContent，使 iframe 容器贴合手机壳尺寸（去除深色外框，黑框随内容自适应）。
+// - 使用 phone 选项，iframe 用父视口单位自适应（桌面居中、移动撑满），手机填满 iframe（去除深色外框）。
 // - 内置设置面板（齿轮）通过 postMessage 把编辑后的场景回传此处持久化（§八 失配处理在 UI 内完成）。
 import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
@@ -30,7 +30,7 @@ export function openPhoneModeModal(extensionPath) {
 
     const html = renderPhoneHtml();
     if (!html) return;
-    phoneModal.open(null, '手机模式', { srcdoc: html, variant: 'center', fitContent: true });
+    phoneModal.open(null, '手机模式', { srcdoc: html, variant: 'center', phone: true });
 }
 
 /**

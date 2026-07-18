@@ -1,4 +1,4 @@
-/* 手机模式外壳样式（独立，不继承 ST 主题，避免污染） */
+/* 手机模式外壳样式（混合风：苹果骨 + 像素皮，不继承 ST 主题，避免污染） */
 * {
     box-sizing: border-box;
 }
@@ -9,78 +9,91 @@ html, body {
     height: 100%;
     /* 透明：容器已由 IframeModal fitContent 去深色，手机壳自带底色 */
     background: transparent;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif;
+    font-family: "Courier New", ui-monospace, "Courier", monospace;
 }
 
 body {
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* 关键：不要 stretch，否则手机壳高度被绑到 iframe 高度，引发 fitContent 正反馈循环 */
+    align-items: center; /* 垂直居中对齐：frame 四角 backdrop 对称，避免顶部对齐导致底部单边留白露出半透明黑块 */
 }
 
-/* 手机外框 */
+/* 苹果骨外层：实色黑边 + 同心圆角（替代原 box-shadow 黑边——box-shadow 不计入 offset 会被 iframe 裁掉，黑边不完整） */
+.phone-frame {
+    width: 100%;                 /* 填满 iframe（iframe 用父视口单位自适应，此处不写死 px，移动设备也能撑满） */
+    height: 100%;                /* 填满 iframe 高度；内部 .phone 再撑满本框，聊天区/桌面内部滚动 */
+    position: relative;
+    background: #1c1c1e;         /* 黑边实色（13px padding 即黑边） */
+    padding: 13px;               /* 黑边宽度 = 外圆角(61) - 内圆角(48)，内外同心 */
+    border-radius: 61px;         /* 内圆角48 + 黑边13，与内屏同心 */
+    /* 整机投影已移交 IframeModal 父容器（圆角阴影）：iframe 内 box-shadow 会被矩形边界裁出直角黑角，故此处不画 */
+}
+
 .phone {
     width: 100%;
-    max-width: 390px;            /* 收窄更接近现代手机宽度 */
-    min-height: 780px;           /* 内容少时也保持手机比例（约 1:2） */
-    max-height: 92vh;            /* 内容多时封顶，聊天区内部滚动；用 vh 而非 % 避免与 iframe 高度循环 */
-    height: auto;                /* 关键：高度由内容决定，与 iframe 解耦，破除 resize 循环 */
+    height: 100%;                /* 填满 .phone-frame（含 13px 黑边内区）；尺寸由 iframe 决定，不写死 px，移动端也能撑满 */
     display: flex !important;    /* !important：防止模块 customStyles 覆盖布局，保证竖向气泡 */
     flex-direction: column !important;
-    background: #ededed;
+    background: #f2f2f7;
+    border-radius: 48px;
     overflow: hidden;
+    position: relative;
 }
 
-/* 状态栏 */
+/* 像素皮：轻扫描线（不抢 iOS 质感，pointer-events:none 不挡点击） */
+.phone::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 30;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 4px);
+}
+
+/* 状态栏：三栏（左=退出/返回，中=时间，右=占位对称），时间真正居中 */
 .phone-statusbar {
+    flex: 0 0 auto;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    font-size: 17px;
+    font-weight: bold;
+    color: #1c1c1e;
+    letter-spacing: 2px;
+    background: #f2f2f7;
+    border-bottom: 3px solid #1c1c1e;
+}
+.ps-left {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 6px 14px;
-    background: #f7f7f7;
-    border-bottom: 1px solid #e2e2e2;
-    font-size: 13px;
-    color: #222;
+    gap: 2px;
+    min-width: 60px;          /* 与 .ps-right 等宽，保证时间水平居中 */
+    padding-left: 12px;
 }
-.phone-statusbar .ps-status-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.ps-time {
+    flex: 1 1 auto;
+    text-align: center;
 }
-.phone-statusbar .ps-back {
-    font-size: 24px;
-    line-height: 1;
+.ps-right {
+    flex: 0 0 auto;
+    min-width: 60px;          /* 与 .ps-left 等宽，保证时间水平居中 */
+}
+/* 状态栏左侧按钮：主页=退出手机，App 内=返回（通过 hidden 切换，见 NAV_SCRIPT） */
+.ps-exit,
+.ps-back {
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    font-weight: bold;
+    color: #1c1c1e;
     cursor: pointer;
-    opacity: 0.8;
-    padding: 0 2px;
-}
-.phone-statusbar .ps-back:hover { opacity: 1; }
-.phone-statusbar .ps-back[hidden] { display: none; }
-.phone-statusbar .ps-title {
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 60%;
-}
-.phone-statusbar .ps-icons {
-    letter-spacing: 2px;
-    font-size: 11px;
-}
-
-/* 齿轮（手机设置入口） */
-.ps-gear {
-    cursor: pointer;
-    font-size: 14px;
     line-height: 1;
-    opacity: 0.7;
-    transition: opacity 0.15s, transform 0.15s;
+    padding: 4px 8px;
+    letter-spacing: 0;
 }
-.ps-gear:hover {
-    opacity: 1;
-    transform: rotate(30deg);
-}
+.ps-exit:hover,
+.ps-back:hover { color: #007aff; }
 
 /* 屏幕容器：承载桌面 + 各 App 视图 */
 .phone-screen-host {
@@ -88,7 +101,7 @@ body {
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden;
-    background: #ededed;
+    background: #f2f2f7;
 }
 
 /* 桌面（首页）：App 图标网格 */
@@ -100,13 +113,16 @@ body {
 .phone-home-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 20px 10px;
+    gap: 24px 0;
+    padding: 8px 4px;
 }
+
+/* 像素皮图标：平涂色 + 像素描边 + 像素投影，保留圆角；按下位移反馈 */
 .app-icon {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -114,30 +130,35 @@ body {
     font-family: inherit;
 }
 .app-icon-img {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
     background: linear-gradient(135deg, #4f8cff, #2f6bff);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 26px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-    transition: transform 0.12s;
+    font-size: 30px;
+    color: #fff;
+    border: 3px solid #1c1c1e;
+    box-shadow: 4px 4px 0 #1c1c1e;
+    transition: transform 0.08s, box-shadow 0.08s;
 }
-.app-icon:hover .app-icon-img { transform: scale(1.06); }
-.app-icon:active .app-icon-img { transform: scale(0.94); }
+.app-icon:active .app-icon-img {
+    transform: translate(4px, 4px);
+    box-shadow: 0 0 0 #1c1c1e;
+}
 .app-icon-label {
-    font-size: 12px;
-    color: #333;
-    max-width: 64px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #1c1c1e;
+    max-width: 66px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     text-align: center;
 }
 
-/* App 消息视图 */
+/* App 视图 + 左上角返回键 */
 .phone-app {
     flex: 1 1 auto;
     display: flex !important;
@@ -150,42 +171,44 @@ body {
 .phone-screen {
     flex: 1 1 auto;
     overflow-y: auto;
-    background: #ededed;
+    background: #f2f2f7;
 }
 .phone-screen-inner {
     padding: 12px 10px;
 }
 
+/* 气泡折叠组：像素方括号标记（对用户 containerStyles 内的 <details> 生效，不覆盖用户自配气泡样式） */
+.phone-screen-inner details {
+    margin: 10px 0;
+}
+.phone-screen-inner summary {
+    list-style: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    color: #1c1c1e;
+    background: #e8e8ee;
+    border: 3px solid #1c1c1e;
+    padding: 4px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.phone-screen-inner summary::-webkit-details-marker { display: none; }
+.phone-screen-inner summary::after { content: "[+]"; color: #007aff; }
+.phone-screen-inner details[open] > summary::after { content: "[-]"; }
+.phone-screen-inner details > *:not(summary) { padding: 6px 4px; }
+
 /* 空状态 */
 .phone-empty {
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
     padding: 24px;
-    color: #888;
+    color: #8e8e93;
     font-size: 14px;
-    background: #ededed;
+    text-align: center;
+    background: #f2f2f7;
 }
 
-/* 底部导航条 */
-.phone-navbar {
-    flex: 0 0 auto;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 8px 0;
-    background: #f7f7f7;
-    border-top: 1px solid #e2e2e2;
-    font-size: 18px;
-}
-.phone-navbar .nav-item {
-    opacity: 0.65;
-    cursor: default;
-}
-
-/* ============ 设置面板（齿轮） ============ */
+/* ============ 设置面板（由桌面「设置」App 打开） ============ */
 .phone-settings-overlay {
     position: absolute;
     inset: 0;
@@ -193,7 +216,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10;
+    z-index: 40;
 }
 .phone-settings-overlay[hidden] {
     display: none;
@@ -205,9 +228,10 @@ body {
     display: flex;
     flex-direction: column;
     background: #fff;
-    border-radius: 12px;
+    border: 3px solid #1c1c1e;          /* 像素描边 */
+    box-shadow: 6px 6px 0 #1c1c1e;      /* 像素投影 */
+    border-radius: 14px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     color: #1a1a1a;
 }
 .ps-header {
@@ -216,9 +240,9 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 10px 14px;
-    font-weight: 600;
+    font-weight: bold;
     font-size: 15px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 3px solid #1c1c1e;  /* 像素分隔线 */
 }
 .ps-close {
     border: none;
@@ -235,6 +259,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    font-size: 13px;
 }
 .ps-row {
     display: flex;
@@ -243,12 +268,14 @@ body {
     font-size: 13px;
 }
 .ps-row > label { min-width: 40px; color: #555; }
-.ps-row select {
+.ps-row select,
+.ps-row input[type="text"] {
     flex: 1 1 auto;
     padding: 6px 8px;
-    border: 1px solid #d8d8d8;
-    border-radius: 6px;
+    border: 3px solid #1c1c1e;          /* 像素描边 */
+    border-radius: 8px;
     font-size: 13px;
+    font-family: inherit;
     background: #fff;
 }
 .ps-check { min-width: auto !important; color: #333 !important; }
@@ -257,42 +284,6 @@ body {
     color: #999;
     margin-top: 4px;
 }
-.ps-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.ps-field-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.ps-field-key {
-    flex: 0 0 84px;
-    font-size: 12px;
-    color: #444;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.ps-field-row select {
-    flex: 1 1 auto;
-    padding: 5px 7px;
-    border: 1px solid #d8d8d8;
-    border-radius: 6px;
-    font-size: 12px;
-    background: #fff;
-}
-.ps-field-warn {
-    flex: 0 0 auto;
-    font-size: 11px;
-    color: #d97706;
-}
-.ps-invalid {
-    border-color: #e53e3e !important;
-    background: #fff5f5;
-}
-.ps-invalid-opt { color: #e53e3e; }
 .ps-hint {
     font-size: 12px;
     color: #aaa;
@@ -311,16 +302,18 @@ body {
 .ps-footer {
     flex: 0 0 auto;
     padding: 10px 14px;
-    border-top: 1px solid #eee;
+    border-top: 3px solid #1c1c1e;  /* 像素分隔线 */
     text-align: right;
 }
 .ps-save {
     border: none;
-    background: #07c160; /* 微信绿 */
+    background: #007aff;             /* iOS 蓝 */
     color: #fff;
     font-size: 14px;
+    font-weight: bold;
     padding: 7px 20px;
     border-radius: 8px;
     cursor: pointer;
+    box-shadow: 3px 3px 0 #1c1c1e;   /* 像素投影 */
 }
-.ps-save:hover { background: #06ad56; }
+.ps-save:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #1c1c1e; }

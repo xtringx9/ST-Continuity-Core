@@ -1,12 +1,13 @@
 // 手机模式渲染器
-// 职责：把 styleCombiner 已组合好的气泡 HTML（moduleData.containerStyles）放进手机壳，并产出含「齿轮设置」的手机外壳。
+// 职责：把 styleCombiner 已组合好的气泡 HTML（moduleData.containerStyles）放进手机壳，并产出含「设置 App」的手机外壳。
+// 视觉风格：混合风（苹果骨 + 像素皮），详见 demo_phone_hybrid.html。
 //
 // 设计要点（详见 docs/PHONE_MODE_PLAN.md）：
 // - 气泡由 styleCombiner（src/modules/styleCombiner.js）产出，结果在 processResult.content[moduleName].containerStyles，
 //   已包含变量替换后的真实气泡 HTML。本文件【不再】自行解析 [msg] 或渲染气泡——直接复用 styleCombiner 的结果。
-// - 手机壳仅负责外壳（状态栏 / 屏幕 / 导航条）与设置面板（齿轮）。
+// - 手机壳仅负责外壳（状态栏 / 屏幕）与设置面板（以桌面「设置」App 打开）。
 // - 全程只读、纯字符串拼接；所有动态文本经 escapeHtml 防止 XSS / 破坏结构。
-// - 设置面板（齿轮）内置于同一 iframe，保存时通过 postMessage 通知父窗口持久化（见 phoneMode.js）。
+// - 设置面板内置于同一 iframe，由桌面「设置」App 打开，保存时通过 postMessage 通知父窗口持久化（见 phoneMode.js）。
 // - moduleConfig 仅用于取模块显示名（标题），不参与气泡渲染。
 
 /**
@@ -23,14 +24,14 @@ function escapeHtml(str) {
 }
 
 /**
- * 构建设置面板（齿轮）的覆盖层 HTML + 内联脚本。
+ * 构建设置面板（由桌面「设置」App 打开）的覆盖层 HTML + 内联脚本。
  * 仅需：模块选择 + 启用开关（气泡由 styleCombiner 决定，无需字段映射）。
  * @param {Object} settings { scene, modules }
  */
 function buildSettingsOverlay(settings) {
     const modules = settings.modules || [];
     const scenes = settings.scenes || [];
-    // 默认预选第一个场景（若齿轮是从某个已打开 App 点击，则脚本会按当前打开的 App 重填）
+    // 默认预选第一个场景（若设置是从桌面「设置」App 点击，则脚本按当前打开的 App 重填）
     const first = scenes[0] || { moduleName: '', enabled: true, appLabel: '', appIcon: '' };
     const sel = first.moduleName || '';
     let moduleOptions = modules
@@ -62,11 +63,11 @@ function buildSettingsOverlay(settings) {
 }
 
 // 设置面板交互脚本（纯静态，无外部数据注入，安全）。
-// 负责：齿轮开合（按当前打开的 App 预填）、模块级失配提示、保存时 postMessage 给父窗口。
+// 负责：由桌面「设置」App 打开（按当前打开的 App 预填）、模块级失配提示、保存时 postMessage 给父窗口。
 const SETTINGS_SCRIPT = `
 (function () {
   var data = JSON.parse(document.getElementById('phoneSettingsData').textContent);
-  var gear = document.getElementById('phoneGear');
+  var settingsApp = document.querySelector('.app-icon[data-app="settings"]');
   var overlay = document.getElementById('phoneSettings');
   var closeBtn = document.getElementById('psClose');
   var saveBtn = document.getElementById('psSave');
@@ -97,7 +98,7 @@ const SETTINGS_SCRIPT = `
   }
   function closeSettings() { overlay.hidden = true; }
 
-  gear.addEventListener('click', openSettings);
+  if (settingsApp) settingsApp.addEventListener('click', openSettings);
   closeBtn.addEventListener('click', closeSettings);
 
   function checkMismatch() {
@@ -132,35 +133,45 @@ const SETTINGS_SCRIPT = `
 
 /**
  * 组装完整手机外壳 HTML（用于 IframeModal srcdoc）
- * 结构：状态栏 + 屏幕容器（桌面 App 网格 + 各 App 消息视图，默认显示桌面）+ 底部导航条 + 设置面板。
+ * 结构：状态栏（居中时间）+ 屏幕容器（桌面 App 网格 + 各 App 消息视图，默认显示桌面）+ 设置面板（「设置」App 打开）。
  * @param {Object} opts
  * @param {string} opts.cssUrl phone.css 的 URL
  * @param {Array} opts.apps 桌面 App 列表 [{ key, label, icon, contentHtml, emptyStateHtml }]，每个启用场景一个
- * @param {Object|null} opts.settings 设置面板数据；为空则不渲染齿轮
+ * @param {Object|null} opts.settings 设置面板数据；为空则不渲染「设置」App 与面板
  */
 export function buildPhoneHtml({ cssUrl = '', apps = [], settings = null }) {
     const now = currentClock();
 
+    // 「设置」App（固定在桌面，点击打开设置面板）
+    const settingsApp = settings
+        ? `<button class="app-icon" type="button" data-app="settings">
+             <span class="app-icon-img" style="background:#8e8e93">⚙️</span>
+             <span class="app-icon-label">设置</span>
+           </button>`
+        : '';
+
     // 桌面（首页）：App 图标网格
-    const homeApps = apps.length
-        ? apps.map((a) => `
+    const emptyHtml = apps.length
+        ? ''
+        : `<div class="phone-empty">暂无应用，请在手机设置中添加模块</div>`;
+    const homeApps = emptyHtml + apps.map((a) => `
             <button class="app-icon" type="button" data-app="${escapeHtml(a.key)}">
                 <span class="app-icon-img">${escapeHtml(a.icon)}</span>
                 <span class="app-icon-label">${escapeHtml(a.label)}</span>
-            </button>`).join('')
-        : `<div class="phone-empty">暂无应用，请在手机设置（⚙️）中添加模块</div>`;
+            </button>`).join('') + settingsApp;
     const homeView = `<div class="phone-home" id="phoneHome"><div class="phone-home-grid">${homeApps}</div></div>`;
 
-    // 每个 App 的消息视图（默认隐藏，点击图标后显示）
+    // 每个 App 的消息视图（默认隐藏，点击图标后显示；左上角内置返回键）
     const appViews = apps.map((a) => {
         const inner = a.emptyStateHtml
             ? `<div class="phone-empty">${escapeHtml(a.emptyStateHtml)}</div>`
             : `<div class="phone-screen-inner">${a.contentHtml}</div>`;
-        return `<div class="phone-app" id="app-${escapeHtml(a.key)}" hidden><div class="phone-screen">${inner}</div></div>`;
+        return `<div class="phone-app" id="app-${escapeHtml(a.key)}" hidden>
+          <div class="phone-screen">${inner}</div>
+        </div>`;
     }).join('');
 
-    // 齿轮：settings 存在即渲染（始终可达，确保用户能打开手机设置）
-    const gear = settings ? `<span class="ps-gear" id="phoneGear" title="手机设置">⚙️</span>` : '';
+    // 设置面板：「设置」App 打开，不渲染状态栏齿轮
     const overlay = settings ? buildSettingsOverlay(settings) : '';
     const navScript = settings ? NAV_SCRIPT : '';
 
@@ -172,59 +183,77 @@ export function buildPhoneHtml({ cssUrl = '', apps = [], settings = null }) {
 <link rel="stylesheet" href="${escapeHtml(cssUrl)}">
 </head>
 <body>
-<div class="phone">
-  <div class="phone-statusbar">
-    <span class="ps-back" id="phoneBack" hidden>‹</span>
-    <span class="ps-time">${now}</span>
-    <span class="ps-title" id="phoneTitle">手机</span>
-    <span class="ps-status-right">${gear}<span class="ps-icons">📶 🔋</span></span>
-  </div>
-  <div class="phone-screen-host" id="phoneScreenHost">
-    ${homeView}
-    ${appViews}
-  </div>
-  <div class="phone-navbar">
-    <span class="nav-item">💬</span>
-    <span class="nav-item">👥</span>
-    <span class="nav-item">📞</span>
-    <span class="nav-item">🧭</span>
+<div class="phone-frame">
+  <div class="phone">
+    <div class="phone-statusbar">
+      <div class="ps-left">
+        <button class="ps-exit" type="button" title="退出手机">✕</button>
+        <button class="ps-back" type="button" title="返回" hidden>‹ 返回</button>
+      </div>
+      <span class="ps-time">${now}</span>
+      <div class="ps-right"></div>
+    </div>
+    <div class="phone-screen-host" id="phoneScreenHost">
+      ${homeView}
+      ${appViews}
+    </div>
+    ${overlay}
+    ${navScript}
   </div>
 </div>
-${overlay}
-${navScript}
 </body>
 </html>`;
 }
 
-// 桌面 ↔ App 导航脚本（纯静态）。状态栏「‹」返回桌面；点击 App 图标打开对应消息视图。
+// 桌面 ↔ App 导航脚本（纯静态）。状态栏左侧按钮按视图切换：主页=退出手机，App 内=返回。
+// 「设置」App 的点击由 SETTINGS_SCRIPT 接管，此处跳过。
 const NAV_SCRIPT = `
 <script>
 (function () {
   var home = document.getElementById('phoneHome');
-  var back = document.getElementById('phoneBack');
-  var title = document.getElementById('phoneTitle');
   var apps = Array.prototype.slice.call(document.querySelectorAll('.phone-app'));
+  var overlay = document.getElementById('phoneSettings');
+  var psExit = document.querySelector('.ps-exit');   // 主页：退出小手机
+  var psBack = document.querySelector('.ps-back');   // App 内：返回桌面
+
+  // 主页外壳：显示退出、隐藏返回
+  function showHomeChrome() {
+    if (psExit) psExit.hidden = false;
+    if (psBack) psBack.hidden = true;
+  }
+  // App 内外壳：显示返回、隐藏退出
+  function showAppChrome() {
+    if (psExit) psExit.hidden = true;
+    if (psBack) psBack.hidden = false;
+  }
 
   function openApp(key, label) {
     home.hidden = true;
     apps.forEach(function (el) { el.hidden = (el.id !== 'app-' + key); });
-    title.textContent = label || '';
-    back.hidden = false;
+    showAppChrome();
     var screen = document.getElementById('app-' + key);
     if (screen) screen.querySelector('.phone-screen').scrollTop = 0;
   }
   function goHome() {
     apps.forEach(function (el) { el.hidden = true; });
     home.hidden = false;
-    title.textContent = '手机';
-    back.hidden = true;
+    showHomeChrome();
+    if (overlay) overlay.hidden = true;
   }
   document.querySelectorAll('.app-icon').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      openApp(btn.getAttribute('data-app'), btn.querySelector('.app-icon-label').textContent);
+      var key = btn.getAttribute('data-app');
+      if (key === 'settings') return; // 设置由 SETTINGS_SCRIPT 处理
+      openApp(key, btn.querySelector('.app-icon-label').textContent);
     });
   });
-  if (back) back.addEventListener('click', goHome);
+
+  if (psBack) psBack.addEventListener('click', goHome);
+  if (psExit) psExit.addEventListener('click', function () {
+    window.parent.postMessage({ type: 'CLOSE_CONTINUITY_MODAL' }, '*');
+  });
+
+  showHomeChrome(); // 初始为主页
 })();
 </script>`;
 
