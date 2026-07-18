@@ -12,6 +12,7 @@ import { errorLog } from '../../utils/logger.js';
 
 let phoneModal = null;
 let currentExtensionPath = '';
+let lastView = 'home';   // 退出时所在界面（'home' 或 appKey），重开时恢复到此界面
 
 /**
  * 打开手机模式模态
@@ -37,7 +38,13 @@ export function openPhoneModeModal(extensionPath) {
  * 处理来自手机 iframe 的保存消息（齿轮设置保存）
  */
 function handlePhoneMessage(event) {
-    if (!event.data || event.data.type !== 'SAVE_PHONE_CONFIG') return;
+    if (!event.data) return;
+    // 界面切换上报：记录当前所在界面，重开手机模式时恢复
+    if (event.data.type === 'PHONE_VIEW_CHANGED') {
+        lastView = event.data.view || 'home';
+        return;
+    }
+    if (event.data.type !== 'SAVE_PHONE_CONFIG') return;
     const scene = event.data.scene;
     console.info('[Continuity][手机] 收到 SAVE_PHONE_CONFIG：', JSON.parse(JSON.stringify(scene)));
 
@@ -120,5 +127,5 @@ function renderPhoneHtml() {
         modules,
     };
 
-    return buildPhoneHtml({ cssUrl, apps, settings });
+    return buildPhoneHtml({ cssUrl, apps, settings, initView: lastView });
 }

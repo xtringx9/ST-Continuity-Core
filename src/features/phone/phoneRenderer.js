@@ -139,7 +139,7 @@ const SETTINGS_SCRIPT = `
  * @param {Array} opts.apps 桌面 App 列表 [{ key, label, icon, contentHtml, emptyStateHtml }]，每个启用场景一个
  * @param {Object|null} opts.settings 设置面板数据；为空则不渲染「设置」App 与面板
  */
-export function buildPhoneHtml({ cssUrl = '', apps = [], settings = null }) {
+export function buildPhoneHtml({ cssUrl = '', apps = [], settings = null, initView = 'home' }) {
     const now = currentClock();
 
     // 「设置」App（固定在桌面，点击打开设置面板）
@@ -187,17 +187,19 @@ export function buildPhoneHtml({ cssUrl = '', apps = [], settings = null }) {
   <div class="phone">
     <div class="phone-statusbar">
       <div class="ps-left">
-        <button class="ps-exit" type="button" title="退出手机">✕</button>
         <button class="ps-back" type="button" title="返回" hidden>‹ 返回</button>
       </div>
       <span class="ps-time">${now}</span>
-      <div class="ps-right"></div>
+      <div class="ps-right">
+        <button class="ps-exit" type="button" title="退出手机">✕</button>
+      </div>
     </div>
     <div class="phone-screen-host" id="phoneScreenHost">
       ${homeView}
       ${appViews}
     </div>
     ${overlay}
+    <script>window.__PHONE_INIT_VIEW = ${JSON.stringify(initView || 'home')};</script>
     ${navScript}
   </div>
 </div>
@@ -205,7 +207,8 @@ export function buildPhoneHtml({ cssUrl = '', apps = [], settings = null }) {
 </html>`;
 }
 
-// 桌面 ↔ App 导航脚本（纯静态）。状态栏左侧按钮按视图切换：主页=退出手机，App 内=返回。
+// 桌面 ↔ App 导航脚本（纯静态）。状态栏：右上角退出常驻、左侧返回仅 App 内显示。
+// 每次切换界面都上报父窗口，便于重开时恢复到退出时的界面；初始按 __PHONE_INIT_VIEW 恢复。
 // 「设置」App 的点击由 SETTINGS_SCRIPT 接管，此处跳过。
 const NAV_SCRIPT = `
 <script>
@@ -213,38 +216,36 @@ const NAV_SCRIPT = `
   var home = document.getElementById('phoneHome');
   var apps = Array.prototype.slice.call(document.querySelectorAll('.phone-app'));
   var overlay = document.getElementById('phoneSettings');
-  var psExit = document.querySelector('.ps-exit');   // 主页：退出小手机
-  var psBack = document.querySelector('.ps-back');   // App 内：返回桌面
+  var psExit = document.querySelector('.ps-exit');   // 右上角：常驻退出小手机
+  var psBack = document.querySelector('.ps-back');   // 状态栏左侧：仅 App 内显示返回
 
-  // 主页外壳：显示退出、隐藏返回
-  function showHomeChrome() {
-    if (psExit) psExit.hidden = false;
-    if (psBack) psBack.hidden = true;
+  // 通知父窗口当前界面（home 或 appKey），任何关闭方式都能据此恢复
+  function reportView(v) {
+    try { window.parent.postMessage({ type: 'PHONE_VIEW_CHANGED', view: v }, '*'); } catch (e) {}
   }
-  // App 内外壳：显示返回、隐藏退出
-  function showAppChrome() {
-    if (psExit) psExit.hidden = true;
-    if (psBack) psBack.hidden = false;
-  }
+  function showAppChrome() { if (psBack) psBack.hidden = false; }
+  function showHomeChrome() { if (psBack) psBack.hidden = true; }
 
-  function openApp(key, label) {
+  function openApp(key) {
     home.hidden = true;
     apps.forEach(function (el) { el.hidden = (el.id !== 'app-' + key); });
     showAppChrome();
     var screen = document.getElementById('app-' + key);
     if (screen) screen.querySelector('.phone-screen').scrollTop = 0;
+    reportView(key);
   }
   function goHome() {
     apps.forEach(function (el) { el.hidden = true; });
     home.hidden = false;
     showHomeChrome();
     if (overlay) overlay.hidden = true;
+    reportView('home');
   }
   document.querySelectorAll('.app-icon').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var key = btn.getAttribute('data-app');
       if (key === 'settings') return; // 设置由 SETTINGS_SCRIPT 处理
-      openApp(key, btn.querySelector('.app-icon-label').textContent);
+      openApp(key);
     });
   });
 
@@ -253,7 +254,14 @@ const NAV_SCRIPT = `
     window.parent.postMessage({ type: 'CLOSE_CONTINUITY_MODAL' }, '*');
   });
 
-  showHomeChrome(); // 初始为主页
+  // 初始界面：优先恢复到退出时所在的界面（父窗口通过 __PHONE_INIT_VIEW 传入）
+  var initView = (window.__PHONE_INIT_VIEW || 'home');
+  if (initView !== 'home' && document.getElementById('app-' + initView)) {
+    openApp(initView);
+  } else {
+    showHomeChrome();
+    reportView('home');
+  }
 })();
 </script>`;
 

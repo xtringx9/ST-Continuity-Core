@@ -78,6 +78,10 @@ body {
 .ps-right {
     flex: 0 0 auto;
     min-width: 60px;          /* 与 .ps-left 等宽，保证时间水平居中 */
+    display: flex;
+    justify-content: flex-end; /* 退出按钮靠右上角常驻 */
+    align-items: center;
+    padding-right: 12px;
 }
 /* 状态栏左侧按钮：主页=退出手机，App 内=返回（通过 hidden 切换，见 NAV_SCRIPT） */
 .ps-exit,
