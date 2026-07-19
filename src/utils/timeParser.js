@@ -92,7 +92,7 @@ export function parseTimeDetailed(timeStr, standardTimeData) {
     // 如果以上都不匹配，尝试匹配更广泛的时间范围格式（支持纯日期范围）
     if (!timeRangeMatch) {
         // 改进的正则表达式，更好地匹配日期格式
-        const generalRangePattern = /((?:\d{4}[年\-]\d{1,2}[月\-]\d{1,2}[日]?|[^~\-]+?))\s*[~\-]\s*((?:\d{4}[年\-]\d{1,2}[月\-]\d{1,2}[日]?(?:\s+\d{1,2}:\d{1,2})?|[^~\-]+?))/;
+        const generalRangePattern = /((?:\d{4}[年\-]\d{1,2}[月\-]\d{1,2}[日]?(?:\s+(?:周[一二三四五六日]|星期[一二三四五六日]))?(?:\s+\d{1,2}:\d{1,2})?|[^~\-]+?))\s*[~\-]\s*((?:\d{4}[年\-]\d{1,2}[月\-]\d{1,2}[日]?(?:\s+(?:周[一二三四五六日]|星期[一二三四五六日]))?(?:\s+\d{1,2}:\d{1,2})?|[^~\-]+?))/;
         const generalMatch = timeStr.match(generalRangePattern);
 
         // 验证匹配结果是否包含有效的时间或日期格式
@@ -638,11 +638,6 @@ export function completeTimeDataWithStandard(targetTimeData, standardTimeData) {
         const standardMonth = standardTimeData.startTime.month;
         const standardDay = standardTimeData.startTime.day;
 
-        // 使用标准时间的时、分、秒
-        const standardHour = standardTimeData.startTime.hour || 0;
-        const standardMinute = standardTimeData.startTime.minute || 0;
-        const standardSecond = standardTimeData.startTime.second || 0;
-
         // 补全日年月日信息
         if (needsDateCompletion) {
             targetTimeData.startTime.year = standardYear;
@@ -695,96 +690,111 @@ export function completeTimeDataWithStandard(targetTimeData, standardTimeData) {
             }
         }
 
-        // 补全时分秒信息（只有年月日的情况）
-        if (needsTimeCompletion) {
-            targetTimeData.startTime.hour = standardHour;
-            targetTimeData.startTime.minute = standardMinute;
-            targetTimeData.startTime.second = standardSecond;
-            targetTimeData.startTime.hasTime = true;
-
-            // 如果结束时间，也补全时分秒，并考虑跨日情况
-            if (targetTimeData.isRange && targetTimeData.endTime) {
-                // 计算原始时间差（如果有）
-                let timeDiffMs = 0;
-
-                // 如果targetTimeData已有时间信息，计算时间差
-                if (targetTimeData.startTime.hour !== undefined && targetTimeData.startTime.minute !== undefined &&
-                    targetTimeData.endTime.hour !== undefined && targetTimeData.endTime.minute !== undefined) {
-                    // 创建只包含时间的临时日期对象进行比较
-                    const startTimeTemp = new Date(0, 0, 0,
-                        targetTimeData.startTime.hour,
-                        targetTimeData.startTime.minute,
-                        targetTimeData.startTime.second || 0);
-                    const endTimeTemp = new Date(0, 0, 0,
-                        targetTimeData.endTime.hour,
-                        targetTimeData.endTime.minute,
-                        targetTimeData.endTime.second || 0);
-
-                    // 计算时间差（毫秒）
-                    timeDiffMs = endTimeTemp - startTimeTemp;
-
-                    // 如果结束时间早于开始时间，说明跨日了，加上一天的毫秒数
-                    if (timeDiffMs < 0) {
-                        timeDiffMs += 24 * 60 * 60 * 1000;
-                    }
-                }
-                // 如果标准时间有跨度，也可以参考标准时间的时间差
-                else if (standardTimeData.isRange && standardTimeData.endTime &&
-                    standardTimeData.startTime.hour !== undefined && standardTimeData.startTime.minute !== undefined &&
-                    standardTimeData.endTime.hour !== undefined && standardTimeData.endTime.minute !== undefined) {
-                    // 创建只包含标准时间的临时日期对象
-                    const standardStartTimeTemp = new Date(0, 0, 0,
-                        standardTimeData.startTime.hour,
-                        standardTimeData.startTime.minute,
-                        standardTimeData.startTime.second || 0);
-                    const standardEndTimeTemp = new Date(0, 0, 0,
-                        standardTimeData.endTime.hour,
-                        standardTimeData.endTime.minute,
-                        standardTimeData.endTime.second || 0);
-
-                    // 计算标准时间差
-                    timeDiffMs = standardEndTimeTemp - standardStartTimeTemp;
-
-                    // 处理跨日情况
-                    if (timeDiffMs < 0) {
-                        timeDiffMs += 24 * 60 * 60 * 1000;
-                    }
-                }
-
-                // 根据开始时间和时间差计算结束时间
-                if (timeDiffMs > 0) {
-                    // 使用补全后的开始时间作为基准
-                    const startDateTime = new Date(
-                        targetTimeData.startTime.year,
-                        targetTimeData.startTime.month - 1,
-                        targetTimeData.startTime.day,
-                        targetTimeData.startTime.hour,
-                        targetTimeData.startTime.minute,
-                        targetTimeData.startTime.second
-                    );
-
-                    // 加上时间差得到结束时间
-                    const endDateTime = new Date(startDateTime.getTime() + timeDiffMs);
-
-                    targetTimeData.endTime.hour = endDateTime.getHours();
-                    targetTimeData.endTime.minute = endDateTime.getMinutes();
-                    targetTimeData.endTime.second = endDateTime.getSeconds();
-                } else {
-                    // 如果没有时间差信息，使用标准时间的结束时间或与开始时间相同
-                    if (standardTimeData.isRange && standardTimeData.endTime) {
-                        targetTimeData.endTime.hour = standardTimeData.endTime.hour || standardHour;
-                        targetTimeData.endTime.minute = standardTimeData.endTime.minute || standardMinute;
-                        targetTimeData.endTime.second = standardTimeData.endTime.second || standardSecond;
-                    } else {
-                        targetTimeData.endTime.hour = standardHour;
-                        targetTimeData.endTime.minute = standardMinute;
-                        targetTimeData.endTime.second = standardSecond;
-                    }
-                }
-
-                targetTimeData.endTime.hasTime = true;
-            }
-        }
+        // ============================================================
+        // 【已禁用】向标准模块“借用”时分秒的补全逻辑（保留以备将来启用）
+        // 禁用原因：用户要求“不希望补成具体时间”。起始/结束若为纯日期
+        // （hasTime=false）应保留“全天”语义，而不是从同消息标准参考模块
+        // 复制时刻。例如会把 “2026-06-21~2026-07-12 周日 18:30” 中仅属于
+        // 结束端的 18:30 错误复制到起始端。因此时间只按解析结果保留。
+        // 若将来需要恢复“以标准时间为缺省时刻”的语义，请取消下方整段注释，
+        // 并同时恢复 standardHour / standardMinute / standardSecond 的声明
+        // （当前已在注释块内给出）。
+        // ============================================================
+        // 使用标准时间的时、分、秒
+        // const standardHour = standardTimeData.startTime.hour || 0;
+        // const standardMinute = standardTimeData.startTime.minute || 0;
+        // const standardSecond = standardTimeData.startTime.second || 0;
+        //
+        // // 补全时分秒信息（只有年月日的情况）
+        // if (needsTimeCompletion) {
+        //     targetTimeData.startTime.hour = standardHour;
+        //     targetTimeData.startTime.minute = standardMinute;
+        //     targetTimeData.startTime.second = standardSecond;
+        //     targetTimeData.startTime.hasTime = true;
+        //
+        //     // 如果结束时间，也补全时分秒，并考虑跨日情况
+        //     if (targetTimeData.isRange && targetTimeData.endTime) {
+        //         // 计算原始时间差（如果有）
+        //         let timeDiffMs = 0;
+        //
+        //         // 如果targetTimeData已有时间信息，计算时间差
+        //         if (targetTimeData.startTime.hour !== undefined && targetTimeData.startTime.minute !== undefined &&
+        //             targetTimeData.endTime.hour !== undefined && targetTimeData.endTime.minute !== undefined) {
+        //             // 创建只包含时间的临时日期对象进行比较
+        //             const startTimeTemp = new Date(0, 0, 0,
+        //                 targetTimeData.startTime.hour,
+        //                 targetTimeData.startTime.minute,
+        //                 targetTimeData.startTime.second || 0);
+        //             const endTimeTemp = new Date(0, 0, 0,
+        //                 targetTimeData.endTime.hour,
+        //                 targetTimeData.endTime.minute,
+        //                 targetTimeData.endTime.second || 0);
+        //
+        //             // 计算时间差（毫秒）
+        //             timeDiffMs = endTimeTemp - startTimeTemp;
+        //
+        //             // 如果结束时间早于开始时间，说明跨日了，加上一天的毫秒数
+        //             if (timeDiffMs < 0) {
+        //                 timeDiffMs += 24 * 60 * 60 * 1000;
+        //             }
+        //         }
+        //         // 如果标准时间有跨度，也可以参考标准时间的时间差
+        //         else if (standardTimeData.isRange && standardTimeData.endTime &&
+        //             standardTimeData.startTime.hour !== undefined && standardTimeData.startTime.minute !== undefined &&
+        //             standardTimeData.endTime.hour !== undefined && standardTimeData.endTime.minute !== undefined) {
+        //             // 创建只包含标准时间的临时日期对象
+        //             const standardStartTimeTemp = new Date(0, 0, 0,
+        //                 standardTimeData.startTime.hour,
+        //                 standardTimeData.startTime.minute,
+        //                 standardTimeData.startTime.second || 0);
+        //             const standardEndTimeTemp = new Date(0, 0, 0,
+        //                 standardTimeData.endTime.hour,
+        //                 standardTimeData.endTime.minute,
+        //                 standardTimeData.endTime.second || 0);
+        //
+        //             // 计算标准时间差
+        //             timeDiffMs = standardEndTimeTemp - standardStartTimeTemp;
+        //
+        //             // 处理跨日情况
+        //             if (timeDiffMs < 0) {
+        //                 timeDiffMs += 24 * 60 * 60 * 1000;
+        //             }
+        //         }
+        //
+        //         // 根据开始时间和时间差计算结束时间
+        //         if (timeDiffMs > 0) {
+        //             // 使用补全后的开始时间作为基准
+        //             const startDateTime = new Date(
+        //                 targetTimeData.startTime.year,
+        //                 targetTimeData.startTime.month - 1,
+        //                 targetTimeData.startTime.day,
+        //                 targetTimeData.startTime.hour,
+        //                 targetTimeData.startTime.minute,
+        //                 targetTimeData.startTime.second
+        //             );
+        //
+        //             // 加上时间差得到结束时间
+        //             const endDateTime = new Date(startDateTime.getTime() + timeDiffMs);
+        //
+        //             targetTimeData.endTime.hour = endDateTime.getHours();
+        //             targetTimeData.endTime.minute = endDateTime.getMinutes();
+        //             targetTimeData.endTime.second = endDateTime.getSeconds();
+        //         } else {
+        //             // 如果没有时间差信息，使用标准时间的结束时间或与开始时间相同
+        //             if (standardTimeData.isRange && standardTimeData.endTime) {
+        //                 targetTimeData.endTime.hour = standardTimeData.endTime.hour || standardHour;
+        //                 targetTimeData.endTime.minute = standardTimeData.endTime.minute || standardMinute;
+        //                 targetTimeData.endTime.second = standardTimeData.endTime.second || standardSecond;
+        //             } else {
+        //                 targetTimeData.endTime.hour = standardHour;
+        //                 targetTimeData.endTime.minute = standardMinute;
+        //                 targetTimeData.endTime.second = standardSecond;
+        //             }
+        //         }
+        //
+        //         targetTimeData.endTime.hasTime = true;
+        //     }
+        // }
 
         // 重新计算时间戳（无论是否有原始时分秒，补全后都应计算）
         const date = new Date(
@@ -807,11 +817,14 @@ export function completeTimeDataWithStandard(targetTimeData, standardTimeData) {
                 targetTimeData.endTime.minute || 0,
                 targetTimeData.endTime.second || 0
             );
-            targetTimeData.endTime.timestamp = endDate.getTime() - targetTimeData.endTime.hasTime ? 0 : 1;
+            targetTimeData.endTime.timestamp = endDate.getTime() - (targetTimeData.endTime.hasTime ? 0 : 1);
         }
 
-        // 更新isComplete状态
-        targetTimeData.isComplete = true;
+        // 更新isComplete状态：以实际是否同时具备日期与时刻为准，
+        // 不再因为进入过补全逻辑而误判为完整（纯日期组件应保持未完成/全天语义）。
+        const startComplete = !!(targetTimeData.startTime && targetTimeData.startTime.hasDate && targetTimeData.startTime.hasTime);
+        const endComplete = !targetTimeData.isRange || !!(targetTimeData.endTime && targetTimeData.endTime.hasDate && targetTimeData.endTime.hasTime);
+        targetTimeData.isComplete = startComplete && endComplete;
 
         // 使用formatTimeDataToStandard重新格式化时间字符串
         targetTimeData.formattedString = formatTimeDataToStandard(targetTimeData);
