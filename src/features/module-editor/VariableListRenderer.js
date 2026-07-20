@@ -6,6 +6,122 @@
 import { translate } from '../../../../../../i18n.js';
 import { errorLog } from '../../utils/logger.js';
 import { handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd } from './DragHandler.js';
+import { IframeDialog } from '../../shared/IframeDialog.js';
+
+/**
+ * 生成在给定名称集合内唯一的变量名
+ * @param {string} baseName 原始变量名
+ * @param {Set<string>} existingNames 已存在的名称集合
+ * @param {boolean} forceSuffix 为 true 时即使 baseName 未冲突也强制追加 _copy（用于同模块复制）
+ * @returns {string} 唯一名称
+ */
+function makeUniqueVarName(baseName, existingNames, forceSuffix = false) {
+    const base = baseName || 'var';
+    if (!forceSuffix && !existingNames.has(base)) {
+        return base;
+    }
+    let candidate = `${base}_copy`;
+    let n = 2;
+    while (existingNames.has(candidate)) {
+        candidate = `${base}_copy_${n}`;
+        n++;
+    }
+    return candidate;
+}
+
+/**
+ * 深拷贝一个变量对象
+ * @param {Object} variable
+ * @returns {Object}
+ */
+function deepCopyVariable(variable) {
+    return JSON.parse(JSON.stringify(variable));
+}
+
+/**
+ * 弹出「复制到其他模块」对话框
+ * @param {Object} variable 源变量
+ * @param {Object} sourceModule 源模块（用于从目标列表中排除自身）
+ * @param {Array} allModules 全部模块列表（currentModules）
+ * @param {Document} doc iframe document
+ * @param {Function} checkForChanges 变更回调
+ */
+function showCopyToDialog(variable, sourceModule, allModules, doc, checkForChanges) {
+    const dialog = new IframeDialog(doc);
+    const targets = (allModules || []).filter(m => m !== sourceModule);
+
+    if (targets.length === 0) {
+        dialog.open({
+            title: translate('ccore_title_copy_var_dialog'),
+            content: `<div style="padding: 8px 0; color: var(--text-muted);">${translate('ccore_msg_copy_var_no_targets')}</div>`,
+            buttons: [
+                { text: translate('ccore_btn_cancel'), className: 'btn-secondary' },
+            ],
+        });
+        return;
+    }
+
+    const listHtml = targets.map((mod, i) => `
+        <label style="display: flex; align-items: center; margin-bottom: 6px; cursor: pointer;">
+            <input type="checkbox" class="copy-var-target" data-module-index="${allModules.indexOf(mod)}" style="margin-right: 8px;">
+            <span>${mod.displayName || mod.name}</span>
+        </label>
+    `).join('');
+
+    const content = `
+        <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">${translate('ccore_label_copy_var_targets')}</div>
+        <div style="max-height: 260px; overflow-y: auto;">${listHtml}</div>
+        <div class="copy-var-result" style="display: none; margin-top: 8px; font-size: 12px; color: var(--text-secondary);"></div>
+    `;
+
+    dialog.open({
+        title: translate('ccore_title_copy_var_dialog'),
+        content,
+        buttons: [
+            { text: translate('ccore_btn_cancel'), className: 'btn-secondary' },
+            {
+                text: translate('ccore_btn_copy_var_confirm'),
+                className: 'btn-primary',
+                onClick: (d) => {
+                    const checked = Array.from(d.dialogElement.querySelectorAll('.copy-var-target:checked'));
+                    const resultDiv = d.dialogElement.querySelector('.copy-var-result');
+
+                    if (checked.length === 0) {
+                        if (resultDiv) {
+                            resultDiv.textContent = translate('ccore_msg_copy_var_select_none');
+                            resultDiv.style.display = 'block';
+                        }
+                        return;
+                    }
+
+                    const copiedNames = [];
+                    checked.forEach(cb => {
+                        const modIndex = parseInt(cb.dataset.moduleIndex, 10);
+                        const targetModule = allModules[modIndex];
+                        if (!targetModule) return;
+                        if (!Array.isArray(targetModule.variables)) targetModule.variables = [];
+
+                        const copy = deepCopyVariable(variable);
+                        const existing = new Set(targetModule.variables.map(v => v.name));
+                        copy.name = makeUniqueVarName(variable.name, existing, false);
+                        targetModule.variables.push(copy);
+                        copiedNames.push(targetModule.displayName || targetModule.name);
+                    });
+
+                    checkForChanges();
+                    if (refreshSidebar) refreshSidebar();
+
+                    if (resultDiv) {
+                        resultDiv.style.color = 'var(--text-secondary)';
+                        resultDiv.textContent = translate('ccore_msg_copy_var_success') + copiedNames.join('、');
+                        resultDiv.style.display = 'block';
+                    }
+                    setTimeout(() => d.close(), 900);
+                },
+            },
+        ],
+    });
+}
 
 /**
  * 渲染变量列表
@@ -13,13 +129,21 @@ import { handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, hand
  * @param {HTMLElement} container 容器元素
  * @param {Document} doc iframe 的 document 对象
  * @param {Function} checkForChanges 检查变更的回调函数
+ * @param {Array} allModules 全部模块列表（用于跨模块复制），可选
+ * @param {number} highlightIndex 复制后需要高亮的变量索引，可选
+ * @param {Function} refreshSidebar 重建侧边栏的回调（变量数量变化后同步侧边栏计数），可选
  */
-export function renderVariableList(module, container, doc, checkForChanges) {
+export function renderVariableList(module, container, doc, checkForChanges, allModules = [], highlightIndex = -1, refreshSidebar = null) {
     if (!container) {
         errorLog("renderVariableList: 容器不存在");
         return;
     }
     container.innerHTML = '';
+
+    const countEl = doc.getElementById('variable-count');
+    if (countEl) {
+        countEl.textContent = `${module.variables ? module.variables.length : 0}${translate('ccore_label_var_count')}`;
+    }
 
     if (!module.variables || module.variables.length === 0) {
         container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.9em; border: 1px dashed var(--border-color); border-radius: 4px;">${translate('ccore_msg_no_variables')}</div>`;
@@ -46,7 +170,11 @@ export function renderVariableList(module, container, doc, checkForChanges) {
                     <label>${translate('ccore_label_var_display_name')}</label>
                     <input type="text" class="var-display-name" value="${variable.displayName || ''}">
                 </div>
-                <button class="btn-delete-variable btn-variable-delete" title="${translate('ccore_title_delete_variable')}">✕</button>
+                <span class="variable-actions">
+                    <button class="btn-copy-variable btn-variable-action" title="${translate('ccore_title_copy_variable')}">⧉</button>
+                    <button class="btn-copy-variable-to btn-variable-action" title="${translate('ccore_title_copy_variable_to')}">⇉</button>
+                    <button class="btn-delete-variable btn-variable-delete" title="${translate('ccore_title_delete_variable')}">✕</button>
+                </span>
             </div>
 
             <div class="variable-details">
@@ -122,11 +250,28 @@ export function renderVariableList(module, container, doc, checkForChanges) {
             });
         });
 
+        // 同模块复制：深拷贝到列表末尾，自动重命名
+        item.querySelector('.btn-copy-variable').addEventListener('click', () => {
+            const copy = deepCopyVariable(variable);
+            const existing = new Set(module.variables.map(v => v.name));
+            copy.name = makeUniqueVarName(variable.name, existing, true);
+            module.variables.push(copy);
+            renderVariableList(module, container, doc, checkForChanges, allModules, module.variables.length - 1, refreshSidebar);
+            checkForChanges();
+            if (refreshSidebar) refreshSidebar();
+        });
+
+        // 跨模块复制：弹窗选择目标模块（可多选）
+        item.querySelector('.btn-copy-variable-to').addEventListener('click', () => {
+            showCopyToDialog(variable, module, allModules, doc, checkForChanges);
+        });
+
         item.querySelector('.btn-delete-variable').addEventListener('click', () => {
             if (confirm(translate('ccore_msg_confirm_delete_var'))) {
                 module.variables.splice(index, 1);
-                renderVariableList(module, container, doc, checkForChanges);
+                renderVariableList(module, container, doc, checkForChanges, allModules, -1, refreshSidebar);
                 checkForChanges();
+                if (refreshSidebar) refreshSidebar();
             }
         });
 
@@ -136,11 +281,18 @@ export function renderVariableList(module, container, doc, checkForChanges) {
         item.addEventListener('dragover', handleDragOver);
         item.addEventListener('dragleave', handleDragLeave);
         item.addEventListener('drop', (e) => handleDrop(e, item, 'variable', module.variables, () => {
-            renderVariableList(module, container, doc, checkForChanges);
+            renderVariableList(module, container, doc, checkForChanges, allModules);
             checkForChanges();
         }));
         item.addEventListener('dragend', (e) => handleDragEnd(e, doc));
 
         container.appendChild(item);
+
+        // 复制后高亮新项
+        if (index === highlightIndex) {
+            item.classList.add('variable-item-highlight');
+            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(() => item.classList.remove('variable-item-highlight'), 1500);
+        }
     });
 }

@@ -103,7 +103,7 @@ export function initModuleEditor(iframeDocument) {
     if (selectedModuleId) {
         const selectedIndex = currentModules.findIndex(m => m.name === selectedModuleId);
         if (selectedIndex !== -1) {
-            renderModuleDetail(currentModules[selectedIndex], selectedIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; });
+            renderModuleDetail(currentModules[selectedIndex], selectedIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList);
         }
     }
 
@@ -340,7 +340,7 @@ function renderModuleList() {
             <div class="module-item-content">
                 <div class="module-item-header">
                     <span class="module-item-name">${mod.displayName || mod.name}</span>
-                    <small style="opacity: 0.5; font-size: 0.8em;">#${mod.name}</small>
+                    <small style="opacity: 0.5; font-size: 0.8em;">#${mod.name}${mod.variables && mod.variables.length ? ` · ${mod.variables.length}` : ''}</small>
                 </div>
             </div>
             <div class="module-item-actions">
@@ -359,7 +359,7 @@ function renderModuleList() {
             item.classList.add('active');
 
             selectedModuleId = mod.name;
-            renderModuleDetail(mod, index, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; });
+            renderModuleDetail(mod, index, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList);
 
             // 移动端适配：点击后切换到详情视图
             if (window.innerWidth <= 768) {
@@ -658,7 +658,7 @@ async function onImportClick() {
             const updatedModuleIndex = currentModules.findIndex(m => m.name === selectedModuleId);
             if (updatedModuleIndex !== -1) {
                 // 模块仍然存在（可能已被覆盖），重新渲染其详情
-                renderModuleDetail(currentModules[updatedModuleIndex], updatedModuleIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; });
+                renderModuleDetail(currentModules[updatedModuleIndex], updatedModuleIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList);
             }
         }
 

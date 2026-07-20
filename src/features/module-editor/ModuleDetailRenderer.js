@@ -17,8 +17,10 @@ import { generateModuleStylesText, parseAndApplyModuleStylesText } from '../../m
  * @param {Function} renderModuleList 重新渲染模块列表的回调函数
  * @param {string} activeDetailTab 当前活动的详情页Tab ID
  * @param {Function} onTabChange Tab切换时的回调函数，参数为新的Tab ID
+ * @param {Array} allModules 全部模块列表（用于变量跨模块复制），可选
+ * @param {Function} refreshSidebar 重建侧边栏的回调（变量数量变化后同步侧边栏计数），可选
  */
-export function renderModuleDetail(module, index, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab = 'module-detail-settings', onTabChange = null) {
+export function renderModuleDetail(module, index, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab = 'module-detail-settings', onTabChange = null, allModules = [], refreshSidebar = null) {
     const container = doc.querySelector('.module-detail-panel .detail-content');
 
     container.innerHTML = `
@@ -165,6 +167,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
             <div id="module-detail-variables" class="detail-tab-panel ${activeDetailTab === 'module-detail-variables' ? 'active' : ''}">
                 <div class="form-section-title section-header variable-sticky-header">
                     <span>${translate('ccore_title_variables')}</span>
+                    <span class="variable-count" id="variable-count"></span>
                     <button id="btn-add-variable" class="btn-secondary">
                         + ${translate('ccore_btn_add_variable')}
                     </button>
@@ -178,7 +181,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
     `;
 
     // 渲染变量列表
-    renderVariableList(module, doc.getElementById('variable-list-container'), doc, checkForChanges);
+    renderVariableList(module, doc.getElementById('variable-list-container'), doc, checkForChanges, allModules, -1, refreshSidebar);
 
     // 绑定 Tab 切换事件
     const tabs = doc.querySelectorAll('.detail-tab-item');
@@ -332,7 +335,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
     const importStylesBtn = doc.getElementById('btn-import-module-styles');
     if (importStylesBtn) {
         importStylesBtn.addEventListener('click', () => {
-            showImportStylesDialog(doc, module, checkForChanges, updateModuleData);
+            showImportStylesDialog(doc, module, checkForChanges, updateModuleData, allModules, refreshSidebar);
         });
     }
 
@@ -351,8 +354,9 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
             isNoNormalize: false,
             customStyles: ''
         });
-        renderVariableList(module, doc.getElementById('variable-list-container'), doc, checkForChanges);
+        renderVariableList(module, doc.getElementById('variable-list-container'), doc, checkForChanges, allModules, -1, refreshSidebar);
         checkForChanges();
+        if (refreshSidebar) refreshSidebar();
     });
 
     // 绑定所有输入框的实时更新
@@ -365,7 +369,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
 /**
  * 显示导入样式对话框
  */
-function showImportStylesDialog(doc, module, checkForChanges, updateModuleData) {
+function showImportStylesDialog(doc, module, checkForChanges, updateModuleData, allModules = [], refreshSidebar = null) {
     // 移除已有对话框
     const existing = doc.getElementById('import-styles-dialog');
     if (existing) existing.remove();
@@ -408,7 +412,7 @@ function showImportStylesDialog(doc, module, checkForChanges, updateModuleData) 
 
         // 同步变量 customStyles（重新渲染变量列表）
         const varListContainer = doc.getElementById('variable-list-container');
-        if (varListContainer) renderVariableList(module, varListContainer, doc, checkForChanges);
+        if (varListContainer) renderVariableList(module, varListContainer, doc, checkForChanges, allModules, -1, refreshSidebar);
 
         updateModuleData();
         checkForChanges();

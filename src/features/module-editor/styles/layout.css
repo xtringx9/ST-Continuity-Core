@@ -613,6 +613,14 @@ section.module-detail-panel {
     align-items: center;
 }
 
+.variable-count {
+    margin-left: auto;
+    margin-right: 8px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
 .btn-delete-small {
     background: none;
     border: none;
@@ -958,13 +966,45 @@ button:disabled,
     font-size: 13px;
 }
 
+.variable-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.btn-variable-action {
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: 4px;
+    transition: color 0.15s, background-color 0.15s;
+}
+
+.btn-variable-action:hover {
+    color: var(--interactable-color, var(--text-primary));
+    background-color: var(--bg-hover, rgba(127, 127, 127, 0.15));
+}
+
 .btn-variable-delete {
     color: var(--danger-color);
     background: none;
     border: none;
     cursor: pointer;
     padding: 4px;
-    margin-left: auto;
+}
+
+.variable-item-highlight {
+    animation: variable-copy-flash 1.5s ease-out;
+}
+
+@keyframes variable-copy-flash {
+    0% { background-color: var(--interactable-color, rgba(100, 150, 255, 0.35)); }
+    100% { background-color: transparent; }
 }
 
 .variable-toggles {
