@@ -329,6 +329,7 @@ function renderModuleList() {
         item.className = 'module-list-item';
         item.setAttribute('draggable', 'true'); // 启用拖拽
         item.dataset.index = index; // 存储索引
+        item.dataset.moduleName = mod.name; // 存储模块名，便于复制后精准定位
         if (!mod.enabled) item.classList.add('disabled');
         // 如果是当前选中的模块，添加 active 类
         if (mod.name === selectedModuleId) { // 使用 name 作为 ID
@@ -344,6 +345,7 @@ function renderModuleList() {
                 </div>
             </div>
             <div class="module-item-actions">
+                <span class="module-copy-module-btn" title="${translate('ccore_title_copy_module')}">⧈</span>
                 <span class="module-copy-format-btn" title="${translate('ccore_title_copy_format')}">⧉</span>
                 <label class="toggle-switch" title="${translate('ccore_title_toggle_enabled')}">
                     <input type="checkbox" class="module-enable-toggle" ${mod.enabled ? 'checked' : ''}>
@@ -390,6 +392,15 @@ function renderModuleList() {
             });
         }
 
+        // 绑定复制整个模块按钮事件
+        const copyModuleBtn = item.querySelector('.module-copy-module-btn');
+        if (copyModuleBtn) {
+            copyModuleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                duplicateModule(mod);
+            });
+        }
+
         // 阻止开关容器的点击冒泡，防止触发列表项选中 (特别是点击 label/span 时)
         const actions = item.querySelector('.module-item-actions');
         if (actions) {
@@ -411,6 +422,44 @@ function renderModuleList() {
 
         listContainer.appendChild(item);
     });
+}
+
+/**
+ * 复制整个模块（深拷贝）
+ * 生成唯一 name（name_copy / name_copy_2 ... 自动去重），displayName 保持原名，
+ * 追加到列表末尾，并自动跳转选中新模块（与"新建模块"行为一致）
+ * @param {object} sourceMod 源模块对象（currentModules 中的引用）
+ */
+function duplicateModule(sourceMod) {
+    const copy = JSON.parse(JSON.stringify(sourceMod)); // 深拷贝（含全部属性与变量）
+
+    // 生成唯一模块名，避免与现有模块冲突
+    const existingNames = currentModules.map(m => m.name);
+    let newName = `${sourceMod.name}_copy`;
+    let suffix = 2;
+    while (existingNames.includes(newName)) {
+        newName = `${sourceMod.name}_copy_${suffix}`;
+        suffix++;
+    }
+    copy.name = newName;
+    // displayName 保持原名，不改写
+
+    copy.order = currentModules.length;
+    currentModules.push(copy);
+
+    renderModuleList();
+
+    // 自动选中并打开新模块详情，方便立即改名
+    selectedModuleId = newName;
+    const newItem = doc.querySelector(`.module-list-item[data-module-name="${CSS.escape(newName)}"]`);
+    if (newItem) newItem.click();
+
+    // 移动端适配：切换到详情视图
+    if (window.innerWidth <= 768) {
+        doc.body.classList.add('mobile-view-detail');
+    }
+
+    checkForChanges(); // 标记变更
 }
 
 /**

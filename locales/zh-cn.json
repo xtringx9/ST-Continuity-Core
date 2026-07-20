@@ -237,6 +237,7 @@
     "ccore_msg_no_variables": "暂无变量",
     "ccore_title_toggle_enabled": "启用/禁用",
     "ccore_title_copy_format": "复制模块格式",
+    "ccore_title_copy_module": "复制模块",
     "ccore_title_copy_styles": "复制模块样式配置（含变量customStyles）",
     "ccore_title_import_styles": "导入模块样式配置",
     "ccore_title_include_container": "含容器样式",

@@ -205,6 +205,20 @@ aside.module-list-panel {
     color: var(--accent-color);
 }
 
+/* 复制整个模块按钮（侧边栏，与复制格式按钮并列） */
+.module-copy-module-btn {
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.module-copy-module-btn:hover {
+    opacity: 1;
+    color: var(--accent-color);
+}
+
 /* 复制样式按钮（详情页样式设置标题旁） */
 .copy-styles-btn {
     font-size: 11px;
