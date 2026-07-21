@@ -22,7 +22,7 @@ export function generateFormalPrompt() {
         const moduleTag = globalSettings.moduleTag || "module";
         const promptTag = `${moduleTag}_generate_rule`;
 
-        const modules = configManager.getModules() || [];
+        const modules = configManager.getEffectiveModules() || [];
         debugLog('开始生成正式提示词，模块数量:', modules.length);
 
         // 过滤掉未启用的模块
@@ -229,7 +229,7 @@ export function generateUsageGuide() {
         const promptTag = `${moduleTag}_data_usage_guide`;
 
         // 获取模块数据
-        const modulesData = configManager.getModules() || [];
+        const modulesData = configManager.getEffectiveModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
@@ -282,7 +282,7 @@ export function generateUsageGuide() {
 //         contentTagString = contentTagString + ",...";
 
 //         // 获取模块数据
-//         const modulesData = configManager.getModules() || [];
+//         const modulesData = configManager.getEffectiveModules() || [];
 
 //         if (!modulesData || modulesData.length === 0) {
 //             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
@@ -406,7 +406,7 @@ export function generateModuleOrderPrompt() {
         if (Array.isArray(contentTag) && contentTag.length > 1) contentTagString = contentTagString + ",...";
 
         // 获取模块数据
-        const modulesData = configManager.getModules() || [];
+        const modulesData = configManager.getEffectiveModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
@@ -745,12 +745,12 @@ export function generateModuleDataPrompt() {
 }
 function getContextBottomFilteredModuleConfigs() {
     // 获取所有模块配置
-    const allModuleConfigs = configManager.getModules();
+    const allModuleConfigs = configManager.getEffectiveModules();
     // 过滤出符合条件的模块：after_body 且 outputMode 为 full 且 retainLayers!==0 的模块，
     // 或 includeInModuleData=true 的全量模块（任意 outputPosition），或所有 outputMode 为 incremental 的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = ((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full' && config.retainLayers !== 0) ||
-            config.outputMode === 'incremental';
+        const result = (((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full' && config.retainLayers !== 0) ||
+            config.outputMode === 'incremental') && config.enabled !== false;
         return result;
     });
     // debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
@@ -841,12 +841,12 @@ export function generateSingleChatModuleData(index) {
 }
 function getChatFilteredModuleConfigs() {
     // 获取所有模块配置
-    const allModuleConfigs = configManager.getModules();
+    const allModuleConfigs = configManager.getEffectiveModules();
     // 过滤出符合条件的模块：after_body 且 outputMode 为 full 的模块，
     // 或 includeInModuleData=true 的全量模块（任意 outputPosition），或所有 outputMode 为 incremental 的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
-        const result = ((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full') ||
-            config.outputMode === 'incremental';
+        const result = (((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full') ||
+            config.outputMode === 'incremental') && config.enabled !== false;
         return result;
     });
     // debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
@@ -912,7 +912,7 @@ export function generatePromptWithInsertion(insertionSettings = DEFAULT_INSERTIO
  */
 export function generateStructurePreview() {
     try {
-        const modules = configManager.getModules() || [];
+        const modules = configManager.getEffectiveModules() || [];
         debugLog('生成模块结构预览，模块数量:', modules.length);
 
         // 过滤掉未启用的模块

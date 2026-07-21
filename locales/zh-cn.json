@@ -140,6 +140,7 @@
     "ccore_title_confirm_save": "确认保存更改",
     "ccore_btn_confirm_save": "确认保存",
     "ccore_btn_cancel": "取消",
+    "ccore_btn_confirm": "确认",
     "ccore_msg_no_changes": "未检测到任何更改。",
     "ccore_settings_enabled": "启用插件",
     "ccore_settings_button_type": "按钮类型:",

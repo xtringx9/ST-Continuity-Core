@@ -1,5 +1,5 @@
 // 统一配置管理类 - 实现配置的内存缓存、自动加载和保存
-import { extension_settings } from "../../../../../extensions.js";
+import { extension_settings, getContext } from "../../../../../extensions.js";
 import { saveSettings } from "../../../../../../script.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
 import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../config/moduleConfigTemplate.js';
@@ -968,6 +968,44 @@ class ConfigManager {
             !(b.scope === scope && b.charName === charName && (b.chatFile ?? null) === file)
         );
         this.scheduleCharacterBindingAutoSave();
+    }
+
+    /**
+     * 运行时：把角色/聊天绑定覆盖应用到模块列表（Model A：默认 < 角色 < 聊天，逐键覆盖）
+     * 返回深拷贝，不修改原模块配置（编辑器仍需未覆盖的定义）。
+     * 依据当前聊天的角色与聊天文件解析绑定；无可用上下文时原样返回。
+     * @param {Array} [modules] 不传则用 getModules()
+     * @returns {Array}
+     */
+    getEffectiveModules(modules = null) {
+        const mods = (modules || this.getModules()).map(m => JSON.parse(JSON.stringify(m)));
+        let ctx = null;
+        try { ctx = (typeof getContext === 'function') ? getContext() : null; } catch { ctx = null; }
+        if (!ctx) return mods;
+        const charName = ctx.characters?.[ctx.characterId]?.name || '';
+        const chatFile = ctx.chatId ?? '';
+        if (!charName) return mods;
+        const charB = this.findBinding('character', charName, null);
+        const chatB = chatFile ? this.findBinding('chat', charName, chatFile) : null;
+        for (const mod of mods) {
+            const defEnabled = mod.enabled !== false;
+            const charEntry = charB?.modules?.find(x => x.name === mod.name);
+            const chatEntry = chatB?.modules?.find(x => x.name === mod.name);
+            const effMod = (chatEntry && typeof chatEntry.moduleOverride === 'boolean') ? chatEntry.moduleOverride
+                : ((charEntry && typeof charEntry.moduleOverride === 'boolean') ? charEntry.moduleOverride : defEnabled);
+            mod.enabled = effMod;
+            if (mod.variables && Array.isArray(mod.variables)) {
+                for (const v of mod.variables) {
+                    const defVar = v.enabled !== false;
+                    const charVO = charEntry?.variableOverrides?.[v.name];
+                    const chatVO = chatEntry?.variableOverrides?.[v.name];
+                    const effVar = typeof chatVO === 'boolean' ? chatVO
+                        : (typeof charVO === 'boolean' ? charVO : defVar);
+                    v.enabled = effVar;
+                }
+            }
+        }
+        return mods;
     }
 
     /**

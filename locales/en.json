@@ -140,6 +140,7 @@
     "ccore_title_confirm_save": "Confirm Save",
     "ccore_btn_confirm_save": "Confirm Save",
     "ccore_btn_cancel": "Cancel",
+    "ccore_btn_confirm": "Confirm",
     "ccore_msg_no_changes": "No changes detected.",
     "ccore_settings_enabled": "Enable Plugin",
     "ccore_settings_button_type": "Button Type:",
