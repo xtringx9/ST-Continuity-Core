@@ -137,12 +137,17 @@ function buildCharNode(name, current, isDangling) {
             <span class="binding-tree-name">${escapeHtml(name)}</span>
             ${isDangling ? `<span class="binding-tree-missing" title="${translate('ccore_binding_missing_char')}">⚠</span>` : ''}
             ${name === current.charName ? `<span class="binding-tree-current" title="${translate('ccore_binding_current_chat')}">●</span>` : ''}
-            ${isDangling ? `<button class="btn-secondary binding-char-del" data-del-char="${escapeAttr(name)}" title="${translate('ccore_binding_missing_char')}">${translate('ccore_binding_delete')}</button>` : ''}
+            ${isDangling
+                ? `<button class="btn-secondary binding-char-repoint" data-repoint-char="${escapeAttr(name)}" title="${translate('ccore_binding_repoint_char')}">${translate('ccore_binding_repoint_char')}</button>`
+                    + `<button class="btn-secondary binding-char-del" data-del-char="${escapeAttr(name)}" title="${translate('ccore_binding_missing_char')}">${translate('ccore_binding_delete')}</button>`
+                : ''}
         </div>
         `;
     node.querySelector('.binding-tree-row').addEventListener('click', () => selectNode('character', name, null));
     const del = node.querySelector('.binding-char-del');
     if (del) del.addEventListener('click', e => { e.stopPropagation(); deleteCharBinding(name); });
+    const repoint = node.querySelector('.binding-char-repoint');
+    if (repoint) repoint.addEventListener('click', e => { e.stopPropagation(); repointCharBinding(name); });
     return node;
 }
 
@@ -152,6 +157,35 @@ function deleteCharBinding(name) {
     all.forEach(b => configManager.removeBinding(b.scope, b.charName, b.chatFile ?? null));
     if (selected && selected.charName === name) selected = null;
     renderTree();
+}
+
+// 把某个（通常已悬空的）角色名下的全部绑定重指到新角色名
+function repointCharBinding(oldName) {
+    const realChars = getRealCharacters().filter(c => c.name !== oldName);
+    const options = realChars.length
+        ? realChars.map(c => `<label class="binding-repoint-item" style="display:block;padding:4px 2px;cursor:pointer;"><input type="radio" name="repoint-target" value="${escapeAttr(c.name)}"> ${escapeHtml(c.name)}</label>`).join('')
+        : `<div style="color:var(--text-muted);padding:6px;">${translate('ccore_binding_no_char')}</div>`;
+    const dialog = new IframeDialog(doc);
+    const d = dialog;
+    dialog.open({
+        title: translate('ccore_binding_repoint_char'),
+        content: `<div style="margin-bottom:8px;">${translate('ccore_binding_repoint_confirm').replace('{name}', escapeHtml(oldName))}</div>
+            <div style="max-height:300px;overflow:auto;border:1px solid var(--border-light);border-radius:4px;padding:6px;">${options}</div>`,
+        buttons: [
+            {
+                text: translate('ccore_binding_repoint_confirm_btn'),
+                className: 'btn-primary',
+                onClick: () => {
+                    const sel = doc.querySelector('input[name="repoint-target"]:checked');
+                    if (!sel) return; // 未选则保持弹窗
+                    configManager.renameCharacterInBindings(oldName, sel.value);
+                    d.close();
+                    renderTree();
+                }
+            },
+            { text: translate('ccore_btn_cancel'), className: 'btn-secondary', onClick: (dd) => dd.close() }
+        ]
+    });
 }
 
 function selectNode(scope, charName, chatFile) {

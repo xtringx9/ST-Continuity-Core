@@ -811,6 +811,53 @@ function showSavedFeedback() {
     }
 }
 
+/**
+ * 比对保存前后模块定义，推导「改名」迁移计划。
+ * 仅处理真正改名（旧名消失 + 新名出现）的情况，避免把纯重排/增删误判为改名。
+ * @param {Array} original 保存前模块副本
+ * @param {Array} current 保存后模块
+ * @returns {{moduleRenames: Array, variableRenames: Array}}
+ */
+function computeRenameMigrations(original, current) {
+    const origNames = new Set(original.map(m => m.name));
+    const curNames = new Set(current.map(m => m.name));
+    const moduleRenames = [];
+    const n = Math.max(original.length, current.length);
+    for (let i = 0; i < n; i++) {
+        const oMod = original[i];
+        const cMod = current[i];
+        if (!oMod || !cMod || oMod.name === cMod.name) continue;
+        // 真正改名：旧名已不在当前列表，新名不在原列表
+        if (!curNames.has(oMod.name) && !origNames.has(cMod.name)) {
+            moduleRenames.push({ oldName: oMod.name, newName: cMod.name });
+        }
+    }
+
+    // 变量改名：按模块名对齐（含模块改名后的新名映射），逐变量按 index + 名集合判定
+    const modNewName = new Map(moduleRenames.map(r => [r.oldName, r.newName]));
+    const curByName = new Map(current.map(m => [m.name, m]));
+    const variableRenames = [];
+    for (const oMod of original) {
+        const newModName = modNewName.get(oMod.name) || oMod.name;
+        const cMod = curByName.get(newModName);
+        if (!cMod) continue; // 模块已删或改名未命中（模块级已整体迁移）
+        const oVars = oMod.variables || [];
+        const cVars = cMod.variables || [];
+        const oVarNames = new Set(oVars.map(v => v.name));
+        const cVarNames = new Set(cVars.map(v => v.name));
+        const vn = Math.max(oVars.length, cVars.length);
+        for (let i = 0; i < vn; i++) {
+            const oV = oVars[i];
+            const cV = cVars[i];
+            if (!oV || !cV || oV.name === cV.name) continue;
+            if (!cVarNames.has(oV.name) && !oVarNames.has(cV.name)) {
+                variableRenames.push({ moduleName: newModName, oldVar: oV.name, newVar: cV.name });
+            }
+        }
+    }
+    return { moduleRenames, variableRenames };
+}
+
 function saveAll() {
     configManager.setModules(currentModules);
     configManager.setGlobalSettings(currentGlobalSettings);
@@ -821,6 +868,12 @@ function saveAll() {
     }
     configManager.saveModuleConfigNow();
     infoLog("[ModuleEditor] 所有配置已保存");
+
+    // 模块/变量改名：迁移绑定覆盖（按名保留旧 override）
+    const { moduleRenames, variableRenames } = computeRenameMigrations(originalModules, currentModules);
+    if (moduleRenames.length || variableRenames.length) {
+        configManager.applyBindingRenames(moduleRenames, variableRenames);
+    }
 
     // 保存后，将当前状态设为新的"原始"状态
     originalModules = JSON.parse(JSON.stringify(currentModules));

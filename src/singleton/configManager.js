@@ -971,6 +971,60 @@ class ConfigManager {
     }
 
     /**
+     * 模块/变量改名后迁移绑定覆盖（按名匹配，保留旧 override）
+     * @param {Array} moduleRenames [{ oldName, newName }]
+     * @param {Array} variableRenames [{ moduleName, oldVar, newVar }] moduleName 为改名后的新模块名
+     */
+    applyBindingRenames(moduleRenames = [], variableRenames = []) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        const hasMod = Array.isArray(moduleRenames) && moduleRenames.length > 0;
+        const hasVar = Array.isArray(variableRenames) && variableRenames.length > 0;
+        if (!hasMod && !hasVar) return;
+        const config = this.getCharacterBindingConfig();
+        if (!Array.isArray(config.bindings)) return;
+        const modMap = new Map((moduleRenames || []).map(r => [r.oldName, r.newName]));
+        let changed = false;
+        for (const b of config.bindings) {
+            if (!Array.isArray(b.modules)) continue;
+            // 1) 模块改名：更新模块条目名
+            for (const entry of b.modules) {
+                if (modMap.has(entry.name)) {
+                    entry.name = modMap.get(entry.name);
+                    changed = true;
+                }
+            }
+            // 2) 变量改名：在对应（改名后）模块条目内迁移 variableOverrides 键
+            for (const vr of (variableRenames || [])) {
+                const entry = b.modules.find(m => m.name === vr.moduleName);
+                if (entry && entry.variableOverrides
+                    && Object.prototype.hasOwnProperty.call(entry.variableOverrides, vr.oldVar)) {
+                    entry.variableOverrides[vr.newVar] = entry.variableOverrides[vr.oldVar];
+                    delete entry.variableOverrides[vr.oldVar];
+                    changed = true;
+                }
+            }
+        }
+        if (changed) this.saveCharacterBindingConfigNow();
+    }
+
+    /**
+     * 把某个（通常已悬空的）角色名下的全部绑定重指到新角色名
+     * @param {string} oldName 原角色名
+     * @param {string} newName 目标角色名
+     */
+    renameCharacterInBindings(oldName, newName) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        if (!oldName || !newName || oldName === newName) return;
+        const config = this.getCharacterBindingConfig();
+        if (!Array.isArray(config.bindings)) return;
+        let changed = false;
+        for (const b of config.bindings) {
+            if (b.charName === oldName) { b.charName = newName; changed = true; }
+        }
+        if (changed) this.saveCharacterBindingConfigNow();
+    }
+
+    /**
      * 运行时：把角色/聊天绑定覆盖应用到模块列表（Model A：默认 < 角色 < 聊天，逐键覆盖）
      * 返回深拷贝，不修改原模块配置（编辑器仍需未覆盖的定义）。
      * 依据当前聊天的角色与聊天文件解析绑定；无可用上下文时原样返回。

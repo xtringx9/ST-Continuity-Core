@@ -244,6 +244,12 @@ aside.module-list-panel {
     color: var(--red, #ff4444);
 }
 
+.binding-char-repoint {
+    margin-left: 4px;
+    padding: 1px 8px;
+    font-size: 11px;
+}
+
 /* 右栏：聊天下拉选择器（聊天记录多时比左栏嵌套更省空间） */
 .binding-chat-select-row {
     display: flex;
