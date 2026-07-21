@@ -6,7 +6,7 @@
 // - 绑定分两级：scope="character"（应用于该角色所有聊天）与 scope="chat"（特定聊天，优先于角色级）。
 // - 三层有效值：默认 < 角色级 < 聊天级（Model A 继承/逐键覆盖）。
 // - 引用模块/变量用 name（无稳定 id，沿用 phone_config 惯例）。
-// - 模块以"会员制"显式存储（即使全默认也保留）；override 用 Delta 差值（只存与默认不同的）。
+// - 模块以"会员制"显式存储；override 始终写入当前 effective 值（添加即钉死，不再用 Delta 差值）。
 
 export const CHARACTER_BINDING_CONSTANTS = {
     version: '1.0.0',

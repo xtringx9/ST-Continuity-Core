@@ -256,27 +256,7 @@ function resolveVarState(modName, varName) {
     return { defVar, defVarEnabled, effective, varSetHere, inherited };
 }
 
-// 下层有效值（用于 Delta：仅当设的值 ≠ 下层时才写入 override）
-function computeLowerModule(modName) {
-    const def = getModuleDef(modName);
-    const defEnabled = def ? (def.enabled !== false) : true;
-    if (selected.scope === 'character') return defEnabled; // 角色层下层=全局默认
-    const charB = configManager.findBinding('character', selected.charName, null);
-    const charEntry = charB?.modules?.find(m => m.name === modName);
-    return (charEntry && typeof charEntry.moduleOverride === 'boolean') ? charEntry.moduleOverride : defEnabled;
-}
-
-function computeLowerVar(modName, varName) {
-    const def = getModuleDef(modName);
-    const defVar = def?.variables?.find(v => v.name === varName);
-    const defVarEnabled = defVar ? (defVar.enabled !== false) : true;
-    if (selected.scope === 'character') return defVarEnabled;
-    const charB = configManager.findBinding('character', selected.charName, null);
-    const charEntry = charB?.modules?.find(m => m.name === modName);
-    const charVO = charEntry?.variableOverrides?.[varName];
-    return typeof charVO === 'boolean' ? charVO : defVarEnabled;
-}
-
+// 判断某模块在本节点是否显式钉住（有 moduleOverride 或变量覆盖）
 function isModuleOverridden(st) {
     const entryHere = selected.scope === 'chat' ? st.chatEntry : st.charEntry;
     if (!entryHere) return false;
@@ -350,11 +330,18 @@ async function renderDetail() {
             </select>
         </div>
         <div class="binding-detail-body" id="binding-detail-body">
-            <button class="btn-secondary binding-add-btn" id="binding-add-btn">＋ ${translate('ccore_binding_add_module')}</button>
-            <div class="binding-mod-list" id="binding-mod-list">
-                ${modNames.length
-                    ? modNames.map(renderModuleBlock).join('')
-                    : `<p style="color:var(--text-muted);">${translate('ccore_binding_empty')}</p>`}
+            <div class="form-section-title">${translate('ccore_binding_section_modules')}</div>
+            <div class="binding-section-body">
+                <button class="btn-secondary binding-add-btn" id="binding-add-btn">＋ ${translate('ccore_binding_add_module')}</button>
+                <div class="binding-mod-list" id="binding-mod-list">
+                    ${modNames.length
+                        ? modNames.map(renderModuleBlock).join('')
+                        : `<p style="color:var(--text-muted);">${translate('ccore_binding_empty')}</p>`}
+                </div>
+            </div>
+            <div class="form-section-title">${translate('ccore_binding_section_chatops')}</div>
+            <div class="binding-section-body">
+                <p style="color:var(--text-muted);">${translate('ccore_binding_section_chatops_hint')}</p>
             </div>
         </div>
     `;
@@ -388,6 +375,7 @@ function renderModuleBlock(modName) {
     const overridden = isModuleOverridden(st);
     const disabled = !st.effectiveEnabled;
     const rowCls = `binding-mod-row${disabled ? ' binding-mod-disabled' : ''}`;
+    const canDelete = st.moduleSetHere; // 仅本节点显式钉住的模块可移除（回到继承）
 
     return `
         <div class="${rowCls}" data-mod="${escapeAttr(modName)}">
@@ -395,11 +383,12 @@ function renderModuleBlock(modName) {
                 <span class="binding-mod-toggle">${isExpanded ? '▾' : '▸'}</span>
                 <span class="binding-mod-name">${st.def.displayName || modName}</span>
                 ${overridden ? `<span class="binding-override-dot" title="${translate('ccore_binding_overridden')}"></span>` : ''}
-                <label class="toggle-switch ${st.effectiveEnabled !== st.defEnabled ? 'binding-toggle-override' : 'binding-toggle-inherited'}">
+                <label class="toggle-switch binding-toggle-override">
                     <input type="checkbox" class="binding-mod-switch" ${st.effectiveEnabled ? 'checked' : ''}>
                     <span class="slider round"></span>
                 </label>
                 ${st.inheritedModule ? `<span class="binding-inherited-badge">${translate('ccore_binding_inherited')}</span>` : ''}
+                ${canDelete ? `<button class="binding-del-btn binding-del-icon" data-del-mod="${escapeAttr(modName)}" title="${translate('ccore_binding_delete')}">✕</button>` : ''}
             </div>
             ${isExpanded ? `<div class="binding-var-list">${renderVarBlocks(modName)}</div>` : ''}
         </div>
@@ -421,7 +410,7 @@ function renderVarBlocks(modName) {
         const vs = resolveVarState(modName, v.name);
         return `<div class="binding-var-row" data-var="${escapeAttr(v.name)}">
             <span class="binding-var-name">${v.displayName || v.name}</span>
-            <label class="toggle-switch ${vs.effective !== vs.defVarEnabled ? 'binding-toggle-override' : 'binding-toggle-inherited'}">
+            <label class="toggle-switch binding-toggle-override">
                 <input type="checkbox" class="binding-var-switch" ${vs.effective ? 'checked' : ''}>
                 <span class="slider round"></span>
             </label>
@@ -441,6 +430,7 @@ function bindModuleBlocks() {
     detailEl.querySelectorAll('.binding-mod-head').forEach(head => {
         head.addEventListener('click', e => {
             if (e.target.closest('.toggle-switch')) return; // 开关点击不触发展开
+            if (e.target.closest('.binding-del-btn')) return; // 删除按钮不触发展开
             const row = head.closest('.binding-mod-row');
             const mod = row.dataset.mod;
             if (expandedMods.has(mod)) expandedMods.delete(mod);
@@ -489,22 +479,18 @@ function deleteVarOverride(modName, varName) {
 }
 
 function toggleModule(modName, newVal) {
-    const lower = computeLowerModule(modName);
     const b = getNodeBinding();
     const entry = ensureModuleEntry(b, modName);
-    if (newVal === lower) delete entry.moduleOverride; // 回到下层 → 删 override（Delta）
-    else entry.moduleOverride = newVal;
+    entry.moduleOverride = !!newVal; // 始终钉死当前值（去 Delta：不再因等于默认而删除）
     configManager.upsertBinding(b); // 自动保存（debounce）
     renderDetail();
 }
 
 function toggleVar(modName, varName, newVal) {
-    const lower = computeLowerVar(modName, varName);
     const b = getNodeBinding();
     const entry = ensureModuleEntry(b, modName);
     if (!entry.variableOverrides) entry.variableOverrides = {};
-    if (newVal === lower) delete entry.variableOverrides[varName];
-    else entry.variableOverrides[varName] = newVal;
+    entry.variableOverrides[varName] = !!newVal; // 始终钉死当前值
     configManager.upsertBinding(b);
     renderDetail();
 }
@@ -566,7 +552,19 @@ function openAddModuleDialog() {
                     const checked = [...doc.querySelectorAll('#binding-add-list input:checked')].map(i => i.value);
                     if (!checked.length) { d.close(); return; }
                     const nb = getNodeBinding();
-                    checked.forEach(name => ensureModuleEntry(nb, name));
+                    checked.forEach(name => {
+                        const entry = ensureModuleEntry(nb, name);
+                        const st = resolveModuleState(name);
+                        // 添加即钉死"当前 effective 值"（模块 + 全部变量），不再留半灰/未记录
+                        entry.moduleOverride = !!st.effectiveEnabled;
+                        if (st.def?.variables && st.def.variables.length) {
+                            if (!entry.variableOverrides) entry.variableOverrides = {};
+                            st.def.variables.forEach(v => {
+                                const vs = resolveVarState(name, v.name);
+                                entry.variableOverrides[v.name] = !!vs.effective;
+                            });
+                        }
+                    });
                     configManager.upsertBinding(nb);
                     expandedMods.clear();
                     d.close();

@@ -1032,13 +1032,15 @@ class ConfigManager {
      * @returns {Array}
      */
     getEffectiveModules(modules = null) {
-        const mods = (modules || this.getModules()).map(m => JSON.parse(JSON.stringify(m)));
+        // 方案A：以全量模块为基（含默认关闭的），套完覆盖后再按 effective 过滤，
+        // 从而支持"绑定重新启用默认关闭的模块/变量"。
+        const mods = (modules || this.getModules(true)).map(m => JSON.parse(JSON.stringify(m)));
         let ctx = null;
         try { ctx = (typeof getContext === 'function') ? getContext() : null; } catch { ctx = null; }
-        if (!ctx) return mods;
+        if (!ctx) return this.getModules();        // 无上下文：回退默认启用集
         const charName = ctx.characters?.[ctx.characterId]?.name || '';
         const chatFile = ctx.chatId ?? '';
-        if (!charName) return mods;
+        if (!charName) return this.getModules();     // 无角色：回退默认启用集
         const charB = this.findBinding('character', charName, null);
         const chatB = chatFile ? this.findBinding('chat', charName, chatFile) : null;
         const result = [];

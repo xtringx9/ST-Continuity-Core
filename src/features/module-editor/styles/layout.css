@@ -250,6 +250,28 @@ aside.module-list-panel {
     font-size: 11px;
 }
 
+/* 右栏：分区标题复用模块编辑页的 .form-section-title（不折叠） */
+.binding-section-body {
+    padding: 6px 12px 12px;
+}
+
+/* 正常模块行的"清除此模块覆盖"按钮（常显，无覆盖也可点） */
+.binding-del-icon {
+    margin-left: auto;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 2px 6px;
+    font-size: 12px;
+    line-height: 1;
+    border-radius: 4px;
+}
+
+.binding-del-icon:hover {
+    color: var(--red, #ff4444);
+    background: var(--bg-hover, rgba(255, 68, 68, 0.08));
+}
+
 /* 右栏：聊天下拉选择器（聊天记录多时比左栏嵌套更省空间） */
 .binding-chat-select-row {
     display: flex;
