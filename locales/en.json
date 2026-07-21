@@ -121,6 +121,7 @@
     "ccore_btn_debug_server_read": "Test Server Read",
     "ccore_btn_debug_server_delete": "Test Server Delete",
     "ccore_btn_debug_state": "Print Editor State",
+    "ccore_btn_debug_clean_config": "Clean Deprecated Keys",
     "ccore_placeholder_latest": "Latest",
     "ccore_title_prompt_preview": "Prompt Preview",
     "ccore_label_preview_mode": "Preview Mode",

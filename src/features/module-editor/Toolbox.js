@@ -402,6 +402,16 @@ function bindDebugButtons(doc) {
         });
     }
 
+    // 3.1 清理废弃配置键（顶层仅保留 5 个已知 key）
+    bindServerDebugButton('btn-debug-clean-config', 'btn_debug_clean_config', async () => {
+        const removed = configManager.cleanDeprecatedConfigKeys();
+        if (removed.length > 0) {
+            infoLog('[Debug] 已清理废弃配置键:', removed);
+        } else {
+            infoLog('[Debug] 无废弃配置键需要清理。');
+        }
+    });
+
     // 4. 打印当前用户 Handle
     const btnDebugUserHandle = doc.getElementById('btn-debug-user-handle');
     if (btnDebugUserHandle) {

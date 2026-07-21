@@ -598,6 +598,51 @@ class ConfigManager {
         };
     }
 
+    /**
+     * 清理扩展设置顶层废弃的配置键。
+     * 有效的顶层键仅 5 个（extension_config / module_config / generator_config / phone_config / character_bindings），
+     * 其余顶层键（历史遗留、重构前的旧键名等）一律删除并保存。
+     * 注意：仅删除顶层未知键；5 个已知配置内部的字段由其各自的 normalize* 函数在保存时负责迁移/清理。
+     * @returns {string[]} 被删除的键名列表
+     */
+    cleanDeprecatedConfigKeys() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 开发模式，cleanDeprecatedConfigKeys 阻止自动保存。');
+            return [];
+        }
+        try {
+            const node = extension_settings[extensionName];
+            if (!node || typeof node !== 'object') return [];
+
+            const validTopLevelKeys = new Set([
+                EXTENSION_CONFIG_KEY,
+                MODULE_CONFIG_KEY,
+                GENERATOR_CONFIG_KEY,
+                PHONE_CONFIG_KEY,
+                CHARACTER_BINDING_KEY,
+            ]);
+
+            const removed = [];
+            for (const key of Object.keys(node)) {
+                if (!validTopLevelKeys.has(key)) {
+                    delete node[key];
+                    removed.push(key);
+                }
+            }
+
+            if (removed.length > 0) {
+                saveSettings();
+                infoLog('[Cleanup] 已清理废弃配置键:', removed);
+            } else {
+                infoLog('[Cleanup] 无废弃配置键需要清理。');
+            }
+            return removed;
+        } catch (error) {
+            errorLog('清理废弃配置键失败:', error);
+            return [];
+        }
+    }
+
     outputCache() {
         // 1) 打印各内存缓存（便于对比是否一致）
         infoLog("[Module Cache]内存缓存数据:", {
