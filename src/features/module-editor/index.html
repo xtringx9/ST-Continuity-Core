@@ -38,7 +38,7 @@
             </div>
             <div class="nav-item" data-target="view-profiles">
                 <span class="nav-icon">👥</span>
-                <span class="nav-text" data-i18n="ccore_nav_profiles">角色覆盖</span>
+                <span class="nav-text" data-i18n="ccore_nav_profiles">角色绑定</span>
             </div>
             <div class="nav-item" data-target="view-settings">
                 <span class="nav-icon">⚙️</span>
@@ -80,9 +80,22 @@
                 </section>
             </div>
 
-            <!-- 视图 B: 角色覆盖 (占位) -->
+            <!-- 视图 B: 角色绑定（左栏角色树 + 右栏编辑器） -->
             <div id="view-profiles" class="view-section">
-                <div style="padding: 20px;" data-i18n="ccore_msg_profiles_wip">角色覆盖功能开发中...</div>
+                <aside class="binding-tree-panel">
+                    <div class="list-toolbar">
+                        <input type="text" data-i18n-placeholder="ccore_binding_search_placeholder" placeholder="搜索角色..."
+                            style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
+                    </div>
+                    <div class="list-content" id="binding-tree-list">
+                        <!-- 角色树由 JS 生成 -->
+                    </div>
+                </aside>
+                <section class="binding-detail-panel">
+                    <div class="detail-content" id="binding-detail-content">
+                        <!-- 编辑器由 JS 生成 -->
+                    </div>
+                </section>
             </div>
 
             <!-- 视图 C: 工具箱 (占位) -->

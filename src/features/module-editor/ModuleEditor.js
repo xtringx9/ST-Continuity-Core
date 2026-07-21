@@ -8,6 +8,7 @@ import configManager from '../../singleton/configManager.js';
 import { debugLog, infoLog } from '../../utils/logger.js';
 import { renderGlobalSettings } from './GlobalSettings.js';
 import { renderToolbox } from './Toolbox.js';
+import { initCharacterBinding } from './CharacterBinding.js';
 import { parseModuleString, validateModuleString } from '../../modules/moduleParser.js';
 import { IframeDialog } from '../../shared/IframeDialog.js';
 import { generateChangesSummary } from './ChangesSummary.js';
@@ -109,6 +110,9 @@ export function initModuleEditor(iframeDocument) {
 
     renderToolbox(doc, currentModules);
     renderGlobalSettings(doc, currentGlobalSettings, checkForChanges);
+
+    // 初始化角色绑定页（左栏角色树 + 右栏编辑器骨架）
+    initCharacterBinding(doc);
 
     // 绑定调试按钮 (打印当前编辑器状态)
     bindDebugStateButton();

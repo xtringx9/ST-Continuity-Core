@@ -5,6 +5,7 @@ import { infoLog, errorLog, debugLog } from "../utils/logger.js";
 import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../config/moduleConfigTemplate.js';
 import { normalizeGeneratorConfig, DEFAULT_GENERATOR_CONFIG_VALUES } from '../config/generatorConfigTemplate.js';
 import { normalizePhoneConfig, DEFAULT_PHONE_CONFIG_VALUES } from '../config/phoneConfigTemplate.js';
+import { normalizeCharacterBindingConfig, DEFAULT_CHARACTER_BINDING_VALUES } from '../config/characterBindingTemplate.js';
 
 // 扩展基本信息
 export const extensionName = "ST-Continuity-Core";
@@ -47,6 +48,7 @@ export const CONTINUITY_CORE_IDENTIFIER = "[CCore]";
 const MODULE_CONFIG_KEY = 'module_config';
 const GENERATOR_CONFIG_KEY = 'generator_config';
 const PHONE_CONFIG_KEY = 'phone_config';
+const CHARACTER_BINDING_KEY = 'character_bindings';
 
 // 开发用保存开关（仅开发/重构时使用，不保存到配置）
 const ENABLE_DEV_SAVE_GUARD = true; // true=允许保存，false=禁止保存
@@ -62,6 +64,9 @@ class ConfigManager {
         this.isGeneratorConfigLoaded = false;
         this.phoneConfig = null; // 手机模式配置缓存
         this.isPhoneConfigLoaded = false;
+        this.characterBindingConfig = null;
+        this.isCharacterBindingConfigLoaded = false;
+        this.characterBindingAutoSaveTimeout = null;
         this.autoSaveTimeout = null; // 自动保存的超时ID
         this.autoSaveDelay = 1000; // 自动保存延迟（毫秒）
         this.generatorAutoSaveTimeout = null; // 生成内容配置自动保存的超时ID
@@ -189,6 +194,7 @@ class ConfigManager {
         this.loadModuleConfig();
         this.loadGeneratorConfig();
         this.loadPhoneConfig();
+        this.loadCharacterBindingConfig();
         this.isLoaded = true;
 
         // 执行所有注册的加载完成回调
@@ -804,6 +810,165 @@ class ConfigManager {
         }, this.autoSaveDelay);
     }
 
+
+    // ===== 角色绑定配置（character_bindings）=====
+
+    /**
+     * 加载角色绑定配置到内存缓存
+     */
+    loadCharacterBindingConfig() {
+        try {
+            debugLog(`开始加载角色绑定配置，配置键名: ${CHARACTER_BINDING_KEY}`);
+            if (extension_settings[extensionName] && extension_settings[extensionName][CHARACTER_BINDING_KEY]) {
+                this.characterBindingConfig = extension_settings[extensionName][CHARACTER_BINDING_KEY];
+                this.isCharacterBindingConfigLoaded = true;
+                debugLog('角色绑定配置已从扩展设置加载到内存缓存:', this.characterBindingConfig);
+                return;
+            }
+            this.characterBindingConfig = { ...DEFAULT_CHARACTER_BINDING_VALUES };
+            this.isCharacterBindingConfigLoaded = true;
+            debugLog('使用默认角色绑定配置初始化内存缓存');
+        } catch (error) {
+            errorLog('加载角色绑定配置失败:', error);
+            this.characterBindingConfig = { ...DEFAULT_CHARACTER_BINDING_VALUES };
+            this.isCharacterBindingConfigLoaded = true;
+        }
+    }
+
+    /**
+     * 获取角色绑定配置（从内存缓存）
+     * @returns {Object}
+     */
+    getCharacterBindingConfig() {
+        if (!this.isCharacterBindingConfigLoaded) {
+            this.loadCharacterBindingConfig();
+        }
+        return this.characterBindingConfig;
+    }
+
+    /**
+     * 设置角色绑定配置并触发自动保存
+     * @param {Object} newConfig
+     */
+    setCharacterBindingConfig(newConfig) {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，setCharacterBindingConfig 阻止保存。');
+            return;
+        }
+        try {
+            if (!newConfig.bindings || !Array.isArray(newConfig.bindings)) {
+                throw new Error('无效的角色绑定配置结构：缺少bindings数组');
+            }
+            this.characterBindingConfig = {
+                ...newConfig,
+                metadata: {
+                    ...(newConfig.metadata || {}),
+                    lastUpdated: new Date().toISOString(),
+                },
+            };
+            debugLog('角色绑定配置已更新到内存缓存');
+            this.scheduleCharacterBindingAutoSave();
+        } catch (error) {
+            errorLog('设置角色绑定配置失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 立即保存角色绑定配置到存储
+     */
+    saveCharacterBindingConfigNow() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，已阻止角色绑定配置保存。');
+            return false;
+        }
+        try {
+            if (!this.isCharacterBindingConfigLoaded) {
+                this.loadCharacterBindingConfig();
+            }
+            this.characterBindingConfig = normalizeCharacterBindingConfig(this.characterBindingConfig);
+            if (!extension_settings[extensionName]) {
+                extension_settings[extensionName] = {};
+            }
+            extension_settings[extensionName][CHARACTER_BINDING_KEY] = this.characterBindingConfig;
+            saveSettings();
+            debugLog('角色绑定配置已保存');
+            return true;
+        } catch (error) {
+            errorLog('保存角色绑定配置失败:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 安排角色绑定配置自动保存
+     */
+    scheduleCharacterBindingAutoSave() {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        if (this.characterBindingAutoSaveTimeout) {
+            clearTimeout(this.characterBindingAutoSaveTimeout);
+        }
+        this.characterBindingAutoSaveTimeout = setTimeout(() => {
+            this.saveCharacterBindingConfigNow();
+        }, this.autoSaveDelay);
+    }
+
+    // --- 角色绑定低层存取（合并逻辑在编辑器侧，保持本类存储无关）---
+
+    /**
+     * 获取全部绑定数组
+     * @returns {Array}
+     */
+    getBindings() {
+        return this.getCharacterBindingConfig().bindings || [];
+    }
+
+    /**
+     * 按 scope + charName + chatFile 查找绑定
+     */
+    findBinding(scope, charName, chatFile = null) {
+        const file = scope === 'chat' ? chatFile : null;
+        return this.getBindings().find(b =>
+            b.scope === scope && b.charName === charName && (b.chatFile ?? null) === file
+        ) || null;
+    }
+
+    /**
+     * 写入或更新一个绑定（按 scope+charName+chatFile 去重）
+     * @param {Object} binding { scope, charName, chatFile, modules }
+     */
+    upsertBinding(binding) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        const config = this.getCharacterBindingConfig();
+        if (!Array.isArray(config.bindings)) config.bindings = [];
+        const file = binding.scope === 'chat' ? (binding.chatFile ?? '') : null;
+        const idx = config.bindings.findIndex(b =>
+            b.scope === binding.scope && b.charName === binding.charName && (b.chatFile ?? null) === file
+        );
+        const normalized = {
+            scope: binding.scope === 'chat' ? 'chat' : 'character',
+            charName: binding.charName,
+            chatFile: file,
+            modules: Array.isArray(binding.modules) ? binding.modules : [],
+        };
+        if (idx !== -1) config.bindings[idx] = normalized;
+        else config.bindings.push(normalized);
+        this.scheduleCharacterBindingAutoSave();
+    }
+
+    /**
+     * 删除一个绑定
+     */
+    removeBinding(scope, charName, chatFile = null) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        const config = this.getCharacterBindingConfig();
+        if (!Array.isArray(config.bindings)) return;
+        const file = scope === 'chat' ? chatFile : null;
+        config.bindings = config.bindings.filter(b =>
+            !(b.scope === scope && b.charName === charName && (b.chatFile ?? null) === file)
+        );
+        this.scheduleCharacterBindingAutoSave();
+    }
 
     /**
      * 判断模块配置是否包含特定变量

@@ -183,6 +183,255 @@ aside.module-list-panel {
     /* 补偿左边框宽度 */
 }
 
+/* ===== 角色绑定页：左栏角色树 + 右栏编辑器 ===== */
+#view-profiles {
+    grid-template-columns: 200px 1fr;
+}
+
+.binding-tree-panel {
+    background-color: var(--bg-panel);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.binding-detail-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.binding-tree-char > .binding-tree-row {
+    padding: 6px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.binding-tree-char > .binding-tree-row:hover {
+    background-color: var(--bg-hover);
+}
+
+.binding-tree-row.active {
+    background-color: var(--bg-hover);
+    border-left: 3px solid var(--accent-color);
+    padding-left: 7px;
+}
+
+.binding-tree-name {
+    flex: 1;
+}
+
+.binding-tree-current {
+    color: var(--accent-color);
+    font-size: 11px;
+}
+
+.binding-tree-missing {
+    color: var(--red, #ff4444);
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+/* 右栏：聊天下拉选择器（聊天记录多时比左栏嵌套更省空间） */
+.binding-chat-select-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.binding-chat-select-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.binding-chat-select {
+    flex: 1;
+    padding: 5px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-input);
+    color: var(--text-input);
+    font-size: 13px;
+    max-width: 100%;
+}
+
+.binding-detail-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.binding-detail-header h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.binding-detail-scope {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--bg-hover);
+    color: var(--text-muted);
+}
+
+.binding-detail-body {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* 角色绑定编辑器 */
+.binding-add-btn {
+    margin-bottom: 12px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+.binding-reset-btn {
+    margin-left: auto;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--text-error, #ff6b6b);
+}
+
+.binding-mod-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.binding-mod-row {
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 6px 8px;
+    background: var(--bg-panel);
+}
+
+.binding-mod-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.binding-mod-toggle {
+    opacity: 0.6;
+    font-size: 11px;
+    width: 12px;
+}
+
+.binding-mod-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.binding-mod-disabled > .binding-mod-head .binding-mod-name {
+    opacity: 0.6;
+}
+
+/* 模块关掉后：变量列表置灰且禁用（但配置保留，不清除） */
+.binding-mod-disabled .binding-var-list {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.binding-var-list {
+    margin: 6px 0 2px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.binding-var-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+}
+
+.binding-var-name {
+    flex: 1;
+    font-size: 13px;
+}
+
+.binding-var-empty {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 4px 0 4px 28px;
+}
+
+/* 半灰(继承默认) / 实心(已覆盖) */
+.binding-toggle-inherited {
+    opacity: 0.45;
+}
+
+.binding-toggle-override {
+    opacity: 1;
+}
+
+.binding-override-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    flex: 0 0 auto;
+}
+
+.binding-inherited-badge {
+    font-size: 10px;
+    color: var(--text-muted);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 1px 6px;
+}
+
+.binding-mod-dangling {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-error, #ff6b6b);
+    border: 1px solid var(--text-error, #ff6b6b);
+    border-radius: 6px;
+    padding: 6px 8px;
+}
+
+.binding-del-btn {
+    margin-left: auto;
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
+/* 移动端：角色绑定页单栏切换（复用 mobile-view-detail） */
+@media (max-width: 768px) {
+    #view-profiles {
+        grid-template-columns: 1fr;
+    }
+
+    section.binding-detail-panel {
+        display: none;
+    }
+
+    body.mobile-view-detail aside.binding-tree-panel {
+        display: none;
+    }
+
+    body.mobile-view-detail section.binding-detail-panel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+    }
+}
+
 /* 模块列表项右侧操作区 */
 .module-item-actions {
     display: flex;
