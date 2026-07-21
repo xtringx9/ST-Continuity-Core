@@ -538,9 +538,12 @@ function openAddModuleDialog() {
         content: `
             <input type="text" id="binding-add-search" placeholder="${translate('ccore_binding_search_module')}"
                 style="width:100%;padding:6px;margin-bottom:8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-input);">
-            <div id="binding-add-list" style="max-height:300px;overflow:auto;border:1px solid var(--border-light);border-radius:4px;padding:6px;">
+            <div id="binding-add-list" class="pick-list">
                 ${addable.length
-                    ? addable.map(m => `<label class="binding-add-item" style="display:block;padding:4px 2px;cursor:pointer;"><input type="checkbox" value="${escapeAttr(m.name)}"> ${m.displayName || m.name}</label>`).join('')
+                    ? addable.map(m => `<label class="pick-item binding-add-item" for="binding-add-${escapeAttr(m.name)}">
+                        <input type="checkbox" id="binding-add-${escapeAttr(m.name)}" class="binding-add-checkbox" value="${escapeAttr(m.name)}">
+                        <span class="pick-name">${m.displayName || m.name} <span class="pick-id">(${m.name})</span></span>
+                    </label>`).join('')
                     : `<div style="color:var(--text-muted);padding:6px;">${translate('ccore_binding_no_module')}</div>`}
             </div>
         `,
@@ -581,7 +584,7 @@ function openAddModuleDialog() {
             const t = e.target.value.trim().toLowerCase();
             doc.querySelectorAll('#binding-add-list .binding-add-item').forEach(l => {
                 const n = (l.textContent || '').toLowerCase();
-                l.style.display = (!t || n.includes(t)) ? 'block' : 'none';
+                l.style.display = (!t || n.includes(t)) ? 'flex' : 'none';
             });
         });
     }

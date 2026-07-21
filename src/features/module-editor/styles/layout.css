@@ -268,8 +268,41 @@ aside.module-list-panel {
 }
 
 .binding-del-icon:hover {
-    color: var(--red, #ff4444);
+    color: var(--red, #ff44444);
     background: var(--bg-hover, rgba(255, 68, 68, 0.08));
+}
+
+/* 通用：弹窗内可勾选列表（导出 / 添加模块 / 复制变量 复用，与导出弹窗同款） */
+.pick-list {
+    max-height: 23vh;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    border-radius: 4px;
+    background: var(--bg-input);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 4px;
+}
+
+.pick-item {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.pick-item input {
+    margin-right: 8px;
+}
+
+.pick-name {
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.pick-id {
+    opacity: 0.5;
+    font-size: 0.9em;
 }
 
 /* 右栏：聊天下拉选择器（聊天记录多时比左栏嵌套更省空间） */

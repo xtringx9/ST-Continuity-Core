@@ -62,15 +62,15 @@ function showCopyToDialog(variable, sourceModule, allModules, doc, checkForChang
     }
 
     const listHtml = targets.map((mod, i) => `
-        <label style="display: flex; align-items: center; margin-bottom: 6px; cursor: pointer;">
-            <input type="checkbox" class="copy-var-target" data-module-index="${allModules.indexOf(mod)}" style="margin-right: 8px;">
-            <span>${mod.displayName || mod.name}</span>
+        <label class="pick-item copy-var-item" for="copy-var-${i}">
+            <input type="checkbox" id="copy-var-${i}" class="copy-var-target" data-module-index="${allModules.indexOf(mod)}">
+            <span class="pick-name">${mod.displayName || mod.name} <span class="pick-id">(${mod.name})</span></span>
         </label>
     `).join('');
 
     const content = `
         <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;">${translate('ccore_label_copy_var_targets')}</div>
-        <div style="max-height: 260px; overflow-y: auto;">${listHtml}</div>
+        <div class="pick-list">${listHtml}</div>
         <div class="copy-var-result" style="display: none; margin-top: 8px; font-size: 12px; color: var(--text-secondary);"></div>
     `;
 
