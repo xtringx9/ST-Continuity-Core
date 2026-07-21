@@ -987,25 +987,33 @@ class ConfigManager {
         if (!charName) return mods;
         const charB = this.findBinding('character', charName, null);
         const chatB = chatFile ? this.findBinding('chat', charName, chatFile) : null;
+        const result = [];
         for (const mod of mods) {
             const defEnabled = mod.enabled !== false;
             const charEntry = charB?.modules?.find(x => x.name === mod.name);
             const chatEntry = chatB?.modules?.find(x => x.name === mod.name);
             const effMod = (chatEntry && typeof chatEntry.moduleOverride === 'boolean') ? chatEntry.moduleOverride
                 : ((charEntry && typeof charEntry.moduleOverride === 'boolean') ? charEntry.moduleOverride : defEnabled);
-            mod.enabled = effMod;
+            // 模块级禁用（默认或绑定覆盖）→ 从源头过滤掉，与 getModules() 一致
+            if (effMod === false) continue;
+            const newMod = { ...mod, enabled: effMod };
             if (mod.variables && Array.isArray(mod.variables)) {
+                const newVars = [];
                 for (const v of mod.variables) {
                     const defVar = v.enabled !== false;
                     const charVO = charEntry?.variableOverrides?.[v.name];
                     const chatVO = chatEntry?.variableOverrides?.[v.name];
                     const effVar = typeof chatVO === 'boolean' ? chatVO
                         : (typeof charVO === 'boolean' ? charVO : defVar);
-                    v.enabled = effVar;
+                    // 变量级禁用（默认或绑定覆盖）→ 从源头过滤掉，与 getModules() 一致
+                    if (effVar === false) continue;
+                    newVars.push({ ...v, enabled: effVar });
                 }
+                newMod.variables = newVars;
             }
+            result.push(newMod);
         }
-        return mods;
+        return result;
     }
 
     /**

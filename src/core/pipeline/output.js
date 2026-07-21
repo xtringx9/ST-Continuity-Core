@@ -410,7 +410,11 @@ export function processProcessedModules(rawModules, selectedModuleNames, returnS
     const displayTitle = '整理后模块结果';
 
     const processedModules = filteredModules.map(module => {
-        const modulesData = configManager.getModules() || [];
+        // 使用有效模块配置（含角色/聊天绑定的变量级覆盖），
+        // 使被禁用的变量不进入最终注入提示词。
+        // 使用有效模块配置（含角色/聊天绑定的模块级/变量级覆盖），
+        // 禁用的变量/模块已在 getEffectiveModules() 源头过滤。
+        const modulesData = configManager.getEffectiveModules() || [];
         const moduleConfig = modulesData.find(config => config.name === module.moduleName);
 
         if (!moduleConfig) {
@@ -539,7 +543,7 @@ export function processFullModules(modules) {
     const resultItems = [];
 
     for (const [moduleName, allModulesOfName] of Object.entries(modulesByModuleName)) {
-        const modulesData = configManager.getModules() || [];
+        const modulesData = configManager.getEffectiveModules() || [];
         const moduleConfig = modulesData.find(config => config.name === moduleName);
         if (!moduleConfig || moduleConfig.outputMode !== 'full') continue;
 
@@ -618,7 +622,7 @@ export function processAutoModules(rawModules, selectedModuleNames) {
     Object.keys(moduleGroups).forEach(moduleName => {
         const moduleGroup = moduleGroups[moduleName];
 
-        const modulesData = configManager.getModules() || [];
+        const modulesData = configManager.getEffectiveModules() || [];
         const moduleConfig = modulesData.find(config => config.name === moduleName);
 
         let processType = 'full';

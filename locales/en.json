@@ -259,6 +259,7 @@
     "ccore_binding_inherited": "Inherited from character",
     "ccore_binding_empty": "Click \"Add Module\" to configure module switches for this node.",
     "ccore_binding_no_module_def": "Module {name} no longer exists",
+    "ccore_binding_no_var_def": "Variable {name} no longer exists (possibly renamed)",
     "ccore_binding_delete": "Delete",
     "ccore_binding_overridden": "Overridden",
     "ccore_title_copy_styles": "Copy Module Styles (with variable customStyles)",

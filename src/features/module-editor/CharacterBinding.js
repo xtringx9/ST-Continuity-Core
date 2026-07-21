@@ -137,10 +137,21 @@ function buildCharNode(name, current, isDangling) {
             <span class="binding-tree-name">${escapeHtml(name)}</span>
             ${isDangling ? `<span class="binding-tree-missing" title="${translate('ccore_binding_missing_char')}">⚠</span>` : ''}
             ${name === current.charName ? `<span class="binding-tree-current" title="${translate('ccore_binding_current_chat')}">●</span>` : ''}
+            ${isDangling ? `<button class="btn-secondary binding-char-del" data-del-char="${escapeAttr(name)}" title="${translate('ccore_binding_missing_char')}">${translate('ccore_binding_delete')}</button>` : ''}
         </div>
-    `;
+        `;
     node.querySelector('.binding-tree-row').addEventListener('click', () => selectNode('character', name, null));
+    const del = node.querySelector('.binding-char-del');
+    if (del) del.addEventListener('click', e => { e.stopPropagation(); deleteCharBinding(name); });
     return node;
+}
+
+// 删除整个悬空角色节点（角色级 + 其下所有聊天级绑定）
+function deleteCharBinding(name) {
+    const all = configManager.getBindings().filter(b => b.charName === name);
+    all.forEach(b => configManager.removeBinding(b.scope, b.charName, b.chatFile ?? null));
+    if (selected && selected.charName === name) selected = null;
+    renderTree();
 }
 
 function selectNode(scope, charName, chatFile) {
@@ -364,10 +375,15 @@ function renderModuleBlock(modName) {
 function renderVarBlocks(modName) {
     const def = getModuleDef(modName);
     const vars = def?.variables || [];
-    if (!vars.length) {
+    const st = resolveModuleState(modName);
+    const nodeEntry = selected.scope === 'chat' ? st.chatEntry : st.charEntry;
+    const danglingKeys = nodeEntry?.variableOverrides
+        ? Object.keys(nodeEntry.variableOverrides).filter(k => !vars.some(v => v.name === k))
+        : [];
+    if (!vars.length && !danglingKeys.length) {
         return `<div class="binding-var-empty">${translate('ccore_binding_no_var')}</div>`;
     }
-    return vars.map(v => {
+    const varHtml = vars.map(v => {
         const vs = resolveVarState(modName, v.name);
         return `<div class="binding-var-row" data-var="${escapeAttr(v.name)}">
             <span class="binding-var-name">${v.displayName || v.name}</span>
@@ -378,6 +394,13 @@ function renderVarBlocks(modName) {
             ${vs.inherited ? `<span class="binding-inherited-badge">${translate('ccore_binding_inherited')}</span>` : ''}
         </div>`;
     }).join('');
+    const danglingHtml = danglingKeys.map(k => `
+        <div class="binding-var-row binding-var-dangling" data-dangle-var="${escapeAttr(k)}">
+            <span class="binding-var-name">⚠ ${translate('ccore_binding_no_var_def').replace('{name}', k)}</span>
+            <button class="btn-secondary binding-var-del" data-del-var="${escapeAttr(k)}">${translate('ccore_binding_delete')}</button>
+        </div>
+    `).join('');
+    return varHtml + danglingHtml;
 }
 
 function bindModuleBlocks() {
@@ -412,6 +435,23 @@ function bindModuleBlocks() {
             deleteModuleEntry(e.target.dataset.delMod);
         });
     });
+
+    detailEl.querySelectorAll('.binding-var-del').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const mod = e.target.closest('.binding-mod-row').dataset.mod;
+            deleteVarOverride(mod, e.target.dataset.delVar);
+        });
+    });
+}
+
+// 删除某个悬空变量覆盖（变量已改名/不存在）
+function deleteVarOverride(modName, varName) {
+    const b = configManager.findBinding(selected.scope, selected.charName, selected.chatFile);
+    if (!b) return;
+    const entry = b.modules.find(m => m.name === modName);
+    if (entry?.variableOverrides) delete entry.variableOverrides[varName];
+    configManager.upsertBinding(b);
+    renderDetail();
 }
 
 function toggleModule(modName, newVal) {

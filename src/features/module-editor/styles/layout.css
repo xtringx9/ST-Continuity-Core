@@ -236,6 +236,14 @@ aside.module-list-panel {
     margin-left: 4px;
 }
 
+.binding-char-del {
+    margin-left: auto;
+    padding: 1px 8px;
+    font-size: 11px;
+    border-color: var(--red, #ff4444);
+    color: var(--red, #ff4444);
+}
+
 /* 右栏：聊天下拉选择器（聊天记录多时比左栏嵌套更省空间） */
 .binding-chat-select-row {
     display: flex;
@@ -408,6 +416,21 @@ aside.module-list-panel {
     margin-left: auto;
     padding: 2px 8px;
     font-size: 12px;
+}
+
+.binding-var-dangling {
+    color: var(--text-error, #ff6b6b);
+    border: 1px dashed var(--text-error, #ff6b6b);
+    border-radius: 6px;
+    padding: 4px 8px;
+    justify-content: space-between;
+}
+
+.binding-var-del {
+    padding: 1px 8px;
+    font-size: 11px;
+    border-color: var(--red, #ff4444);
+    color: var(--red, #ff4444);
 }
 
 /* 移动端：角色绑定页单栏切换（复用 mobile-view-detail） */

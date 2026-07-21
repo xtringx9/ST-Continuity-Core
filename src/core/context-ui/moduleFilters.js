@@ -13,7 +13,7 @@ function toModuleFilters(moduleConfigs) {
  * @returns {Array} 符合条件的模块配置数组
  */
 export function getContextBottomUIFilteredModuleConfigs() {
-    const allModuleConfigs = configManager.getModules();
+    const allModuleConfigs = configManager.getEffectiveModules();
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
         const result = ((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full' && config.retainLayers != 0) ||
             config.outputMode === 'incremental';
@@ -29,7 +29,7 @@ export function getContextBottomUIFilteredModuleConfigs() {
  * @returns {Array} 符合条件的模块配置数组
  */
 export function getMsgUIFilteredModuleConfigs() {
-    const allModuleConfigs = configManager.getModules();
+    const allModuleConfigs = configManager.getEffectiveModules();
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
         const result = (config.outputPosition === 'after_body' || config.includeInModuleData) ||
             config.outputMode === 'incremental';
@@ -45,7 +45,7 @@ export function getMsgUIFilteredModuleConfigs() {
  * @returns {Array} 符合条件的模块配置数组
  */
 export function getRenderUIFilteredModuleConfigs() {
-    const allModuleConfigs = configManager.getModules();
+    const allModuleConfigs = configManager.getEffectiveModules();
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
         const result = config.outputPosition !== 'after_body';
         return result;

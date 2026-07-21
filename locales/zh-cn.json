@@ -259,6 +259,7 @@
     "ccore_binding_inherited": "继承自角色",
     "ccore_binding_empty": "点击「添加模块」开始为此节点配置模块开关。",
     "ccore_binding_no_module_def": "模块 {name} 已不存在",
+    "ccore_binding_no_var_def": "变量 {name} 已不存在（可能已改名）",
     "ccore_binding_delete": "删除",
     "ccore_binding_overridden": "已覆盖",
     "ccore_title_copy_styles": "复制模块样式配置（含变量customStyles）",

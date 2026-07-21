@@ -750,7 +750,7 @@ function getContextBottomFilteredModuleConfigs() {
     // 或 includeInModuleData=true 的全量模块（任意 outputPosition），或所有 outputMode 为 incremental 的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
         const result = (((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full' && config.retainLayers !== 0) ||
-            config.outputMode === 'incremental') && config.enabled !== false;
+            config.outputMode === 'incremental');
         return result;
     });
     // debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
@@ -846,7 +846,7 @@ function getChatFilteredModuleConfigs() {
     // 或 includeInModuleData=true 的全量模块（任意 outputPosition），或所有 outputMode 为 incremental 的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
         const result = (((config.outputPosition === 'after_body' || config.includeInModuleData) && config.outputMode === 'full') ||
-            config.outputMode === 'incremental') && config.enabled !== false;
+            config.outputMode === 'incremental');
         return result;
     });
     // debugLog(`[CUSTOM STYLES] 总模块数: ${allModuleConfigs.length}, 过滤后模块数: ${filteredModuleConfigs.length}`);
