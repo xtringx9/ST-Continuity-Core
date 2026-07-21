@@ -255,6 +255,19 @@ aside.module-list-panel {
     padding: 6px 12px 12px;
 }
 
+/* 模块覆盖分区标题：左标题 + 右重置按钮（flex 行） */
+.form-section-title.binding-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.form-section-title.binding-section-head .binding-reset-btn {
+    font-size: 12px;
+    padding: 2px 8px;
+    font-weight: 400;
+}
+
 /* 正常模块行的"清除此模块覆盖"按钮（常显，无覆盖也可点） */
 .binding-del-icon {
     margin-left: auto;
@@ -370,6 +383,22 @@ aside.module-list-panel {
     padding: 4px 10px;
     font-size: 12px;
     color: var(--text-error, #ff6b6b);
+}
+
+/* 详情页「返回角色」按钮：复用与模块配置一致的返回图标（.btn-back-icon + .mobile-only），桌面隐藏、移动端显示 */
+
+/* 移动端 header 允许换行，避免长角色名挤压返回按钮 */
+@media (max-width: 768px) {
+    .binding-detail-header {
+        flex-wrap: wrap;
+    }
+    .binding-detail-header h3 {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 }
 
 .binding-mod-list {
@@ -494,7 +523,7 @@ aside.module-list-panel {
     color: var(--red, #ff4444);
 }
 
-/* 移动端：角色绑定页单栏切换（复用 mobile-view-detail） */
+/* 移动端：角色绑定页单栏切换（独立类 mobile-view-detail-binding，避免与模块编辑页冲突） */
 @media (max-width: 768px) {
     #view-profiles {
         grid-template-columns: 1fr;
@@ -504,11 +533,11 @@ aside.module-list-panel {
         display: none;
     }
 
-    body.mobile-view-detail aside.binding-tree-panel {
+    body.mobile-view-detail-binding aside.binding-tree-panel {
         display: none;
     }
 
-    body.mobile-view-detail section.binding-detail-panel {
+    body.mobile-view-detail-binding section.binding-detail-panel {
         display: flex;
         flex-direction: column;
         height: 100%;
@@ -1020,11 +1049,11 @@ section.module-detail-panel {
     }
 
     /* 当处于"编辑模式"时，隐藏列表，显示详情 */
-    body.mobile-view-detail aside.module-list-panel {
+    body.mobile-view-detail-module aside.module-list-panel {
         display: none;
     }
 
-    body.mobile-view-detail section.module-detail-panel {
+    body.mobile-view-detail-module section.module-detail-panel {
         display: flex;
         flex-direction: column;
         height: 100%;

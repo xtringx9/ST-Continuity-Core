@@ -126,7 +126,7 @@ async function renderTree() {
         selected = { scope: 'character', charName: current.charName, chatFile: null };
     }
     applyActive();
-    renderDetail();
+    await renderDetail();
 }
 
 function buildCharNode(name, current, isDangling) {
@@ -272,11 +272,17 @@ async function renderDetail() {
         return;
     }
 
+    // 移动端：同步切到详情单栏，不依赖下方的异步聊天列表请求（避免点击角色后切换被网络延迟/卡住）
+    if (window.innerWidth <= 768) {
+        doc.body.classList.add('mobile-view-detail-binding');
+    }
+
     const scopeLabel = selected.scope === 'character'
         ? translate('ccore_binding_scope_character')
         : translate('ccore_binding_scope_chat');
+    // 角色级只显示角色名；聊天级显示「角色名 · 聊天名」
     const title = selected.scope === 'character'
-        ? `${selected.charName} · ${scopeLabel}`
+        ? selected.charName
         : `${selected.charName} · ${selected.chatFile}`;
 
     // 构建聊天下拉选项（当前聊天置顶；默认=角色级）
@@ -302,7 +308,7 @@ async function renderDetail() {
     }
 
     const scopeOptions = [
-        `<option value="" ${!selected.chatFile ? 'selected' : ''}>${translate('ccore_binding_scope_character')}（全部聊天）</option>`,
+        `<option value="" ${!selected.chatFile ? 'selected' : ''}>${translate('ccore_binding_all_chats')}</option>`,
         ...chatOptions.map(chat => {
             const isCur = isCurrentChar && chat === current.chatFile;
             return `<option value="${escapeAttr(chat)}" ${selected.chatFile === chat ? 'selected' : ''}>${isCur ? '● ' : ''}${escapeHtml(chat)}</option>`;
@@ -319,9 +325,9 @@ async function renderDetail() {
 
     detailEl.innerHTML = `
         <div class="binding-detail-header">
+            <button class="mobile-only btn-back-icon" id="binding-back-btn" title="${translate('ccore_binding_back_to_chars')}">❮</button>
             <h3>${title}</h3>
             <span class="binding-detail-scope">${scopeLabel}</span>
-            <button class="btn-secondary binding-reset-btn" id="binding-reset-btn">${translate('ccore_binding_reset')}</button>
         </div>
         <div class="binding-chat-select-row">
             <label class="binding-chat-select-label">${translate('ccore_binding_chat_select')}</label>
@@ -330,7 +336,10 @@ async function renderDetail() {
             </select>
         </div>
         <div class="binding-detail-body" id="binding-detail-body">
-            <div class="form-section-title">${translate('ccore_binding_section_modules')}</div>
+            <div class="form-section-title binding-section-head">
+                <span>${translate('ccore_binding_section_modules')}</span>
+                <button class="btn-secondary binding-reset-btn" id="binding-reset-btn" title="${translate('ccore_binding_reset')}">${translate('ccore_binding_reset')}</button>
+            </div>
             <div class="binding-section-body">
                 <button class="btn-secondary binding-add-btn" id="binding-add-btn">＋ ${translate('ccore_binding_add_module')}</button>
                 <div class="binding-mod-list" id="binding-mod-list">
@@ -348,6 +357,13 @@ async function renderDetail() {
 
     detailEl.querySelector('#binding-add-btn').addEventListener('click', openAddModuleDialog);
     detailEl.querySelector('#binding-reset-btn').addEventListener('click', onReset);
+    const backBtn = detailEl.querySelector('#binding-back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            // 仅退出详情视图，回到左栏角色列表（左栏内容仍完好，无需重渲染）
+            doc.body.classList.remove('mobile-view-detail-binding');
+        });
+    }
     const chatSel = detailEl.querySelector('#binding-chat-select');
     chatSel.addEventListener('change', (e) => {
         const v = e.target.value;
@@ -355,10 +371,6 @@ async function renderDetail() {
         else selectNode('chat', selected.charName, v);
     });
     bindModuleBlocks();
-
-    if (window.innerWidth <= 768) {
-        doc.body.classList.add('mobile-view-detail');
-    }
 }
 
 function renderModuleBlock(modName) {
@@ -514,7 +526,12 @@ function onReset() {
                 className: 'btn-secondary',
                 style: 'background-color: var(--red, #ff4444); color: white;',
                 onClick: (d) => {
-                    configManager.removeBinding(selected.scope, selected.charName, selected.chatFile);
+                    // 只清空当前节点的「模块覆盖」；保留条目本体（未来聊天操作等其它配置不受影响）
+                    const b = configManager.findBinding(selected.scope, selected.charName, selected.chatFile);
+                    if (b) {
+                        b.modules = [];
+                        configManager.upsertBinding(b);
+                    }
                     expandedMods.clear();
                     d.close();
                     renderTree();

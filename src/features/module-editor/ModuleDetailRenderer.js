@@ -292,7 +292,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
     const backBtn = doc.getElementById('btn-back-to-list');
     if (backBtn) {
         backBtn.addEventListener('click', () => {
-            doc.body.classList.remove('mobile-view-detail');
+            doc.body.classList.remove('mobile-view-detail-module');
         });
     }
 

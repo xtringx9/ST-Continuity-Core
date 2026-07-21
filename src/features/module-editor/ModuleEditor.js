@@ -369,7 +369,7 @@ function renderModuleList() {
 
             // 移动端适配：点击后切换到详情视图
             if (window.innerWidth <= 768) {
-                doc.body.classList.add('mobile-view-detail');
+                doc.body.classList.add('mobile-view-detail-module');
             }
         });
 
@@ -460,7 +460,7 @@ function duplicateModule(sourceMod) {
 
     // 移动端适配：切换到详情视图
     if (window.innerWidth <= 768) {
-        doc.body.classList.add('mobile-view-detail');
+        doc.body.classList.add('mobile-view-detail-module');
     }
 
     checkForChanges(); // 标记变更
@@ -634,7 +634,7 @@ function deleteModule(index) {
         renderModuleList();
         checkForChanges(); // 检查变更
         // 如果在移动端，返回列表
-        doc.body.classList.remove('mobile-view-detail');
+        doc.body.classList.remove('mobile-view-detail-module');
     }
 }
 
