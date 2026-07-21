@@ -54,7 +54,7 @@ export function processModuleData(extractParams, processType, selectedModuleName
             let tmpSelectedModuleNames = selectedModuleNames;
             if (tmpSelectedModuleNames === undefined) {
                 if (isAllModule) {
-                    tmpSelectedModuleNames = configManager.getEffectiveModules().map(module => module.moduleName);
+                    tmpSelectedModuleNames = configManager.getModules().map(module => module.moduleName);
                 }
                 else {
                     tmpSelectedModuleNames = moduleFilters.map(config => config.name);
@@ -92,7 +92,7 @@ export function processModuleData(extractParams, processType, selectedModuleName
         }
 
         if (moduleFilters !== null) {
-            const modulesData = configManager.getEffectiveModules() || [];
+            const modulesData = configManager.getModules() || [];
             if (modulesData && Array.isArray(modulesData)) {
                 const modulesToInclude = new Set();
 
@@ -269,10 +269,10 @@ export function groupProcessResultByMessageIndex(processResult, moveIncrementalE
             });
         });
 
+        // 提升到循环外，避免每个 messageIndex 都深拷贝全部模块 + 解析绑定
+        const modulesData = configManager.getModules() || [];
         Object.keys(groupedResult).forEach(messageIndex => {
             const entries = groupedResult[messageIndex];
-
-            const modulesData = configManager.getEffectiveModules() || [];
 
             if (moveIncrementalEmbeddedToLast) {
                 const embeddedEntries = [];

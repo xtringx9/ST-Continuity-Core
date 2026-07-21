@@ -31,7 +31,7 @@ export function getMaxMessageIndexFromHistory(module, currentMessageIndex) {
  */
 export function deduplicateModules(modules) {
     // 获取所有模块配置
-    const modulesConfig = configManager.getEffectiveModules() || [];
+    const modulesConfig = configManager.getModules() || [];
 
     // 使用Map来存储每个唯一模块的最小messageIndex版本
     const moduleMap = new Map();

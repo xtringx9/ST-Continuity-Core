@@ -296,20 +296,31 @@ class ConfigManager {
     }
 
     /**
-     * 获取模块配置
-     * @returns {Array} 模块配置数组（只返回enabled为true的模块和变量）
+     * 获取模块配置。
+     * - needAll=true：原始全量配置（编辑器/导出/normalize/deduplicate 等，不套绑定）。
+     * - needAll=false（默认）：运行期有效启用集 = 套用角色/聊天绑定覆盖后的启用模块/变量。
+     *   注意：会调 getContext() 并解析绑定，相对昂贵；**切勿在循环/比较器内逐次调用**，
+     *   须在循环外取一次复用，否则解析开销会被放大成性能问题。
+     * @param {boolean} [needAll=false]
+     * @returns {Array}
      */
     getModules(needAll = false) {
-        const config = this.getModuleConfig();
-        const modules = config.modules || [];
-
         if (needAll) {
-            return modules;
+            return this.getModuleConfig().modules || [];
         }
+        return this.getEffectiveModules();
+    }
 
-        const enabledModules = modules.filter(module => module.enabled !== false);
-
-        return enabledModules.map(module => {
+    /**
+     * 原始默认启用集（不套绑定）：模块 enabled!==false 且变量 enabled!==false。
+     * 供 getEffectiveModules 在无上下文/无角色/无绑定时回退，避免 getModules()→getEffectiveModules()→回退→getModules() 无限递归。
+     * 浅拷贝（与原 getModules 行为一致）。
+     * @param {Array} [modules] 不传则用全量配置
+     * @returns {Array}
+     */
+    _getDefaultEnabledModules(modules = null) {
+        const source = modules || this.getModuleConfig().modules || [];
+        return source.filter(module => module.enabled !== false).map(module => {
             if (module.variables && Array.isArray(module.variables)) {
                 return {
                     ...module,
@@ -331,7 +342,7 @@ class ConfigManager {
             return null;
         }
 
-        const modules = this.getEffectiveModules();
+        const modules = this.getModules();
         const module = modules.find(m => m.name === moduleName);
 
         if (!module) {
@@ -1025,24 +1036,29 @@ class ConfigManager {
     }
 
     /**
-     * 运行时：把角色/聊天绑定覆盖应用到模块列表（Model A：默认 < 角色 < 聊天，逐键覆盖）
-     * 返回深拷贝，不修改原模块配置（编辑器仍需未覆盖的定义）。
-     * 依据当前聊天的角色与聊天文件解析绑定；无可用上下文时原样返回。
-     * @param {Array} [modules] 不传则用 getModules()
+     * 运行时：把角色/聊天绑定覆盖应用到模块列表（Model A：默认 < 角色 < 聊天，逐键覆盖）。
+     * 返回浅拷贝新对象（spread），不修改原模块配置；与 getModules 浅拷贝一致性已验证。
+     * 依据当前聊天的角色与聊天文件解析绑定；无上下文/无角色/无绑定时回退默认启用集。
+     * 性能：无绑定时走快路径（仅过滤，无拷贝循环）；有绑定时才进入覆盖解析循环。
+     * 注意仍较昂贵，循环/比较器内须在外部取一次复用。
+     * @param {Array} [modules] 不传则用全量配置
      * @returns {Array}
      */
     getEffectiveModules(modules = null) {
-        // 方案A：以全量模块为基（含默认关闭的），套完覆盖后再按 effective 过滤，
-        // 从而支持"绑定重新启用默认关闭的模块/变量"。
-        const mods = (modules || this.getModules(true)).map(m => JSON.parse(JSON.stringify(m)));
         let ctx = null;
         try { ctx = (typeof getContext === 'function') ? getContext() : null; } catch { ctx = null; }
-        if (!ctx) return this.getModules();        // 无上下文：回退默认启用集
+        if (!ctx) return this._getDefaultEnabledModules(modules);
         const charName = ctx.characters?.[ctx.characterId]?.name || '';
         const chatFile = ctx.chatId ?? '';
-        if (!charName) return this.getModules();     // 无角色：回退默认启用集
+        if (!charName) return this._getDefaultEnabledModules(modules);
         const charB = this.findBinding('character', charName, null);
         const chatB = chatFile ? this.findBinding('chat', charName, chatFile) : null;
+        // 无任何绑定 → 直接返回默认启用集（跳过拷贝+循环；绝大多数聊天的快路径）
+        if (!charB && !chatB) return this._getDefaultEnabledModules(modules);
+        // 有绑定：套用覆盖。循环用 spread 造新对象，不深拷贝（与 getModules 浅拷贝一致，已验证安全）。
+        // 方案A：以全量模块为基（含默认关闭的），套完覆盖后再按 effective 过滤，
+        // 从而支持"绑定重新启用默认关闭的模块/变量"。
+        const mods = modules || this.getModules(true);
         const result = [];
         for (const mod of mods) {
             const defEnabled = mod.enabled !== false;
@@ -1115,7 +1131,7 @@ class ConfigManager {
                 return false;
             }
 
-            const modules = this.getEffectiveModules();
+            const modules = this.getModules();
             const targetModule = modules.find(module => module.name === moduleName);
 
             if (!targetModule) {

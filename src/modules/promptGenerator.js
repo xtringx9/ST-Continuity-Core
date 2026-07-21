@@ -22,7 +22,7 @@ export function generateFormalPrompt() {
         const moduleTag = globalSettings.moduleTag || "module";
         const promptTag = `${moduleTag}_generate_rule`;
 
-        const modules = configManager.getEffectiveModules() || [];
+        const modules = configManager.getModules() || [];
         debugLog('开始生成正式提示词，模块数量:', modules.length);
 
         // 过滤掉未启用的模块
@@ -229,7 +229,7 @@ export function generateUsageGuide() {
         const promptTag = `${moduleTag}_data_usage_guide`;
 
         // 获取模块数据
-        const modulesData = configManager.getEffectiveModules() || [];
+        const modulesData = configManager.getModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
@@ -282,7 +282,7 @@ export function generateUsageGuide() {
 //         contentTagString = contentTagString + ",...";
 
 //         // 获取模块数据
-//         const modulesData = configManager.getEffectiveModules() || [];
+//         const modulesData = configManager.getModules() || [];
 
 //         if (!modulesData || modulesData.length === 0) {
 //             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
@@ -406,7 +406,7 @@ export function generateModuleOrderPrompt() {
         if (Array.isArray(contentTag) && contentTag.length > 1) contentTagString = contentTagString + ",...";
 
         // 获取模块数据
-        const modulesData = configManager.getEffectiveModules() || [];
+        const modulesData = configManager.getModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
@@ -745,7 +745,7 @@ export function generateModuleDataPrompt() {
 }
 function getContextBottomFilteredModuleConfigs() {
     // 获取所有模块配置
-    const allModuleConfigs = configManager.getEffectiveModules();
+    const allModuleConfigs = configManager.getModules();
     // 过滤出符合条件的模块：after_body 且 outputMode 为 full 且 retainLayers!==0 的模块，
     // 或 includeInModuleData=true 的全量模块（任意 outputPosition），或所有 outputMode 为 incremental 的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
@@ -799,6 +799,8 @@ export function generateSingleChatModuleData(index) {
 
         let resultString = '';
         if (modulesForThisMessage.length > 0) {
+            // 提升到循环外，避免每个 entry 都解析绑定
+            const modulesData = configManager.getModules() || [];
             let lastModuleName = '';
             modulesForThisMessage.forEach((entry, index) => {
                 // 判断模块名是否连续一致
@@ -810,7 +812,7 @@ export function generateSingleChatModuleData(index) {
                     resultString += `${configManager.MODULE_TITLE_LEFT}${entry.moduleName}${configManager.MODULE_TITLE_RIGHT}\n`;
                 }
                 // 获取当前entry的模块配置
-                const moduleConfig = configManager.getEffectiveModules().find(module => module.name === entry.moduleName);
+                const moduleConfig = modulesData.find(module => module.name === entry.moduleName);
                 let shouldFilter = false;
                 let retainLayers = moduleConfig.retainLayers * 2;
                 if (retainLayers >= 0) {
@@ -841,7 +843,7 @@ export function generateSingleChatModuleData(index) {
 }
 function getChatFilteredModuleConfigs() {
     // 获取所有模块配置
-    const allModuleConfigs = configManager.getEffectiveModules();
+    const allModuleConfigs = configManager.getModules();
     // 过滤出符合条件的模块：after_body 且 outputMode 为 full 的模块，
     // 或 includeInModuleData=true 的全量模块（任意 outputPosition），或所有 outputMode 为 incremental 的模块
     const filteredModuleConfigs = allModuleConfigs.filter(config => {
@@ -912,7 +914,7 @@ export function generatePromptWithInsertion(insertionSettings = DEFAULT_INSERTIO
  */
 export function generateStructurePreview() {
     try {
-        const modules = configManager.getEffectiveModules() || [];
+        const modules = configManager.getModules() || [];
         debugLog('生成模块结构预览，模块数量:', modules.length);
 
         // 过滤掉未启用的模块

@@ -85,7 +85,7 @@ export function parseSingleVariableInProcess(part, variablesMap, variableNameMap
  * @returns {Object} 按模块名分组的标准化模块对象
  */
 export function normalizeModules(modules, selectedModuleNames = []) {
-    const modulesData = configManager.getEffectiveModules() || [];
+    const modulesData = configManager.getModules() || [];
     const normalizedModules = [];
 
     // 第一步：标准化所有模块

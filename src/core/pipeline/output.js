@@ -23,7 +23,7 @@ export function htmlEscape(text) {
  */
 export function groupModulesByIdentifier(modules, needSort = false) {
     const groups = {};
-    const modulesData = configManager.getEffectiveModules() || [];
+    const modulesData = configManager.getModules() || [];
 
     modules.forEach(module => {
         const moduleName = module.moduleName;
@@ -266,7 +266,7 @@ export function buildModuleString(moduleData, moduleConfig, isIncremental = fals
 export function buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false, showRule = false) {
     let result = '';
 
-    const allModuleConfigs = configManager.getEffectiveModules() || [];
+    const allModuleConfigs = configManager.getModules() || [];
     const sortedModuleConfigs = [...allModuleConfigs].sort((a, b) => (a.order || 0) - (b.order || 0));
 
     sortedModuleConfigs.forEach(moduleConfig => {
@@ -367,14 +367,14 @@ function getModuleDataRuleString(moduleConfig, moduleData, processType, showModu
 export function processExtractModules(rawModules, selectedModuleNames, returnString) {
     const modules = rawModules;
 
+    // 提升到过滤回调外，避免每个模块都深拷贝全部模块 + 解析绑定
+    const modulesData = configManager.getModules() || [];
     const filteredModules = modules.filter(module => {
         if (!selectedModuleNames || selectedModuleNames.length === 0) {
             return true;
         }
 
         const originalModuleName = module.raw.slice(1, module.raw.indexOf('|') > 0 ? module.raw.indexOf('|') : module.raw.length - 1);
-
-        const modulesData = configManager.getEffectiveModules() || [];
 
         return selectedModuleNames.some(selectedModuleName => {
             if (selectedModuleName === originalModuleName) {
@@ -409,12 +409,13 @@ export function processProcessedModules(rawModules, selectedModuleNames, returnS
     let resultContent = '';
     const displayTitle = '整理后模块结果';
 
+    // 提升到 map 回调外，避免每个模块都解析绑定
+    const modulesData = configManager.getModules() || [];
     const processedModules = filteredModules.map(module => {
         // 使用有效模块配置（含角色/聊天绑定的变量级覆盖），
         // 使被禁用的变量不进入最终注入提示词。
         // 使用有效模块配置（含角色/聊天绑定的模块级/变量级覆盖），
-        // 禁用的变量/模块已在 getEffectiveModules() 源头过滤。
-        const modulesData = configManager.getEffectiveModules() || [];
+        // 禁用的变量/模块已在 getModules() 源头过滤。
         const moduleConfig = modulesData.find(config => config.name === module.moduleName);
 
         if (!moduleConfig) {
@@ -477,12 +478,13 @@ export function processIncrementalModules(modules, moduleConfig) {
 
     debugLog('处理增量更新模块', moduleGroupsArray);
 
+    // 提升到循环外，避免每组都深拷贝全部模块 + 解析绑定
+    const modulesData = configManager.getModules() || [];
     for (const [moduleKey, moduleList] of moduleGroupsArray) {
         const match = moduleKey.match(/^__MODULE_GROUP__(.*?)__IDENTIFIER__(.*?)__$/);
         if (!match) continue;
         const [, moduleName, identifier] = match;
 
-        const modulesData = configManager.getEffectiveModules() || [];
         const currentModuleConfig = modulesData.find(config => config.name === moduleName);
 
         if (currentModuleConfig && currentModuleConfig.outputMode === 'incremental') {
@@ -542,8 +544,9 @@ export function processFullModules(modules) {
 
     const resultItems = [];
 
+    // 提升到循环外，避免每组都解析绑定
+    const modulesData = configManager.getModules() || [];
     for (const [moduleName, allModulesOfName] of Object.entries(modulesByModuleName)) {
-        const modulesData = configManager.getEffectiveModules() || [];
         const moduleConfig = modulesData.find(config => config.name === moduleName);
         if (!moduleConfig || moduleConfig.outputMode !== 'full') continue;
 
@@ -619,10 +622,11 @@ export function processAutoModules(rawModules, selectedModuleNames) {
 
     const structuredResult = {};
 
+    // 提升到循环外，避免每组都解析绑定
+    const modulesData = configManager.getModules() || [];
     Object.keys(moduleGroups).forEach(moduleName => {
         const moduleGroup = moduleGroups[moduleName];
 
-        const modulesData = configManager.getEffectiveModules() || [];
         const moduleConfig = modulesData.find(config => config.name === moduleName);
 
         let processType = 'full';

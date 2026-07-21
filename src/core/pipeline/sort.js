@@ -146,7 +146,7 @@ function isIdInRange(id, range) {
  */
 export function sortModules(modules) {
     // 提升到比较器外，避免每次比较都深拷贝全部模块 + 解析绑定（O(n log n) 次，导致卡顿）
-    const modulesData = configManager.getEffectiveModules() || [];
+    const modulesData = configManager.getModules() || [];
     return modules.sort((a, b) => {
         const aInfo = getModuleIdentifierInfo(a, modulesData);
         const bInfo = getModuleIdentifierInfo(b, modulesData);
@@ -376,7 +376,7 @@ export function completeIdVariables(modules) {
     });
 
     // 提升到循环外，避免每组都深拷贝全部模块
-    const modulesData = configManager.getEffectiveModules() || [];
+    const modulesData = configManager.getModules() || [];
     Object.entries(moduleGroups).forEach(([moduleName, moduleList]) => {
         debugLog(`[IdCompletion] 处理模块组 ${moduleName}，包含 ${moduleList.length} 个模块`);
 
