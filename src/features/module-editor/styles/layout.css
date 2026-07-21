@@ -255,17 +255,28 @@ aside.module-list-panel {
     padding: 6px 12px 12px;
 }
 
-/* 模块覆盖分区标题：左标题 + 右重置按钮（flex 行） */
+/* 模块覆盖分区标题：左标题 + 右操作区（添加/重置按钮） */
 .form-section-title.binding-section-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
-.form-section-title.binding-section-head .binding-reset-btn {
+.form-section-title.binding-section-head .binding-section-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.form-section-title.binding-section-head .binding-reset-btn,
+.form-section-title.binding-section-head .binding-add-btn {
     font-size: 12px;
     padding: 2px 8px;
     font-weight: 400;
+    margin-left: 0;
+    margin-bottom: 0;
 }
 
 /* 正常模块行的"清除此模块覆盖"按钮（常显，无覆盖也可点） */

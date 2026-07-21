@@ -338,10 +338,12 @@ async function renderDetail() {
         <div class="binding-detail-body" id="binding-detail-body">
             <div class="form-section-title binding-section-head">
                 <span>${translate('ccore_binding_section_modules')}</span>
-                <button class="btn-secondary binding-reset-btn" id="binding-reset-btn" title="${translate('ccore_binding_reset')}">${translate('ccore_binding_reset')}</button>
+                <div class="binding-section-head-actions">
+                    <button class="btn-secondary binding-add-btn" id="binding-add-btn">＋ ${translate('ccore_binding_add_module')}</button>
+                    <button class="btn-secondary binding-reset-btn" id="binding-reset-btn" title="${translate('ccore_binding_reset')}">${translate('ccore_binding_reset')}</button>
+                </div>
             </div>
             <div class="binding-section-body">
-                <button class="btn-secondary binding-add-btn" id="binding-add-btn">＋ ${translate('ccore_binding_add_module')}</button>
                 <div class="binding-mod-list" id="binding-mod-list">
                     ${modNames.length
                         ? modNames.map(renderModuleBlock).join('')
