@@ -23,7 +23,7 @@ export function htmlEscape(text) {
  */
 export function groupModulesByIdentifier(modules, needSort = false) {
     const groups = {};
-    const modulesData = configManager.getModules() || [];
+    const modulesData = configManager.getEffectiveModules() || [];
 
     modules.forEach(module => {
         const moduleName = module.moduleName;
@@ -266,7 +266,7 @@ export function buildModuleString(moduleData, moduleConfig, isIncremental = fals
 export function buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false, showRule = false) {
     let result = '';
 
-    const allModuleConfigs = configManager.getModules() || [];
+    const allModuleConfigs = configManager.getEffectiveModules() || [];
     const sortedModuleConfigs = [...allModuleConfigs].sort((a, b) => (a.order || 0) - (b.order || 0));
 
     sortedModuleConfigs.forEach(moduleConfig => {
@@ -374,7 +374,7 @@ export function processExtractModules(rawModules, selectedModuleNames, returnStr
 
         const originalModuleName = module.raw.slice(1, module.raw.indexOf('|') > 0 ? module.raw.indexOf('|') : module.raw.length - 1);
 
-        const modulesData = configManager.getModules() || [];
+        const modulesData = configManager.getEffectiveModules() || [];
 
         return selectedModuleNames.some(selectedModuleName => {
             if (selectedModuleName === originalModuleName) {
@@ -482,7 +482,7 @@ export function processIncrementalModules(modules, moduleConfig) {
         if (!match) continue;
         const [, moduleName, identifier] = match;
 
-        const modulesData = configManager.getModules() || [];
+        const modulesData = configManager.getEffectiveModules() || [];
         const currentModuleConfig = modulesData.find(config => config.name === moduleName);
 
         if (currentModuleConfig && currentModuleConfig.outputMode === 'incremental') {

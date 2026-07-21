@@ -51,7 +51,7 @@ export function getContinuityConfig() {
         debugLog("[Macro]宏管理器: 获取模块配置数据");
 
         // 获取模块数据
-        const modulesData = configManager.getModules() || [];
+        const modulesData = configManager.getEffectiveModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空配置");
@@ -84,7 +84,7 @@ export function getContinuityModules() {
 
 
         // 获取模块数据
-        const modulesData = configManager.getModules() || [];
+        const modulesData = configManager.getEffectiveModules() || [];
 
         if (!modulesData || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空列表");

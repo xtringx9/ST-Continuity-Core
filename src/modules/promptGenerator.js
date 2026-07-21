@@ -810,7 +810,7 @@ export function generateSingleChatModuleData(index) {
                     resultString += `${configManager.MODULE_TITLE_LEFT}${entry.moduleName}${configManager.MODULE_TITLE_RIGHT}\n`;
                 }
                 // 获取当前entry的模块配置
-                const moduleConfig = configManager.getModules().find(module => module.name === entry.moduleName);
+                const moduleConfig = configManager.getEffectiveModules().find(module => module.name === entry.moduleName);
                 let shouldFilter = false;
                 let retainLayers = moduleConfig.retainLayers * 2;
                 if (retainLayers >= 0) {

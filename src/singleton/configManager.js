@@ -331,7 +331,7 @@ class ConfigManager {
             return null;
         }
 
-        const modules = this.getModules();
+        const modules = this.getEffectiveModules();
         const module = modules.find(m => m.name === moduleName);
 
         if (!module) {
@@ -1115,7 +1115,7 @@ class ConfigManager {
                 return false;
             }
 
-            const modules = this.getModules();
+            const modules = this.getEffectiveModules();
             const targetModule = modules.find(module => module.name === moduleName);
 
             if (!targetModule) {

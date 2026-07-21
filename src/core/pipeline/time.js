@@ -15,7 +15,7 @@ export function attachStructuredTimeData(modules) {
     let formattedCount = 0;
 
     // 动态获取模块配置
-    const modulesData = configManager.getModules() || [];
+    const modulesData = configManager.getEffectiveModules() || [];
     const moduleConfig = modulesData.find(config => config.timeReferenceStandard === true);
 
     let standardTimeData = null;
@@ -93,9 +93,9 @@ export function completeTimeVariables(modules) {
     });
 
     // 第二步：为每组message中的模块补全time变量
+    // 提升到循环外，避免每组都深拷贝全部模块 + 解析绑定
+    const modulesData = configManager.getEffectiveModules() || [];
     Object.values(messageModulesMap).forEach((messageModules, index) => {
-        const modulesData = configManager.getModules() || [];
-
         let standardTimeData = null;
         let standardTimeModuleName = '';
 

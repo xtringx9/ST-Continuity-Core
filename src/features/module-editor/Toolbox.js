@@ -571,7 +571,7 @@ async function handleExtract(doc, type) {
     const selectedModuleNames = Array.from(listContainer.querySelectorAll('.toolbox-checkbox:checked')).map(cb => cb.value);
 
     // 构建过滤器 (参考 ExtractModuleController 逻辑)
-    const modulesData = configManager.getModules() || [];
+    const modulesData = configManager.getEffectiveModules() || [];
     let moduleFilters = null;
 
     if (selectedModuleNames.length > 0) {

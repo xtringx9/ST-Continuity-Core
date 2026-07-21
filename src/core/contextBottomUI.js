@@ -138,9 +138,12 @@ function renderSingleMessageContextBottomUI(messages, container) {
         let internalString = '';
 
         if (messages.length > 0) {
+            // 提升到循环外，避免每条目都深拷贝全部模块 + 解析绑定
+            const effectiveModules = configManager.getEffectiveModules() || [];
+            const moduleByName = new Map(effectiveModules.map(m => [m.name, m]));
             messages.forEach((entry) => {
 
-                const config = configManager.getModuleByName(entry.moduleName);
+                const config = moduleByName.get(entry.moduleName);
 
                 // let finalContainer = config && config.isExternalDisplay ? externalContainer : container;
                 let isExternal = (config && config.isExternalDisplay) ?? false;

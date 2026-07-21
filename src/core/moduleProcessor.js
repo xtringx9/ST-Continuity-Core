@@ -54,7 +54,7 @@ export function processModuleData(extractParams, processType, selectedModuleName
             let tmpSelectedModuleNames = selectedModuleNames;
             if (tmpSelectedModuleNames === undefined) {
                 if (isAllModule) {
-                    tmpSelectedModuleNames = configManager.getModules().map(module => module.moduleName);
+                    tmpSelectedModuleNames = configManager.getEffectiveModules().map(module => module.moduleName);
                 }
                 else {
                     tmpSelectedModuleNames = moduleFilters.map(config => config.name);
@@ -92,7 +92,7 @@ export function processModuleData(extractParams, processType, selectedModuleName
         }
 
         if (moduleFilters !== null) {
-            const modulesData = configManager.getModules() || [];
+            const modulesData = configManager.getEffectiveModules() || [];
             if (modulesData && Array.isArray(modulesData)) {
                 const modulesToInclude = new Set();
 
@@ -272,7 +272,7 @@ export function groupProcessResultByMessageIndex(processResult, moveIncrementalE
         Object.keys(groupedResult).forEach(messageIndex => {
             const entries = groupedResult[messageIndex];
 
-            const modulesData = configManager.getModules() || [];
+            const modulesData = configManager.getEffectiveModules() || [];
 
             if (moveIncrementalEmbeddedToLast) {
                 const embeddedEntries = [];
