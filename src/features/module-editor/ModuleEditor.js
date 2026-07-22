@@ -546,7 +546,7 @@ function handleSmartAdd(inputValue) {
                                 // 添加新变量
                                 existingModule.variables.push({
                                     name: newVar.name,
-                                    displayName: newVar.name, // 默认显示名
+                                    displayName: newVar.displayName || newVar.name, // 优先使用解析出的显示名
                                     description: newVar.description || '',
                                     enabled: true,
                                     isIdentifier: false
@@ -558,7 +558,7 @@ function handleSmartAdd(inputValue) {
                         // 创建新模块
                         const newModule = {
                             name: parsedModule.name,
-                            displayName: parsedModule.name,
+                            displayName: parsedModule.displayName || parsedModule.name,
                             compatibleModuleNames: '',
                             order: currentModules.length,
                             enabled: true,
@@ -580,7 +580,7 @@ function handleSmartAdd(inputValue) {
                             customStyles: '',
                             variables: parsedModule.variables.map(v => ({
                                 name: v.name,
-                                displayName: v.name,
+                                displayName: v.displayName || v.name,
                                 description: v.description || '',
                                 enabled: true,
                                 isIdentifier: false

@@ -26,11 +26,12 @@ export function parseModuleString(moduleString) {
         const simpleMatch = trimmedString.match(simpleModuleRegex);
 
         if (simpleMatch) {
-            const moduleName = simpleMatch[1].trim();
+            const { name: moduleName, displayName: moduleDisplayName } = splitDisplayName(simpleMatch[1].trim());
             if (moduleName) {
-                debugLog(`解析简单模块: ${moduleName}, 无变量`);
+                debugLog(`解析简单模块: ${moduleName}${moduleDisplayName ? ` (${moduleDisplayName})` : ''}, 无变量`);
                 return {
                     name: moduleName,
+                    displayName: moduleDisplayName,
                     variables: []
                 };
             }
@@ -40,7 +41,7 @@ export function parseModuleString(moduleString) {
         return null;
     }
 
-    const moduleName = match[1].trim();
+    const { name: moduleName, displayName: moduleDisplayName } = splitDisplayName(match[1].trim());
     const variablesString = match[2];
 
     if (!moduleName) {
@@ -51,10 +52,11 @@ export function parseModuleString(moduleString) {
     // 解析变量部分 - 支持嵌套模块
     const variables = parseVariablesString(variablesString);
 
-    debugLog(`成功解析模块: ${moduleName}, 变量数量: ${variables.length}`);
+    debugLog(`成功解析模块: ${moduleName}${moduleDisplayName ? ` (${moduleDisplayName})` : ''}, 变量数量: ${variables.length}`);
 
     return {
         name: moduleName,
+        displayName: moduleDisplayName,
         variables: variables
     };
 }
@@ -97,13 +99,29 @@ function parseVariablesString(variablesString) {
  * @param {string} part 单个变量部分，如 "own:所属人"
  * @param {Array} variables 变量数组，用于存储解析结果
  */
+/**
+ * 从「名称(显示名)」中拆分出真实名称与显示名。
+ * 格式来源：generateModuleFormat 开启 showDisplayName 时生成 `变量名(变量显示名)`。
+ * @param {string} nameWithSuffix 可能带 (显示名) 后缀的名称部分
+ * @returns {{name:string, displayName:string}}
+ */
+function splitDisplayName(nameWithSuffix) {
+    const trimmed = (nameWithSuffix || '').trim();
+    const m = trimmed.match(/^(.+)\((.+)\)$/);
+    if (m && m[2].trim() !== '') {
+        return { name: m[1].trim(), displayName: m[2].trim() };
+    }
+    return { name: trimmed, displayName: '' };
+}
+
 function parseSingleVariable(part, variables) {
     if (!part) return;
 
     let colonIndex = -1;
     let inNestedModule = 0;
+    let inParen = 0;
 
-    // 找到第一个顶级冒号
+    // 找到第一个顶级冒号（忽略嵌套模块 [] 与显示名 () 内部，避免显示名含冒号被误切）
     for (let i = 0; i < part.length; i++) {
         const char = part[i];
 
@@ -111,33 +129,42 @@ function parseSingleVariable(part, variables) {
             inNestedModule++;
         } else if (char === ']') {
             inNestedModule--;
-        } else if (char === ':' && inNestedModule === 0) {
+        } else if (char === '(') {
+            inParen++;
+        } else if (char === ')') {
+            inParen--;
+        } else if (char === ':' && inNestedModule === 0 && inParen === 0) {
             colonIndex = i;
             break;
         }
     }
 
     if (colonIndex === -1) {
-        // 如果没有冒号，作为简单变量名处理
+        // 如果没有冒号，作为简单变量名处理（支持可选 (显示名) 后缀）
         const simpleVariableName = part.trim();
         if (simpleVariableName) {
-            variables.push({
-                name: simpleVariableName,
-                description: ''
-            });
-            debugLog(`解析简单变量: ${simpleVariableName}`);
+            const { name, displayName } = splitDisplayName(simpleVariableName);
+            if (name) {
+                variables.push({
+                    name: name,
+                    displayName: displayName,
+                    description: ''
+                });
+                debugLog(`解析简单变量: ${name}${displayName ? ` (${displayName})` : ''}`);
+            }
         }
     } else {
-        // 有冒号，解析为变量名和值
-        const variableName = part.substring(0, colonIndex).trim();
+        // 有冒号，解析为变量名和值（变量名部分支持可选 (显示名) 后缀）
+        const { name: variableName, displayName: variableDisplayName } = splitDisplayName(part.substring(0, colonIndex).trim());
         const variableDesc = part.substring(colonIndex + 1).trim();
 
         if (variableName) {
             variables.push({
                 name: variableName,
+                displayName: variableDisplayName,
                 description: variableDesc || ''
             });
-            debugLog(`解析变量: ${variableName} - ${variableDesc}`);
+            debugLog(`解析变量: ${variableName} - ${variableDesc}${variableDisplayName ? ` (显示名: ${variableDisplayName})` : ''}`);
         }
     }
 }
