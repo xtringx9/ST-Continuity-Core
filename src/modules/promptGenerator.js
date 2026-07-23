@@ -204,6 +204,10 @@ export function parseAndApplyModuleStylesText(text, module) {
 
 export function generateModuleFormat(module, needIdentifier = true, showDisplayName = false) {
     let result = '';
+    // 模块名支持 (显示名) 后缀，与变量格式一致，便于复制后原样解析回填
+    const moduleNamePart = (showDisplayName && module.displayName && module.displayName !== module.name)
+        ? `${module.name}(${module.displayName})`
+        : module.name;
     // 格式：生成变量描述格式
     if (module.variables && module.variables.length > 0) {
         const variableDescriptions = module.variables.map(variable => {
@@ -216,9 +220,9 @@ export function generateModuleFormat(module, needIdentifier = true, showDisplayN
             return `${prefix}${namePart}:${variableDesc}`;
         }).join('|');
 
-        result = `[${module.name}|${variableDescriptions}]\n`;
+        result = `[${moduleNamePart}|${variableDescriptions}]\n`;
     } else {
-        result = `[${module.name}]\n`;
+        result = `[${moduleNamePart}]\n`;
     }
     return result;
 }

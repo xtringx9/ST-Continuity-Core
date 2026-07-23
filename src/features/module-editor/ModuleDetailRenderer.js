@@ -20,7 +20,7 @@ import { generateModuleStylesText, parseAndApplyModuleStylesText } from '../../m
  * @param {Array} allModules 全部模块列表（用于变量跨模块复制），可选
  * @param {Function} refreshSidebar 重建侧边栏的回调（变量数量变化后同步侧边栏计数），可选
  */
-export function renderModuleDetail(module, index, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab = 'module-detail-settings', onTabChange = null, allModules = [], refreshSidebar = null) {
+export function renderModuleDetail(module, index, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab = 'module-detail-settings', onTabChange = null, allModules = [], refreshSidebar = null, setSelectedId = null) {
     const container = doc.querySelector('.module-detail-panel .detail-content');
 
     container.innerHTML = `
@@ -266,9 +266,17 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
 
         checkForChanges();
 
-        // 刷新列表项名称
-        const listItem = doc.querySelector(`.module-list-item[data-index="${index}"] .module-item-name`);
-        if (listItem) listItem.textContent = module.displayName || module.name;
+        // 刷新左侧列表项名称（按模块对象引用定位，避免 data-index 漂移导致刷新错项/失效）
+        const listItem = Array.from(doc.querySelectorAll('.module-list-item')).find(el => el.__moduleRef === module);
+        if (listItem) {
+            const nameEl = listItem.querySelector('.module-item-name');
+            if (nameEl) nameEl.textContent = module.displayName || module.name;
+            listItem.dataset.moduleName = module.name; // 同步 data-module-name，避免后续按名定位失败
+        }
+        // 模块改名时同步选中态，保证列表高亮与再次打开详情正确
+        if (typeof setSelectedId === 'function') {
+            setSelectedId(module.name);
+        }
     };
 
     // 绑定模块高级开关按钮

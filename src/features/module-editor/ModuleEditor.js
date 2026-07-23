@@ -104,7 +104,7 @@ export function initModuleEditor(iframeDocument) {
     if (selectedModuleId) {
         const selectedIndex = currentModules.findIndex(m => m.name === selectedModuleId);
         if (selectedIndex !== -1) {
-            renderModuleDetail(currentModules[selectedIndex], selectedIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList);
+            renderModuleDetail(currentModules[selectedIndex], selectedIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList, (name) => { selectedModuleId = name; });
         }
     }
 
@@ -334,6 +334,7 @@ function renderModuleList() {
         item.setAttribute('draggable', 'true'); // 启用拖拽
         item.dataset.index = index; // 存储索引
         item.dataset.moduleName = mod.name; // 存储模块名，便于复制后精准定位
+        item.__moduleRef = mod; // 存储模块对象引用，供改名后稳定定位列表项
         if (!mod.enabled) item.classList.add('disabled');
         // 如果是当前选中的模块，添加 active 类
         if (mod.name === selectedModuleId) { // 使用 name 作为 ID
@@ -365,7 +366,7 @@ function renderModuleList() {
             item.classList.add('active');
 
             selectedModuleId = mod.name;
-            renderModuleDetail(mod, index, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList);
+            renderModuleDetail(mod, index, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList, (name) => { selectedModuleId = name; });
 
             // 移动端适配：点击后切换到详情视图
             if (window.innerWidth <= 768) {
@@ -711,7 +712,7 @@ async function onImportClick() {
             const updatedModuleIndex = currentModules.findIndex(m => m.name === selectedModuleId);
             if (updatedModuleIndex !== -1) {
                 // 模块仍然存在（可能已被覆盖），重新渲染其详情
-                renderModuleDetail(currentModules[updatedModuleIndex], updatedModuleIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList);
+                renderModuleDetail(currentModules[updatedModuleIndex], updatedModuleIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList, (name) => { selectedModuleId = name; });
             }
         }
 
@@ -875,6 +876,11 @@ function saveAll() {
         configManager.applyBindingRenames(moduleRenames, variableRenames);
     }
 
+    // 保存后同步选中态与左侧列表（模块改名后侧栏需刷新）
+    const renamed = moduleRenames.find(r => r.oldName === selectedModuleId);
+    if (renamed) selectedModuleId = renamed.newName;
+    renderModuleList();
+
     // 保存后，将当前状态设为新的"原始"状态
     originalModules = JSON.parse(JSON.stringify(currentModules));
     originalGlobalSettings = JSON.parse(JSON.stringify(currentGlobalSettings));
@@ -895,7 +901,7 @@ function restoreAll() {
         const restoredModuleIndex = currentModules.findIndex(m => m.name === selectedModuleId);
         if (restoredModuleIndex !== -1) {
             // 模块仍然存在，重新渲染其详情
-            renderModuleDetail(currentModules[restoredModuleIndex], restoredModuleIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; });
+            renderModuleDetail(currentModules[restoredModuleIndex], restoredModuleIndex, doc, checkForChanges, deleteModule, renderModuleList, activeDetailTab, (tabId) => { activeDetailTab = tabId; }, currentModules, renderModuleList, (name) => { selectedModuleId = name; });
         } else {
             // 选中的模块在撤销后被删除了（例如，一个新添加的模块），清空详情面板
             selectedModuleId = null;
