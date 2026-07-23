@@ -395,7 +395,7 @@ function renderModuleBlock(modName) {
         <div class="${rowCls}" data-mod="${escapeAttr(modName)}">
             <div class="binding-mod-head">
                 <span class="binding-mod-toggle">${isExpanded ? '▾' : '▸'}</span>
-                <span class="binding-mod-name">${st.def.displayName || modName}</span>
+                <span class="binding-mod-name">${st.def.displayName ? `${st.def.displayName} (${modName})` : modName}</span>
                 ${overridden ? `<span class="binding-override-dot" title="${translate('ccore_binding_overridden')}"></span>` : ''}
                 <label class="toggle-switch binding-toggle-override">
                     <input type="checkbox" class="binding-mod-switch" ${st.effectiveEnabled ? 'checked' : ''}>
@@ -423,7 +423,7 @@ function renderVarBlocks(modName) {
     const varHtml = vars.map(v => {
         const vs = resolveVarState(modName, v.name);
         return `<div class="binding-var-row" data-var="${escapeAttr(v.name)}">
-            <span class="binding-var-name">${v.displayName || v.name}</span>
+            <span class="binding-var-name">${v.displayName ? `${v.displayName} (${v.name})` : v.name}</span>
             <label class="toggle-switch binding-toggle-override">
                 <input type="checkbox" class="binding-var-switch" ${vs.effective ? 'checked' : ''}>
                 <span class="slider round"></span>
