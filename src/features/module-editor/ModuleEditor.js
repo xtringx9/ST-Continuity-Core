@@ -16,6 +16,7 @@ import { handleExport, handleImport } from './ImportExport.js';
 import { renderModuleDetail } from './ModuleDetailRenderer.js';
 import { generateModuleFormat } from '../../modules/promptGenerator.js';
 import { handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd } from './DragHandler.js';
+import { persistScroll, restoreScroll } from '../../shared/scrollPersistence.js';
 
 // === 状态管理 ===
 let originalModules = []; // 保存时用于比较的原始模块列表
@@ -26,6 +27,14 @@ let selectedModuleId = null; // 记录当前选中的模块 ID
 let activeDetailTab = 'module-detail-settings'; // 记录当前详情页的活动Tab
 let activeViewSectionId = 'view-modules'; // 当前主视图的活动ID
 let searchTerm = ''; // 搜索关键词
+
+// 模块列表滚动位置记忆：重新打开编辑器 / 重渲后还原，避免频繁编辑时列表跳回顶部
+const MODULE_LIST_SCROLL_KEY = 'ccore_modulelist_scroll';
+// 注意：本脚本运行在父窗口上下文，模块级变量跨编辑器开关不重置。
+// 因此不能用"一次性首次渲染"标志来区分"重新打开"与"同会话内重渲"，
+// 而要用 doc（iframe 的 document）对象身份：新 iframe 的 doc 是不同对象 → 还原存档；
+// 同 iframe 内重渲 doc 不变 → 保留当前位置。
+let lastRenderedDoc = null;
 
 // 全局文档引用 (指向 Iframe 的 document)
 let doc = null;
@@ -99,6 +108,12 @@ export function initModuleEditor(iframeDocument) {
 
     // 初始化视图
     renderModuleList();
+
+    // 实时记忆模块列表滚动位置（关闭/重新打开编辑器时还原）
+    const mlEl = doc.getElementById('module-list');
+    if (mlEl) {
+        mlEl.addEventListener('scroll', () => persistScroll(mlEl, MODULE_LIST_SCROLL_KEY));
+    }
 
     // 恢复上次选中的模块详情
     if (selectedModuleId) {
@@ -254,6 +269,11 @@ function bindNavigationEvents() {
             localStorage.setItem('continuity_editor_last_tab', targetId);
             activeViewSectionId = targetId;
 
+            // 进入模块视图时还原上次滚动位置（重新打开编辑器/切回本视图后不再跳回顶部）
+            if (targetId === 'view-modules') {
+                restoreModuleListScroll();
+            }
+
             // 控制"清空模块"按钮的显示/隐藏
             const clearBtn = doc.getElementById('header-clear-btn');
             if (clearBtn) {
@@ -317,6 +337,7 @@ function resyncModuleOrders() {
 function renderModuleList() {
     resyncModuleOrders();
     const listContainer = doc.getElementById('module-list');
+    const prevScroll = listContainer.scrollTop; // 重渲前记录（刷新 iframe 后此处为 0）
     listContainer.innerHTML = ''; // 清空
 
     currentModules.forEach((mod, index) => {
@@ -427,6 +448,24 @@ function renderModuleList() {
 
         listContainer.appendChild(item);
     });
+
+    // 还原滚动位置：
+    // - 新 iframe（重新打开编辑器，doc 为不同对象）从 localStorage 读取上次位置；
+    // - 否则（同 iframe 内重渲：搜索/保存/拖拽）沿用本次重渲前的位置，避免跳回顶部。
+    if (doc !== lastRenderedDoc) {
+        lastRenderedDoc = doc;
+        restoreModuleListScroll();
+    } else {
+        listContainer.scrollTop = prevScroll;
+    }
+}
+
+// 从 localStorage 还原模块列表滚动位置（仅在模块视图可见时有效，隐藏元素设置 scrollTop 无效）
+function restoreModuleListScroll() {
+    const el = doc.getElementById('module-list');
+    if (!el) return;
+    if (!doc.getElementById('view-modules')?.classList.contains('active')) return;
+    restoreScroll(el, MODULE_LIST_SCROLL_KEY);
 }
 
 /**

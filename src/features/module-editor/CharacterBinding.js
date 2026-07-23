@@ -19,6 +19,9 @@ import { getContext } from '../../../../../../extensions.js';
 
 // 全局文档引用（指向 iframe 的 document）
 let doc = null;
+// 角色树滚动位置记忆：重新打开编辑器 / 进入本视图后还原，避免频繁编辑时角色栏跳回顶部
+const BINDING_TREE_SCROLL_KEY = 'ccore_bindingtree_scroll';
+import { persistScroll, restoreScroll } from '../../shared/scrollPersistence.js';
 let treeListEl = null;
 let detailEl = null;
 let selected = null;                 // { scope, charName, chatFile }
@@ -34,13 +37,29 @@ export function initCharacterBinding(iframeDocument) {
     detailEl = doc.getElementById('binding-detail-content');
     if (!treeListEl || !detailEl) return;
 
+    // 实时记忆角色树滚动位置（关闭/重新打开编辑器时还原）
+    treeListEl.addEventListener('scroll', () => persistScroll(treeListEl, BINDING_TREE_SCROLL_KEY));
+
     renderTree();
 
     // 切换到本视图时刷新（支持"当前聊天自动跟随"）
     const navItem = doc.querySelector('.nav-item[data-target="view-profiles"]');
     if (navItem) {
-        navItem.addEventListener('click', renderTree);
+        navItem.addEventListener('click', () => {
+            // 仅在"进入"（而非已在角色绑定页重复点击）时从 localStorage 还原上次滚动位置，
+            // 避免同会话内编辑/切换时把当前滚动位置错误跳回存档值
+            const entering = !navItem.classList.contains('active');
+            renderTree();
+            if (entering) restoreBindingTreeScroll();
+        });
     }
+
+    // 若角色绑定是启动时的初始视图（上次离开前停留在此），激活后异步还原滚动位置
+    requestAnimationFrame(() => {
+        if (doc.getElementById('view-profiles')?.classList.contains('active')) {
+            restoreBindingTreeScroll();
+        }
+    });
 }
 
 /* ===================== 左栏角色树 ===================== */
@@ -94,6 +113,7 @@ function getChatNamesForChar(charName, avatar) {
 
 async function renderTree() {
     if (!treeListEl) return;
+    const prevScroll = treeListEl.scrollTop; // 重渲前记录，便于同会话内编辑后保留位置
     treeListEl.innerHTML = '';
 
     const current = getCurrentChat();
@@ -125,8 +145,19 @@ async function renderTree() {
     if (!selected && current.charName && realNames.has(current.charName)) {
         selected = { scope: 'character', charName: current.charName, chatFile: null };
     }
+    // 同会话内重渲（增删/重定向角色绑定等）保留当前滚动位置。
+    // 必须同步设置：下方 await renderDetail()（含 fetch 聊天列表）会在后续帧续延，
+    // 若放在 await 之后才设置，会在此刻已完成的进入时存档还原（rAF）之后把它覆盖回 0。
+    treeListEl.scrollTop = prevScroll;
     applyActive();
     await renderDetail();
+}
+
+// 从 localStorage 还原角色树滚动位置（仅当角色绑定视图可见时有效，隐藏元素设置 scrollTop 无效）
+function restoreBindingTreeScroll() {
+    if (!treeListEl) return;
+    if (!doc.getElementById('view-profiles')?.classList.contains('active')) return;
+    restoreScroll(treeListEl, BINDING_TREE_SCROLL_KEY);
 }
 
 function buildCharNode(name, current, isDangling) {
