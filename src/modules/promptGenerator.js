@@ -42,19 +42,7 @@ export function generateFormalPrompt() {
 
         // 按模块顺序生成提示词，按照新格式组织
         enabledModules.forEach((module, index) => {
-            prompt += `${configManager.MODULE_TITLE_LEFT}${module.name}${module.displayName ? ` (${module.displayName})` : ""}${configManager.MODULE_TITLE_RIGHT}\n`;
-
-            prompt += getModuleRules(module, module.outputPosition === 'specific_position');
-
-            // 要求：使用prompt内容
-            if (module.prompt) {
-                prompt += `requirement:${module.prompt}\n`;
-            }
-
-            prompt += 'format:' + generateModuleFormat(module);
-
-            // 模块之间添加空行分隔
-            prompt += '\n';
+            prompt += generateModulePromptText(module);
         });
 
         prompt += `</${promptTag}>\n`;
@@ -876,6 +864,25 @@ export function generateModulePrompt() {
         errorLog('生成模块提示词失败:', error);
         return '生成提示词时发生错误：' + error.message;
     }
+}
+
+/**
+ * 生成单个模块的提示词文本（供 {{CONTINUITY_PROMPT}} 单模块片段复制等复用）
+ * 与 generateFormalPrompt 的逐模块片段保持一致；不含 <prompt> 包裹与 "# 模块配置" 头。
+ * 保留 ${变量} 原样（不做变量替换），便于复制后复用/给 AI 审查。
+ * @param {Object} module 模块对象
+ * @returns {string} 单模块提示词文本
+ */
+export function generateModulePromptText(module) {
+    let prompt = '';
+    prompt += `${configManager.MODULE_TITLE_LEFT}${module.name}${module.displayName ? ` (${module.displayName})` : ""}${configManager.MODULE_TITLE_RIGHT}\n`;
+    prompt += getModuleRules(module, module.outputPosition === 'specific_position');
+    if (module.prompt) {
+        prompt += `requirement:${module.prompt}\n`;
+    }
+    prompt += 'format:' + generateModuleFormat(module);
+    prompt += '\n';
+    return prompt;
 }
 
 /**

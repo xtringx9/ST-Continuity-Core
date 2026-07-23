@@ -5,7 +5,7 @@
 
 import { translate } from '../../../../../../i18n.js';
 import { renderVariableList } from './VariableListRenderer.js';
-import { generateModuleStylesText, parseAndApplyModuleStylesText } from '../../modules/promptGenerator.js';
+import { generateModuleStylesText, parseAndApplyModuleStylesText, generateModulePromptText } from '../../modules/promptGenerator.js';
 
 /**
  * 渲染模块详情页
@@ -120,7 +120,10 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
                     </div>
 
                     <!-- 提示词设置 -->
-                    <div class="form-section-title">${translate('ccore_title_prompt_config')}</div>
+                    <div class="form-section-title" style="display:flex;align-items:center;gap:6px;">
+                        <span>${translate('ccore_title_prompt_config')}</span>
+                        <button id="btn-copy-module-prompt" class="copy-styles-btn" title="${translate('ccore_title_copy_prompt')}">⧉</button>
+                    </div>
 
                     <div class="form-group form-full-width">
                         <label>${translate('ccore_label_prompt_timing')}</label>
@@ -335,6 +338,31 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
             } catch (e) {
                 copyStylesBtn.textContent = '✗';
                 setTimeout(() => { copyStylesBtn.textContent = '⧉'; }, 1000);
+            }
+        });
+    }
+
+    // 绑定复制提示词按钮（复制单个模块的提示词，数据源同 {{CONTINUITY_PROMPT}} 单模块片段）
+    const copyPromptBtn = doc.getElementById('btn-copy-module-prompt');
+    if (copyPromptBtn) {
+        copyPromptBtn.addEventListener('click', async () => {
+            const promptText = generateModulePromptText(module);
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(promptText);
+                } else {
+                    const ta = doc.createElement('textarea');
+                    ta.value = promptText;
+                    doc.body.appendChild(ta);
+                    ta.select();
+                    doc.execCommand('copy');
+                    ta.remove();
+                }
+                copyPromptBtn.textContent = '✓';
+                setTimeout(() => { copyPromptBtn.textContent = '⧉'; }, 1000);
+            } catch (e) {
+                copyPromptBtn.textContent = '✗';
+                setTimeout(() => { copyPromptBtn.textContent = '⧉'; }, 1000);
             }
         });
     }

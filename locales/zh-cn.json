@@ -272,6 +272,7 @@
     "ccore_binding_section_chatops": "聊天操作",
     "ccore_binding_section_chatops_hint": "（即将迁入：提取当前聊天 / 重建快照 等 per-chat 操作）",
     "ccore_binding_overridden": "已覆盖",
+    "ccore_title_copy_prompt": "复制模块提示词",
     "ccore_title_copy_styles": "复制模块样式配置（含变量customStyles）",
     "ccore_title_import_styles": "导入模块样式配置",
     "ccore_title_include_container": "含容器样式",

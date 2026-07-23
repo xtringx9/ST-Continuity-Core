@@ -272,6 +272,7 @@
     "ccore_binding_section_chatops": "Chat Operations",
     "ccore_binding_section_chatops_hint": "(per-chat ops like Extract Current Chat / Rebuild Snapshots will move here)",
     "ccore_binding_overridden": "Overridden",
+    "ccore_title_copy_prompt": "Copy Module Prompt",
     "ccore_title_copy_styles": "Copy Module Styles (with variable customStyles)",
     "ccore_title_import_styles": "Import Module Styles",
     "ccore_title_include_container": "Include container",
