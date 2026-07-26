@@ -337,5 +337,10 @@
     "ccore_debug_current_content": "当前存储内容",
     "ccore_debug_loading": "加载中...",
     "ccore_debug_no_current": "(无内容)",
-    "ccore_debug_load_failed": "加载失败"
+    "ccore_debug_load_failed": "加载失败",
+    "ccore_range_view": "显示区间消息",
+    "ccore_range_restore": "恢复默认消息",
+    "ccore_range_prompt": "请输入显示区间 (格式: 0-10 或单楼层 5, 范围: 0-{max})",
+    "ccore_range_invalid": "未填入有效区间",
+    "ccore_range_no_chat": "当前没有聊天消息"
 }

@@ -15,6 +15,9 @@ import { EventHandler } from "./src/core/eventHandler.js";
 // 导入消息 AI 生成按钮
 import { initMessageAiButton } from "./src/ui/messageAiButton.js";
 
+// 导入消息区间视图（扩展菜单入口）
+import { initMessageRangeView } from "./src/features/message-range-view/MessageRangeView.js";
+
 // infoLog("♥️ Continuity Core LOADED!");
 
 jQuery(async function () {
@@ -43,4 +46,7 @@ jQuery(async function () {
 
     // 初始化消息 AI 生成按钮
     initMessageAiButton();
+
+    // 初始化消息区间视图（注入 #extensionsMenu 菜单项）
+    initMessageRangeView();
 });

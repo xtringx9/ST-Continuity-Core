@@ -337,5 +337,10 @@
     "ccore_debug_current_content": "Current stored content",
     "ccore_debug_loading": "Loading...",
     "ccore_debug_no_current": "(empty)",
-    "ccore_debug_load_failed": "Load failed"
+    "ccore_debug_load_failed": "Load failed",
+    "ccore_range_view": "Show Message Range",
+    "ccore_range_restore": "Restore Default Messages",
+    "ccore_range_prompt": "Enter range to display (format: 0-10 or a single floor like 5, valid: 0-{max})",
+    "ccore_range_invalid": "Invalid range",
+    "ccore_range_no_chat": "No chat messages"
 }
