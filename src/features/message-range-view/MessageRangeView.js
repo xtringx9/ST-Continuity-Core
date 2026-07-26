@@ -5,11 +5,13 @@
 // 门控：参考 EntryButton 的做法，这两个入口仅在「已进入聊天页」时显示
 //   （isInChatPage()），未进入聊天时隐藏，进入聊天后通过 CHAT_CHANGED 实时显现。
 //
-// 实现说明（rebuild 式，与 ST 官方 loadChat 同款做法）：
-// - ST 自己的 loadChat 重建聊天时就是 addOneMessage(item, { scroll:false, forceId:i, ... })，
-//   因此按 forceId 重渲区间是 ST 认可的路径。
-// - 重渲后 emit USER/CHARACTER_MESSAGE_RENDERED，本扩展的消息内 Cc 按钮、
-//   contextBottomUI 等挂在渲染事件上的 UI 会照常重新挂载（仅区间内消息）。
+// 实现说明（rebuild 式，复用 ST 的聊天重建机制）：
+// - ST 在 public/script.js 的 printMessages() 里重建整段聊天时，正是逐条
+//   addOneMessage(item, { scroll:false, forceId:i, showSwipes:false })；
+//   本扩展按 forceId 只重渲区间，是同一套底层机制的子集。
+// - 与 printMessages 不同，我们对每条手动 emit USER/CHARACTER_MESSAGE_RENDERED，
+//   以便本扩展挂在渲染事件上的 UI（消息内 Cc 按钮、contextBottomUI 等）重新挂载。
+//   （printMessages 本身不 emit 这些事件，依赖后续流程；这里需显式补发。）
 //
 // 已知边界（按设计接受，不做特殊处理）：
 // - 区间视图只是前端 DOM 裁剪，不影响 chat 数据，也不影响实际发给模型的上下文。
@@ -213,7 +215,7 @@ async function showRangeView() {
             return;
         }
 
-        // rebuild：清空 #chat，仅重渲区间消息（同 ST loadChat 的重建方式）
+        // rebuild：清空 #chat，仅重渲区间消息（复用 ST printMessages 的逐条 addOneMessage 重建方式）
         $('#chat').children().remove();
         for (let i = start; i <= end; i++) {
             addOneMessage(chat[i], { scroll: false, forceId: i, showSwipes: true });
