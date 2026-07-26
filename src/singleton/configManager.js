@@ -20,6 +20,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
     debugLogs: false, // 调试日志开关，默认关闭
     autoInject: false, // 自动注入开关，默认关闭
     buttonType: "embedded", // 按钮类型，默认嵌入按钮
+    enableMessageRangeView: true, // 是否在扩展菜单显示「消息区间视图」入口（显示区间消息 / 恢复默认消息）
     moduleConfigAuthor: "", // 模块配置作者，默认空字符串
     moduleConfigVersion: "", // 模块配置版本，默认1.0.0
     asyncModule: {
@@ -115,11 +116,14 @@ class ConfigManager {
 
             // 从扩展设置加载配置
             if (extension_settings[extensionName] && extension_settings[extensionName][EXTENSION_CONFIG_KEY]) {
-                this.extensionConfig = extension_settings[extensionName][EXTENSION_CONFIG_KEY];
-                // 字段补全：确保新字段有默认值
-                this.extensionConfig.asyncModule = {
-                    ...DEFAULT_EXTENSION_CONFIG.asyncModule,
-                    ...(this.extensionConfig.asyncModule || {}),
+                const stored = extension_settings[extensionName][EXTENSION_CONFIG_KEY];
+                this.extensionConfig = {
+                    ...DEFAULT_EXTENSION_CONFIG,
+                    ...stored,
+                    asyncModule: {
+                        ...DEFAULT_EXTENSION_CONFIG.asyncModule,
+                        ...(stored.asyncModule || {}),
+                    },
                 };
                 this.isExtensionConfigLoaded = true;
                 debugLog('扩展配置已从扩展设置加载到内存缓存:', this.extensionConfig);
@@ -242,6 +246,7 @@ class ConfigManager {
             };
 
             this.extensionConfig = {
+                ...DEFAULT_EXTENSION_CONFIG,
                 ...newConfig,
                 asyncModule,
                 version: DEFAULT_EXTENSION_CONFIG.version,

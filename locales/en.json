@@ -342,5 +342,7 @@
     "ccore_range_restore": "Restore Default Messages",
     "ccore_range_prompt": "Enter range to display (format: 0-10 or a single floor like 5, valid: 0-{max})",
     "ccore_range_invalid": "Invalid range",
-    "ccore_range_no_chat": "No chat messages"
+    "ccore_range_no_chat": "No chat messages",
+    "ccore_settings_message_range_view": "Message Range View Entry",
+    "ccore_settings_message_range_view_hint": "Adds 'Show Message Range' and 'Restore Default Messages' to the wand menu; visible only in chat."
 }

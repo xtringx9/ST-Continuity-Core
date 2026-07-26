@@ -28,6 +28,7 @@ import { callGenericPopup, POPUP_TYPE } from '../../../../../../popup.js';
 import { translate } from '../../../../../../i18n.js';
 import { debugLog, errorLog } from '../../utils/logger.js';
 import { isInChatPage } from '../../core/contextBottomUI.js';
+import configManager from '../../singleton/configManager.js';
 
 const CONTAINER_ID = 'ccore_range_container';
 const MENU_VIEW_ID = 'ccore_range_view';
@@ -42,12 +43,29 @@ let chatChangedListener = null;
  * 就绪安全：若菜单尚未创建（loading_order 竞争），用 MutationObserver 等它出现。
  */
 export function initMessageRangeView() {
+    // 独立开关：关闭时移除已注入的菜单项并返回
+    if (!configManager.getExtensionConfig().enableMessageRangeView) {
+        removeMessageRangeView();
+        return;
+    }
+
     if (tryAttach()) return;
 
     const observer = new MutationObserver(() => {
         if (tryAttach()) observer.disconnect();
     });
     observer.observe(document.body, { childList: true, subtree: true });
+}
+
+/**
+ * 移除注入的菜单容器与 CHAT_CHANGED 监听（关闭开关或禁用插件时调用）。
+ */
+export function removeMessageRangeView() {
+    if (chatChangedListener) {
+        eventSource.removeListener(event_types.CHAT_CHANGED, chatChangedListener);
+        chatChangedListener = null;
+    }
+    document.getElementById(CONTAINER_ID)?.remove();
 }
 
 function tryAttach() {

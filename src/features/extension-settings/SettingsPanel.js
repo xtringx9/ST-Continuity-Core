@@ -6,6 +6,7 @@ import {
     onBackendUrlChange,
     onDebugLogsToggle,
     onButtonTypeChange,
+    onMessageRangeViewToggle,
     onAsyncEnabledToggle,
     onSnapshotIntervalChange,
     onAsyncExtractChat,
@@ -66,6 +67,7 @@ export class SettingsPanel {
         $('#continuity_test_backend').on('click', sendToBackend);
         $('#continuity_debug_logs').on('input', onDebugLogsToggle);
         $('#continuity_button_type').on('change', onButtonTypeChange);
+        $('#continuity_message_range_view').on('input', onMessageRangeViewToggle);
         $('#continuity_async_enabled').on('input', onAsyncEnabledToggle);
         $('#continuity_snapshot_interval').on('input', onSnapshotIntervalChange);
         $('#continuity_async_extract_chat').on('click', onAsyncExtractChat);

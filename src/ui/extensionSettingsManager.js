@@ -11,6 +11,7 @@ import {
 } from "../utils/worldBookUtils.js"
 import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
 import { EntryButton } from "../features/entry/EntryButton.js";
+import { initMessageRangeView, removeMessageRangeView } from "../features/message-range-view/MessageRangeView.js";
 import perMessageStorage from "../services/perMessageStorage.js";
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { chat, chat_metadata, this_chid, characters, getCurrentChatDetails } from '../../../../../../script.js';
@@ -35,6 +36,7 @@ export function loadSettingsToUI() {
     $("#continuity_backend_url").val(extensionConfig.backendUrl);
     $("#continuity_debug_logs").prop("checked", extensionConfig.debugLogs);
     $("#continuity_button_type").val(extensionConfig.buttonType || "embedded");
+    $("#continuity_message_range_view").prop("checked", extensionConfig.enableMessageRangeView !== false);
 
     // 异步模块存储设置
     const asyncModule = extensionConfig.asyncModule || {};
@@ -116,6 +118,23 @@ export function onButtonTypeChange(event) {
 }
 
 /**
+ * Handles the message range view entry toggle change.
+ * @param {Event} event
+ */
+export function onMessageRangeViewToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.enableMessageRangeView = enabled;
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        initMessageRangeView();
+    } else {
+        removeMessageRangeView();
+    }
+}
+
+/**
  * Handles the async module storage enabled toggle change.
  * @param {Event} event
  */
@@ -149,6 +168,7 @@ function enableContinuityCore() {
         registerContinuityRegexPattern();
         // 显式添加 Cc 按钮（不依赖事件/Observer 兜底，与 contextBottomUI 行为一致）
         addAiButtonsToAllMessages();
+        initMessageRangeView();
         infoLog("♥️ Continuity Core has been enabled.");
     } catch (error) {
         errorLog("Failed to enable Continuity Core:", error);
@@ -161,6 +181,7 @@ function disableContinuityCore() {
         new EntryButton(extensionFolderPath).remove();
         removeUIfromContextBottom();
         removeAllAiButtons();
+        removeMessageRangeView();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
         infoLog("♥️ Continuity Core has been disabled.");
@@ -171,7 +192,7 @@ function disableContinuityCore() {
 
 function updateExtensionUIState(enabled) {
     const elementsToToggle = [$('#continuity_backend_url'), $('#continuity_debug_logs'), $('#continuity_button_type'), $('#continuity_test_backend'),
-        $('#continuity_async_enabled'), $('#continuity_snapshot_interval')];
+        $('#continuity_async_enabled'), $('#continuity_snapshot_interval'), $('#continuity_message_range_view')];
     elementsToToggle.forEach(el => el.prop("disabled", !enabled));
 
     // 异步存储操作按钮显隐

@@ -342,5 +342,7 @@
     "ccore_range_restore": "恢复默认消息",
     "ccore_range_prompt": "请输入显示区间 (格式: 0-10 或单楼层 5, 范围: 0-{max})",
     "ccore_range_invalid": "未填入有效区间",
-    "ccore_range_no_chat": "当前没有聊天消息"
+    "ccore_range_no_chat": "当前没有聊天消息",
+    "ccore_settings_message_range_view": "消息区间视图入口",
+    "ccore_settings_message_range_view_hint": "在魔杖菜单添加「显示区间消息」与「恢复默认消息」两项，仅在聊天页可见。"
 }
