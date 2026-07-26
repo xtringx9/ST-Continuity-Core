@@ -344,5 +344,7 @@
     "ccore_range_invalid": "未填入有效区间",
     "ccore_range_no_chat": "当前没有聊天消息",
     "ccore_settings_message_range_view": "消息区间视图入口",
-    "ccore_settings_message_range_view_hint": "在魔杖菜单添加「显示区间消息」与「恢复默认消息」两项，仅在聊天页可见。"
+    "ccore_settings_message_range_view_hint": "在魔杖菜单添加「显示区间消息」与「恢复默认消息」两项，仅在聊天页可见。",
+    "ccore_settings_quick_reply_optimize": "快捷回复优化",
+    "ccore_settings_quick_reply_optimize_hint": "单排横滑、按住拖拽平移、隐藏滚动条、集合分割线；关闭则恢复原生快捷回复行为。"
 }

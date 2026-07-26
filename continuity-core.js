@@ -17,6 +17,7 @@ import { initMessageAiButton } from "./src/ui/messageAiButton.js";
 
 // 导入消息区间视图（扩展菜单入口）
 import { initMessageRangeView } from "./src/features/message-range-view/MessageRangeView.js";
+import { initQuickReplyOptimize } from "./src/features/quick-reply-optimize/QuickReplyOptimize.js";
 
 // infoLog("♥️ Continuity Core LOADED!");
 
@@ -49,4 +50,9 @@ jQuery(async function () {
 
     // 初始化消息区间视图（注入 #extensionsMenu 菜单项）
     initMessageRangeView();
+
+    // 优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线）
+    if (configManager.extensionConfig.quickReplyOptimize) {
+        initQuickReplyOptimize();
+    }
 });

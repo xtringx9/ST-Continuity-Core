@@ -344,5 +344,7 @@
     "ccore_range_invalid": "Invalid range",
     "ccore_range_no_chat": "No chat messages",
     "ccore_settings_message_range_view": "Message Range View Entry",
-    "ccore_settings_message_range_view_hint": "Adds 'Show Message Range' and 'Restore Default Messages' to the wand menu; visible only in chat."
+    "ccore_settings_message_range_view_hint": "Adds 'Show Message Range' and 'Restore Default Messages' to the wand menu; visible only in chat.",
+    "ccore_settings_quick_reply_optimize": "Quick Reply Optimize",
+    "ccore_settings_quick_reply_optimize_hint": "Single-row horizontal scroll, drag-to-pan, hidden scrollbar, set dividers; off restores native Quick Reply behavior."
 }

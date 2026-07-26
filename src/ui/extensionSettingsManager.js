@@ -12,6 +12,7 @@ import {
 import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
 import { EntryButton } from "../features/entry/EntryButton.js";
 import { initMessageRangeView, removeMessageRangeView } from "../features/message-range-view/MessageRangeView.js";
+import { initQuickReplyOptimize, removeQuickReplyOptimize } from "../features/quick-reply-optimize/QuickReplyOptimize.js";
 import perMessageStorage from "../services/perMessageStorage.js";
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { chat, chat_metadata, this_chid, characters, getCurrentChatDetails } from '../../../../../../script.js';
@@ -37,6 +38,7 @@ export function loadSettingsToUI() {
     $("#continuity_debug_logs").prop("checked", extensionConfig.debugLogs);
     $("#continuity_button_type").val(extensionConfig.buttonType || "embedded");
     $("#continuity_message_range_view").prop("checked", extensionConfig.enableMessageRangeView !== false);
+    $("#continuity_quick_reply_optimize").prop("checked", Boolean(extensionConfig.quickReplyOptimize));
 
     // 异步模块存储设置
     const asyncModule = extensionConfig.asyncModule || {};
@@ -135,6 +137,23 @@ export function onMessageRangeViewToggle(event) {
 }
 
 /**
+ * Handles the quick reply optimize toggle change.
+ * @param {Event} event
+ */
+export function onQuickReplyOptimizeToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.quickReplyOptimize = enabled;
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        initQuickReplyOptimize();
+    } else {
+        removeQuickReplyOptimize();
+    }
+}
+
+/**
  * Handles the async module storage enabled toggle change.
  * @param {Event} event
  */
@@ -169,6 +188,7 @@ function enableContinuityCore() {
         // 显式添加 Cc 按钮（不依赖事件/Observer 兜底，与 contextBottomUI 行为一致）
         addAiButtonsToAllMessages();
         initMessageRangeView();
+        initQuickReplyOptimize();
         infoLog("♥️ Continuity Core has been enabled.");
     } catch (error) {
         errorLog("Failed to enable Continuity Core:", error);
@@ -182,6 +202,7 @@ function disableContinuityCore() {
         removeUIfromContextBottom();
         removeAllAiButtons();
         removeMessageRangeView();
+        removeQuickReplyOptimize();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
         infoLog("♥️ Continuity Core has been disabled.");
