@@ -352,7 +352,9 @@ async function renderDetail() {
     const names = new Set();
     (b?.modules || []).forEach(m => names.add(m.name));
     (charB?.modules || []).forEach(m => names.add(m.name));
-    const modNames = [...names];
+    // 按模块配置里的 order 排序（而非默认添加顺序）
+    const moduleOrderMap = new Map(configManager.getModules(true).map(m => [m.name, typeof m.order === 'number' ? m.order : 0]));
+    const modNames = [...names].sort((a, b) => (moduleOrderMap.get(a) ?? 0) - (moduleOrderMap.get(b) ?? 0));
 
     detailEl.innerHTML = `
         <div class="binding-detail-header">
