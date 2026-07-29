@@ -38,6 +38,9 @@ let scrollObserver = null;
 let refreshDebounceTimer = null;
 let repositionScheduled = false;
 let chatScrollEl = null;
+let mesVisibilityObserver = null; // 仅观察视口附近消息，避免每帧对全部按钮算几何
+let visibleMesIds = new Set();    // 当前与视口（含缓冲）相交的消息 mesid 集合
+let visibilityReady = false;      // 首个 IO 回调后置真，之后仅重排可见消息按钮
 
 /**
  * 为当前所有消息添加「滚动 / 跳转」按钮（挂在 body 上，按 mesid + dir 关联）
@@ -84,6 +87,7 @@ export function addScrollTopButtonsToAllMessages() {
             }
         });
 
+        observeAllMes();
         scheduleReposition();
     } catch (err) {
         debugLog(LOG_TAG, '为所有消息添加按钮失败:', err);
@@ -235,9 +239,17 @@ function repositionButtons() {
     const n = DIRS.length;
     const unitH = BUTTON_SIZE * n + BUTTON_GAP * (n - 1);
 
+    // 一次性收集消息元素映射，避免每个按钮都做一次属性选择器查询（原 O(N) 次扫描）
+    const mesMap = new Map();
+    document.querySelectorAll('#chat .mes').forEach((el) => {
+        const id = el.getAttribute('mesid');
+        if (id !== null) mesMap.set(id, el);
+    });
+    const hasMes = mesMap.size > 0;
+
     // 常驻跨消息控件矩形（位于聊天视口右侧中部，与消息按钮同贴右缘）
     let navRect = null;
-    if (document.querySelectorAll('#chat .mes').length > 0) {
+    if (hasMes) {
         const navLeft = chatRect.right - BUTTON_SIZE - EDGE_GAP;
         const ctrlH = BUTTON_SIZE * NAV_DIRS.length + BUTTON_GAP * (NAV_DIRS.length - 1);
         const navTop = chatRect.top + (chatRect.height - ctrlH) / 2;
@@ -248,18 +260,24 @@ function repositionButtons() {
     const buttons = document.querySelectorAll(`.${BUTTON_CLASS}`);
     buttons.forEach((btn) => {
         const mesId = btn.getAttribute('data-mes-id');
-        const mesEl = mesId !== null ? $(`.mes[mesid="${mesId}"]`)[0] : null;
+        const mesEl = mesId !== null ? mesMap.get(mesId) : null;
         if (!mesEl) {
-            btn.style.display = 'none';
+            if (btn.style.display !== 'none') btn.style.display = 'none';
+            return;
+        }
+        // 仅重排视口附近的消息按钮（由 IntersectionObserver 维护 visibleMesIds）；
+        // 未就绪时回退为全部重排，保证首帧正确
+        if (visibilityReady && !visibleMesIds.has(mesId)) {
+            if (btn.style.display !== 'none') btn.style.display = 'none';
             return;
         }
         const mesRect = mesEl.getBoundingClientRect();
         const visible = mesRect.bottom > chatRect.top + 4 && mesRect.top < chatRect.bottom - 4;
         if (!visible) {
-            btn.style.display = 'none';
+            if (btn.style.display !== 'none') btn.style.display = 'none';
             return;
         }
-        btn.style.display = '';
+        if (btn.style.display === 'none') btn.style.display = '';
 
         let pos = posCache.get(mesId);
         if (!pos) {
@@ -336,7 +354,6 @@ function repositionButtons() {
     // 跨消息导航控件：常驻聊天视口右侧中部，位置固定不变，便于连续跳与手机操作
     const navEl = document.querySelector(`.${NAV_CLASS}`);
     if (navEl) {
-        const hasMes = document.querySelectorAll('#chat .mes').length > 0;
         navEl.style.display = hasMes ? '' : 'none';
         if (hasMes) {
             const ctrlH = BUTTON_SIZE * NAV_DIRS.length + BUTTON_GAP * (NAV_DIRS.length - 1);
@@ -380,6 +397,12 @@ export function removeMessageScrollToTop() {
         scrollObserver.disconnect();
         scrollObserver = null;
     }
+    if (mesVisibilityObserver) {
+        mesVisibilityObserver.disconnect();
+        mesVisibilityObserver = null;
+    }
+    visibleMesIds = new Set();
+    visibilityReady = false;
     if (refreshDebounceTimer) {
         clearTimeout(refreshDebounceTimer);
         refreshDebounceTimer = null;
@@ -393,6 +416,30 @@ export function removeMessageScrollToTop() {
     $(document).off('click.ccore-msg-nav');
     removeAllScrollTopButtons();
     removeNavControl();
+}
+
+/** 建立只观察视口附近消息的 IntersectionObserver，维护 visibleMesIds 供重排时过滤 */
+function setupMesVisibilityObserver(chatEl) {
+    if (mesVisibilityObserver) mesVisibilityObserver.disconnect();
+    visibleMesIds = new Set();
+    visibilityReady = false;
+    mesVisibilityObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            const id = entry.target.getAttribute('mesid');
+            if (id === null) continue;
+            if (entry.isIntersecting) visibleMesIds.add(id);
+            else visibleMesIds.delete(id);
+        }
+        visibilityReady = true;
+        scheduleReposition();
+    }, { root: chatEl, rootMargin: '300px 0px 300px 0px', threshold: 0 });
+    chatEl.querySelectorAll('.mes').forEach((el) => mesVisibilityObserver.observe(el));
+}
+
+/** 把当前所有 .mes 交给可见性观察器（新增消息时调用，observe 重复调用安全） */
+function observeAllMes() {
+    if (!mesVisibilityObserver) return;
+    document.querySelectorAll('#chat .mes').forEach((el) => mesVisibilityObserver.observe(el));
 }
 
 function setupChatObserver() {
@@ -410,6 +457,7 @@ function setupChatObserver() {
         }, 200);
     });
     scrollObserver.observe(chatEl, { childList: true });
+    setupMesVisibilityObserver(chatEl);
 
     if (chatScrollEl !== chatEl) {
         if (chatScrollEl) {
