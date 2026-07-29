@@ -347,6 +347,6 @@
     "ccore_settings_message_range_view_hint": "在魔杖菜单添加「显示区间消息」与「恢复默认消息」两项，仅在聊天页可见。",
     "ccore_settings_quick_reply_optimize": "快捷回复优化",
     "ccore_settings_quick_reply_optimize_hint": "单排横滑、按住拖拽平移、隐藏滚动条、集合分割线；关闭则恢复原生快捷回复行为。",
-    "ccore_settings_scroll_to_top": "消息「滚动到顶部」按钮",
-    "ccore_settings_scroll_to_top_hint": "为每条消息在右侧显示一个向上箭头，点击后将该消息滚到聊天视图顶部（手动，不打断阅读）。"
+    "ccore_settings_scroll_to_top": "消息「滚动 / 跳转」按钮",
+    "ccore_settings_scroll_to_top_hint": "为每条消息在右侧显示一列 4 个按钮：跳到上一条消息顶部、滚动到本条消息顶部、滚动到本条消息底部、跳到下一条消息顶部（手动，不打断阅读）。"
 }

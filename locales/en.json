@@ -347,6 +347,6 @@
     "ccore_settings_message_range_view_hint": "Adds 'Show Message Range' and 'Restore Default Messages' to the wand menu; visible only in chat.",
     "ccore_settings_quick_reply_optimize": "Quick Reply Optimize",
     "ccore_settings_quick_reply_optimize_hint": "Single-row horizontal scroll, drag-to-pan, hidden scrollbar, set dividers; off restores native Quick Reply behavior.",
-    "ccore_settings_scroll_to_top": "Message 'Scroll to Top' Button",
-    "ccore_settings_scroll_to_top_hint": "Shows an up-arrow on the right side of each message; clicking scrolls that message to the top of the chat view (manual, non-intrusive)."
+    "ccore_settings_scroll_to_top": "Message 'Scroll / Jump' Buttons",
+    "ccore_settings_scroll_to_top_hint": "Shows a vertical column of 4 buttons on the right side of each message: jump to previous message top, scroll this message to top, scroll this message to bottom, jump to next message top (manual, non-intrusive)."
 }
