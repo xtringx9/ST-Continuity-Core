@@ -16,6 +16,7 @@ const BUTTON_SIZE = 22; // 与 Cc 按钮同尺寸
 const EDGE_GAP = 0; // 按钮与消息右边沿的间距（越小越贴边）
 const BUTTON_GAP = 4; // 相邻按钮之间的竖向间距
 const BOTTOM_LIFT = 40; // 离视口/消息底部抬升量，避开消息底部的 swipe 切换按钮
+const NAV_AVOID_GAP = 6; // 消息按钮整列避让常驻跨消息控件时的额外间隙
 
 // 每条消息内的按钮（消息内滚动）：单列竖排
 const DIRS = ['top', 'bottom'];
@@ -234,6 +235,15 @@ function repositionButtons() {
     const n = DIRS.length;
     const unitH = BUTTON_SIZE * n + BUTTON_GAP * (n - 1);
 
+    // 常驻跨消息控件矩形（位于聊天视口右侧中部，与消息按钮同贴右缘）
+    let navRect = null;
+    if (document.querySelectorAll('#chat .mes').length > 0) {
+        const navLeft = chatRect.right - BUTTON_SIZE - EDGE_GAP;
+        const ctrlH = BUTTON_SIZE * NAV_DIRS.length + BUTTON_GAP * (NAV_DIRS.length - 1);
+        const navTop = chatRect.top + (chatRect.height - ctrlH) / 2;
+        navRect = { left: navLeft, top: navTop, right: navLeft + BUTTON_SIZE, bottom: navTop + ctrlH };
+    }
+
     const posCache = new Map();
     const buttons = document.querySelectorAll(`.${BUTTON_CLASS}`);
     buttons.forEach((btn) => {
@@ -283,14 +293,37 @@ function repositionButtons() {
                 }
             }
 
+            // 垂直避让：本列与常驻跨消息控件同贴右缘，若纵向重叠则按消息相对控件的
+            // 位置把整列上推/下移到控件外侧，再夹回聊天视口内，避免两者叠在一起
+            if (navRect) {
+                const colLeft = chatRect.right - BUTTON_SIZE - EDGE_GAP;
+                const horizOverlap = Math.max(colLeft, navRect.left) < Math.min(colLeft + BUTTON_SIZE, navRect.right);
+                if (horizOverlap) {
+                    const colCenter = mesRect.top + mesRect.height / 2;
+                    const navCenter = navRect.top + navRect.height / 2;
+                    const intersects = colBottomTop + BUTTON_SIZE > navRect.top && colTopTop < navRect.bottom;
+                    if (intersects) {
+                        if (colCenter <= navCenter) {
+                            colBottomTop = navRect.top - NAV_AVOID_GAP - BUTTON_SIZE;
+                        } else {
+                            colTopTop = navRect.bottom + NAV_AVOID_GAP;
+                        }
+                        if (colTopTop < vpMin) colTopTop = vpMin;
+                        const maxTopTop = vpMax + BUTTON_SIZE - unitH;
+                        if (colTopTop > maxTopTop) colTopTop = maxTopTop;
+                        colBottomTop = colTopTop + (unitH - BUTTON_SIZE);
+                    }
+                }
+            }
+
             // 按 DIRS 顺序（从上到下）计算每个方向的 top
             const dirTops = {};
             DIRS.forEach((dir, i) => {
                 dirTops[dir] = colTopTop + i * (BUTTON_SIZE + BUTTON_GAP);
             });
 
-            // 横向：始终贴在消息右边沿内侧（距右边沿 EDGE_GAP），更贴近消息容器
-            const left = mesRect.right - BUTTON_SIZE - EDGE_GAP;
+            // 横向：与常驻跨消息控件取同一基准（chat 右缘），保证两者始终处于同一竖线
+            const left = chatRect.right - BUTTON_SIZE - EDGE_GAP;
             pos = { dirTops, left };
             posCache.set(mesId, pos);
         }
