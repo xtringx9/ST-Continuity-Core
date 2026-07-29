@@ -348,5 +348,5 @@
     "ccore_settings_quick_reply_optimize": "Quick Reply Optimize",
     "ccore_settings_quick_reply_optimize_hint": "Single-row horizontal scroll, drag-to-pan, hidden scrollbar, set dividers; off restores native Quick Reply behavior.",
     "ccore_settings_scroll_to_top": "Message 'Scroll / Jump' Buttons",
-    "ccore_settings_scroll_to_top_hint": "Shows a vertical column of 4 buttons on the right side of each message: jump to previous message top, scroll this message to top, scroll this message to bottom, jump to next message top (manual, non-intrusive)."
+    "ccore_settings_scroll_to_top_hint": "Two buttons per message (scroll this message to top/bottom). A persistent control at the right-center of the chat viewport jumps to previous/next message top (fixed position, mobile-friendly for continuous jumping, manual, non-intrusive)."
 }

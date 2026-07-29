@@ -22,7 +22,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
     buttonType: "embedded", // 按钮类型，默认嵌入按钮
     enableMessageRangeView: true, // 是否在扩展菜单显示「消息区间视图」入口（显示区间消息 / 恢复默认消息）
     quickReplyOptimize: false, // 是否优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线），默认关闭
-    enableScrollToTop: false, // 是否显示消息「滚动/跳转」按钮（手动版，单列竖排 4 个），默认关闭
+    enableScrollToTop: false, // 是否显示消息「滚动/跳转」按钮（手动版）：每条消息右侧 2 个消息内按钮 + 常驻视口右侧中部的跨消息导航控件，默认关闭
     moduleConfigAuthor: "", // 模块配置作者，默认空字符串
     moduleConfigVersion: "", // 模块配置版本，默认1.0.0
     asyncModule: {
