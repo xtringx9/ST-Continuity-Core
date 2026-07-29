@@ -13,6 +13,7 @@ import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
 import { EntryButton } from "../features/entry/EntryButton.js";
 import { initMessageRangeView, removeMessageRangeView } from "../features/message-range-view/MessageRangeView.js";
 import { initQuickReplyOptimize, removeQuickReplyOptimize } from "../features/quick-reply-optimize/QuickReplyOptimize.js";
+import { initMessageScrollToTop, removeMessageScrollToTop } from "../features/messageScrollToTop.js";
 import perMessageStorage from "../services/perMessageStorage.js";
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { chat, chat_metadata, this_chid, characters, getCurrentChatDetails } from '../../../../../../script.js';
@@ -39,6 +40,7 @@ export function loadSettingsToUI() {
     $("#continuity_button_type").val(extensionConfig.buttonType || "embedded");
     $("#continuity_message_range_view").prop("checked", extensionConfig.enableMessageRangeView !== false);
     $("#continuity_quick_reply_optimize").prop("checked", Boolean(extensionConfig.quickReplyOptimize));
+    $("#continuity_scroll_to_top").prop("checked", Boolean(extensionConfig.enableScrollToTop));
 
     // 异步模块存储设置
     const asyncModule = extensionConfig.asyncModule || {};
@@ -154,6 +156,23 @@ export function onQuickReplyOptimizeToggle(event) {
 }
 
 /**
+ * Handles the message scroll-to-top button toggle change.
+ * @param {Event} event
+ */
+export function onScrollToTopToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.enableScrollToTop = enabled;
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        initMessageScrollToTop();
+    } else {
+        removeMessageScrollToTop();
+    }
+}
+
+/**
  * Handles the async module storage enabled toggle change.
  * @param {Event} event
  */
@@ -189,6 +208,7 @@ function enableContinuityCore() {
         addAiButtonsToAllMessages();
         initMessageRangeView();
         initQuickReplyOptimize();
+        initMessageScrollToTop();
         infoLog("♥️ Continuity Core has been enabled.");
     } catch (error) {
         errorLog("Failed to enable Continuity Core:", error);
@@ -203,6 +223,7 @@ function disableContinuityCore() {
         removeAllAiButtons();
         removeMessageRangeView();
         removeQuickReplyOptimize();
+        removeMessageScrollToTop();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
         infoLog("♥️ Continuity Core has been disabled.");
@@ -213,7 +234,7 @@ function disableContinuityCore() {
 
 function updateExtensionUIState(enabled) {
     const elementsToToggle = [$('#continuity_backend_url'), $('#continuity_debug_logs'), $('#continuity_button_type'), $('#continuity_test_backend'),
-        $('#continuity_async_enabled'), $('#continuity_snapshot_interval'), $('#continuity_message_range_view')];
+        $('#continuity_async_enabled'), $('#continuity_snapshot_interval'), $('#continuity_message_range_view'), $('#continuity_scroll_to_top')];
     elementsToToggle.forEach(el => el.prop("disabled", !enabled));
 
     // 异步存储操作按钮显隐

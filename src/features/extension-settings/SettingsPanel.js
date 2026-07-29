@@ -8,6 +8,7 @@ import {
     onButtonTypeChange,
     onMessageRangeViewToggle,
     onQuickReplyOptimizeToggle,
+    onScrollToTopToggle,
     onAsyncEnabledToggle,
     onSnapshotIntervalChange,
     onAsyncExtractChat,
@@ -70,6 +71,7 @@ export class SettingsPanel {
         $('#continuity_button_type').on('change', onButtonTypeChange);
         $('#continuity_message_range_view').on('input', onMessageRangeViewToggle);
         $('#continuity_quick_reply_optimize').on('input', onQuickReplyOptimizeToggle);
+        $('#continuity_scroll_to_top').on('input', onScrollToTopToggle);
         $('#continuity_async_enabled').on('input', onAsyncEnabledToggle);
         $('#continuity_snapshot_interval').on('input', onSnapshotIntervalChange);
         $('#continuity_async_extract_chat').on('click', onAsyncExtractChat);

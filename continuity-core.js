@@ -19,6 +19,9 @@ import { initMessageAiButton } from "./src/ui/messageAiButton.js";
 import { initMessageRangeView } from "./src/features/message-range-view/MessageRangeView.js";
 import { initQuickReplyOptimize } from "./src/features/quick-reply-optimize/QuickReplyOptimize.js";
 
+// 消息「滚动到顶部」按钮（手动版）
+import { initMessageScrollToTop } from "./src/features/messageScrollToTop.js";
+
 // infoLog("♥️ Continuity Core LOADED!");
 
 jQuery(async function () {
@@ -55,4 +58,7 @@ jQuery(async function () {
     if (configManager.extensionConfig.quickReplyOptimize) {
         initQuickReplyOptimize();
     }
+
+    // 消息「滚动到顶部」按钮（手动版，单一开关控制）
+    initMessageScrollToTop();
 });
