@@ -51,6 +51,8 @@ let currentMenuMesId = null;
  */
 export function addAiButtonToMessage(messageId) {
     if(!isInChatPage()) return;
+    // 中转判断：不可见则不加（批量函数负责清理已存在的）
+    if (!isMessageAiButtonVisible()) return;
     try {
         const messageBlock = $(`.mes[mesid="${messageId}"]`);
         if (!messageBlock.length) return;
@@ -117,10 +119,32 @@ export function addAiButtonToMessage(messageId) {
 }
 
 /**
+ * 小 Cc 按钮显隐的中转判断。
+ * 集中所有「是否显示每条消息上的小 Cc 按钮」的控制逻辑，方便后续接入其他开关。
+ * 当前仅受异步模块总开关 asyncModule.enabled 控制：
+ *   - 原显示、关掉异步 → 隐藏
+ *   - 原隐藏、开启异步 → 显示
+ * 后续若新增其他开关（如按角色/按消息类型等），在此函数内合并判断即可，
+ * 下游 addAiButtonsToAllMessages / addAiButtonToMessage 无需改动。
+ * @returns {boolean} 是否应显示小 Cc 按钮
+ */
+export function isMessageAiButtonVisible() {
+    const asyncEnabled = configManager.getExtensionConfig().asyncModule?.enabled ?? false;
+    // TODO: 后续其他开关在此处用 && / || 合并（例如：&& otherFeatureEnabled）
+    return asyncEnabled;
+}
+
+/**
  * 为当前聊天中所有消息添加按钮
  */
 export function addAiButtonsToAllMessages() {
     try {
+        // 中转判断：不可见时清除所有已存在的小 Cc 按钮并退出（满足「关异步即隐藏」）
+        if (!isMessageAiButtonVisible()) {
+            removeAllAiButtons();
+            return;
+        }
+
         const messages = $('#chat .mes');
         messages.each(function () {
             const mesId = parseInt($(this).attr('mesid'), 10);

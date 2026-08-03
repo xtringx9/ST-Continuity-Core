@@ -294,6 +294,8 @@ export function onAsyncEnabledToggle(event) {
     extensionConfig.asyncModule.enabled = enabled;
     configManager.setExtensionConfig(extensionConfig);
     updateAsyncActionsVisibility(enabled);
+    // 异步开关变化后，立即同步每条消息小 Cc 按钮的显隐
+    addAiButtonsToAllMessages();
 }
 
 /**
