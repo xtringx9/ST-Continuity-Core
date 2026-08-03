@@ -20,7 +20,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
     debugLogs: false, // 调试日志开关，默认关闭
     autoInject: false, // 自动注入开关，默认关闭
     buttonType: "embedded", // 按钮类型，默认嵌入按钮
-    enableMessageRangeView: true, // 是否在扩展菜单显示「消息区间视图」入口（显示区间消息 / 恢复默认消息）
+    enableMessageRangeView: false, // 是否在扩展菜单显示「消息区间视图」入口（显示区间消息 / 恢复默认消息）
     quickReplyOptimize: false, // 是否优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线），默认关闭
     enableScrollToTop: false, // 是否显示消息「滚动/跳转」按钮（手动版）：每条消息右侧 2 个消息内按钮 + 常驻视口右侧中部的跨消息导航控件，默认关闭
     sendHijack: { // 发送键劫持：点击发送键/回车不直接发送，改为执行指定 Quick Reply
@@ -29,7 +29,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
         label: '', // QR 标签
     },
     worldBookBinding: { // 世界书条目·绑定当前聊天：在三态（继承/本聊开/本聊关）记住每聊天的条目开关覆盖
-        enabled: true, // 是否启用世界书条目聊天绑定（默认开启，关闭后还原所有条目 disable 改动并移除编辑器控件）
+        enabled: false, // 是否启用世界书条目聊天绑定（默认开启，关闭后还原所有条目 disable 改动并移除编辑器控件）
     },
     moduleConfigAuthor: "", // 模块配置作者，默认空字符串
     moduleConfigVersion: "", // 模块配置版本，默认1.0.0
