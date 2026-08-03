@@ -9,6 +9,11 @@ import {
     onMessageRangeViewToggle,
     onQuickReplyOptimizeToggle,
     onScrollToTopToggle,
+    onWorldBookBindingToggle,
+    onSendHijackToggle,
+    onSendHijackSetChange,
+    onSendHijackLabelChange,
+    populateSendHijackOptions,
     onAsyncEnabledToggle,
     onSnapshotIntervalChange,
     onAsyncExtractChat,
@@ -72,6 +77,12 @@ export class SettingsPanel {
         $('#continuity_message_range_view').on('input', onMessageRangeViewToggle);
         $('#continuity_quick_reply_optimize').on('input', onQuickReplyOptimizeToggle);
         $('#continuity_scroll_to_top').on('input', onScrollToTopToggle);
+        $('#continuity_world_book_binding').on('input', onWorldBookBindingToggle);
+        $('#continuity_send_hijack').on('input', onSendHijackToggle);
+        $('#continuity_send_hijack_set').on('change', onSendHijackSetChange);
+        $('#continuity_send_hijack_label').on('change', onSendHijackLabelChange);
+        // 打开下拉时重填，确保反映 ST 内新建/改名/删除的 QR 集合
+        $('#continuity_send_hijack_set').on('focus mousedown', populateSendHijackOptions);
         $('#continuity_async_enabled').on('input', onAsyncEnabledToggle);
         $('#continuity_snapshot_interval').on('input', onSnapshotIntervalChange);
         $('#continuity_async_extract_chat').on('click', onAsyncExtractChat);

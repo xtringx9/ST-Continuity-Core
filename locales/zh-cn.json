@@ -348,5 +348,9 @@
     "ccore_settings_quick_reply_optimize": "快捷回复优化",
     "ccore_settings_quick_reply_optimize_hint": "单排横滑、按住拖拽平移、隐藏滚动条、集合分割线；关闭则恢复原生快捷回复行为。",
     "ccore_settings_scroll_to_top": "消息「滚动 / 跳转」按钮",
-    "ccore_settings_scroll_to_top_hint": "每条消息右侧显示 2 个按钮（滚到本条顶部/底部）；聊天视口右侧中部另有一个常驻控件，用于跳到上一条/下一条消息顶部（固定位置，兼容手机连续跳，手动不打断阅读）。"
+    "ccore_settings_scroll_to_top_hint": "每条消息右侧显示 2 个按钮（滚到本条顶部/底部）；聊天视口右侧中部另有一个常驻控件，用于跳到上一条/下一条消息顶部（固定位置，兼容手机连续跳，手动不打断阅读）。",
+    "ccore_settings_send_hijack": "发送键改为触发快捷回复",
+    "ccore_settings_send_hijack_hint": "开启后，点击发送键或按回车不再直接发送，改为执行下方指定的 Quick Reply（输入框内容由该 QR 用 {{input}} 接收）。",
+    "ccore_settings_send_hijack_set": "QR 集合:",
+    "ccore_settings_send_hijack_label": "QR 条目:"
 }

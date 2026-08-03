@@ -14,6 +14,9 @@ import { EntryButton } from "../features/entry/EntryButton.js";
 import { initMessageRangeView, removeMessageRangeView } from "../features/message-range-view/MessageRangeView.js";
 import { initQuickReplyOptimize, removeQuickReplyOptimize } from "../features/quick-reply-optimize/QuickReplyOptimize.js";
 import { initMessageScrollToTop, removeMessageScrollToTop } from "../features/messageScrollToTop.js";
+import { initSendHijack, removeSendHijack } from "../features/send-hijack/SendHijack.js";
+import { initWorldBookBinding, removeWorldBookBinding } from "../features/world-book-binding/worldBookBinding.js";
+import { escapeHtmlEntities as escapeHtml } from "../utils/textConverter.js";
 import perMessageStorage from "../services/perMessageStorage.js";
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { chat, chat_metadata, this_chid, characters, getCurrentChatDetails } from '../../../../../../script.js';
@@ -40,7 +43,10 @@ export function loadSettingsToUI() {
     $("#continuity_button_type").val(extensionConfig.buttonType || "embedded");
     $("#continuity_message_range_view").prop("checked", extensionConfig.enableMessageRangeView !== false);
     $("#continuity_quick_reply_optimize").prop("checked", Boolean(extensionConfig.quickReplyOptimize));
+    $("#continuity_send_hijack").prop("checked", Boolean(extensionConfig.sendHijack?.enabled));
+    populateSendHijackOptions();
     $("#continuity_scroll_to_top").prop("checked", Boolean(extensionConfig.enableScrollToTop));
+    $("#continuity_world_book_binding").prop("checked", extensionConfig.worldBookBinding?.enabled !== false);
 
     // 异步模块存储设置
     const asyncModule = extensionConfig.asyncModule || {};
@@ -156,6 +162,95 @@ export function onQuickReplyOptimizeToggle(event) {
 }
 
 /**
+ * 填充发送劫持的两级 QR 下拉（集合 + 条目）
+ * 依赖 globalThis.quickReplyApi，QR 扩展未就绪时给出提示并使下拉不可用。
+ * 在 APP_READY 后对应用户新建/改名集合：由 SettingsPanel 在 <select> 聚焦时触发重填。
+ */
+export function populateSendHijackOptions() {
+    const api = globalThis.quickReplyApi;
+    const $set = $("#continuity_send_hijack_set");
+    const $label = $("#continuity_send_hijack_label");
+    const cfg = configManager.getExtensionConfig().sendHijack || {};
+
+    if (!api) {
+        $set.html('<option value="">（Quick Reply 不可用）</option>').prop("disabled", true);
+        $label.html('<option value="">（Quick Reply 不可用）</option>').prop("disabled", true);
+        return;
+    }
+
+    let sets = [];
+    try { sets = api.listSets() || []; } catch { sets = []; }
+    $set.prop("disabled", false).html(
+        '<option value="">— 未选择 —</option>' +
+        sets.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("")
+    );
+    $set.val(sets.includes(cfg.set) ? cfg.set : "");
+
+    populateSendHijackLabelOptions();
+}
+
+/**
+ * 根据当前选中的 QR 集合填充条目下拉
+ */
+export function populateSendHijackLabelOptions() {
+    const api = globalThis.quickReplyApi;
+    const setName = String($("#continuity_send_hijack_set").val() || "");
+    const $label = $("#continuity_send_hijack_label");
+    const cfg = configManager.getExtensionConfig().sendHijack || {};
+
+    if (!api || !setName) {
+        $label.html('<option value="">— 未选择 —</option>').prop("disabled", !setName);
+        return;
+    }
+
+    let labels = [];
+    try { labels = api.listQuickReplies(setName) || []; } catch { labels = []; }
+    $label.prop("disabled", false).html(
+        '<option value="">— 未选择 —</option>' +
+        labels.map((l) => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join("")
+    );
+    $label.val(labels.includes(cfg.label) ? cfg.label : "");
+}
+
+/**
+ * 发送键劫持开关切换
+ * @param {Event} event
+ */
+export function onSendHijackToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.sendHijack = { ...(extensionConfig.sendHijack || {}), enabled };
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        initSendHijack();
+    } else {
+        removeSendHijack();
+    }
+}
+
+/**
+ * 发送键劫持目标 QR 集合切换：清空条目并联动刷新二级下拉
+ */
+export function onSendHijackSetChange() {
+    const setName = String($("#continuity_send_hijack_set").val() || "");
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.sendHijack = { ...(extensionConfig.sendHijack || {}), set: setName, label: "" };
+    configManager.setExtensionConfig(extensionConfig);
+    populateSendHijackLabelOptions();
+}
+
+/**
+ * 发送键劫持目标 QR 条目切换
+ */
+export function onSendHijackLabelChange() {
+    const label = String($("#continuity_send_hijack_label").val() || "");
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.sendHijack = { ...(extensionConfig.sendHijack || {}), label };
+    configManager.setExtensionConfig(extensionConfig);
+}
+
+/**
  * Handles the message scroll-to-top button toggle change.
  * @param {Event} event
  */
@@ -169,6 +264,23 @@ export function onScrollToTopToggle(event) {
         initMessageScrollToTop();
     } else {
         removeMessageScrollToTop();
+    }
+}
+
+/**
+ * 世界书条目·聊天绑定开关切换
+ * @param {Event} event
+ */
+export function onWorldBookBindingToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.worldBookBinding = { ...(extensionConfig.worldBookBinding || {}), enabled };
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        initWorldBookBinding();
+    } else {
+        removeWorldBookBinding();
     }
 }
 
@@ -209,6 +321,7 @@ function enableContinuityCore() {
         initMessageRangeView();
         initQuickReplyOptimize();
         initMessageScrollToTop();
+        if (configManager.getSendHijackTarget()) initSendHijack();
         infoLog("♥️ Continuity Core has been enabled.");
     } catch (error) {
         errorLog("Failed to enable Continuity Core:", error);
@@ -224,6 +337,7 @@ function disableContinuityCore() {
         removeMessageRangeView();
         removeQuickReplyOptimize();
         removeMessageScrollToTop();
+        removeSendHijack();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
         infoLog("♥️ Continuity Core has been disabled.");
@@ -234,7 +348,8 @@ function disableContinuityCore() {
 
 function updateExtensionUIState(enabled) {
     const elementsToToggle = [$('#continuity_backend_url'), $('#continuity_debug_logs'), $('#continuity_button_type'), $('#continuity_test_backend'),
-        $('#continuity_async_enabled'), $('#continuity_snapshot_interval'), $('#continuity_message_range_view'), $('#continuity_scroll_to_top')];
+        $('#continuity_async_enabled'), $('#continuity_snapshot_interval'), $('#continuity_message_range_view'), $('#continuity_scroll_to_top'),
+        $('#continuity_send_hijack_set'), $('#continuity_send_hijack_label')];
     elementsToToggle.forEach(el => el.prop("disabled", !enabled));
 
     // 异步存储操作按钮显隐

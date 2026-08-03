@@ -4,6 +4,7 @@ import { EntryButton } from "./src/features/entry/EntryButton.js";
 import { registerMacros } from "./src/core/macroManager.js";
 import { infoLog, debugLog } from "./src/utils/logger.js";
 import { getContext } from "../../../extensions.js";
+import { eventSource, event_types } from "../../../../script.js";
 import { extensionFolderPath } from "./src/singleton/configManager.js";
 
 // 导入配置管理器
@@ -19,8 +20,19 @@ import { initMessageAiButton } from "./src/ui/messageAiButton.js";
 import { initMessageRangeView } from "./src/features/message-range-view/MessageRangeView.js";
 import { initQuickReplyOptimize } from "./src/features/quick-reply-optimize/QuickReplyOptimize.js";
 
+// 发送键劫持：点击发送键 / 回车改为执行指定 Quick Reply
+import { initSendHijack, removeSendHijack } from "./src/features/send-hijack/SendHijack.js";
+
 // 消息「滚动到顶部」按钮（手动版）
 import { initMessageScrollToTop } from "./src/features/messageScrollToTop.js";
+
+// 世界书条目·聊天绑定（给原生世界书条目加「绑定当前聊天」三态）
+import {
+    initWorldBookBinding,
+} from "./src/features/world-book-binding/worldBookBinding.js";
+
+// 发送键劫持设置面板：QR 下拉填充
+import { populateSendHijackOptions } from "./src/ui/extensionSettingsManager.js";
 
 // infoLog("♥️ Continuity Core LOADED!");
 
@@ -31,6 +43,11 @@ jQuery(async function () {
 
     // 总是加载设置面板（即使插件禁用，也需要让用户能重新启用）
     await new SettingsPanel().load();
+
+    // QR 扩展的 quickReplyApi 在 APP_READY 后才完整就绪，此时重填发送劫持的 QR 下拉
+    eventSource.on(event_types.APP_READY, () => {
+        try { populateSendHijackOptions(); } catch (e) { debugLog('[SendHijack] APP_READY 重填下拉失败', e); }
+    });
 
     const eventHandler = new EventHandler();
 
@@ -59,6 +76,14 @@ jQuery(async function () {
         initQuickReplyOptimize();
     }
 
+    // 发送键劫持（受自身开关门控，initSendHijack 内部会做双入口 capture 监听）
+    if (configManager.getSendHijackTarget()) {
+        initSendHijack();
+    }
+
     // 消息「滚动到顶部」按钮（手动版，单一开关控制）
     initMessageScrollToTop();
+
+    // 世界书条目·聊天绑定：在原生素世界书条目上支持「绑定当前聊天」三态
+    initWorldBookBinding();
 });

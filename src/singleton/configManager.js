@@ -23,6 +23,14 @@ export const DEFAULT_EXTENSION_CONFIG = {
     enableMessageRangeView: true, // 是否在扩展菜单显示「消息区间视图」入口（显示区间消息 / 恢复默认消息）
     quickReplyOptimize: false, // 是否优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线），默认关闭
     enableScrollToTop: false, // 是否显示消息「滚动/跳转」按钮（手动版）：每条消息右侧 2 个消息内按钮 + 常驻视口右侧中部的跨消息导航控件，默认关闭
+    sendHijack: { // 发送键劫持：点击发送键/回车不直接发送，改为执行指定 Quick Reply
+        enabled: false, // 是否劫持发送键
+        set: '', // QR 集合名
+        label: '', // QR 标签
+    },
+    worldBookBinding: { // 世界书条目·绑定当前聊天：在三态（继承/本聊开/本聊关）记住每聊天的条目开关覆盖
+        enabled: true, // 是否启用世界书条目聊天绑定（默认开启，关闭后还原所有条目 disable 改动并移除编辑器控件）
+    },
     moduleConfigAuthor: "", // 模块配置作者，默认空字符串
     moduleConfigVersion: "", // 模块配置版本，默认1.0.0
     asyncModule: {
@@ -126,6 +134,10 @@ class ConfigManager {
                         ...DEFAULT_EXTENSION_CONFIG.asyncModule,
                         ...(stored.asyncModule || {}),
                     },
+                    sendHijack: {
+                        ...DEFAULT_EXTENSION_CONFIG.sendHijack,
+                        ...(stored.sendHijack || {}),
+                    },
                 };
                 this.isExtensionConfigLoaded = true;
                 debugLog('扩展配置已从扩展设置加载到内存缓存:', this.extensionConfig);
@@ -228,6 +240,16 @@ class ConfigManager {
     }
 
     /**
+     * 获取发送键劫持目标 QR（含开关与空值校验，判断放源头）
+     * @returns {{set: string, label: string} | null} 已启用且配置完整时返回目标，否则返回 null
+     */
+    getSendHijackTarget() {
+        const c = this.extensionConfig.sendHijack || {};
+        if (!c.enabled || !c.set || !c.label) return null;
+        return { set: c.set, label: c.label };
+    }
+
+    /**
      * 设置扩展配置并触发自动保存
      * @param {Object} newConfig 新的扩展配置对象
      */
@@ -247,10 +269,24 @@ class ConfigManager {
                 ...(newConfig.asyncModule || {}),
             };
 
+            // 字段补全：确保 sendHijack 子对象完整
+            const sendHijack = {
+                ...DEFAULT_EXTENSION_CONFIG.sendHijack,
+                ...(newConfig.sendHijack || {}),
+            };
+
+            // 字段补全：确保 worldBookBinding 子对象完整
+            const worldBookBinding = {
+                ...DEFAULT_EXTENSION_CONFIG.worldBookBinding,
+                ...(newConfig.worldBookBinding || {}),
+            };
+
             this.extensionConfig = {
                 ...DEFAULT_EXTENSION_CONFIG,
                 ...newConfig,
                 asyncModule,
+                sendHijack,
+                worldBookBinding,
                 version: DEFAULT_EXTENSION_CONFIG.version,
                 lastUpdated: new Date().toISOString()
             };
