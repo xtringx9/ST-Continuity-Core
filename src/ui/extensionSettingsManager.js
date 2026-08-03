@@ -318,10 +318,6 @@ function enableContinuityCore() {
         registerContinuityRegexPattern();
         // 显式添加 Cc 按钮（不依赖事件/Observer 兜底，与 contextBottomUI 行为一致）
         addAiButtonsToAllMessages();
-        initMessageRangeView();
-        initQuickReplyOptimize();
-        initMessageScrollToTop();
-        if (configManager.getSendHijackTarget()) initSendHijack();
         infoLog("♥️ Continuity Core has been enabled.");
     } catch (error) {
         errorLog("Failed to enable Continuity Core:", error);
@@ -334,10 +330,6 @@ function disableContinuityCore() {
         new EntryButton(extensionFolderPath).remove();
         removeUIfromContextBottom();
         removeAllAiButtons();
-        removeMessageRangeView();
-        removeQuickReplyOptimize();
-        removeMessageScrollToTop();
-        removeSendHijack();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
         infoLog("♥️ Continuity Core has been disabled.");
@@ -347,9 +339,8 @@ function disableContinuityCore() {
 }
 
 function updateExtensionUIState(enabled) {
-    const elementsToToggle = [$('#continuity_backend_url'), $('#continuity_debug_logs'), $('#continuity_button_type'), $('#continuity_test_backend'),
-        $('#continuity_async_enabled'), $('#continuity_snapshot_interval'), $('#continuity_message_range_view'), $('#continuity_scroll_to_top'),
-        $('#continuity_send_hijack_set'), $('#continuity_send_hijack_label')];
+    // 只禁用模块核心相关的控件，界面增强功能始终可用
+    const elementsToToggle = [$('#continuity_backend_url'), $('#continuity_button_type'), $('#continuity_test_backend')];
     elementsToToggle.forEach(el => el.prop("disabled", !enabled));
 
     // 异步存储操作按钮显隐

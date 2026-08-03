@@ -55,20 +55,8 @@ jQuery(async function () {
     // 这样插件重新启用时不会出现重复注册问题
     const macrosRegistered = registerMacros();
 
-    // 检查全局开关状态
-    if (!configManager.extensionConfig.enabled) {
-        infoLog("♥️ Continuity Core 已禁用，事件监听器和宏已注册但不会处理事件");
-        return;
-    }
-    infoLog("♥️ Continuity Core 已启用");
-
-    // 初始化入口按钮 (EntryButton 内部会根据配置决定显示方式)
-    new EntryButton(extensionFolderPath).init();
-
-    // 初始化消息 AI 生成按钮
-    initMessageAiButton();
-
-    // 初始化消息区间视图（注入 #extensionsMenu 菜单项）
+    // ── 界面增强功能（不受全局 enabled 控制，各自有独立开关）──
+    // 消息区间视图（注入 #extensionsMenu 菜单项）
     initMessageRangeView();
 
     // 优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线）
@@ -86,4 +74,18 @@ jQuery(async function () {
 
     // 世界书条目·聊天绑定：在原生素世界书条目上支持「绑定当前聊天」三态
     initWorldBookBinding();
+
+    // ── 模块核心功能（受全局 enabled 控制）──
+    // 检查全局开关状态
+    if (!configManager.extensionConfig.enabled) {
+        infoLog("♥️ Continuity Core 已禁用，事件监听器和宏已注册但不会处理事件");
+        return;
+    }
+    infoLog("♥️ Continuity Core 已启用");
+
+    // 初始化入口按钮 (EntryButton 内部会根据配置决定显示方式)
+    new EntryButton(extensionFolderPath).init();
+
+    // 初始化消息 AI 生成按钮
+    initMessageAiButton();
 });

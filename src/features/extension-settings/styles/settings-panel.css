@@ -182,3 +182,99 @@
     margin: 0;
 }
 
+/* ── 设置卡片：开关 + 标签 + 提示文字融为一体 ── */
+.continuity-setting-card {
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: rgba(128, 128, 128, 0.025);
+    border: 1px solid rgba(128, 128, 128, 0.06);
+    margin-bottom: 5px;
+}
+.continuity-setting-card:last-child {
+    margin-bottom: 0;
+}
+
+.continuity-setting-card .setting-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+/* 同行模式：label + 控件水平排列 */
+.continuity-setting-card .setting-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+.continuity-setting-card .setting-inline > label {
+    flex-shrink: 0;
+    font-size: 0.92em;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor);
+    white-space: nowrap;
+}
+.continuity-setting-card .setting-inline > select,
+.continuity-setting-card .setting-inline > input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 卡片内原生 checkbox 对齐 */
+.continuity-setting-card input[type="checkbox"] {
+    flex-shrink: 0;
+    cursor: pointer;
+    margin-top: 2px;
+}
+
+/* 分区小标题 */
+.continuity-section-label {
+    font-size: 0.82em;
+    color: var(--SmartThemeEmColor);
+    opacity: 0.65;
+    margin: 8px 0 5px 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.continuity-setting-card .setting-text {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.35;
+}
+.continuity-setting-card .setting-text > label {
+    display: block;
+    font-size: 0.92em;
+    cursor: pointer;
+    color: var(--SmartThemeBodyColor);
+}
+.continuity-setting-card .setting-hint {
+    display: block;
+    font-size: 0.78em;
+    color: var(--SmartThemeEmColor);
+    opacity: 0.7;
+    margin-top: 2px;
+    line-height: 1.4;
+}
+
+.continuity-setting-card .setting-extra {
+    margin-top: 6px;
+    padding-left: 24px;
+}
+
+/* 卡片内表单行（去除外层冗余间距） */
+.continuity-setting-card .continuity-form-row {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+/* 卡片内按钮行间距 */
+.continuity-setting-card .setting-text > .menu_button {
+    margin-bottom: 3px;
+}
+
+/* 卡片内独立 API 配置 section 间距微调 */
+#continuity_async_actions .continuity-setting-card + details {
+    margin-top: 6px;
+}
+
