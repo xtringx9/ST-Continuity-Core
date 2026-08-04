@@ -308,7 +308,7 @@ function injectAllControls() {
             if (before === 0 && $(this).find(`.${CC_WB_BIND_CLASS}`).length) count++;
         });
         if (count > 0) {
-            errorLog(`[WB-BIND] 已注入 ${count} 个绑定控件到世界书条目 header`);
+            debugLog(`[WB-BIND] 已注入 ${count} 个绑定控件到世界书条目 header`);
             injectedOnceLogged = true;
         }
     } catch (e) {
@@ -346,7 +346,7 @@ export function initWorldBookBindingUI() {
     if (initialized) return;
     initialized = true;
 
-    errorLog('[WB-BIND] 世界书条目·聊天绑定 UI 已初始化');
+    debugLog('[WB-BIND] 世界书条目·聊天绑定 UI 已初始化');
 
     // 初次注入（若编辑器已打开）
     if (!bindMainObserver()) {
