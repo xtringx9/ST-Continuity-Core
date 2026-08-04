@@ -609,7 +609,7 @@ function injectStyles() {
     margin-left: -${NAV_DOT_SIZE / 2}px;
     border-radius: 50%;
     background: var(--dot-color, ${NAV_PROGRESS_COLOR});
-    border: 1px solid var(--SmartThemeBorderColor, rgba(128,128,128,0.9));
+    border: none;
     cursor: pointer;
     pointer-events: auto;
     box-sizing: border-box;
