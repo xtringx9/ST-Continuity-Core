@@ -25,21 +25,20 @@ const DIR_META = {
     bottom: { icon: 'fa-arrow-down',  title: '滚动到消息底部' },
 };
 
-// 常驻聊天视口右侧中部的跨消息导航控件：楼层编号条（每个标签 = 一条消息的楼层号 mesid，
-// user/ai 用不同醒目度的继承色，点击跳到该消息顶部；背景含阅读进度条标当前位置）
+// 常驻聊天视口右侧中部的跨消息导航控件：消息圆点条（每个圆点 = 一条消息，
+// user/ai 用不同醒目度的继承色，点击跳到该消息顶部；hover 显示楼层号；背景含阅读进度条）
 const NAV_CLASS = 'ccore-msg-nav';
 const NAV_DOT_CLASS = 'ccore-msg-nav-dot';
 const NAV_PROGRESS_CLASS = 'ccore-msg-nav-progress';
-// 楼层编号颜色：继承 ST 主题。非 user（AI）用高亮正文主色，user 用低调边框色，
-// 深/浅主题均有良好可见度。如需其它继承色可替换下面的变量（见回复说明）。
-const NAV_DOT_NONUSER_COLOR = 'var(--SmartThemeBodyColor, rgb(230,230,220))';
-const NAV_DOT_USER_COLOR = 'var(--SmartThemeBorderColor, rgba(128,128,128,0.85))';
+// 圆点颜色：继承 ST 主题、且色相差异明显的一对清晰色，避免亮度相近看不出区别。
+// 非 user（AI）用高亮橙色 QuoteColor，user 用柔和的薄荷绿 UnderlineColor（不醒目）。
+const NAV_DOT_NONUSER_COLOR = 'var(--SmartThemeQuoteColor, rgb(225,138,36))';
+const NAV_DOT_USER_COLOR = 'var(--SmartThemeUnderlineColor, rgb(188,231,207))';
 const NAV_PROGRESS_COLOR = 'var(--smart-border-color, rgba(128,128,128,0.6))'; // 背景竖线（撑满高度）
-const NAV_DOT_W = 18;       // 楼层编号标签宽（px）
-const NAV_DOT_H = 11;       // 楼层编号标签高（px）
-const NAV_BAR_WIDTH = 22;   // 圆点条整体宽度（标签 + 两侧留白）
-const NAV_VPAD = 8;         // 圆点群上下留白（px），仅内缩标签、不影响竖线撑满
-const NAV_DOT_ZONE_RATIO = 0.72; // 楼层编号群占圆点条高度比例（<1 保持紧凑密集，竖线贯穿全长）
+const NAV_DOT_SIZE = 7;      // 单个圆点直径（px）
+const NAV_BAR_WIDTH = 14;    // 圆点条整体宽度（圆点 + 两侧留白）
+const NAV_VPAD = 12;         // 圆点群上下留白（px），仅内缩圆点、不影响竖线撑满
+const NAV_DOT_ZONE_RATIO = 0.72; // 圆点群占圆点条高度比例（<1 保持紧凑密集，竖线贯穿全长）
 
 let scrollObserver = null;
 let refreshDebounceTimer = null;
@@ -216,7 +215,7 @@ function createNavControl() {
 }
 
 /**
- * 按当前消息集合重建圆点（数量 = 消息数；user/ai 不同色）。
+ * 按当前消息集合重建圆点（数量 = 消息数；user/ai 不同色；hover 显示楼层号）。
  * 动态加载旧消息时由 repositionButtons / MutationObserver 触发重算。
  */
 function rebuildNavDots() {
@@ -235,7 +234,8 @@ function rebuildNavDots() {
             dot.className = `${NAV_DOT_CLASS} interactable`;
             dot.setAttribute('data-index', String(i));
             dot.style.setProperty('--dot-color', isUser ? NAV_DOT_USER_COLOR : NAV_DOT_NONUSER_COLOR);
-            dot.textContent = mes.getAttribute('mesid') || '';
+            const mesId = mes.getAttribute('mesid');
+            if (mesId) dot.title = `楼层 ${mesId}`;
             list.appendChild(dot);
         }
     } else {
@@ -243,8 +243,10 @@ function rebuildNavDots() {
         for (let i = 0; i < total; i++) {
             const mes = allMes[i];
             const isUser = mes.getAttribute('is_user') === 'true';
-            list.children[i].style.setProperty('--dot-color', isUser ? NAV_DOT_USER_COLOR : NAV_DOT_NONUSER_COLOR);
-            list.children[i].textContent = mes.getAttribute('mesid') || '';
+            const child = list.children[i];
+            child.style.setProperty('--dot-color', isUser ? NAV_DOT_USER_COLOR : NAV_DOT_NONUSER_COLOR);
+            const mesId = mes.getAttribute('mesid');
+            if (mesId) child.title = `楼层 ${mesId}`;
         }
     }
 }
@@ -399,13 +401,13 @@ function repositionButtons() {
             const total = allMes.length;
             rebuildNavDots();
 
-            // 楼层编号群：仅占圆点条高度的 NAV_DOT_ZONE_RATIO（紧凑密集），居中于整条内，
-            // 竖线仍贯穿全长——编号密集 + 竖线撑满两者兼顾
+            // 圆点群：仅占圆点条高度的 NAV_DOT_ZONE_RATIO（紧凑密集），居中于整条内，
+            // 竖线仍贯穿全长——圆点密集 + 竖线撑满两者兼顾
             const list = navEl.querySelector(`.${NAV_DOT_CLASS}-list`);
             if (list && list.childElementCount === total) {
                 const zoneH = Math.min(barH * NAV_DOT_ZONE_RATIO, barH);
                 const zoneTop = (barH - zoneH) / 2;
-                const span = zoneH - NAV_VPAD * 2 - NAV_DOT_H;
+                const span = zoneH - NAV_VPAD * 2 - NAV_DOT_SIZE;
                 for (let i = 0; i < total; i++) {
                     const t = total > 1 ? i / (total - 1) : 0.5;
                     list.children[i].style.top = `${zoneTop + NAV_VPAD + t * span}px`;
@@ -602,19 +604,12 @@ function injectStyles() {
 .ccore-msg-nav-dot {
     position: absolute;
     left: 50%;
-    width: ${NAV_DOT_W}px;
-    height: ${NAV_DOT_H}px;
-    margin-left: -${NAV_DOT_W / 2}px;
-    border-radius: 3px;
-    background: transparent;
-    border: 1px solid var(--dot-color, ${NAV_PROGRESS_COLOR});
-    color: var(--dot-color, ${NAV_PROGRESS_COLOR});
-    font-size: 8px;
-    line-height: ${NAV_DOT_H - 2}px;
-    text-align: center;
-    font-family: var(--mainFontSize, monospace);
-    overflow: hidden;
-    white-space: nowrap;
+    width: ${NAV_DOT_SIZE}px;
+    height: ${NAV_DOT_SIZE}px;
+    margin-left: -${NAV_DOT_SIZE / 2}px;
+    border-radius: 50%;
+    background: var(--dot-color, ${NAV_PROGRESS_COLOR});
+    border: 1px solid var(--SmartThemeBorderColor, rgba(128,128,128,0.9));
     cursor: pointer;
     pointer-events: auto;
     box-sizing: border-box;
