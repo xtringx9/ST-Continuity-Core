@@ -38,6 +38,7 @@ const NAV_DOT_ENDPOINT_COLOR = 'var(--SmartThemeLinkColor, rgb(120,170,255))'; /
 const NAV_PROGRESS_COLOR = 'var(--smart-border-color, rgba(128,128,128,0.6))'; // 背景竖线（撑满高度）
 const NAV_DOT_SIZE = 6;      // 单个圆点视觉直径（px）
 const NAV_DOT_HIT = 16;      // 圆点可点热区直径（px），大于视觉尺寸便于手机点按
+const NAV_DOT_MIN_GAP = 4;   // 相邻圆点热区间最小额外间距（px），避免密集消息圆点重叠
 const NAV_BAR_WIDTH = 14;    // 圆点条整体宽度（圆点 + 两侧留白）
 const NAV_VPAD = 12;         // 圆点群上下留白（px），仅内缩圆点、不影响竖线撑满
 
@@ -445,9 +446,10 @@ function repositionButtons() {
                 const endpointReserve = NAV_DOT_HIT + 2; // 端点占位（直径 + 间隙），使消息圆点不与端点重叠
                 const mesZoneTop = zoneTop + endpointReserve;
                 const mesZoneBottom = zoneBottom - endpointReserve;
-                // 端点圆点钉在 zone 上下边（紧贴 NAV_VPAD 内边）
-                list.children[0].style.top = `${zoneTop - NAV_DOT_HIT / 2}px`; // 顶部端点
-                list.children[total + 1].style.top = `${zoneBottom - NAV_DOT_HIT / 2}px`; // 底部端点
+                // 先按真实高度算出每个圆点（含端点）的「中心 y」
+                const centers = new Array(total + 2);
+                centers[0] = zoneTop;            // 顶部端点钉在 zone 上边
+                centers[total + 1] = zoneBottom; // 底部端点钉在 zone 下边
                 if (total > 0) {
                     const y0 = allMes[0].offsetTop;
                     const lastMes = allMes[total - 1];
@@ -456,9 +458,25 @@ function repositionButtons() {
                     for (let i = 0; i < total; i++) {
                         const mes = allMes[i];
                         const mesMid = (mes.offsetTop - y0) / ySpan; // 0..1：消息在整段中的相对中点
-                        const y = mesZoneTop + mesMid * (mesZoneBottom - mesZoneTop);
-                        list.children[i + 1].style.top = `${y - NAV_DOT_HIT / 2}px`; // +1 跳过顶部端点
+                        centers[i + 1] = mesZoneTop + mesMid * (mesZoneBottom - mesZoneTop);
                     }
+                }
+                // 最小可点击间距：相邻圆点中心若过近则向下推挤，保证热区不重叠
+                const minStep = NAV_DOT_HIT + NAV_DOT_MIN_GAP;
+                for (let k = 1; k < centers.length; k++) {
+                    if (centers[k] - centers[k - 1] < minStep) {
+                        centers[k] = Math.min(centers[k - 1] + minStep, barH - NAV_DOT_HIT / 2);
+                    }
+                }
+                // 若底部被推挤越界，则从下往上回推（保持端点钉底）
+                for (let k = centers.length - 2; k >= 0; k--) {
+                    if (centers[k + 1] - centers[k] < minStep) {
+                        centers[k] = Math.max(centers[k + 1] - minStep, NAV_DOT_HIT / 2);
+                    }
+                }
+                // 应用：top 为热区盒左上，减去半径
+                for (let k = 0; k < centers.length; k++) {
+                    list.children[k].style.top = `${centers[k] - NAV_DOT_HIT / 2}px`;
                 }
             }
 
