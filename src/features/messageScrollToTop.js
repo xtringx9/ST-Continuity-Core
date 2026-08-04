@@ -13,9 +13,9 @@ const LOG_TAG = '[MessageScrollToTop]';
 const BUTTON_CLASS = 'ccore-scroll-top-btn';
 const STYLE_ID = 'ccore_scroll_to_top_styles';
 const BUTTON_SIZE = 22; // 与 Cc 按钮同尺寸
-const EDGE_GAP = 0; // 按钮与消息右边沿的间距（越小越贴边）
+const EDGE_GAP = 0; // 按钮整列与聊天视口右/顶/底边的间距（越小越贴边）
+const BUTTON_INSET = 8; // 跳顶/跳底按钮相对消息自身的顶/底内缩量（都不贴边）
 const BUTTON_GAP = 4; // 相邻按钮之间的竖向间距
-const BOTTOM_LIFT = 40; // 离视口/消息底部抬升量，避开消息底部的 swipe 切换按钮
 const NAV_AVOID_GAP = 6; // 消息按钮整列避让常驻跨消息控件时的额外间隙
 
 // 每条消息内的按钮（消息内滚动）：单列竖排
@@ -34,6 +34,7 @@ const NAV_PROGRESS_CLASS = 'ccore-msg-nav-progress';
 // 非 user（AI）用高亮橙色 QuoteColor，user 用柔和的薄荷绿 UnderlineColor（不醒目）。
 const NAV_DOT_NONUSER_COLOR = 'var(--SmartThemeQuoteColor, rgb(225,138,36))';
 const NAV_DOT_USER_COLOR = 'var(--SmartThemeUnderlineColor, rgb(188,231,207))';
+const NAV_DOT_ENDPOINT_COLOR = 'var(--SmartThemeBlurTint, rgb(150,160,180))'; // 顶/底跳转特殊圆点（中性继承色）
 const NAV_PROGRESS_COLOR = 'var(--smart-border-color, rgba(128,128,128,0.6))'; // 背景竖线（撑满高度）
 const NAV_DOT_SIZE = 6;      // 单个圆点视觉直径（px）
 const NAV_DOT_HIT = 16;      // 圆点可点热区直径（px），大于视觉尺寸便于手机点按
@@ -168,6 +169,17 @@ function onNavClick(event) {
     event.stopPropagation();
     const dot = $(event.target).closest(`.${NAV_DOT_CLASS}`);
     if (dot.length === 0) return;
+    const endpoint = dot.attr('data-endpoint');
+    if (endpoint === 'top') {
+        const chatEl = document.getElementById('chat');
+        if (chatEl) chatEl.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+    }
+    if (endpoint === 'bottom') {
+        const chatEl = document.getElementById('chat');
+        if (chatEl) chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' });
+        return;
+    }
     const idx = parseInt(dot.attr('data-index'), 10);
     if (isNaN(idx)) return;
     const allMes = document.querySelectorAll('#chat .mes');
@@ -226,8 +238,19 @@ function rebuildNavDots() {
     if (!list) return;
     const allMes = document.querySelectorAll('#chat .mes');
     const total = allMes.length;
-    if (list.childElementCount !== total) {
+    // 圆点总数 = 消息数 + 顶/底两个特殊端点圆点（跳转聊天最顶 / 最底）
+    const need = total > 0 ? total + 2 : 0;
+    if (list.childElementCount !== need) {
         list.innerHTML = '';
+        // 顶部端点圆点
+        if (total > 0) {
+            const topDot = document.createElement('div');
+            topDot.className = `${NAV_DOT_CLASS} interactable ${NAV_DOT_CLASS}-endpoint`;
+            topDot.setAttribute('data-endpoint', 'top');
+            topDot.style.setProperty('--dot-color', NAV_DOT_ENDPOINT_COLOR);
+            topDot.title = '跳到聊天最顶部';
+            list.appendChild(topDot);
+        }
         for (let i = 0; i < total; i++) {
             const mes = allMes[i];
             const isUser = mes.getAttribute('is_user') === 'true';
@@ -239,12 +262,22 @@ function rebuildNavDots() {
             if (mesId) dot.title = `楼层 ${mesId}`;
             list.appendChild(dot);
         }
+        // 底部端点圆点
+        if (total > 0) {
+            const botDot = document.createElement('div');
+            botDot.className = `${NAV_DOT_CLASS} interactable ${NAV_DOT_CLASS}-endpoint`;
+            botDot.setAttribute('data-endpoint', 'bottom');
+            botDot.style.setProperty('--dot-color', NAV_DOT_ENDPOINT_COLOR);
+            botDot.title = '跳到聊天最底部';
+            list.appendChild(botDot);
+        }
     } else {
         // 数量未变时同步角色色与楼层号（极少数情况角色判定在初次渲染后才稳定）
         for (let i = 0; i < total; i++) {
             const mes = allMes[i];
             const isUser = mes.getAttribute('is_user') === 'true';
-            const child = list.children[i];
+            const child = list.children[i + 1]; // +1 跳过顶部端点圆点
+            if (!child) continue;
             child.style.setProperty('--dot-color', isUser ? NAV_DOT_USER_COLOR : NAV_DOT_NONUSER_COLOR);
             const mesId = mes.getAttribute('mesid');
             if (mesId) child.title = `楼层 ${mesId}`;
@@ -326,9 +359,9 @@ function repositionButtons() {
             const visH = visBottom - visTop;
 
             if (visH >= needH) {
-                // 消息可见高度足够：底按钮贴消息顶，顶按钮贴消息底（整体抬升 BOTTOM_LIFT 避开 swipe）
-                bottomBtnTop = visTop + EDGE_GAP;
-                topBtnTop = visBottom - BUTTON_SIZE - BOTTOM_LIFT;
+                // 消息可见高度足够：底按钮内缩于消息顶，顶按钮内缩于消息底，顶底留白统一为 BUTTON_INSET
+                bottomBtnTop = visTop + BUTTON_INSET;
+                topBtnTop = visBottom - BUTTON_SIZE - BUTTON_INSET;
                 // 夹在聊天视口内，避免压到 ST 顶栏 / 输入区
                 if (bottomBtnTop < vpMin) bottomBtnTop = vpMin;
                 if (bottomBtnTop > vpMax) bottomBtnTop = vpMax;
@@ -405,13 +438,30 @@ function repositionButtons() {
             // 圆点群：仅占圆点条高度的 NAV_DOT_ZONE_RATIO（紧凑密集），居中于整条内，
             // 竖线仍贯穿全长——圆点密集 + 竖线撑满两者兼顾
             const list = navEl.querySelector(`.${NAV_DOT_CLASS}-list`);
-            if (list && list.childElementCount === total) {
+            if (list && list.childElementCount === total + 2) {
+                // 圆点群仅占圆点条高度的 NAV_DOT_ZONE_RATIO（紧凑居中），竖线仍贯穿全长。
+                // 顶/底端点圆点钉在 zone 两端；消息圆点按真实高度分布（长消息占更长段），
+                // 并把消息区间两端各内缩一个「端点占位」，避免首/末消息圆点与端点圆点重叠。
                 const zoneH = Math.min(barH * NAV_DOT_ZONE_RATIO, barH);
-                const zoneTop = (barH - zoneH) / 2;
-                const span = zoneH - NAV_VPAD * 2 - NAV_DOT_SIZE;
-                for (let i = 0; i < total; i++) {
-                    const t = total > 1 ? i / (total - 1) : 0.5;
-                    list.children[i].style.top = `${zoneTop + NAV_VPAD + t * span}px`;
+                const zoneTop = (barH - zoneH) / 2 + NAV_VPAD;
+                const zoneBottom = zoneTop + zoneH - NAV_VPAD * 2;
+                const endpointReserve = NAV_DOT_HIT + 2; // 端点占位（直径 + 间隙），使消息圆点不与端点重叠
+                const mesZoneTop = zoneTop + endpointReserve;
+                const mesZoneBottom = zoneBottom - endpointReserve;
+                // 端点圆点钉在 zone 上下边（紧贴 NAV_VPAD 内边）
+                list.children[0].style.top = `${zoneTop - NAV_DOT_HIT / 2}px`; // 顶部端点
+                list.children[total + 1].style.top = `${zoneBottom - NAV_DOT_HIT / 2}px`; // 底部端点
+                if (total > 0) {
+                    const y0 = allMes[0].offsetTop;
+                    const lastMes = allMes[total - 1];
+                    const y1 = lastMes.offsetTop + lastMes.offsetHeight;
+                    const ySpan = Math.max(1, y1 - y0);
+                    for (let i = 0; i < total; i++) {
+                        const mes = allMes[i];
+                        const mesMid = (mes.offsetTop - y0) / ySpan; // 0..1：消息在整段中的相对中点
+                        const y = mesZoneTop + mesMid * (mesZoneBottom - mesZoneTop);
+                        list.children[i + 1].style.top = `${y - NAV_DOT_HIT / 2}px`; // +1 跳过顶部端点
+                    }
                 }
             }
 
@@ -420,12 +470,15 @@ function repositionButtons() {
             const anchor = getAnchorMesEl();
             if (anchor) {
                 const idx = Array.prototype.indexOf.call(allMes, anchor);
-                if (idx !== -1 && list && lastActiveDot !== idx) {
-                    if (lastActiveDot >= 0 && list.children[lastActiveDot]) {
-                        list.children[lastActiveDot].classList.remove('active');
+                if (idx !== -1 && list) {
+                    const activeChildIdx = idx + 1; // 消息圆点从 children[1] 开始
+                    if (lastActiveDot !== activeChildIdx) {
+                        if (lastActiveDot >= 0 && list.children[lastActiveDot]) {
+                            list.children[lastActiveDot].classList.remove('active');
+                        }
+                        if (list.children[activeChildIdx]) list.children[activeChildIdx].classList.add('active');
+                        lastActiveDot = activeChildIdx;
                     }
-                    if (list.children[idx]) list.children[idx].classList.add('active');
-                    lastActiveDot = idx;
                 }
             }
         }
