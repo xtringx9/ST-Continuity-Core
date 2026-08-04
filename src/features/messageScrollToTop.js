@@ -34,7 +34,7 @@ const NAV_PROGRESS_CLASS = 'ccore-msg-nav-progress';
 // 非 user（AI）用高亮橙色 QuoteColor，user 用柔和的薄荷绿 UnderlineColor（不醒目）。
 const NAV_DOT_NONUSER_COLOR = 'var(--SmartThemeQuoteColor, rgb(225,138,36))';
 const NAV_DOT_USER_COLOR = 'var(--SmartThemeUnderlineColor, rgb(188,231,207))';
-const NAV_DOT_ENDPOINT_COLOR = 'var(--SmartThemeBlurTint, rgb(150,160,180))'; // 顶/底跳转特殊圆点（中性继承色）
+const NAV_DOT_ENDPOINT_COLOR = 'var(--SmartThemeLinkColor, rgb(120,170,255))'; // 顶/底跳转特殊圆点（链接蓝继承色）
 const NAV_PROGRESS_COLOR = 'var(--smart-border-color, rgba(128,128,128,0.6))'; // 背景竖线（撑满高度）
 const NAV_DOT_SIZE = 6;      // 单个圆点视觉直径（px）
 const NAV_DOT_HIT = 16;      // 圆点可点热区直径（px），大于视觉尺寸便于手机点按
