@@ -38,6 +38,7 @@ const NAV_DOT_ENDPOINT_COLOR = 'var(--SmartThemeLinkColor, rgb(120,170,255))'; /
 const NAV_PROGRESS_COLOR = 'var(--smart-border-color, rgba(128,128,128,0.6))'; // 背景竖线（撑满高度）
 const NAV_DOT_SIZE = 6;      // 单个圆点视觉直径（px）
 const NAV_DOT_HIT = 16;      // 圆点可点热区直径（px），大于视觉尺寸便于手机点按
+const NAV_DOT_HIT_MIN = 9;   // 热区最小直径（px），圆点过多缩到此值仍放不下则保持不重叠
 const NAV_DOT_MIN_GAP = 4;   // 相邻圆点热区间最小额外间距（px），避免密集消息圆点重叠
 const NAV_BAR_WIDTH = 14;    // 圆点条整体宽度（圆点 + 两侧留白）
 const NAV_VPAD = 12;         // 圆点群上下留白（px），仅内缩圆点、不影响竖线撑满
@@ -446,10 +447,18 @@ function repositionButtons() {
                 const endpointReserve = NAV_DOT_HIT + 2; // 端点占位（直径 + 间隙），使消息圆点不与端点重叠
                 const mesZoneTop = zoneTop + endpointReserve;
                 const mesZoneBottom = zoneBottom - endpointReserve;
+                // 自适应尺寸：圆点过多放不下时，按比例缩小热区/间距直到刚好铺满；
+                // 缩到下限 NAV_DOT_HIT_MIN 仍放不下则保持下限（极端超长聊天，宁可小也不重叠）。
+                const need = total + 2;
+                const availSpan = Math.max(1, barH - NAV_VPAD * 2);
+                const desiredStep = NAV_DOT_HIT + NAV_DOT_MIN_GAP;
+                const effStep = Math.min(desiredStep, availSpan / need);
+                const effHit = Math.max(NAV_DOT_HIT_MIN, effStep - NAV_DOT_MIN_GAP);
+                const effGap = effStep - effHit;
                 // 先按真实高度算出每个圆点（含端点）的「中心 y」
-                const centers = new Array(total + 2);
+                const centers = new Array(need);
                 centers[0] = zoneTop;            // 顶部端点钉在 zone 上边
-                centers[total + 1] = zoneBottom; // 底部端点钉在 zone 下边
+                centers[need - 1] = zoneBottom;  // 底部端点钉在 zone 下边
                 if (total > 0) {
                     const y0 = allMes[0].offsetTop;
                     const lastMes = allMes[total - 1];
@@ -462,21 +471,27 @@ function repositionButtons() {
                     }
                 }
                 // 最小可点击间距：相邻圆点中心若过近则向下推挤，保证热区不重叠
-                const minStep = NAV_DOT_HIT + NAV_DOT_MIN_GAP;
+                const minStep = effHit + effGap;
                 for (let k = 1; k < centers.length; k++) {
                     if (centers[k] - centers[k - 1] < minStep) {
-                        centers[k] = Math.min(centers[k - 1] + minStep, barH - NAV_DOT_HIT / 2);
+                        centers[k] = Math.min(centers[k - 1] + minStep, barH - effHit / 2);
                     }
                 }
                 // 若底部被推挤越界，则从下往上回推（保持端点钉底）
                 for (let k = centers.length - 2; k >= 0; k--) {
                     if (centers[k + 1] - centers[k] < minStep) {
-                        centers[k] = Math.max(centers[k + 1] - minStep, NAV_DOT_HIT / 2);
+                        centers[k] = Math.max(centers[k + 1] - minStep, effHit / 2);
                     }
                 }
-                // 应用：top 为热区盒左上，减去半径
+                // 应用：动态设置热区尺寸 + top（热区盒左上，减去半径）
                 for (let k = 0; k < centers.length; k++) {
-                    list.children[k].style.top = `${centers[k] - NAV_DOT_HIT / 2}px`;
+                    const dot = list.children[k];
+                    const pad = Math.max(0, (effHit - NAV_DOT_SIZE) / 2);
+                    dot.style.width = `${effHit}px`;
+                    dot.style.height = `${effHit}px`;
+                    dot.style.marginLeft = `${-effHit / 2}px`;
+                    dot.style.padding = `${pad}px`;
+                    dot.style.top = `${centers[k] - effHit / 2}px`;
                 }
             }
 
