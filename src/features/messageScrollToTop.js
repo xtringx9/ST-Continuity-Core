@@ -35,7 +35,8 @@ const NAV_PROGRESS_CLASS = 'ccore-msg-nav-progress';
 const NAV_DOT_NONUSER_COLOR = 'var(--SmartThemeQuoteColor, rgb(225,138,36))';
 const NAV_DOT_USER_COLOR = 'var(--SmartThemeUnderlineColor, rgb(188,231,207))';
 const NAV_PROGRESS_COLOR = 'var(--smart-border-color, rgba(128,128,128,0.6))'; // 背景竖线（撑满高度）
-const NAV_DOT_SIZE = 7;      // 单个圆点直径（px）
+const NAV_DOT_SIZE = 6;      // 单个圆点视觉直径（px）
+const NAV_DOT_HIT = 16;      // 圆点可点热区直径（px），大于视觉尺寸便于手机点按
 const NAV_BAR_WIDTH = 14;    // 圆点条整体宽度（圆点 + 两侧留白）
 const NAV_VPAD = 12;         // 圆点群上下留白（px），仅内缩圆点、不影响竖线撑满
 const NAV_DOT_ZONE_RATIO = 0.72; // 圆点群占圆点条高度比例（<1 保持紧凑密集，竖线贯穿全长）
@@ -604,11 +605,14 @@ function injectStyles() {
 .ccore-msg-nav-dot {
     position: absolute;
     left: 50%;
-    width: ${NAV_DOT_SIZE}px;
-    height: ${NAV_DOT_SIZE}px;
-    margin-left: -${NAV_DOT_SIZE / 2}px;
+    width: ${NAV_DOT_HIT}px;
+    height: ${NAV_DOT_HIT}px;
+    margin-left: -${NAV_DOT_HIT / 2}px;
+    padding: ${(NAV_DOT_HIT - NAV_DOT_SIZE) / 2}px;
     border-radius: 50%;
     background: var(--dot-color, ${NAV_PROGRESS_COLOR});
+    background-clip: content-box;
+    -webkit-background-clip: content-box;
     border: none;
     cursor: pointer;
     pointer-events: auto;
@@ -616,11 +620,10 @@ function injectStyles() {
     transition: transform 0.15s, box-shadow 0.15s;
 }
 .ccore-msg-nav-dot:hover {
-    transform: scale(1.8);
+    transform: scale(1.4);
 }
 .ccore-msg-nav-dot.active {
-    transform: scale(1.8);
-    box-shadow: 0 0 0 2px var(--smart-border-color, rgba(128,128,128,0.8));
+    transform: scale(1.4);
 }
 `;
     document.head.appendChild(style);
