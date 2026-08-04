@@ -40,7 +40,6 @@ const NAV_DOT_SIZE = 6;      // 单个圆点视觉直径（px）
 const NAV_DOT_HIT = 16;      // 圆点可点热区直径（px），大于视觉尺寸便于手机点按
 const NAV_BAR_WIDTH = 14;    // 圆点条整体宽度（圆点 + 两侧留白）
 const NAV_VPAD = 12;         // 圆点群上下留白（px），仅内缩圆点、不影响竖线撑满
-const NAV_DOT_ZONE_RATIO = 0.72; // 圆点群占圆点条高度比例（<1 保持紧凑密集，竖线贯穿全长）
 
 let scrollObserver = null;
 let refreshDebounceTimer = null;
@@ -435,16 +434,14 @@ function repositionButtons() {
             const total = allMes.length;
             rebuildNavDots();
 
-            // 圆点群：仅占圆点条高度的 NAV_DOT_ZONE_RATIO（紧凑密集），居中于整条内，
-            // 竖线仍贯穿全长——圆点密集 + 竖线撑满两者兼顾
+            // 圆点铺满整条竖线高度（仅上下留 NAV_VPAD 缓冲、端点占位内缩）
             const list = navEl.querySelector(`.${NAV_DOT_CLASS}-list`);
             if (list && list.childElementCount === total + 2) {
-                // 圆点群仅占圆点条高度的 NAV_DOT_ZONE_RATIO（紧凑居中），竖线仍贯穿全长。
+                // 圆点铺满整条竖线高度（仅上下留 NAV_VPAD 缓冲、端点占位内缩）。
                 // 顶/底端点圆点钉在 zone 两端；消息圆点按真实高度分布（长消息占更长段），
                 // 并把消息区间两端各内缩一个「端点占位」，避免首/末消息圆点与端点圆点重叠。
-                const zoneH = Math.min(barH * NAV_DOT_ZONE_RATIO, barH);
-                const zoneTop = (barH - zoneH) / 2 + NAV_VPAD;
-                const zoneBottom = zoneTop + zoneH - NAV_VPAD * 2;
+                const zoneTop = NAV_VPAD;
+                const zoneBottom = barH - NAV_VPAD;
                 const endpointReserve = NAV_DOT_HIT + 2; // 端点占位（直径 + 间隙），使消息圆点不与端点重叠
                 const mesZoneTop = zoneTop + endpointReserve;
                 const mesZoneBottom = zoneBottom - endpointReserve;
