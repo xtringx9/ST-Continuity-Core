@@ -1,8 +1,8 @@
 // 消息「滚动 / 跳转」按钮（手动版）
 // 两类控件：
 //   1) 每条消息右侧一列 2 个按钮（单列竖排）：top 滚到本条顶部、bottom 滚到本条底部；
-//   2) 常驻聊天视口右侧中部的固定控件：prev 跳到上一条消息顶部、next 跳到下一条消息顶部。
-// 跨消息控件位置固定不变，便于连续跳与手机操作；消息内按钮贴近各自消息容器。
+//   2) 常驻聊天视口右侧中部的消息圆点条：每个圆点 = 一条消息（user/ai 不同色），
+//      点击跳到该消息顶部；背景进度条 + 高亮圆点标出当前阅读位置。
 // 均为 position:fixed 挂在 body 上（不受 #chat / .mes 的 flex 与定位祖先影响），纯手动、单一开关控制。
 
 import { debugLog, infoLog } from '../utils/logger.js';
@@ -25,14 +25,20 @@ const DIR_META = {
     bottom: { icon: 'fa-arrow-down',  title: '滚动到消息底部' },
 };
 
-// 常驻聊天视口右侧中部的跨消息导航控件（prev/next，固定位置、兼容手机连续跳）
+// 常驻聊天视口右侧中部的跨消息导航控件：消息圆点条（每个圆点 = 一条消息，
+// user/ai 不同色，点击跳到该消息顶部；背景含阅读进度条标当前位置）
 const NAV_CLASS = 'ccore-msg-nav';
-const NAV_BTN_CLASS = 'ccore-msg-nav-btn';
-const NAV_DIRS = ['prev', 'next'];
-const NAV_META = {
-    prev: { icon: 'fa-angles-up',   title: '跳到上一条消息顶部' },
-    next: { icon: 'fa-angles-down', title: '跳到下一条消息顶部' },
-};
+const NAV_DOT_CLASS = 'ccore-msg-nav-dot';
+const NAV_PROGRESS_CLASS = 'ccore-msg-nav-progress';
+// 圆点颜色：继承 ST 主题清晰区分色。user 主色降低透明度更柔和，ai 用边框色形成对比，
+// 深/浅主题均有良好可见度。如需其它继承色可替换下面的变量（见回复说明）。
+const NAV_DOT_USER_COLOR = 'color-mix(in srgb, var(--SmartThemeBodyColor, rgb(220,220,210)) 65%, transparent)';
+const NAV_DOT_AI_COLOR = 'var(--SmartThemeBorderColor, rgba(128,128,128,0.85))';
+const NAV_PROGRESS_COLOR = 'var(--smart-border-color, rgba(128,128,128,0.6))'; // 背景竖线（撑满高度）
+const NAV_DOT_SIZE = 6;      // 单个圆点直径（px）
+const NAV_BAR_WIDTH = 14;    // 圆点条整体宽度（圆点 + 两侧留白）
+const NAV_VPAD = 12;         // 圆点群上下留白（px），仅内缩圆点、不影响竖线撑满
+const NAV_DOT_ZONE_RATIO = 0.72; // 圆点群占圆点条高度比例（<1 保持紧凑密集，竖线贯穿全长）
 
 let scrollObserver = null;
 let refreshDebounceTimer = null;
@@ -41,6 +47,7 @@ let chatScrollEl = null;
 let mesVisibilityObserver = null; // 仅观察视口附近消息，避免每帧对全部按钮算几何
 let visibleMesIds = new Set();    // 当前与视口（含缓冲）相交的消息 mesid 集合
 let visibilityReady = false;      // 首个 IO 回调后置真，之后仅重排可见消息按钮
+let lastActiveDot = -1;           // 上一帧高亮的圆点索引，避免每帧遍历全部圆点
 
 /**
  * 为当前所有消息添加「滚动 / 跳转」按钮（挂在 body 上，按 mesid + dir 关联）
@@ -152,21 +159,18 @@ function onButtonClick(event) {
 }
 
 /**
- * 跨消息导航控件点击：以「视口顶部正在阅读的消息」为锚，跳到上/下一条消息顶部。
- * 锚点随滚动自校正（手动滚动后下一次点击从新位置起算），连续点击即可逐条遍历。
+ * 圆点条点击：每个圆点 data-index 对应一条消息，点击滚到该消息顶部。
+ * 用事件委托（监听器挂在容器上），避免给海量圆点各绑一个监听器。
  * @param {Event} event
  */
 function onNavClick(event) {
     event.stopPropagation();
-    const btn = $(event.currentTarget);
-    const dir = btn.attr('data-dir');
-    if (dir !== 'prev' && dir !== 'next') return;
-    const anchor = getAnchorMesEl();
-    if (!anchor) return;
-    const allMes = Array.from(document.querySelectorAll('#chat .mes'));
-    const idx = allMes.indexOf(anchor);
-    if (idx === -1) return;
-    const target = allMes[idx + (dir === 'prev' ? -1 : 1)];
+    const dot = $(event.target).closest(`.${NAV_DOT_CLASS}`);
+    if (dot.length === 0) return;
+    const idx = parseInt(dot.attr('data-index'), 10);
+    if (isNaN(idx)) return;
+    const allMes = document.querySelectorAll('#chat .mes');
+    const target = allMes[idx];
     if (target) scrollMessageToTop(target);
 }
 
@@ -201,22 +205,45 @@ function getAnchorMesEl() {
     return best;
 }
 
-/** 创建常驻的跨消息导航控件（含 prev/next 两个按钮），已存在则跳过 */
+/** 创建常驻的消息圆点条容器（含背景进度条 + 圆点挂载层），已存在则跳过 */
 function createNavControl() {
     if (document.querySelector(`.${NAV_CLASS}`)) return;
     const nav = $('<div>').addClass(NAV_CLASS).css('display', 'none');
-    for (const dir of NAV_DIRS) {
-        const meta = NAV_META[dir];
-        $('<div>')
-            .addClass(`${NAV_BTN_CLASS} interactable`)
-            .attr('title', meta.title)
-            .attr('data-dir', dir)
-            .attr('tabindex', '0')
-            .attr('role', 'button')
-            .html(`<i class="fa-solid ${meta.icon}"></i>`)
-            .appendTo(nav);
-    }
+    $('<div>').addClass(`${NAV_PROGRESS_CLASS}`).appendTo(nav); // 背景阅读进度条
+    $('<div>').addClass(`${NAV_DOT_CLASS}-list`).appendTo(nav); // 圆点挂载层
     document.body.appendChild(nav[0]);
+}
+
+/**
+ * 按当前消息集合重建圆点（数量 = 消息数；user/ai 不同色）。
+ * 动态加载旧消息时由 repositionButtons / MutationObserver 触发重算。
+ */
+function rebuildNavDots() {
+    const nav = document.querySelector(`.${NAV_CLASS}`);
+    if (!nav) return;
+    const list = nav.querySelector(`.${NAV_DOT_CLASS}-list`);
+    if (!list) return;
+    const allMes = document.querySelectorAll('#chat .mes');
+    const total = allMes.length;
+    if (list.childElementCount !== total) {
+        list.innerHTML = '';
+        for (let i = 0; i < total; i++) {
+            const mes = allMes[i];
+            const isUser = mes.getAttribute('is_user') === 'true';
+            const dot = document.createElement('div');
+            dot.className = `${NAV_DOT_CLASS} interactable`;
+            dot.setAttribute('data-index', String(i));
+            dot.style.setProperty('--dot-color', isUser ? NAV_DOT_USER_COLOR : NAV_DOT_AI_COLOR);
+            list.appendChild(dot);
+        }
+    } else {
+        // 数量未变时同步角色色（极少数情况角色判定在初次渲染后才稳定）
+        for (let i = 0; i < total; i++) {
+            const mes = allMes[i];
+            const isUser = mes.getAttribute('is_user') === 'true';
+            list.children[i].style.setProperty('--dot-color', isUser ? NAV_DOT_USER_COLOR : NAV_DOT_AI_COLOR);
+        }
+    }
 }
 
 /** 移除跨消息导航控件 */
@@ -225,10 +252,10 @@ function removeNavControl() {
 }
 
 /**
- * 把每条可见消息的一列按钮钉在聊天视口内、贴近该消息右边沿；不可见的隐藏。
- * 2 个按钮作为一个整体（unitHeight）夹在消息可见区间内，因此长消息滚动时始终在
- * 且不会跑出消息；底部按钮停在抬升后的视口底部附近，整体从消息底部抬升
- * BOTTOM_LIFT 以避开 swipe 切换按钮。
+ * 把每条可见消息的两个按钮钉在聊天视口内、贴近该消息右边沿；不可见的隐藏。
+ * 跳转底部的按钮贴消息顶部，跳转顶部的按钮贴消息底部，因此长消息滚动时始终在
+ * 消息两端、不会跑出消息；短消息放不下时退化为中心竖排；整体夹在聊天视口内
+ * 避开 ST 顶栏与输入区。
  */
 function repositionButtons() {
     const chatEl = document.getElementById('chat');
@@ -236,8 +263,6 @@ function repositionButtons() {
     const chatRect = chatEl.getBoundingClientRect();
     const vpMin = chatRect.top + EDGE_GAP; // 聊天视口顶部（避免压到 ST 顶栏）
     const vpMax = chatRect.bottom - BUTTON_SIZE - EDGE_GAP; // 聊天视口底部（避免压到输入区）
-    const n = DIRS.length;
-    const unitH = BUTTON_SIZE * n + BUTTON_GAP * (n - 1);
 
     // 一次性收集消息元素映射，避免每个按钮都做一次属性选择器查询（原 O(N) 次扫描）
     const mesMap = new Map();
@@ -247,13 +272,14 @@ function repositionButtons() {
     });
     const hasMes = mesMap.size > 0;
 
-    // 常驻跨消息控件矩形（位于聊天视口右侧中部，与消息按钮同贴右缘）
+    // 圆点条矩形（位于聊天视口右侧中部，竖向铺满聊天高度，与消息按钮同贴右缘）
     let navRect = null;
     if (hasMes) {
-        const navLeft = chatRect.right - BUTTON_SIZE - EDGE_GAP;
-        const ctrlH = BUTTON_SIZE * NAV_DIRS.length + BUTTON_GAP * (NAV_DIRS.length - 1);
-        const navTop = chatRect.top + (chatRect.height - ctrlH) / 2;
-        navRect = { left: navLeft, top: navTop, right: navLeft + BUTTON_SIZE, bottom: navTop + ctrlH };
+        const navLeft = chatRect.right - NAV_BAR_WIDTH - EDGE_GAP;
+        const navW = NAV_BAR_WIDTH;
+        const navTop = chatRect.top + NAV_VPAD;
+        const navH = chatRect.height - NAV_VPAD * 2;
+        navRect = { left: navLeft, top: navTop, right: navLeft + navW, bottom: navTop + navH };
     }
 
     const posCache = new Map();
@@ -281,45 +307,49 @@ function repositionButtons() {
 
         let pos = posCache.get(mesId);
         if (!pos) {
-            let colTopTop;
-            let colBottomTop;
-            // 以「消息在视窗内的可见高度」判定短消息，而非完整高度——
-            // 一条很高的消息若大半滚出视窗，可见高度很小，应归入短消息分支以免按钮脱节
+            // 两个按钮分离定位：跳转「底部」的按钮（dir=bottom）贴在消息【顶部】，
+            // 跳转「顶部」的按钮（dir=top）贴在消息【底部】；短消息放不下时退化为中心竖排。
+            let colTopTop;     // 列整体上边界（用于避让判定，取两按钮中更靠上的）
+            let colBottomTop;  // 列整体下边界（用于避让判定，取两按钮中更靠下的）
+            let bottomBtnTop; // dir=bottom（跳转底部）按钮的 top：贴近消息可见顶部
+            let topBtnTop;    // dir=top（跳转顶部）按钮的 top：贴近消息可见底部
+            const needH = BUTTON_SIZE * 2 + BUTTON_GAP;
+
             const visTop = Math.max(mesRect.top, chatRect.top);
             const visBottom = Math.min(mesRect.bottom, chatRect.bottom);
             const visH = visBottom - visTop;
-            if (visH < unitH) {
-                // 短消息（或可见部分很短）：整列高度超过可见高度，以可见区间中心为锚、
-                // 上下均分溢出，再整体夹在聊天视口内，保证按钮完整可见且不跑出屏幕
-                const visCenter = visTop + visH / 2;
-                colTopTop = visCenter - unitH / 2;
-                if (colTopTop < vpMin) colTopTop = vpMin;
-                const maxTopTop = vpMax + BUTTON_SIZE - unitH;
-                if (colTopTop > maxTopTop) colTopTop = maxTopTop;
-                colBottomTop = colTopTop + (unitH - BUTTON_SIZE);
-            } else {
-                // 高消息：整列夹在消息可见区间内；最下方按钮停在抬升后的视口底部附近，
-                // 整体从消息底部抬升 BOTTOM_LIFT 以避开 swipe 切换按钮
-                const bandTop = Math.max(vpMin, mesRect.top);
-                const bottomMaxTop = Math.min(vpMax, mesRect.bottom - BUTTON_SIZE - BOTTOM_LIFT);
-                colBottomTop = vpMax - BUTTON_SIZE - BOTTOM_LIFT;
-                if (colBottomTop > bottomMaxTop) colBottomTop = bottomMaxTop;
-                colTopTop = colBottomTop - (unitH - BUTTON_SIZE);
-                if (colTopTop < bandTop) {
-                    colTopTop = bandTop;
-                    colBottomTop = bandTop + (unitH - BUTTON_SIZE);
-                }
-            }
 
-            // 垂直避让：本列与常驻跨消息控件同贴右缘，若纵向重叠则按消息相对控件的
-            // 位置把整列上推/下移到控件外侧，再夹回聊天视口内，避免两者叠在一起
+            if (visH >= needH) {
+                // 消息可见高度足够：底按钮贴消息顶，顶按钮贴消息底（整体抬升 BOTTOM_LIFT 避开 swipe）
+                bottomBtnTop = visTop + EDGE_GAP;
+                topBtnTop = visBottom - BUTTON_SIZE - BOTTOM_LIFT;
+                // 夹在聊天视口内，避免压到 ST 顶栏 / 输入区
+                if (bottomBtnTop < vpMin) bottomBtnTop = vpMin;
+                if (bottomBtnTop > vpMax) bottomBtnTop = vpMax;
+                if (topBtnTop < vpMin) topBtnTop = vpMin;
+                if (topBtnTop > vpMax) topBtnTop = vpMax;
+            } else {
+                // 短消息（或可见部分很短）：两按钮竖排居中于可见区间，整体夹在视口内
+                const visCenter = visTop + visH / 2;
+                let colTop = visCenter - needH / 2;
+                if (colTop < vpMin) colTop = vpMin;
+                const maxTop = vpMax + BUTTON_SIZE - needH;
+                if (colTop > maxTop) colTop = maxTop;
+                bottomBtnTop = colTop;
+                topBtnTop = colTop + (BUTTON_SIZE + BUTTON_GAP);
+            }
+            colTopTop = Math.min(bottomBtnTop, topBtnTop);
+            colBottomTop = Math.max(bottomBtnTop, topBtnTop) + BUTTON_SIZE;
+
+            // 垂直避让：per-message 按钮位于圆点条左侧，通常不重叠；
+            // 仅在极端情况下（如消息超宽等）仍做兜底避让
             if (navRect) {
-                const colLeft = chatRect.right - BUTTON_SIZE - EDGE_GAP;
+                const colLeft = chatRect.right - NAV_BAR_WIDTH - BUTTON_SIZE - EDGE_GAP;
                 const horizOverlap = Math.max(colLeft, navRect.left) < Math.min(colLeft + BUTTON_SIZE, navRect.right);
                 if (horizOverlap) {
                     const colCenter = mesRect.top + mesRect.height / 2;
                     const navCenter = navRect.top + navRect.height / 2;
-                    const intersects = colBottomTop + BUTTON_SIZE > navRect.top && colTopTop < navRect.bottom;
+                    const intersects = colBottomTop > navRect.top && colTopTop < navRect.bottom;
                     if (intersects) {
                         if (colCenter <= navCenter) {
                             colBottomTop = navRect.top - NAV_AVOID_GAP - BUTTON_SIZE;
@@ -327,21 +357,18 @@ function repositionButtons() {
                             colTopTop = navRect.bottom + NAV_AVOID_GAP;
                         }
                         if (colTopTop < vpMin) colTopTop = vpMin;
-                        const maxTopTop = vpMax + BUTTON_SIZE - unitH;
+                        const maxTopTop = vpMax + BUTTON_SIZE - needH;
                         if (colTopTop > maxTopTop) colTopTop = maxTopTop;
-                        colBottomTop = colTopTop + (unitH - BUTTON_SIZE);
+                        colBottomTop = colTopTop + needH;
                     }
                 }
             }
 
-            // 按 DIRS 顺序（从上到下）计算每个方向的 top
-            const dirTops = {};
-            DIRS.forEach((dir, i) => {
-                dirTops[dir] = colTopTop + i * (BUTTON_SIZE + BUTTON_GAP);
-            });
+            // 按方向给出各自 top：bottom(跳转底部)→消息顶；top(跳转顶部)→消息底
+            const dirTops = { bottom: bottomBtnTop, top: topBtnTop };
 
-            // 横向：与常驻跨消息控件取同一基准（chat 右缘），保证两者始终处于同一竖线
-            const left = chatRect.right - BUTTON_SIZE - EDGE_GAP;
+            // 横向：per-message 按钮紧贴圆点条左侧，与圆点条间隔 BUTTON_GAP 不重叠
+            const left = chatRect.right - NAV_BAR_WIDTH - BUTTON_GAP - BUTTON_SIZE - EDGE_GAP;
             pos = { dirTops, left };
             posCache.set(mesId, pos);
         }
@@ -351,14 +378,50 @@ function repositionButtons() {
         btn.style.left = `${pos.left}px`;
     });
 
-    // 跨消息导航控件：常驻聊天视口右侧中部，位置固定不变，便于连续跳与手机操作
+    // 圆点条：常驻聊天视口右侧，竖向铺满聊天高度；圆点按消息索引等距比例分布，
+    // 背景进度条与当前圆点高亮标出正在阅读的位置（每帧只动进度条高度 + 相邻两圆点）
     const navEl = document.querySelector(`.${NAV_CLASS}`);
     if (navEl) {
         navEl.style.display = hasMes ? '' : 'none';
         if (hasMes) {
-            const ctrlH = BUTTON_SIZE * NAV_DIRS.length + BUTTON_GAP * (NAV_DIRS.length - 1);
-            navEl.style.left = `${chatRect.right - BUTTON_SIZE - EDGE_GAP}px`;
-            navEl.style.top = `${chatRect.top + (chatRect.height - ctrlH) / 2}px`;
+            // 竖线撑满：圆点条高度 = 整个聊天视口高度（上下不留白），背景竖线由 CSS height:100% 贯穿到底
+            const barH = chatRect.height;
+            const barTop = chatRect.top;
+            navEl.style.left = `${chatRect.right - NAV_BAR_WIDTH - EDGE_GAP}px`;
+            navEl.style.top = `${barTop}px`;
+            navEl.style.width = `${NAV_BAR_WIDTH}px`;
+            navEl.style.height = `${barH}px`;
+
+            const allMes = document.querySelectorAll('#chat .mes');
+            const total = allMes.length;
+            rebuildNavDots();
+
+            // 圆点群：仅占圆点条高度的 NAV_DOT_ZONE_RATIO（紧凑密集），居中于整条内，
+            // 竖线仍贯穿全长——圆点密集 + 竖线撑满两者兼顾
+            const list = navEl.querySelector(`.${NAV_DOT_CLASS}-list`);
+            if (list && list.childElementCount === total) {
+                const zoneH = Math.min(barH * NAV_DOT_ZONE_RATIO, barH);
+                const zoneTop = (barH - zoneH) / 2;
+                const usableH = zoneH - NAV_DOT_SIZE;
+                for (let i = 0; i < total; i++) {
+                    const t = total > 1 ? i / (total - 1) : 0.5;
+                    list.children[i].style.top = `${zoneTop + NAV_VPAD + t * (usableH - NAV_VPAD * 2)}px`;
+                }
+            }
+
+            // 当前阅读位置：取视口顶部参考线那条消息，高亮对应圆点标出位置
+            // （背景竖线已由 CSS height:100% 撑满整条，无需再动高度）
+            const anchor = getAnchorMesEl();
+            if (anchor) {
+                const idx = Array.prototype.indexOf.call(allMes, anchor);
+                if (idx !== -1 && list && lastActiveDot !== idx) {
+                    if (lastActiveDot >= 0 && list.children[lastActiveDot]) {
+                        list.children[lastActiveDot].classList.remove('active');
+                    }
+                    if (list.children[idx]) list.children[idx].classList.add('active');
+                    lastActiveDot = idx;
+                }
+            }
         }
     }
 }
@@ -383,7 +446,7 @@ export function initMessageScrollToTop() {
     injectStyles();
     setupChatObserver();
     $(document).off('click.ccore-scroll-to-top').on('click.ccore-scroll-to-top', `.${BUTTON_CLASS}`, onButtonClick);
-    $(document).off('click.ccore-msg-nav').on('click.ccore-msg-nav', `.${NAV_BTN_CLASS}`, onNavClick);
+    $(document).off('click.ccore-msg-nav').on('click.ccore-msg-nav', `.${NAV_CLASS}`, onNavClick);
     createNavControl();
     addScrollTopButtonsToAllMessages();
     infoLog(LOG_TAG, '消息滚动/跳转按钮已启用');
@@ -403,6 +466,7 @@ export function removeMessageScrollToTop() {
     }
     visibleMesIds = new Set();
     visibilityReady = false;
+    lastActiveDot = -1;
     if (refreshDebounceTimer) {
         clearTimeout(refreshDebounceTimer);
         refreshDebounceTimer = null;
@@ -503,35 +567,55 @@ function injectStyles() {
 .ccore-msg-nav {
     position: fixed;
     z-index: 100;
-    display: flex;
-    flex-direction: column;
-    gap: ${BUTTON_GAP}px;
-    opacity: 0.5;
+    opacity: 0.45;
     transition: opacity 0.2s;
+    pointer-events: auto;
 }
 .ccore-msg-nav:hover,
 .ccore-msg-nav:focus-within {
     opacity: 1;
 }
-.ccore-msg-nav-btn {
-    width: ${BUTTON_SIZE}px;
-    height: ${BUTTON_SIZE}px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid var(--smart-border-color, rgba(128,128,128,0.5));
-    background: transparent;
-    color: var(--smart-body-text-color, #ddd);
-    cursor: pointer;
-    box-sizing: border-box;
-    font-size: 12px;
-    pointer-events: auto;
-    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+/* 背景竖线：撑满整个圆点条高度，作为贯穿的阅读位置参考 */
+.ccore-msg-nav-progress {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    transform: translateX(-50%);
+    background: ${NAV_PROGRESS_COLOR};
+    border-radius: 1px;
+    pointer-events: none;
 }
-.ccore-msg-nav-btn:hover {
-    background: rgba(128,128,128,0.3);
-    border-color: rgba(128,128,128,0.9);
+/* 圆点挂载层 */
+.ccore-msg-nav-dot-list {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+.ccore-msg-nav-dot {
+    position: absolute;
+    left: 50%;
+    width: ${NAV_DOT_SIZE}px;
+    height: ${NAV_DOT_SIZE}px;
+    margin-left: -${NAV_DOT_SIZE / 2}px;
+    border-radius: 50%;
+    background: var(--dot-color, ${NAV_PROGRESS_COLOR});
+    border: 1px solid var(--SmartThemeBorderColor, rgba(128,128,128,0.9));
+    cursor: pointer;
+    pointer-events: auto;
+    box-sizing: border-box;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.ccore-msg-nav-dot:hover {
+    transform: scale(1.8);
+}
+.ccore-msg-nav-dot.active {
+    transform: scale(1.8);
+    box-shadow: 0 0 0 2px var(--smart-border-color, rgba(128,128,128,0.8));
 }
 `;
     document.head.appendChild(style);
