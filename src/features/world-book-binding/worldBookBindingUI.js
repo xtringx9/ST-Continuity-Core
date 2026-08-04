@@ -66,6 +66,9 @@ const CC_WB_BIND_STYLES = `
     box-shadow: 0 4px 12px rgba(0,0,0,.4);
 }
 .${CC_WB_BIND_CLASS}.open .cc-wb-bind-menu { display: flex; }
+/* 打开时抬高当前 .world_entry 的层叠层级，避免下拉菜单被相邻条目（DOM 后续兄弟）盖住 */
+.${CC_WB_BIND_CLASS} .cc-wb-bind-menu { z-index: 2147483647; }
+.world_entry.cc-wb-entry-open { position: relative; z-index: 2147483647; }
 .${CC_WB_BIND_CLASS} .cc-wb-bind-menu button {
     display: inline-flex;
     align-items: center;
@@ -216,6 +219,7 @@ function injectControlIntoEntry($entry) {
                 if (!worldName) {
                     errorLog('[WB-BIND] 无法确定条目所属世界书', uid);
                     $wrap.removeClass('open');
+                    $entry.removeClass('cc-wb-entry-open');
                     return;
                 }
                 setBinding(worldName, uid, item.mode);
@@ -223,15 +227,21 @@ function injectControlIntoEntry($entry) {
                 await applyBindingsToWorldInfo(true);
                 refreshEntryControl($entry);
                 $wrap.removeClass('open');
+                $entry.removeClass('cc-wb-entry-open');
             });
             $menu.append($btn);
         }
 
         $toggle.on('click', (e) => {
             e.stopPropagation();
-            // 关闭其它已展开的菜单（同屏多个条目）
-            $(`.${CC_WB_BIND_CLASS}.open`).not($wrap).removeClass('open');
-            $wrap.toggleClass('open');
+            const willOpen = !$wrap.hasClass('open');
+            // 关闭其它已展开的菜单（同屏多个条目）+ 还原其条目层级
+            $(`.${CC_WB_BIND_CLASS}.open`).not($wrap)
+                .removeClass('open')
+                .closest('.world_entry').removeClass('cc-wb-entry-open');
+            $wrap.toggleClass('open', willOpen);
+            // 抬高当前条目层级，避免菜单被相邻条目盖住
+            $entry.toggleClass('cc-wb-entry-open', willOpen);
         });
 
         $wrap.append($toggle).append($menu);
@@ -239,7 +249,9 @@ function injectControlIntoEntry($entry) {
         // 全局点击关闭菜单（具名函数，便于精确解绑）
         if (!injectControlIntoEntry._globalBound) {
             injectControlIntoEntry._closeMenu = () => {
-                $(`.${CC_WB_BIND_CLASS}.open`).removeClass('open');
+                $(`.${CC_WB_BIND_CLASS}.open`)
+                    .removeClass('open')
+                    .closest('.world_entry').removeClass('cc-wb-entry-open');
             };
             injectControlIntoEntry._globalBound = true;
             $(document).on('click', injectControlIntoEntry._closeMenu);
@@ -295,6 +307,7 @@ function injectAllControls() {
         if (!isInChatPage()) {
             // 离开聊天页时清掉可能残留的控件，避免跨上下文串味
             $(`.${CC_WB_BIND_CLASS}`).remove();
+            $('.world_entry.cc-wb-entry-open').removeClass('cc-wb-entry-open');
             return;
         }
         ensureStyles();
@@ -397,6 +410,7 @@ export function removeWorldBookBindingUI() {
         injectControlIntoEntry._globalBound = false;
     }
     $(`.${CC_WB_BIND_CLASS}`).remove();
+    $('.world_entry.cc-wb-entry-open').removeClass('cc-wb-entry-open');
     initialized = false;
     injectedOnceLogged = false;
 }
