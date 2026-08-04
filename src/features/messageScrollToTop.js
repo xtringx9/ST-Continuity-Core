@@ -418,7 +418,7 @@ function repositionButtons() {
         btn.style.left = `${pos.left}px`;
     });
 
-    // 圆点条：常驻聊天视口右侧，竖向铺满聊天高度；圆点按消息索引等距比例分布，
+    // 圆点条：常驻聊天视口右侧，竖向铺满聊天高度；圆点按消息真实高度分布，
     // 背景进度条与当前圆点高亮标出正在阅读的位置（每帧只动进度条高度 + 相邻两圆点）
     const navEl = document.querySelector(`.${NAV_CLASS}`);
     if (navEl) {
