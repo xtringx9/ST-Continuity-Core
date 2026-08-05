@@ -10,6 +10,7 @@ import {
     onQuickReplyOptimizeToggle,
     onScrollToTopToggle,
     onSmoothScrollToTopToggle,
+    onShowPerMessageButtonsToggle,
     onWorldBookBindingToggle,
     onSendHijackToggle,
     onSendHijackSetChange,
@@ -79,6 +80,7 @@ export class SettingsPanel {
         $('#continuity_quick_reply_optimize').on('input', onQuickReplyOptimizeToggle);
         $('#continuity_scroll_to_top').on('input', onScrollToTopToggle);
         $('#continuity_smooth_scroll_to_top').on('input', onSmoothScrollToTopToggle);
+        $('#continuity_show_per_message_buttons').on('input', onShowPerMessageButtonsToggle);
         $('#continuity_world_book_binding').on('input', onWorldBookBindingToggle);
         $('#continuity_send_hijack').on('input', onSendHijackToggle);
         $('#continuity_send_hijack_set').on('change', onSendHijackSetChange);

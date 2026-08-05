@@ -11,12 +11,10 @@ import { isInChatPage } from '../core/contextBottomUI.js';
 
 const LOG_TAG = '[MessageScrollToTop]';
 const BUTTON_CLASS = 'ccore-scroll-top-btn';
-// 每条消息内顶/底跳转按钮：暂时隐藏（改为 false 即不创建/不显示，代码保留以后可恢复）
-const SHOW_PER_MESSAGE_BUTTONS = false;
 const STYLE_ID = 'ccore_scroll_to_top_styles';
 const BUTTON_SIZE = 22; // 与 Cc 按钮同尺寸
 const EDGE_GAP = 0; // 按钮整列与聊天视口右/顶/底边的间距（越小越贴边）
-const BUTTON_INSET = 8; // 跳顶/跳底按钮相对消息自身的顶/底内缩量（都不贴边）
+const BUTTON_INSET = 48; // 跳顶/跳底按钮相对消息自身的顶/底内缩量（都不贴边）
 const BUTTON_GAP = 4; // 相邻按钮之间的竖向间距
 const NAV_AVOID_GAP = 6; // 消息按钮整列避让常驻跨消息控件时的额外间隙
 
@@ -66,7 +64,7 @@ let lastActiveDot = -1;           // 上一帧高亮的圆点索引，避免每�
  */
 export function addScrollTopButtonsToAllMessages() {
     try {
-        if (!SHOW_PER_MESSAGE_BUTTONS) return; // 顶/底按钮暂不显示（开关在文件顶部常量）
+        if (!configManager.getExtensionConfig().showPerMessageButtons) return; // 顶/底按钮开关
         if (!isInChatPage()) return;
         const chatEl = document.getElementById('chat');
         if (!chatEl) return;
@@ -114,7 +112,7 @@ export function addScrollTopButtonsToAllMessages() {
     }
 }
 
-function removeAllScrollTopButtons() {
+export function removeAllScrollTopButtons() {
     document.querySelectorAll(`.${BUTTON_CLASS}`).forEach((b) => b.remove());
 }
 

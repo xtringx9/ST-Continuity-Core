@@ -13,7 +13,7 @@ import { registerContinuityRegexPattern } from "../utils/regexUtils.js"
 import { EntryButton } from "../features/entry/EntryButton.js";
 import { initMessageRangeView, removeMessageRangeView } from "../features/message-range-view/MessageRangeView.js";
 import { initQuickReplyOptimize, removeQuickReplyOptimize } from "../features/quick-reply-optimize/QuickReplyOptimize.js";
-import { initMessageScrollToTop, removeMessageScrollToTop } from "../features/messageScrollToTop.js";
+import { initMessageScrollToTop, removeMessageScrollToTop, addScrollTopButtonsToAllMessages, removeAllScrollTopButtons } from "../features/messageScrollToTop.js";
 import { initSendHijack, removeSendHijack } from "../features/send-hijack/SendHijack.js";
 import { initWorldBookBinding, removeWorldBookBinding } from "../features/world-book-binding/worldBookBinding.js";
 import { escapeHtmlEntities as escapeHtml } from "../utils/textConverter.js";
@@ -47,6 +47,7 @@ export function loadSettingsToUI() {
     populateSendHijackOptions();
     $("#continuity_scroll_to_top").prop("checked", Boolean(extensionConfig.enableScrollToTop));
     $("#continuity_smooth_scroll_to_top").prop("checked", extensionConfig.smoothScrollToTop !== false);
+    $("#continuity_show_per_message_buttons").prop("checked", Boolean(extensionConfig.showPerMessageButtons));
     $("#continuity_world_book_binding").prop("checked", extensionConfig.worldBookBinding?.enabled !== false);
 
     // 异步模块存储设置
@@ -278,6 +279,26 @@ export function onSmoothScrollToTopToggle(event) {
     extensionConfig.smoothScrollToTop = enabled;
     configManager.setExtensionConfig(extensionConfig);
     // 无需重新初始化导航条，scrollChatTo 已实时读 config
+}
+
+/**
+ * Handles the per-message top/bottom buttons toggle change.
+ * @param {Event} event
+ */
+export function onShowPerMessageButtonsToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.showPerMessageButtons = enabled;
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        // 若导航条已启用，即时添加按钮；否则下次开导航条时会自动创建
+        if (configManager.getExtensionConfig().enableScrollToTop) {
+            addScrollTopButtonsToAllMessages();
+        }
+    } else {
+        removeAllScrollTopButtons();
+    }
 }
 
 /**
