@@ -189,6 +189,29 @@ function onNavClick(event) {
 }
 
 /**
+ * 点击「已读竖线」：跳到当前 active 圆点对应的消息顶部。
+ * （竖线后续将增强为按点击位置跳转，以替代原生滚动条。）
+ * @param {Event} event
+ */
+function onNavReadLineClick(event) {
+    event.stopPropagation();
+    const navEl = document.querySelector(`.${NAV_CLASS}`);
+    if (!navEl) return;
+    const list = navEl.querySelector(`.${NAV_DOT_CLASS}-list`);
+    if (!list || lastActiveDot < 0 || !list.children[lastActiveDot]) return;
+    const activeDot = list.children[lastActiveDot];
+    const endpoint = activeDot.getAttribute('data-endpoint');
+    const chatEl = document.getElementById('chat');
+    if (!chatEl) return;
+    if (endpoint === 'top') { chatEl.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (endpoint === 'bottom') { chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' }); return; }
+    const idx = parseInt(activeDot.getAttribute('data-index'), 10);
+    if (isNaN(idx)) return;
+    const target = document.querySelectorAll('#chat .mes')[idx];
+    if (target) scrollMessageToTop(target);
+}
+
+/**
  * 取「当前正在阅读」的锚点消息：优先取包含聊天视口顶部参考线的消息；
  * 没有（如视口顶部恰落在两消息缝隙）则取中心最接近参考线的消息。
  * @returns {HTMLElement|null}
@@ -223,7 +246,8 @@ function getAnchorMesEl() {
 function createNavControl() {
     if (document.querySelector(`.${NAV_CLASS}`)) return;
     const nav = $('<div>').addClass(NAV_CLASS).css('display', 'none');
-    $('<div>').addClass(`${NAV_PROGRESS_CLASS}`).appendTo(nav); // 背景阅读进度条
+    $('<div>').addClass(`${NAV_PROGRESS_CLASS}`).appendTo(nav); // 背景竖线（整条，未读/底部分）
+    $('<div>').addClass(`${NAV_PROGRESS_CLASS}-read`).appendTo(nav); // 已读竖线（active 圆点以下段，染 active 色）
     $('<div>').addClass(`${NAV_DOT_CLASS}-list`).appendTo(nav); // 圆点挂载层
     document.body.appendChild(nav[0]);
 }
@@ -495,12 +519,13 @@ function repositionButtons() {
                 }
             }
 
-            // 当前阅读位置：取视口顶部参考线那条消息，高亮对应圆点标出位置
-            // （背景竖线已由 CSS height:100% 撑满整条，无需再动高度）
+            // 当前阅读位置：取视口顶部参考线那条消息，高亮对应圆点标出位置；
+            // 圆点以下的竖线段（已读部分）染该圆点颜色，以上保持灰色背景线。
             const anchor = getAnchorMesEl();
-            if (anchor) {
+            const readLine = navEl.querySelector(`.${NAV_PROGRESS_CLASS}-read`);
+            if (anchor && list) {
                 const idx = Array.prototype.indexOf.call(allMes, anchor);
-                if (idx !== -1 && list) {
+                if (idx !== -1) {
                     const activeChildIdx = idx + 1; // 消息圆点从 children[1] 开始
                     if (lastActiveDot !== activeChildIdx) {
                         if (lastActiveDot >= 0 && list.children[lastActiveDot]) {
@@ -509,7 +534,24 @@ function repositionButtons() {
                         if (list.children[activeChildIdx]) list.children[activeChildIdx].classList.add('active');
                         lastActiveDot = activeChildIdx;
                     }
+                    // 已读竖线：从 active 圆点中心连到其下方相邻圆点中心（视觉连贯），
+                    // 圆点 z-index 更高，已读段沉在其下，线被圆点自然盖住、不显得挡圆点。
+                    const activeDot = list.children[activeChildIdx];
+                    const nextDot = list.children[activeChildIdx + 1];
+                    if (activeDot && nextDot && readLine) {
+                        const dotH = parseFloat(activeDot.style.height) || NAV_DOT_HIT;
+                        const aCenter = parseFloat(activeDot.style.top) + dotH / 2;
+                        const nH = parseFloat(nextDot.style.height) || NAV_DOT_HIT;
+                        const nCenter = parseFloat(nextDot.style.top) + nH / 2;
+                        const color = activeDot.style.getPropertyValue('--dot-color') || NAV_PROGRESS_COLOR;
+                        readLine.style.top = `${aCenter}px`;
+                        readLine.style.height = `${Math.max(0, nCenter - aCenter)}px`;
+                        readLine.style.background = color;
+                        readLine.style.display = '';
+                    }
                 }
+            } else if (readLine) {
+                readLine.style.display = 'none';
             }
         }
     }
@@ -536,6 +578,7 @@ export function initMessageScrollToTop() {
     setupChatObserver();
     $(document).off('click.ccore-scroll-to-top').on('click.ccore-scroll-to-top', `.${BUTTON_CLASS}`, onButtonClick);
     $(document).off('click.ccore-msg-nav').on('click.ccore-msg-nav', `.${NAV_CLASS}`, onNavClick);
+    $(document).off('click.ccore-msg-nav-read').on('click.ccore-msg-nav-read', `.${NAV_PROGRESS_CLASS}-read`, onNavReadLineClick);
     createNavControl();
     addScrollTopButtonsToAllMessages();
     infoLog(LOG_TAG, '消息滚动/跳转按钮已启用');
@@ -567,6 +610,7 @@ export function removeMessageScrollToTop() {
     }
     $(document).off('click.ccore-scroll-to-top');
     $(document).off('click.ccore-msg-nav');
+    $(document).off('click.ccore-msg-nav-read');
     removeAllScrollTopButtons();
     removeNavControl();
 }
@@ -664,7 +708,7 @@ function injectStyles() {
 .ccore-msg-nav:focus-within {
     opacity: 1;
 }
-/* 背景竖线：撑满整个圆点条高度，作为贯穿的阅读位置参考 */
+/* 背景竖线：撑满整个圆点条高度，作为贯穿的阅读位置参考（未读/底部分） */
 .ccore-msg-nav-progress {
     position: absolute;
     left: 50%;
@@ -675,6 +719,22 @@ function injectStyles() {
     background: ${NAV_PROGRESS_COLOR};
     border-radius: 1px;
     pointer-events: none;
+}
+/* 已读竖线：仅覆盖 active 圆点到其下方相邻圆点之间的一小段，染该圆点颜色
+   （宽度与背景灰线一致，不盖住相邻圆点；可点击，后续替代滚动条） */
+.ccore-msg-nav-progress-read {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 2px;
+    height: 0;
+    transform: translateX(-50%);
+    background: ${NAV_PROGRESS_COLOR};
+    border-radius: 1px;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    z-index: 1;
 }
 /* 圆点挂载层 */
 .ccore-msg-nav-dot-list {
@@ -701,6 +761,7 @@ function injectStyles() {
     pointer-events: auto;
     box-sizing: border-box;
     transition: transform 0.15s, box-shadow 0.15s;
+    z-index: 2;
 }
 .ccore-msg-nav-dot:hover {
     transform: scale(1.4);
