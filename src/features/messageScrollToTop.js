@@ -118,8 +118,16 @@ function scrollMessageToTop(mesEl) {
     try {
         const chatRect = chatEl.getBoundingClientRect();
         const mesRect = mesEl.getBoundingClientRect();
-        const target = mesRect.top - chatRect.top + chatEl.scrollTop;
-        chatEl.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+        if (mesRect.height < chatRect.height) {
+            // 短消息：垂直居中于视口，整条可见且在阅读舒适区
+            const target = mesRect.top - chatRect.top + chatEl.scrollTop
+                + mesRect.height / 2 - chatRect.height / 2;
+            chatEl.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+        } else {
+            // 长消息：顶部贴视口顶部（与现有方案一致）
+            const target = mesRect.top - chatRect.top + chatEl.scrollTop;
+            chatEl.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+        }
     } catch (e) {
         chatEl.scrollTop = Math.max(0, mesEl.offsetTop);
     }
