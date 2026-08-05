@@ -212,15 +212,15 @@ function onNavReadLineClick(event) {
 }
 
 /**
- * 取「当前正在阅读」的锚点消息：优先取包含聊天视口顶部参考线的消息；
- * 没有（如视口顶部恰落在两消息缝隙）则取中心最接近参考线的消息。
+ * 取「当前正在阅读」的锚点消息：与阅读进度同基准，取包含聊天视口【底部】参考线的消息
+ * （即用户视线最底部正在读的那条）；没有（如视口底恰落在两消息缝隙）则取中心最接近参考线的消息。
  * @returns {HTMLElement|null}
  */
 function getAnchorMesEl() {
     const chatEl = document.getElementById('chat');
     if (!chatEl) return null;
     const chatRect = chatEl.getBoundingClientRect();
-    const refY = chatRect.top + 2;
+    const refY = chatRect.bottom - 2;
     const allMes = Array.from(chatEl.querySelectorAll('.mes'));
     if (allMes.length === 0) return null;
     const anchor = allMes.find((el) => {
@@ -534,8 +534,9 @@ function repositionButtons() {
                         if (list.children[activeChildIdx]) list.children[activeChildIdx].classList.add('active');
                         lastActiveDot = activeChildIdx;
                     }
-                    // 已读竖线：从 active 圆点中心连到其下方相邻圆点中心（视觉连贯），
-                    // 圆点 z-index 更高，已读段沉在其下，线被圆点自然盖住、不显得挡圆点。
+                    // 已读竖线：从 active 圆点中心出发，向下延伸的长度跟随「当前消息的阅读进度」——
+                    // 进度 = 视口顶部参考线在 anchor 消息内的相对位置（0=刚读到此消息顶，1=已读完），
+                    // 段底在 [active 圆点中心, 下一圆点中心] 间平滑移动；圆点层级更高，线被自然盖住不挡圆点。
                     const activeDot = list.children[activeChildIdx];
                     const nextDot = list.children[activeChildIdx + 1];
                     if (activeDot && nextDot && readLine) {
@@ -543,9 +544,18 @@ function repositionButtons() {
                         const aCenter = parseFloat(activeDot.style.top) + dotH / 2;
                         const nH = parseFloat(nextDot.style.height) || NAV_DOT_HIT;
                         const nCenter = parseFloat(nextDot.style.top) + nH / 2;
+                        // 阅读进度：以视口底为基准——
+                        // 视口底参考线从 anchor 消息顶扫到消息底的比例（0=消息顶刚到视口底，1=消息底已到视口底即读完）。
+                        // 相邻消息首尾相接，切换 anchor 时进度连续不跳；聊天滚到底时末条自然满。
+                        const refY = chatRect.bottom - 2;
+                        const aRect = anchor.getBoundingClientRect();
+                        const span = aRect.height || 1;
+                        let p = (refY - aRect.top) / span;
+                        if (p < 0) p = 0; else if (p > 1) p = 1;
+                        const curBottom = aCenter + p * (nCenter - aCenter);
                         const color = activeDot.style.getPropertyValue('--dot-color') || NAV_PROGRESS_COLOR;
                         readLine.style.top = `${aCenter}px`;
-                        readLine.style.height = `${Math.max(0, nCenter - aCenter)}px`;
+                        readLine.style.height = `${Math.max(0, curBottom - aCenter)}px`;
                         readLine.style.background = color;
                         readLine.style.display = '';
                     }
