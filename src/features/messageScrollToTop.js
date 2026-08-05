@@ -963,13 +963,7 @@ function injectStyles() {
     transform: translateX(-50%) scale(1.3);
 }
 /* 用本功能竖线/滑块替代原生滚动条：隐藏 #chat 原生滚动条（功能关闭时随样式一并移除） */
-#chat {
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-}
 #chat::-webkit-scrollbar {
-    width: 0 !important;
-    height: 0 !important;
     display: none !important;
 }
 /* 圆点挂载层 */
