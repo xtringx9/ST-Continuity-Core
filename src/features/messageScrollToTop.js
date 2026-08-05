@@ -250,21 +250,18 @@ function onNavLineClick(event) {
     const target = allMes[idx];
     if (!target) return;
 
-    // 在目标消息内按 frac 精确滚动：短消息整体居中、长消息顶部贴顶，
-    // frac 决定消息内滚动偏移，使点击位置对应聊天视口底参考线。
+    // 点竖线跳转：与已读线同源——以「视口底参考线（chatRect.bottom-2）」为基准，
+    // 让该参考线落在目标消息内 frac 比例处（frac 即已读线用的区间比例），
+    // 从而跳完后已读线底端正好对齐点击位置。短 / 长消息统一此几何，
+    // 短消息因高度不足视口无法精确定位时夹在 [0, maxScroll] 内（趋势仍居中）。
     const chatRect = chatEl.getBoundingClientRect();
     const mesRect = target.getBoundingClientRect();
     const mesTopRel = mesRect.top - chatRect.top + chatEl.scrollTop;
-    let targetScroll;
-    if (mesRect.height < chatRect.height) {
-        // 短消息：整体居中（高度不足视口，无额外滚动空间）
-        targetScroll = mesTopRel + mesRect.height / 2 - chatRect.height / 2;
-    } else {
-        // 长消息：顶部贴顶 + 消息内偏移 = frac * (消息高 - 视口高)
-        const maxInner = mesRect.height - chatRect.height;
-        targetScroll = mesTopRel + frac * maxInner;
-    }
-    chatEl.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+    const viewBottomRel = chatRect.height - 2; // chatRect.bottom-2 相对 chat 顶
+    let targetScroll = mesTopRel + frac * mesRect.height - viewBottomRel;
+    const maxScroll = Math.max(0, chatEl.scrollHeight - chatRect.height);
+    targetScroll = Math.min(Math.max(0, targetScroll), maxScroll);
+    chatEl.scrollTo({ top: targetScroll, behavior: 'smooth' });
 }
 
 /**
