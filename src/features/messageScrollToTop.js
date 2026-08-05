@@ -11,6 +11,8 @@ import { isInChatPage } from '../core/contextBottomUI.js';
 
 const LOG_TAG = '[MessageScrollToTop]';
 const BUTTON_CLASS = 'ccore-scroll-top-btn';
+// 每条消息内顶/底跳转按钮：暂时隐藏（改为 false 即不创建/不显示，代码保留以后可恢复）
+const SHOW_PER_MESSAGE_BUTTONS = false;
 const STYLE_ID = 'ccore_scroll_to_top_styles';
 const BUTTON_SIZE = 22; // 与 Cc 按钮同尺寸
 const EDGE_GAP = 0; // 按钮整列与聊天视口右/顶/底边的间距（越小越贴边）
@@ -61,6 +63,7 @@ let lastActiveDot = -1;           // 上一帧高亮的圆点索引，避免每�
  */
 export function addScrollTopButtonsToAllMessages() {
     try {
+        if (!SHOW_PER_MESSAGE_BUTTONS) return; // 顶/底按钮暂不显示（开关在文件顶部常量）
         if (!isInChatPage()) return;
         const chatEl = document.getElementById('chat');
         if (!chatEl) return;
