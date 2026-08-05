@@ -44,6 +44,9 @@ const NAV_SCROLL_HANDLE_CLASS = 'ccore-msg-nav-scroll-handle'; // 整条竖线�
 const NAV_HANDLE_TRACK_READLINE = true;
 const NAV_DOT_SIZE = 6;      // 单个圆点视觉直径（px）
 const NAV_DOT_HIT = 16;      // 圆点可点热区直径（px），大于视觉尺寸便于手机点按
+// 基础热区放大到 hover scale(1.4) 的尺寸，使非 hover 热区与 hover 等大，手机无需先激活即可点中。
+// 视觉圆点由 padding 维持 NAV_DOT_SIZE 不变；hover/active 的 scale(1.4) 仅作视觉反馈。
+const NAV_DOT_HIT_SCALE = 1.4;
 const NAV_DOT_HIT_MIN = 9;   // 热区最小直径（px），圆点过多缩到此值仍放不下则保持不重叠
 const NAV_DOT_MIN_GAP = 4;   // 相邻圆点热区间最小额外间距（px），避免密集消息圆点重叠
 const NAV_BAR_WIDTH = 14;    // 圆点条整体宽度（圆点 + 两侧留白）
@@ -221,7 +224,7 @@ function onNavLineClick(event) {
     // 收集所有圆点中心（相对导航条顶），含端点
     const centers = [];
     for (const dot of list.children) {
-        const h = parseFloat(dot.style.height) || NAV_DOT_HIT;
+        const h = parseFloat(dot.style.height) || NAV_DOT_HIT * NAV_DOT_HIT_SCALE;
         const top = parseFloat(dot.style.top) || 0;
         centers.push({ y: top + h / 2, dot });
     }
@@ -614,7 +617,7 @@ function repositionButtons() {
                 const availSpan = Math.max(1, barH - NAV_VPAD * 2);
                 const desiredStep = NAV_DOT_HIT + NAV_DOT_MIN_GAP;
                 const effStep = Math.min(desiredStep, availSpan / need);
-                const effHit = Math.max(NAV_DOT_HIT_MIN, effStep - NAV_DOT_MIN_GAP);
+                const effHit = Math.max(NAV_DOT_HIT_MIN, effStep - NAV_DOT_MIN_GAP) * NAV_DOT_HIT_SCALE;
                 const effGap = effStep - effHit;
                 // 先按真实高度算出每个圆点（含端点）的「中心 y」
                 const centers = new Array(need);
@@ -690,9 +693,9 @@ function repositionButtons() {
                     const pDot = list.children[pDotIdx];
                     const nextDot = list.children[pDotIdx + 1];
                     if (pDot && nextDot && readLine) {
-                        const dotH = parseFloat(pDot.style.height) || NAV_DOT_HIT;
+                        const dotH = parseFloat(pDot.style.height) || NAV_DOT_HIT * NAV_DOT_HIT_SCALE;
                         const aCenter = parseFloat(pDot.style.top) + dotH / 2;
-                        const nH = parseFloat(nextDot.style.height) || NAV_DOT_HIT;
+                        const nH = parseFloat(nextDot.style.height) || NAV_DOT_HIT * NAV_DOT_HIT_SCALE;
                         const nCenter = parseFloat(nextDot.style.top) + nH / 2;
                         const aRect = pAnchor.getBoundingClientRect();
                         const span = aRect.height || 1;
@@ -728,7 +731,7 @@ function repositionButtons() {
                 } else {
                     const scrollable = Math.max(1, chatEl.scrollHeight - chatEl.clientHeight);
                     const ratio = Math.min(1, chatEl.scrollTop / scrollable);
-                    const edge = NAV_VPAD + NAV_DOT_HIT / 2 + 2; // 端点圆点外缘 + 间隙
+                    const edge = NAV_VPAD + (NAV_DOT_HIT * NAV_DOT_HIT_SCALE) / 2 + 2; // 端点圆点外缘 + 间隙
                     const topMin = edge;                          // 滑块中心最低点（不盖顶圆点）
                     const topMax = Math.max(topMin, barH - edge); // 滑块中心最高点（不盖底圆点）
                     const span = Math.max(1, topMax - topMin);
