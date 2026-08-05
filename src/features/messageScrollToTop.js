@@ -883,14 +883,9 @@ function injectStyles() {
 .ccore-msg-nav {
     position: fixed;
     z-index: 100;
-    opacity: 0.45;
-    transition: opacity 0.2s;
     pointer-events: auto;
 }
-.ccore-msg-nav:hover,
-.ccore-msg-nav:focus-within {
-    opacity: 1;
-}
+/* 半透明只作用于线和圆点（hover 导航条时变清晰）；拖拽滑块 handle 保持不透明 */
 /* 背景竖线：粗热区(透明)用于点击跳转，可见细线由 ::before 绘制(2px) */
 .ccore-msg-nav-progress {
     position: absolute;
@@ -914,6 +909,8 @@ function injectStyles() {
     transform: translateX(-50%);
     background: ${NAV_PROGRESS_COLOR};
     border-radius: 1px;
+    opacity: 0.5;
+    transition: opacity 0.2s;
 }
 /* 已读竖线：粗热区(透明)可点击，可见细线由 ::before 绘制(2px)，颜色取 --read-color */
 .ccore-msg-nav-progress-read {
@@ -939,14 +936,16 @@ function injectStyles() {
     transform: translateX(-50%);
     background: var(--read-color, ${NAV_PROGRESS_COLOR});
     border-radius: 1px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
 }
 /* 整条竖线末端拖拽滑块（替代原生滚动条 thumb）：默认隐藏，hover 导航条或拖拽时显示 */
 .ccore-msg-nav-scroll-handle {
     position: absolute;
     left: 50%;
     top: 0;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     transform: translateX(-50%);
     background: var(--SmartThemeLinkColor, rgb(120,170,255));
     /* 对称菱形裁剪，避免与圆点混淆 */
@@ -954,19 +953,24 @@ function injectStyles() {
     box-sizing: border-box;
     cursor: ns-resize;
     pointer-events: auto;
-    opacity: 0;
+    opacity: 1;
     touch-action: none;
-    transition: opacity 0.2s, transform 0.15s;
+    transition: transform 0.15s;
     z-index: 4;
-}
-.ccore-msg-nav:hover .ccore-msg-nav-scroll-handle,
-.ccore-msg-nav:focus-within .ccore-msg-nav-scroll-handle,
-.ccore-msg-nav-scroll-handle.dragging {
-    opacity: 0.9;
 }
 .ccore-msg-nav-scroll-handle:hover,
 .ccore-msg-nav-scroll-handle.dragging {
     transform: translateX(-50%) scale(1.3);
+}
+/* 用本功能竖线/滑块替代原生滚动条：隐藏 #chat 原生滚动条（功能关闭时随样式一并移除） */
+#chat {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+#chat::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
 }
 /* 圆点挂载层 */
 .ccore-msg-nav-dot-list {
@@ -994,6 +998,12 @@ function injectStyles() {
     box-sizing: border-box;
     transition: transform 0.15s, box-shadow 0.15s;
     z-index: 2;
+    opacity: 0.6;
+}
+.ccore-msg-nav:hover .ccore-msg-nav-progress::before,
+.ccore-msg-nav:hover .ccore-msg-nav-progress-read::before,
+.ccore-msg-nav:hover .ccore-msg-nav-dot {
+    opacity: 1;
 }
 .ccore-msg-nav-dot:hover {
     transform: scale(1.4);
