@@ -45,9 +45,9 @@ export function loadSettingsToUI() {
     $("#continuity_quick_reply_optimize").prop("checked", Boolean(extensionConfig.quickReplyOptimize));
     $("#continuity_send_hijack").prop("checked", Boolean(extensionConfig.sendHijack?.enabled));
     populateSendHijackOptions();
-    $("#continuity_scroll_to_top").prop("checked", Boolean(extensionConfig.enableScrollToTop));
-    $("#continuity_smooth_scroll_to_top").prop("checked", extensionConfig.smoothScrollToTop !== false);
-    $("#continuity_show_per_message_buttons").prop("checked", Boolean(extensionConfig.showPerMessageButtons));
+    $("#continuity_scroll_to_top").prop("checked", Boolean(extensionConfig.scrollToTop?.enabled));
+    $("#continuity_smooth_scroll_to_top").prop("checked", extensionConfig.scrollToTop?.smoothScroll !== false);
+    $("#continuity_show_per_message_buttons").prop("checked", Boolean(extensionConfig.scrollToTop?.showPerMessageButtons));
     $("#continuity_world_book_binding").prop("checked", extensionConfig.worldBookBinding?.enabled !== false);
 
     // 异步模块存储设置
@@ -259,7 +259,8 @@ export function onSendHijackLabelChange() {
 export function onScrollToTopToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.enableScrollToTop = enabled;
+    if (!extensionConfig.scrollToTop) extensionConfig.scrollToTop = { enabled: false, smoothScroll: true, showPerMessageButtons: false };
+    extensionConfig.scrollToTop.enabled = enabled;
     configManager.setExtensionConfig(extensionConfig);
 
     if (enabled) {
@@ -276,7 +277,8 @@ export function onScrollToTopToggle(event) {
 export function onSmoothScrollToTopToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.smoothScrollToTop = enabled;
+    if (!extensionConfig.scrollToTop) extensionConfig.scrollToTop = { enabled: false, smoothScroll: true, showPerMessageButtons: false };
+    extensionConfig.scrollToTop.smoothScroll = enabled;
     configManager.setExtensionConfig(extensionConfig);
     // 无需重新初始化导航条，scrollChatTo 已实时读 config
 }
@@ -288,12 +290,13 @@ export function onSmoothScrollToTopToggle(event) {
 export function onShowPerMessageButtonsToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.showPerMessageButtons = enabled;
+    if (!extensionConfig.scrollToTop) extensionConfig.scrollToTop = { enabled: false, smoothScroll: true, showPerMessageButtons: false };
+    extensionConfig.scrollToTop.showPerMessageButtons = enabled;
     configManager.setExtensionConfig(extensionConfig);
 
     if (enabled) {
         // 若导航条已启用，即时添加按钮；否则下次开导航条时会自动创建
-        if (configManager.getExtensionConfig().enableScrollToTop) {
+        if (configManager.getExtensionConfig().scrollToTop?.enabled) {
             addScrollTopButtonsToAllMessages();
         }
     } else {

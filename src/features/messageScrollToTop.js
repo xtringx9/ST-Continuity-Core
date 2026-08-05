@@ -64,7 +64,7 @@ let lastActiveDot = -1;           // 上一帧高亮的圆点索引，避免每�
  */
 export function addScrollTopButtonsToAllMessages() {
     try {
-        if (!configManager.getExtensionConfig().showPerMessageButtons) return; // 顶/底按钮开关
+        if (!configManager.getExtensionConfig().scrollToTop.showPerMessageButtons) return; // 顶/底按钮开关
         if (!isInChatPage()) return;
         const chatEl = document.getElementById('chat');
         if (!chatEl) return;
@@ -165,7 +165,7 @@ function scrollMessageToBottom(mesEl) {
  * @param {number} top 目标 scrollTop
  */
 function scrollChatTo(el, top) {
-    const smooth = configManager.getExtensionConfig().smoothScrollToTop !== false;
+    const smooth = configManager.getExtensionConfig().scrollToTop.smoothScroll !== false;
     el.scrollTo({ top, behavior: smooth ? 'smooth' : 'instant' });
 }
 
@@ -764,7 +764,7 @@ function scheduleReposition() {
  * 初始化：根据开关决定是否注入按钮与监听
  */
 export function initMessageScrollToTop() {
-    if (!configManager.getExtensionConfig().enableScrollToTop) {
+    if (!configManager.getExtensionConfig().scrollToTop.enabled) {
         removeMessageScrollToTop();
         return;
     }
