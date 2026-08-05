@@ -46,6 +46,7 @@ export function loadSettingsToUI() {
     $("#continuity_send_hijack").prop("checked", Boolean(extensionConfig.sendHijack?.enabled));
     populateSendHijackOptions();
     $("#continuity_scroll_to_top").prop("checked", Boolean(extensionConfig.enableScrollToTop));
+    $("#continuity_smooth_scroll_to_top").prop("checked", extensionConfig.smoothScrollToTop !== false);
     $("#continuity_world_book_binding").prop("checked", extensionConfig.worldBookBinding?.enabled !== false);
 
     // 异步模块存储设置
@@ -265,6 +266,18 @@ export function onScrollToTopToggle(event) {
     } else {
         removeMessageScrollToTop();
     }
+}
+
+/**
+ * Handles the smooth scroll toggle change for message nav.
+ * @param {Event} event
+ */
+export function onSmoothScrollToTopToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.smoothScrollToTop = enabled;
+    configManager.setExtensionConfig(extensionConfig);
+    // 无需重新初始化导航条，scrollChatTo 已实时读 config
 }
 
 /**

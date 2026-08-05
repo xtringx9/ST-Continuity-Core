@@ -132,11 +132,11 @@ function scrollMessageToTop(mesEl) {
             // 短消息：垂直居中于视口，整条可见且在阅读舒适区
             const target = mesRect.top - chatRect.top + chatEl.scrollTop
                 + mesRect.height / 2 - chatRect.height / 2;
-            chatEl.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+            scrollChatTo(chatEl, Math.max(0, target));
         } else {
             // 长消息：顶部贴视口顶部（与现有方案一致）
             const target = mesRect.top - chatRect.top + chatEl.scrollTop;
-            chatEl.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+            scrollChatTo(chatEl, Math.max(0, target));
         }
     } catch (e) {
         chatEl.scrollTop = Math.max(0, mesEl.offsetTop);
@@ -155,10 +155,20 @@ function scrollMessageToBottom(mesEl) {
         const mesRect = mesEl.getBoundingClientRect();
         const msgBottomContent = mesRect.bottom - chatRect.top + chatEl.scrollTop;
         const target = msgBottomContent - chatEl.clientHeight;
-        chatEl.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+        scrollChatTo(chatEl, Math.max(0, target));
     } catch (e) {
         chatEl.scrollTop = Math.max(0, mesEl.offsetTop);
     }
+}
+
+/**
+ * 统一滚动辅助：根据 SMOOTH_SCROLL 开关选择平滑滑动或直接跳转。
+ * @param {HTMLElement} el 滚动容器（#chat）
+ * @param {number} top 目标 scrollTop
+ */
+function scrollChatTo(el, top) {
+    const smooth = configManager.getExtensionConfig().smoothScrollToTop !== false;
+    el.scrollTo({ top, behavior: smooth ? 'smooth' : 'instant' });
 }
 
 /**
@@ -191,12 +201,12 @@ function onNavClick(event) {
     const endpoint = dot.attr('data-endpoint');
     if (endpoint === 'top') {
         const chatEl = document.getElementById('chat');
-        if (chatEl) chatEl.scrollTo({ top: 0, behavior: 'smooth' });
+        if (chatEl) scrollChatTo(chatEl, 0);
         return;
     }
     if (endpoint === 'bottom') {
         const chatEl = document.getElementById('chat');
-        if (chatEl) chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' });
+        if (chatEl) scrollChatTo(chatEl, chatEl.scrollHeight);
         return;
     }
     const idx = parseInt(dot.attr('data-index'), 10);
@@ -233,12 +243,12 @@ function onNavLineClick(event) {
     // 定位点击 y 落在哪两个相邻圆点之间
     if (clickY <= centers[0].y) {
         const ep = centers[0].dot.getAttribute('data-endpoint');
-        if (ep === 'top') chatEl.scrollTo({ top: 0, behavior: 'smooth' });
+        if (ep === 'top') scrollChatTo(chatEl, 0);
         return;
     }
     if (clickY >= centers[centers.length - 1].y) {
         const ep = centers[centers.length - 1].dot.getAttribute('data-endpoint');
-        if (ep === 'bottom') chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' });
+        if (ep === 'bottom') scrollChatTo(chatEl, chatEl.scrollHeight);
         return;
     }
     let lo = 0, hi = centers.length - 1;
@@ -253,8 +263,8 @@ function onNavLineClick(event) {
     const targetDot = a.dot;
     const endpoint = targetDot.getAttribute('data-endpoint');
     const allMes = Array.from(chatEl.querySelectorAll('#chat .mes'));
-    if (endpoint === 'top') { chatEl.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-    if (endpoint === 'bottom') { chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' }); return; }
+    if (endpoint === 'top') { scrollChatTo(chatEl, 0); return; }
+    if (endpoint === 'bottom') { scrollChatTo(chatEl, chatEl.scrollHeight); return; }
     const idx = parseInt(targetDot.getAttribute('data-index'), 10);
     if (isNaN(idx)) return;
     const target = allMes[idx];
@@ -271,7 +281,7 @@ function onNavLineClick(event) {
     let targetScroll = mesTopRel + frac * mesRect.height - viewBottomRel;
     const maxScroll = Math.max(0, chatEl.scrollHeight - chatRect.height);
     targetScroll = Math.min(Math.max(0, targetScroll), maxScroll);
-    chatEl.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    scrollChatTo(chatEl, targetScroll);
 }
 
 /**

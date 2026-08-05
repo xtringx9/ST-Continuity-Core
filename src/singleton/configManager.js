@@ -23,6 +23,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
     enableMessageRangeView: false, // 是否在扩展菜单显示「消息区间视图」入口（显示区间消息 / 恢复默认消息）
     quickReplyOptimize: false, // 是否优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线），默认关闭
     enableScrollToTop: false, // 是否启用消息导航条（手动版）：聊天视口右侧竖线导航（圆点/已读线/拖拽滑块），点击竖线跳转、拖动滑块滚动、隐藏原生滚动条，默认关闭
+    smoothScrollToTop: true, // 点击跳转是否平滑滑动（false=直接跳转无动画）
     sendHijack: { // 发送键劫持：点击发送键/回车不直接发送，改为执行指定 Quick Reply
         enabled: false, // 是否劫持发送键
         set: '', // QR 集合名

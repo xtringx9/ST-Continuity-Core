@@ -9,6 +9,7 @@ import {
     onMessageRangeViewToggle,
     onQuickReplyOptimizeToggle,
     onScrollToTopToggle,
+    onSmoothScrollToTopToggle,
     onWorldBookBindingToggle,
     onSendHijackToggle,
     onSendHijackSetChange,
@@ -77,6 +78,7 @@ export class SettingsPanel {
         $('#continuity_message_range_view').on('input', onMessageRangeViewToggle);
         $('#continuity_quick_reply_optimize').on('input', onQuickReplyOptimizeToggle);
         $('#continuity_scroll_to_top').on('input', onScrollToTopToggle);
+        $('#continuity_smooth_scroll_to_top').on('input', onSmoothScrollToTopToggle);
         $('#continuity_world_book_binding').on('input', onWorldBookBindingToggle);
         $('#continuity_send_hijack').on('input', onSendHijackToggle);
         $('#continuity_send_hijack_set').on('change', onSendHijackSetChange);

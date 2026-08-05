@@ -350,6 +350,7 @@
     "ccore_settings_quick_reply_optimize_hint": "QR bar becomes a single-row horizontal scroll, drag-to-pan, hidden scrollbar.",
     "ccore_settings_scroll_to_top": "Message Nav Bar (Replaces Scrollbar)",
     "ccore_settings_scroll_to_top_hint": "Vertical nav on the chat's right edge: click to jump, drag the diamond handle to scroll, hides the native scrollbar.",
+    "ccore_settings_smooth_scroll_to_top": "Smooth Scroll Jump",
     "ccore_settings_world_book_binding": "World Book Entry · Bind to Current Chat",
     "ccore_settings_world_book_binding_hint": "World book entries get a three-state control (inherit / on-for-chat / off-for-chat), remembering per-chat overrides.",
     "ccore_settings_send_hijack": "Send Key Triggers Quick Reply",

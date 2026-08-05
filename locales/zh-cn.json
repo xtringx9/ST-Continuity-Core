@@ -350,6 +350,7 @@
     "ccore_settings_quick_reply_optimize_hint": "QR 栏改为单排横滑、可拖拽平移、隐藏滚动条。",
     "ccore_settings_scroll_to_top": "消息导航条（替代滚动条）",
     "ccore_settings_scroll_to_top_hint": "聊天视口右侧竖线导航：点击跳转、拖动菱形滑块滚动，隐藏原生滚动条。",
+    "ccore_settings_smooth_scroll_to_top": "平滑滑动跳转",
     "ccore_settings_world_book_binding": "世界书条目·绑定当前聊天",
     "ccore_settings_world_book_binding_hint": "世界书条目提供三态控件（继承 / 本聊开 / 本聊关），按聊天记忆开关覆盖。",
     "ccore_settings_send_hijack": "发送键改为触发快捷回复",
