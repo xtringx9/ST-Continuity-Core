@@ -944,12 +944,12 @@ function injectStyles() {
     position: absolute;
     left: 50%;
     top: 0;
-    width: 20px;
-    height: 20px;
+    width: 14px;
+    height: 14px;
     transform: translateX(-50%);
     background: var(--SmartThemeLinkColor, rgb(120,170,255));
-    /* 对称菱形裁剪，避免与圆点混淆 */
-    clip-path: polygon(50% 0%, 72% 50%, 50% 100%, 28% 50%);
+    /* 对称菱形裁剪（等宽等高），避免与圆点混淆 */
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     box-sizing: border-box;
     cursor: ns-resize;
     pointer-events: auto;
