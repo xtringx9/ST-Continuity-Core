@@ -197,26 +197,74 @@ function onNavClick(event) {
 }
 
 /**
- * 点击「已读竖线」：跳到当前 active 圆点对应的消息顶部。
- * （竖线后续将增强为按点击位置跳转，以替代原生滚动条。）
+ * 点击竖线（已读段或背景段）任意位置：把点击 y 映射到对应消息并跳转，
+ * 从而替代原生滚动条。映射依据各圆点中心在导航条上的坐标。
  * @param {Event} event
  */
-function onNavReadLineClick(event) {
+function onNavLineClick(event) {
     event.stopPropagation();
     const navEl = document.querySelector(`.${NAV_CLASS}`);
     if (!navEl) return;
     const list = navEl.querySelector(`.${NAV_DOT_CLASS}-list`);
-    if (!list || lastActiveDot < 0 || !list.children[lastActiveDot]) return;
-    const activeDot = list.children[lastActiveDot];
-    const endpoint = activeDot.getAttribute('data-endpoint');
     const chatEl = document.getElementById('chat');
-    if (!chatEl) return;
+    if (!list || !chatEl) return;
+    const navRect = navEl.getBoundingClientRect();
+    const clickY = event.clientY - navRect.top; // 相对导航条顶
+
+    // 收集所有圆点中心（相对导航条顶），含端点
+    const centers = [];
+    for (const dot of list.children) {
+        const h = parseFloat(dot.style.height) || NAV_DOT_HIT;
+        const top = parseFloat(dot.style.top) || 0;
+        centers.push({ y: top + h / 2, dot });
+    }
+    if (centers.length === 0) return;
+
+    // 定位点击 y 落在哪两个相邻圆点之间
+    if (clickY <= centers[0].y) {
+        const ep = centers[0].dot.getAttribute('data-endpoint');
+        if (ep === 'top') chatEl.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+    }
+    if (clickY >= centers[centers.length - 1].y) {
+        const ep = centers[centers.length - 1].dot.getAttribute('data-endpoint');
+        if (ep === 'bottom') chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' });
+        return;
+    }
+    let lo = 0, hi = centers.length - 1;
+    for (let i = 0; i < centers.length - 1; i++) {
+        if (clickY >= centers[i].y && clickY <= centers[i + 1].y) { lo = i; hi = i + 1; break; }
+    }
+    const a = centers[lo], b = centers[hi];
+    const span = (b.y - a.y) || 1;
+    const frac = (clickY - a.y) / span; // 区间内相对比例 [0,1]
+
+    // 目标消息 = 区间上方的圆点对应的消息（消息圆点从 children[1] 开始）
+    const targetDot = a.dot;
+    const endpoint = targetDot.getAttribute('data-endpoint');
+    const allMes = Array.from(chatEl.querySelectorAll('#chat .mes'));
     if (endpoint === 'top') { chatEl.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (endpoint === 'bottom') { chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' }); return; }
-    const idx = parseInt(activeDot.getAttribute('data-index'), 10);
+    const idx = parseInt(targetDot.getAttribute('data-index'), 10);
     if (isNaN(idx)) return;
-    const target = document.querySelectorAll('#chat .mes')[idx];
-    if (target) scrollMessageToTop(target);
+    const target = allMes[idx];
+    if (!target) return;
+
+    // 在目标消息内按 frac 精确滚动：短消息整体居中、长消息顶部贴顶，
+    // frac 决定消息内滚动偏移，使点击位置对应聊天视口底参考线。
+    const chatRect = chatEl.getBoundingClientRect();
+    const mesRect = target.getBoundingClientRect();
+    const mesTopRel = mesRect.top - chatRect.top + chatEl.scrollTop;
+    let targetScroll;
+    if (mesRect.height < chatRect.height) {
+        // 短消息：整体居中（高度不足视口，无额外滚动空间）
+        targetScroll = mesTopRel + mesRect.height / 2 - chatRect.height / 2;
+    } else {
+        // 长消息：顶部贴顶 + 消息内偏移 = frac * (消息高 - 视口高)
+        const maxInner = mesRect.height - chatRect.height;
+        targetScroll = mesTopRel + frac * maxInner;
+    }
+    chatEl.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
 }
 
 /**
@@ -603,7 +651,7 @@ function repositionButtons() {
                         const color = pDot.style.getPropertyValue('--dot-color') || NAV_PROGRESS_COLOR;
                         readLine.style.top = `${aCenter}px`;
                         readLine.style.height = `${Math.max(0, curBottom - aCenter)}px`;
-                        readLine.style.background = color;
+                        readLine.style.setProperty('--read-color', color);
                         readLine.style.display = '';
                     }
                 }
@@ -635,7 +683,7 @@ export function initMessageScrollToTop() {
     setupChatObserver();
     $(document).off('click.ccore-scroll-to-top').on('click.ccore-scroll-to-top', `.${BUTTON_CLASS}`, onButtonClick);
     $(document).off('click.ccore-msg-nav').on('click.ccore-msg-nav', `.${NAV_CLASS}`, onNavClick);
-    $(document).off('click.ccore-msg-nav-read').on('click.ccore-msg-nav-read', `.${NAV_PROGRESS_CLASS}-read`, onNavReadLineClick);
+    $(document).off('click.ccore-msg-nav-line').on('click.ccore-msg-nav-line', `.${NAV_PROGRESS_CLASS}, .${NAV_PROGRESS_CLASS}-read`, onNavLineClick);
     createNavControl();
     addScrollTopButtonsToAllMessages();
     infoLog(LOG_TAG, '消息滚动/跳转按钮已启用');
@@ -667,9 +715,10 @@ export function removeMessageScrollToTop() {
     }
     $(document).off('click.ccore-scroll-to-top');
     $(document).off('click.ccore-msg-nav');
-    $(document).off('click.ccore-msg-nav-read');
+    $(document).off('click.ccore-msg-nav-line');
     removeAllScrollTopButtons();
     removeNavControl();
+    document.getElementById(STYLE_ID)?.remove();
 }
 
 /** 建立只观察视口附近消息的 IntersectionObserver，维护 visibleMesIds 供重排时过滤 */
@@ -765,8 +814,21 @@ function injectStyles() {
 .ccore-msg-nav:focus-within {
     opacity: 1;
 }
-/* 背景竖线：撑满整个圆点条高度，作为贯穿的阅读位置参考（未读/底部分） */
+/* 背景竖线：粗热区(透明)用于点击跳转，可见细线由 ::before 绘制(2px) */
 .ccore-msg-nav-progress {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 10px;
+    height: 100%;
+    transform: translateX(-50%);
+    background: transparent;
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 0;
+}
+.ccore-msg-nav-progress::before {
+    content: '';
     position: absolute;
     left: 50%;
     top: 0;
@@ -775,23 +837,31 @@ function injectStyles() {
     transform: translateX(-50%);
     background: ${NAV_PROGRESS_COLOR};
     border-radius: 1px;
-    pointer-events: none;
 }
-/* 已读竖线：仅覆盖 active 圆点到其下方相邻圆点之间的一小段，染该圆点颜色
-   （宽度与背景灰线一致，不盖住相邻圆点；可点击，后续替代滚动条） */
+/* 已读竖线：粗热区(透明)可点击，可见细线由 ::before 绘制(2px)，颜色取 --read-color */
 .ccore-msg-nav-progress-read {
     position: absolute;
     left: 50%;
     top: 0;
-    width: 2px;
+    width: 10px;
     height: 0;
     transform: translateX(-50%);
-    background: ${NAV_PROGRESS_COLOR};
-    border-radius: 1px;
+    background: transparent;
     pointer-events: auto;
     cursor: pointer;
     transition: background-color 0.15s;
     z-index: 1;
+}
+.ccore-msg-nav-progress-read::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    transform: translateX(-50%);
+    background: var(--read-color, ${NAV_PROGRESS_COLOR});
+    border-radius: 1px;
 }
 /* 圆点挂载层 */
 .ccore-msg-nav-dot-list {
