@@ -220,15 +220,17 @@ function onNavReadLineClick(event) {
 }
 
 /**
- * 取「当前正在阅读」的锚点消息：与阅读进度同基准，取包含聊天视口【底部】参考线的消息
- * （即用户视线最底部正在读的那条）；没有（如视口底恰落在两消息缝隙）则取中心最接近参考线的消息。
+ * 取「当前正在关注」的锚点消息（决定高亮哪个圆点）：以视口【垂直中心】为基准，
+ * 取包含中心参考线的消息——短消息居中时中心正好落在消息内，高亮即居中的那条，
+ * 长消息贴顶时中心落在其内部，高亮即该长消息本身。已读线进度复用此 anchor、
+ * 仍按视口底相对位置算比例，使高亮与进度对应同一消息、无错位。
  * @returns {HTMLElement|null}
  */
 function getAnchorMesEl() {
     const chatEl = document.getElementById('chat');
     if (!chatEl) return null;
     const chatRect = chatEl.getBoundingClientRect();
-    const refY = chatRect.bottom - 2;
+    const refY = chatRect.top + chatRect.height / 2;
     const allMes = Array.from(chatEl.querySelectorAll('.mes'));
     if (allMes.length === 0) return null;
     const anchor = allMes.find((el) => {
@@ -242,6 +244,35 @@ function getAnchorMesEl() {
         const r = el.getBoundingClientRect();
         const c = r.top + r.height / 2;
         const d = Math.abs(c - refY);
+        if (d < bestDist) {
+            bestDist = d;
+            best = el;
+        }
+    }
+    return best;
+}
+
+/**
+ * 取包含给定 y 坐标（相对视口）的消息；若 y 恰落在两消息缝隙，取中心最接近 y 的消息。
+ * 用于已读段进度的独立锚点（视口底基准），与高亮锚点（视口中心）解耦。
+ * @param {number} y 相对聊天视口顶的 y 坐标
+ * @param {HTMLElement[]} allMes 当前全部消息元素
+ * @returns {HTMLElement|null}
+ */
+function getMesAtY(y, allMes) {
+    if (!allMes || allMes.length === 0) return null;
+    const arr = Array.from(allMes);
+    const hit = arr.find((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top <= y && r.bottom > y;
+    });
+    if (hit) return hit;
+    let best = null;
+    let bestDist = Infinity;
+    for (const el of arr) {
+        const r = el.getBoundingClientRect();
+        const c = r.top + r.height / 2;
+        const d = Math.abs(c - y);
         if (d < bestDist) {
             bestDist = d;
             best = el;
@@ -527,10 +558,13 @@ function repositionButtons() {
                 }
             }
 
-            // 当前阅读位置：取视口顶部参考线那条消息，高亮对应圆点标出位置；
-            // 圆点以下的竖线段（已读部分）染该圆点颜色，以上保持灰色背景线。
-            const anchor = getAnchorMesEl();
+            // 高亮圆点（用户关注的消息）与已读段进度（读到的位置）解耦、各自用最合适的基准：
+            //  - 高亮：视口【中心】基准（getAnchorMesEl），短消息居中时高亮居中的那条；
+            //  - 已读段：视口【底】基准独立算进度，反映「读到哪」，与高亮互不干扰、各自正确。
+            const anchor = getAnchorMesEl();           // 高亮用：视口中心
             const readLine = navEl.querySelector(`.${NAV_PROGRESS_CLASS}-read`);
+
+            // —— 高亮圆点（视口中心基准）——
             if (anchor && list) {
                 const idx = Array.prototype.indexOf.call(allMes, anchor);
                 if (idx !== -1) {
@@ -542,26 +576,31 @@ function repositionButtons() {
                         if (list.children[activeChildIdx]) list.children[activeChildIdx].classList.add('active');
                         lastActiveDot = activeChildIdx;
                     }
-                    // 已读竖线：从 active 圆点中心出发，向下延伸的长度跟随「当前消息的阅读进度」——
-                    // 进度 = 视口顶部参考线在 anchor 消息内的相对位置（0=刚读到此消息顶，1=已读完），
-                    // 段底在 [active 圆点中心, 下一圆点中心] 间平滑移动；圆点层级更高，线被自然盖住不挡圆点。
-                    const activeDot = list.children[activeChildIdx];
-                    const nextDot = list.children[activeChildIdx + 1];
-                    if (activeDot && nextDot && readLine) {
-                        const dotH = parseFloat(activeDot.style.height) || NAV_DOT_HIT;
-                        const aCenter = parseFloat(activeDot.style.top) + dotH / 2;
+                }
+            } else if (readLine) {
+                readLine.style.display = 'none';
+            }
+
+            // —— 已读竖线（视口底基准，独立锚点）——
+            // 进度 anchor：视口底参考线包含的消息；进度 = 该消息顶→底被视口底扫过的比例。
+            const pAnchor = getMesAtY(chatRect.bottom - 2, allMes);
+            if (pAnchor && list) {
+                const pIdx = Array.prototype.indexOf.call(allMes, pAnchor);
+                if (pIdx !== -1) {
+                    const pDotIdx = pIdx + 1;
+                    const pDot = list.children[pDotIdx];
+                    const nextDot = list.children[pDotIdx + 1];
+                    if (pDot && nextDot && readLine) {
+                        const dotH = parseFloat(pDot.style.height) || NAV_DOT_HIT;
+                        const aCenter = parseFloat(pDot.style.top) + dotH / 2;
                         const nH = parseFloat(nextDot.style.height) || NAV_DOT_HIT;
                         const nCenter = parseFloat(nextDot.style.top) + nH / 2;
-                        // 阅读进度：以视口底为基准——
-                        // 视口底参考线从 anchor 消息顶扫到消息底的比例（0=消息顶刚到视口底，1=消息底已到视口底即读完）。
-                        // 相邻消息首尾相接，切换 anchor 时进度连续不跳；聊天滚到底时末条自然满。
-                        const refY = chatRect.bottom - 2;
-                        const aRect = anchor.getBoundingClientRect();
+                        const aRect = pAnchor.getBoundingClientRect();
                         const span = aRect.height || 1;
-                        let p = (refY - aRect.top) / span;
+                        let p = (chatRect.bottom - 2 - aRect.top) / span;
                         if (p < 0) p = 0; else if (p > 1) p = 1;
                         const curBottom = aCenter + p * (nCenter - aCenter);
-                        const color = activeDot.style.getPropertyValue('--dot-color') || NAV_PROGRESS_COLOR;
+                        const color = pDot.style.getPropertyValue('--dot-color') || NAV_PROGRESS_COLOR;
                         readLine.style.top = `${aCenter}px`;
                         readLine.style.height = `${Math.max(0, curBottom - aCenter)}px`;
                         readLine.style.background = color;
