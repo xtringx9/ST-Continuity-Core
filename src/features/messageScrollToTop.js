@@ -945,11 +945,12 @@ function injectStyles() {
     position: absolute;
     left: 50%;
     top: 0;
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
     transform: translateX(-50%);
-    border-radius: 50%;
     background: var(--SmartThemeLinkColor, rgb(120,170,255));
+    /* 对称菱形裁剪，避免与圆点混淆 */
+    clip-path: polygon(50% 0%, 72% 50%, 50% 100%, 28% 50%);
     box-sizing: border-box;
     cursor: ns-resize;
     pointer-events: auto;
