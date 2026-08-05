@@ -36,6 +36,10 @@ const NAV_DOT_NONUSER_COLOR = 'var(--SmartThemeQuoteColor, rgb(225,138,36))';
 const NAV_DOT_USER_COLOR = 'var(--SmartThemeUnderlineColor, rgb(188,231,207))';
 const NAV_DOT_ENDPOINT_COLOR = 'var(--SmartThemeLinkColor, rgb(120,170,255))'; // 顶/底跳转特殊圆点（链接蓝继承色）
 const NAV_PROGRESS_COLOR = 'var(--smart-border-color, rgba(128,128,128,0.6))'; // 背景竖线（撑满高度）
+const NAV_SCROLL_HANDLE_CLASS = 'ccore-msg-nav-scroll-handle'; // 整条竖线末端的拖拽滑块（替代滚动条 thumb）
+// handle 位置模式：true=贴已读线末端（与已读线联动）；false=整页滚动比例（原生滚动条 thumb 语义）。
+// 两种逻辑都保留，后续想切回整页滚动模式改这里为 false 即可。
+const NAV_HANDLE_TRACK_READLINE = true;
 const NAV_DOT_SIZE = 6;      // 单个圆点视觉直径（px）
 const NAV_DOT_HIT = 16;      // 圆点可点热区直径（px），大于视觉尺寸便于手机点按
 const NAV_DOT_HIT_MIN = 9;   // 热区最小直径（px），圆点过多缩到此值仍放不下则保持不重叠
@@ -265,6 +269,51 @@ function onNavLineClick(event) {
 }
 
 /**
+ * 整条竖线末端滑块的拖拽：按住拖动 = 替代原生滚动条滚动聊天。
+ * 位移按「nav 条高度 ↔ 聊天可滚动高度」比例换算；拖拽时阻止冒泡，
+ * 避免松手时误触竖线点击跳转逻辑。
+ * @param {PointerEvent} event
+ */
+function onScrollHandleDown(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    const handle = event.currentTarget;
+    const navEl = handle.closest(`.${NAV_CLASS}`);
+    const chatEl = document.getElementById('chat');
+    if (!navEl || !chatEl) return;
+
+    const navRect = navEl.getBoundingClientRect();
+    const startY = event.clientY;
+    const startScroll = chatEl.scrollTop;
+    const scrollable = Math.max(1, chatEl.scrollHeight - chatEl.clientHeight);
+    const ratio = scrollable / navRect.height; // 每 px 拖动对应聊天滚动量
+    let dragging = false;
+
+    const onMove = (e) => {
+        const dy = e.clientY - startY;
+        if (!dragging && Math.abs(dy) > 2) { dragging = true; handle.classList.add('dragging'); }
+        const next = startScroll + dy * ratio;
+        chatEl.scrollTop = Math.min(Math.max(0, next), scrollable);
+    };
+    const onUp = (e) => {
+        try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+        handle.classList.remove('dragging');
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        // 拖拽结束后吞掉随后的 click，避免误触竖线跳转
+        if (dragging) {
+            const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+            setTimeout(() => {
+                document.addEventListener('click', swallow, { capture: true, once: true });
+            }, 0);
+        }
+    };
+    try { handle.setPointerCapture(event.pointerId); } catch (_) {}
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+}
+
+/**
  * 取「当前正在关注」的锚点消息（决定高亮哪个圆点）：以视口【垂直中心】为基准，
  * 取包含中心参考线的消息——短消息居中时中心正好落在消息内，高亮即居中的那条，
  * 长消息贴顶时中心落在其内部，高亮即该长消息本身。已读线进度复用此 anchor、
@@ -331,6 +380,7 @@ function createNavControl() {
     if (document.querySelector(`.${NAV_CLASS}`)) return;
     const nav = $('<div>').addClass(NAV_CLASS).css('display', 'none');
     $('<div>').addClass(`${NAV_PROGRESS_CLASS}`).appendTo(nav); // 背景竖线（整条，未读/底部分）
+    $('<div>').addClass(`${NAV_SCROLL_HANDLE_CLASS}`).appendTo(nav); // 末端拖拽滑块（nav 直属子，层级高于已读线，可盖线且可点中）
     $('<div>').addClass(`${NAV_PROGRESS_CLASS}-read`).appendTo(nav); // 已读竖线（active 圆点以下段，染 active 色）
     $('<div>').addClass(`${NAV_DOT_CLASS}-list`).appendTo(nav); // 圆点挂载层
     document.body.appendChild(nav[0]);
@@ -608,6 +658,7 @@ function repositionButtons() {
             //  - 已读段：视口【底】基准独立算进度，反映「读到哪」，与高亮互不干扰、各自正确。
             const anchor = getAnchorMesEl();           // 高亮用：视口中心
             const readLine = navEl.querySelector(`.${NAV_PROGRESS_CLASS}-read`);
+            let readLineBottom = null; // 已读线末端 y（相对 nav 条顶），供拖拽滑块对齐
 
             // —— 高亮圆点（视口中心基准）——
             if (anchor && list) {
@@ -644,16 +695,43 @@ function repositionButtons() {
                         const span = aRect.height || 1;
                         let p = (chatRect.bottom - 2 - aRect.top) / span;
                         if (p < 0) p = 0; else if (p > 1) p = 1;
-                        const curBottom = aCenter + p * (nCenter - aCenter);
+                        readLineBottom = aCenter + p * (nCenter - aCenter);
                         const color = pDot.style.getPropertyValue('--dot-color') || NAV_PROGRESS_COLOR;
                         readLine.style.top = `${aCenter}px`;
-                        readLine.style.height = `${Math.max(0, curBottom - aCenter)}px`;
+                        readLine.style.height = `${Math.max(0, readLineBottom - aCenter)}px`;
                         readLine.style.setProperty('--read-color', color);
                         readLine.style.display = '';
                     }
                 }
             } else if (readLine) {
                 readLine.style.display = 'none';
+            }
+
+            // —— 拖拽滑块定位 ——
+            // 模式一（NAV_HANDLE_TRACK_READLINE=true）：贴在已读线末端（readLineBottom），
+            //   拖它=滚聊天，已读线随滚动实时变化、滑块始终戴在末端。
+            // 模式二（false）：整页滚动比例（原生滚动条 thumb 语义），活动范围限制在
+            //   顶/底端点圆点内侧边缘之间，不超出、也不盖住端点圆点。
+            const handle = navEl.querySelector(`.${NAV_SCROLL_HANDLE_CLASS}`);
+            if (handle) {
+                const hh = handle.offsetHeight || 12;
+                if (NAV_HANDLE_TRACK_READLINE) {
+                    if (readLineBottom !== null) {
+                        handle.style.top = `${readLineBottom - hh / 2}px`;
+                        handle.style.display = '';
+                    } else {
+                        handle.style.display = 'none';
+                    }
+                } else {
+                    const scrollable = Math.max(1, chatEl.scrollHeight - chatEl.clientHeight);
+                    const ratio = Math.min(1, chatEl.scrollTop / scrollable);
+                    const edge = NAV_VPAD + NAV_DOT_HIT / 2 + 2; // 端点圆点外缘 + 间隙
+                    const topMin = edge;                          // 滑块中心最低点（不盖顶圆点）
+                    const topMax = Math.max(topMin, barH - edge); // 滑块中心最高点（不盖底圆点）
+                    const span = Math.max(1, topMax - topMin);
+                    handle.style.top = `${topMin + ratio * span - hh / 2}px`;
+                    handle.style.display = '';
+                }
             }
         }
     }
@@ -681,6 +759,8 @@ export function initMessageScrollToTop() {
     $(document).off('click.ccore-scroll-to-top').on('click.ccore-scroll-to-top', `.${BUTTON_CLASS}`, onButtonClick);
     $(document).off('click.ccore-msg-nav').on('click.ccore-msg-nav', `.${NAV_CLASS}`, onNavClick);
     $(document).off('click.ccore-msg-nav-line').on('click.ccore-msg-nav-line', `.${NAV_PROGRESS_CLASS}, .${NAV_PROGRESS_CLASS}-read`, onNavLineClick);
+    // 整条竖线末端拖拽滑块：拖动 = 替代原生滚动条滚动聊天
+    $(document).off('pointerdown.ccore-msg-nav-handle').on('pointerdown.ccore-msg-nav-handle', `.${NAV_SCROLL_HANDLE_CLASS}`, onScrollHandleDown);
     createNavControl();
     addScrollTopButtonsToAllMessages();
     infoLog(LOG_TAG, '消息滚动/跳转按钮已启用');
@@ -859,6 +939,33 @@ function injectStyles() {
     transform: translateX(-50%);
     background: var(--read-color, ${NAV_PROGRESS_COLOR});
     border-radius: 1px;
+}
+/* 整条竖线末端拖拽滑块（替代原生滚动条 thumb）：默认隐藏，hover 导航条或拖拽时显示 */
+.ccore-msg-nav-scroll-handle {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: var(--SmartThemeLinkColor, rgb(120,170,255));
+    box-sizing: border-box;
+    cursor: ns-resize;
+    pointer-events: auto;
+    opacity: 0;
+    touch-action: none;
+    transition: opacity 0.2s, transform 0.15s;
+    z-index: 4;
+}
+.ccore-msg-nav:hover .ccore-msg-nav-scroll-handle,
+.ccore-msg-nav:focus-within .ccore-msg-nav-scroll-handle,
+.ccore-msg-nav-scroll-handle.dragging {
+    opacity: 0.9;
+}
+.ccore-msg-nav-scroll-handle:hover,
+.ccore-msg-nav-scroll-handle.dragging {
+    transform: translateX(-50%) scale(1.3);
 }
 /* 圆点挂载层 */
 .ccore-msg-nav-dot-list {
