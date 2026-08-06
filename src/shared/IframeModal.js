@@ -22,8 +22,13 @@ export class IframeModal {
      * @param {string} options.srcdoc - HTML 字符串，用于 srcdoc 模式（与 url 二选一）
      */
     open(url, title = 'Continuity Editor', options = {}) {
-        // 同实例已打开则不重复打开（保持单实例语义；多开请 new 新实例）
-        if (this.backdrop) return;
+        this.keepAlive = !!options.keepAlive;
+        // 同实例已存在：隐藏态则恢复显示（保留未保存编辑），否则不重复打开
+        if (this.backdrop) {
+            this.backdrop.style.display = '';
+            requestAnimationFrame(() => this.backdrop.classList.add('open'));
+            return;
+        }
 
         // 1. 创建遮罩层 (Backdrop)
         this.backdrop = document.createElement('div');
@@ -126,11 +131,22 @@ export class IframeModal {
 
     /**
      * 关闭模态窗口
+     *
+     * keepAlive 模式：仅临时隐藏（display:none）而非销毁 iframe，
+     * 以保留未保存的编辑状态；真正清理请用 destroy()。
      */
     close() {
         if (!this.backdrop) return;
 
         this.backdrop.classList.remove('open');
+
+        if (this.keepAlive) {
+            // 临时隐藏而非销毁：保留 iframe DOM 与未保存编辑
+            setTimeout(() => {
+                if (this.backdrop) this.backdrop.style.display = 'none';
+            }, 300); // 对应 transition 时间
+            return;
+        }
 
         // 等待动画结束后移除 DOM
         setTimeout(() => {
@@ -140,6 +156,19 @@ export class IframeModal {
             this.backdrop = null;
             window.removeEventListener('message', this._handleMessage);
         }, 300); // 对应 transition 时间
+    }
+
+    /**
+     * 彻底销毁模态窗口（移除 DOM + 解绑监听），用于按钮类型切换等需要 GC 的场景。
+     */
+    destroy() {
+        window.removeEventListener('message', this._handleMessage);
+        if (this.backdrop) {
+            if (this.backdrop.parentNode) {
+                this.backdrop.parentNode.removeChild(this.backdrop);
+            }
+            this.backdrop = null;
+        }
     }
 
     /**

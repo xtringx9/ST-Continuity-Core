@@ -15,7 +15,9 @@ export class EntryButton {
         this.extensionPath = extensionPath;
         this.embeddedId = 'continuity-new-entry-btn';
         this.floatingId = 'continuity-new-fab-btn';
-        this.iframeModal = new IframeModal();
+        // 编辑器 / 生成内容配置各自独立实例，均 keepAlive（关闭仅隐藏，保留未保存编辑）
+        this.editorModal = new IframeModal();
+        this.generatorModal = new IframeModal();
         this._themeListener = null;
         this._activeMenu = null;
         this._activeTrigger = null;
@@ -59,8 +61,9 @@ export class EntryButton {
         // 清理可能由其他 EntryButton 实例遗留的菜单 DOM
         // （切换按钮类型时 extensionSettingsManager 会 new 新实例，旧实例的 _activeMenu 引用丢失）
         document.querySelectorAll('.continuity-entry-menu').forEach(el => el.remove());
-        // 关闭可能打开的编辑器 modal,避免 window 上的 message listener 持有引用导致 modal + iframe 无法 GC
-        this.iframeModal?.close();
+        // 彻底销毁可能打开的编辑器 modal，避免 window 上的 message listener 持有引用导致 modal + iframe 无法 GC
+        this.editorModal?.destroy();
+        this.generatorModal?.destroy();
 
         const embeddedBtn = document.getElementById(this.embeddedId);
         if (embeddedBtn) embeddedBtn.remove();
@@ -405,16 +408,18 @@ export class EntryButton {
                 this._handleClick();
                 break;
             case 'generator-editor': {
+                this._ensureOnlyOneModal('generator');
                 const pageUrl = `${this.extensionPath}/src/features/generator-editor/index.html`;
-                this.iframeModal.open(pageUrl, '生成内容配置', {
+                this.generatorModal.open(pageUrl, '生成内容配置', {
                     variant: 'drawer-left',
+                    keepAlive: true,
                     onLoad: (iframe) => {
                         const doc = iframe.contentDocument;
                         if (doc) {
                             initGeneratorEditor(doc);
                             const closeBtn = doc.getElementById('close-btn');
                             if (closeBtn) {
-                                closeBtn.addEventListener('click', () => this.iframeModal.close());
+                                closeBtn.addEventListener('click', () => this.generatorModal.close());
                             }
                         }
                     }
@@ -431,14 +436,24 @@ export class EntryButton {
     }
 
     /**
+     * 确保同时只显示一个编辑器类 modal：打开 target 前先把另一个隐藏（keepAlive，不丢编辑）。
+     * @param {'editor'|'generator'} target
+     */
+    _ensureOnlyOneModal(target) {
+        if (target !== 'editor') this.editorModal.close();
+        if (target !== 'generator') this.generatorModal.close();
+    }
+
+    /**
      * 处理点击事件（打开编辑器）
      */
     _handleClick() {
         // 构建 HTML 文件的完整路径
         const pageUrl = `${this.extensionPath}/src/features/module-editor/index.html`;
 
-        this.iframeModal.open(pageUrl, 'Continuity Editor', {
+        this.editorModal.open(pageUrl, 'Continuity Editor', {
             variant: 'drawer-left', // 显式指定样式，以后可以改成 'center' 或 'drawer-right'
+            keepAlive: true,
             onLoad: (iframe) => {
                 const doc = iframe.contentDocument;
                 if (doc) {
@@ -448,7 +463,7 @@ export class EntryButton {
                     // 绑定内部关闭按钮
                     const closeBtn = doc.getElementById('close-btn');
                     if (closeBtn) {
-                        closeBtn.addEventListener('click', () => this.iframeModal.close());
+                        closeBtn.addEventListener('click', () => this.editorModal.close());
                     }
                 }
             }
