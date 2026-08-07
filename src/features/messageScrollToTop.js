@@ -482,6 +482,19 @@ function recomputeCenters(allMes, total, barH, list) {
         dot.style.padding = `${pad}px`;
         dot.style.top = `${centers[k] - effHit / 2}px`;
     }
+    // 仅在布局变化（低频）时同步消息圆点颜色与楼层号，覆盖「is_user 判定初次渲染后才稳定」的边界，
+    // 避免每帧 O(N) 样式写（原 rebuildNavDots 的 else 分支是滚轮卡顿残留主因）。
+    if (total > 0) {
+        for (let i = 0; i < total; i++) {
+            const mes = allMes[i];
+            const dot = list.children[i + 1]; // +1 跳过顶部端点圆点
+            if (!dot) continue;
+            const isUser = mes.getAttribute('is_user') === 'true';
+            dot.style.setProperty('--dot-color', isUser ? NAV_DOT_USER_COLOR : NAV_DOT_NONUSER_COLOR);
+            const mesId = mes.getAttribute('mesid');
+            if (mesId) dot.title = `楼层 ${mesId}`;
+        }
+    }
     return centers;
 }
 
@@ -550,16 +563,9 @@ function rebuildNavDots() {
             list.appendChild(botDot);
         }
     } else {
-        // 数量未变时同步角色色与楼层号（极少数情况角色判定在初次渲染后才稳定）
-        for (let i = 0; i < total; i++) {
-            const mes = allMes[i];
-            const isUser = mes.getAttribute('is_user') === 'true';
-            const child = list.children[i + 1]; // +1 跳过顶部端点圆点
-            if (!child) continue;
-            child.style.setProperty('--dot-color', isUser ? NAV_DOT_USER_COLOR : NAV_DOT_NONUSER_COLOR);
-            const mesId = mes.getAttribute('mesid');
-            if (mesId) child.title = `楼层 ${mesId}`;
-        }
+        // 数量未变时【不】每帧重设颜色/title：否则长聊天每帧对全部圆点做 O(N) 样式写，
+        // 触发强制布局导致滚轮卡顿。角色色与楼层号在上方「数量变化」分支已设置，
+        // 纯滚动时 mes 结构不变、is_user/楼层号稳定，无需重复写。
     }
 }
 
