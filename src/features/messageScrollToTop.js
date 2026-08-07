@@ -56,6 +56,7 @@ let repositionScheduled = false;
 let chatScrollEl = null;
 let mesVisibilityObserver = null; // 仅观察视口附近消息，避免每帧对全部按钮算几何
 let visibleMesIds = new Set();    // 当前与视口（含缓冲）相交的消息 mesid 集合
+let visibleMesEls = new Set();    // 与 visibleMesIds 同步的消息元素引用集合（B 用，避免每帧从全量过滤）
 let visibilityReady = false;      // 首个 IO 回调后置真，之后仅重排可见消息按钮
 let lastActiveDot = -1;           // 上一帧高亮的圆点索引，避免每帧遍历全部圆点
 
@@ -339,22 +340,35 @@ function onScrollHandleDown(event) {
  * 仍按视口底相对位置算比例，使高亮与进度对应同一消息、无错位。
  * @returns {HTMLElement|null}
  */
+/** B) 取视口附近消息元素（由 IntersectionObserver 维护的 visibleMesEls）。
+ *  未就绪或为空时回退全量，避免极快滚动过渡帧 IO 滞后导致 anchor / 已读线短暂丢失。 */
+function getVisibleMes() {
+    if (!visibilityReady || visibleMesEls.size === 0) return cachedAllMes;
+    return Array.from(visibleMesEls);
+}
+
 function getAnchorMesEl() {
     const chatEl = document.getElementById('chat');
     if (!chatEl) return null;
     const chatRect = chatEl.getBoundingClientRect();
     const refY = chatRect.top + chatRect.height / 2;
-    let allMes = cachedAllMes;
-    if (allMes.length === 0) { refreshAllMesCache(); allMes = cachedAllMes; }
-    if (allMes.length === 0) return null;
-    const anchor = allMes.find((el) => {
-        const r = el.getBoundingClientRect();
-        return r.top <= refY && r.bottom > refY;
-    });
-    if (anchor) return anchor;
+    if (cachedAllMes.length === 0) { refreshAllMesCache(); }
+    if (cachedAllMes.length === 0) return null;
+    const full = cachedAllMes;
+    // B) 优先在视口附近消息里找 anchor（穿过视口的消息必被 IO 标记，正常必命中）；
+    //    极快滚动过渡帧 IO 滞后导致可见集漏掉时，回退全量保证高亮不丢。
+    const candidates = getVisibleMes();
+    if (candidates !== full) {
+        const anchor = candidates.find((el) => {
+            const r = el.getBoundingClientRect();
+            return r.top <= refY && r.bottom > refY;
+        });
+        if (anchor) return anchor;
+    }
+    // 全量 fallback（保留原逻辑）
     let best = null;
     let bestDist = Infinity;
-    for (const el of allMes) {
+    for (const el of full) {
         const r = el.getBoundingClientRect();
         const c = r.top + r.height / 2;
         const d = Math.abs(c - refY);
@@ -375,6 +389,15 @@ function getAnchorMesEl() {
  */
 function getMesAtY(y, allMes) {
     if (!allMes || allMes.length === 0) return null;
+    // B) 优先在视口附近消息里找（视口底消息必穿过视口，正常必命中）；IO 滞后时回退全量
+    const candidates = getVisibleMes();
+    if (candidates !== allMes && candidates.length > 0) {
+        const hit = candidates.find((el) => {
+            const r = el.getBoundingClientRect();
+            return r.top <= y && r.bottom > y;
+        });
+        if (hit) return hit;
+    }
     const arr = Array.from(allMes);
     const hit = arr.find((el) => {
         const r = el.getBoundingClientRect();
@@ -829,6 +852,7 @@ export function removeMessageScrollToTop() {
         mesVisibilityObserver = null;
     }
     visibleMesIds = new Set();
+    visibleMesEls = new Set();
     visibilityReady = false;
     lastActiveDot = -1;
     cachedAllMes = [];
@@ -860,8 +884,8 @@ function setupMesVisibilityObserver(chatEl) {
         for (const entry of entries) {
             const id = entry.target.getAttribute('mesid');
             if (id === null) continue;
-            if (entry.isIntersecting) visibleMesIds.add(id);
-            else visibleMesIds.delete(id);
+            if (entry.isIntersecting) { visibleMesIds.add(id); visibleMesEls.add(entry.target); }
+            else { visibleMesIds.delete(id); visibleMesEls.delete(entry.target); }
         }
         visibilityReady = true;
         scheduleReposition();
