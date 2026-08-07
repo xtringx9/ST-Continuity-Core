@@ -59,6 +59,11 @@ let visibleMesIds = new Set();    // 当前与视口（含缓冲）相交的消�
 let visibilityReady = false;      // 首个 IO 回调后置真，之后仅重排可见消息按钮
 let lastActiveDot = -1;           // 上一帧高亮的圆点索引，避免每帧遍历全部圆点
 
+// —— 性能优化缓存（A+D）——
+let cachedAllMes = [];            // D) 由 MutationObserver 维护的全部 .mes 元素数组，避免每帧 querySelectorAll
+let cachedCenters = null;         // A) 圆点中心 y 数组（相对 nav 条顶），布局不变时复用
+let cachedCenterSig = '';         // A) 布局签名；变化（消息数/高度/视口高变）时重算 centers
+
 /**
  * 为当前所有消息添加「滚动 / 跳转」按钮（挂在 body 上，按 mesid + dir 关联）
  */
@@ -339,7 +344,8 @@ function getAnchorMesEl() {
     if (!chatEl) return null;
     const chatRect = chatEl.getBoundingClientRect();
     const refY = chatRect.top + chatRect.height / 2;
-    const allMes = Array.from(chatEl.querySelectorAll('.mes'));
+    let allMes = cachedAllMes;
+    if (allMes.length === 0) { refreshAllMesCache(); allMes = cachedAllMes; }
     if (allMes.length === 0) return null;
     const anchor = allMes.find((el) => {
         const r = el.getBoundingClientRect();
@@ -389,6 +395,82 @@ function getMesAtY(y, allMes) {
     return best;
 }
 
+/** D) 刷新全部 .mes 缓存（由 MutationObserver / 初始化触发，避免每帧 querySelectorAll） */
+function refreshAllMesCache() {
+    cachedAllMes = Array.from(document.querySelectorAll('#chat .mes'));
+}
+
+/**
+ * A) 按消息真实高度计算圆点中心 y（相对 nav 条顶）并应用到每个圆点 style。
+ * 布局（消息数 / 高度 / 视口高）不变时复用缓存，避免每帧 O(N) offsetTop 读 + dot style 写。
+ * @param {HTMLElement[]} allMes 当前全部消息元素
+ * @param {number} total 消息数
+ * @param {number} barH 圆点条高度（= 聊天视口高度）
+ * @param {HTMLElement} list 圆点挂载层
+ * @returns {number[]} 圆点中心 y 数组（长度 = total+2，含顶/底端点）
+ */
+function recomputeCenters(allMes, total, barH, list) {
+    const centers = new Array(total + 2);
+    centers[0] = NAV_VPAD;                 // 顶部端点钉在 zone 上边
+    centers[total + 1] = barH - NAV_VPAD;  // 底部端点钉在 zone 下边
+    const zoneTop = NAV_VPAD;
+    const zoneBottom = barH - NAV_VPAD;
+    const endpointReserve = NAV_DOT_HIT + 2; // 端点占位（直径 + 间隙），使消息圆点不与端点重叠
+    const mesZoneTop = zoneTop + endpointReserve;
+    const mesZoneBottom = zoneBottom - endpointReserve;
+    if (total > 0) {
+        const y0 = allMes[0].offsetTop;
+        const lastMes = allMes[total - 1];
+        const y1 = lastMes.offsetTop + lastMes.offsetHeight;
+        const ySpan = Math.max(1, y1 - y0);
+        for (let i = 0; i < total; i++) {
+            const mes = allMes[i];
+            const mesMid = (mes.offsetTop - y0) / ySpan; // 0..1：消息在整段中的相对中点
+            centers[i + 1] = mesZoneTop + mesMid * (mesZoneBottom - mesZoneTop);
+        }
+    }
+    // 自适应尺寸：圆点过多放不下时缩小热区/间距直到刚好铺满
+    const need = total + 2;
+    const availSpan = Math.max(1, barH - NAV_VPAD * 2);
+    const desiredStep = NAV_DOT_HIT + NAV_DOT_MIN_GAP;
+    const effStep = Math.min(desiredStep, availSpan / need);
+    const effHit = Math.max(NAV_DOT_HIT_MIN, effStep - NAV_DOT_MIN_GAP) * NAV_DOT_HIT_SCALE;
+    const effGap = effStep - effHit;
+    // 最小可点击间距：相邻圆点中心若过近则向下推挤，保证热区不重叠
+    const minStep = effHit + effGap;
+    for (let k = 1; k < centers.length; k++) {
+        if (centers[k] - centers[k - 1] < minStep) {
+            centers[k] = Math.min(centers[k - 1] + minStep, barH - effHit / 2);
+        }
+    }
+    // 若底部被推挤越界，则从下往上回推（保持端点钉底）
+    for (let k = centers.length - 2; k >= 0; k--) {
+        if (centers[k + 1] - centers[k] < minStep) {
+            centers[k] = Math.max(centers[k + 1] - minStep, effHit / 2);
+        }
+    }
+    // 应用：动态设置热区尺寸 + top（热区盒左上，减去半径）
+    for (let k = 0; k < centers.length; k++) {
+        const dot = list.children[k];
+        const pad = Math.max(0, (effHit - NAV_DOT_SIZE) / 2);
+        dot.style.width = `${effHit}px`;
+        dot.style.height = `${effHit}px`;
+        dot.style.marginLeft = `${-effHit / 2}px`;
+        dot.style.padding = `${pad}px`;
+        dot.style.top = `${centers[k] - effHit / 2}px`;
+    }
+    return centers;
+}
+
+/** 计算圆点布局签名：消息数 / 视口高 / 首尾消息 offsetTop·offsetHeight 任一变化即需重算 centers */
+function computeCenterSig(allMes, total, barH) {
+    const f = allMes[0];
+    const l = allMes[total - 1];
+    return `${total}|${Math.round(barH)}`
+        + `|${f ? f.offsetTop : 0}|${f ? f.offsetHeight : 0}`
+        + `|${l ? l.offsetTop : 0}|${l ? l.offsetHeight : 0}`;
+}
+
 /** 创建常驻的消息圆点条容器（含背景进度条 + 圆点挂载层），已存在则跳过 */
 function createNavControl() {
     if (document.querySelector(`.${NAV_CLASS}`)) return;
@@ -409,7 +491,7 @@ function rebuildNavDots() {
     if (!nav) return;
     const list = nav.querySelector(`.${NAV_DOT_CLASS}-list`);
     if (!list) return;
-    const allMes = document.querySelectorAll('#chat .mes');
+    const allMes = cachedAllMes;
     const total = allMes.length;
     // 圆点总数 = 消息数 + 顶/底两个特殊端点圆点（跳转聊天最顶 / 最底）
     const need = total > 0 ? total + 2 : 0;
@@ -477,8 +559,9 @@ function repositionButtons() {
     const vpMax = chatRect.bottom - BUTTON_SIZE - EDGE_GAP; // 聊天视口底部（避免压到输入区）
 
     // 一次性收集消息元素映射，避免每个按钮都做一次属性选择器查询（原 O(N) 次扫描）
+    if (cachedAllMes.length === 0) refreshAllMesCache();
     const mesMap = new Map();
-    document.querySelectorAll('#chat .mes').forEach((el) => {
+    cachedAllMes.forEach((el) => {
         const id = el.getAttribute('mesid');
         if (id !== null) mesMap.set(id, el);
     });
@@ -604,66 +687,19 @@ function repositionButtons() {
             navEl.style.width = `${NAV_BAR_WIDTH}px`;
             navEl.style.height = `${barH}px`;
 
-            const allMes = document.querySelectorAll('#chat .mes');
+            const allMes = cachedAllMes;
             const total = allMes.length;
             rebuildNavDots();
 
             // 圆点铺满整条竖线高度（仅上下留 NAV_VPAD 缓冲、端点占位内缩）
             const list = navEl.querySelector(`.${NAV_DOT_CLASS}-list`);
             if (list && list.childElementCount === total + 2) {
-                // 圆点铺满整条竖线高度（仅上下留 NAV_VPAD 缓冲、端点占位内缩）。
-                // 顶/底端点圆点钉在 zone 两端；消息圆点按真实高度分布（长消息占更长段），
-                // 并把消息区间两端各内缩一个「端点占位」，避免首/末消息圆点与端点圆点重叠。
-                const zoneTop = NAV_VPAD;
-                const zoneBottom = barH - NAV_VPAD;
-                const endpointReserve = NAV_DOT_HIT + 2; // 端点占位（直径 + 间隙），使消息圆点不与端点重叠
-                const mesZoneTop = zoneTop + endpointReserve;
-                const mesZoneBottom = zoneBottom - endpointReserve;
-                // 自适应尺寸：圆点过多放不下时，按比例缩小热区/间距直到刚好铺满；
-                // 缩到下限 NAV_DOT_HIT_MIN 仍放不下则保持下限（极端超长聊天，宁可小也不重叠）。
-                const need = total + 2;
-                const availSpan = Math.max(1, barH - NAV_VPAD * 2);
-                const desiredStep = NAV_DOT_HIT + NAV_DOT_MIN_GAP;
-                const effStep = Math.min(desiredStep, availSpan / need);
-                const effHit = Math.max(NAV_DOT_HIT_MIN, effStep - NAV_DOT_MIN_GAP) * NAV_DOT_HIT_SCALE;
-                const effGap = effStep - effHit;
-                // 先按真实高度算出每个圆点（含端点）的「中心 y」
-                const centers = new Array(need);
-                centers[0] = zoneTop;            // 顶部端点钉在 zone 上边
-                centers[need - 1] = zoneBottom;  // 底部端点钉在 zone 下边
-                if (total > 0) {
-                    const y0 = allMes[0].offsetTop;
-                    const lastMes = allMes[total - 1];
-                    const y1 = lastMes.offsetTop + lastMes.offsetHeight;
-                    const ySpan = Math.max(1, y1 - y0);
-                    for (let i = 0; i < total; i++) {
-                        const mes = allMes[i];
-                        const mesMid = (mes.offsetTop - y0) / ySpan; // 0..1：消息在整段中的相对中点
-                        centers[i + 1] = mesZoneTop + mesMid * (mesZoneBottom - mesZoneTop);
-                    }
-                }
-                // 最小可点击间距：相邻圆点中心若过近则向下推挤，保证热区不重叠
-                const minStep = effHit + effGap;
-                for (let k = 1; k < centers.length; k++) {
-                    if (centers[k] - centers[k - 1] < minStep) {
-                        centers[k] = Math.min(centers[k - 1] + minStep, barH - effHit / 2);
-                    }
-                }
-                // 若底部被推挤越界，则从下往上回推（保持端点钉底）
-                for (let k = centers.length - 2; k >= 0; k--) {
-                    if (centers[k + 1] - centers[k] < minStep) {
-                        centers[k] = Math.max(centers[k + 1] - minStep, effHit / 2);
-                    }
-                }
-                // 应用：动态设置热区尺寸 + top（热区盒左上，减去半径）
-                for (let k = 0; k < centers.length; k++) {
-                    const dot = list.children[k];
-                    const pad = Math.max(0, (effHit - NAV_DOT_SIZE) / 2);
-                    dot.style.width = `${effHit}px`;
-                    dot.style.height = `${effHit}px`;
-                    dot.style.marginLeft = `${-effHit / 2}px`;
-                    dot.style.padding = `${pad}px`;
-                    dot.style.top = `${centers[k] - effHit / 2}px`;
+                // A) 圆点中心仅在「布局签名」变化时才重算（消息数 / 视口高 / 首尾高度变），
+                //    否则复用缓存，避免每帧 O(N) offsetTop 读 + dot style 写造成的强制同步布局。
+                const sig = computeCenterSig(allMes, total, barH);
+                if (sig !== cachedCenterSig || !cachedCenters) {
+                    cachedCenters = recomputeCenters(allMes, total, barH, list);
+                    cachedCenterSig = sig;
                 }
             }
 
@@ -795,6 +831,9 @@ export function removeMessageScrollToTop() {
     visibleMesIds = new Set();
     visibilityReady = false;
     lastActiveDot = -1;
+    cachedAllMes = [];
+    cachedCenters = null;
+    cachedCenterSig = '';
     if (refreshDebounceTimer) {
         clearTimeout(refreshDebounceTimer);
         refreshDebounceTimer = null;
@@ -846,12 +885,14 @@ function setupChatObserver() {
     scrollObserver = new MutationObserver(() => {
         if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
         refreshDebounceTimer = setTimeout(() => {
+            refreshAllMesCache();
             addScrollTopButtonsToAllMessages();
             refreshDebounceTimer = null;
         }, 200);
     });
     scrollObserver.observe(chatEl, { childList: true });
     setupMesVisibilityObserver(chatEl);
+    refreshAllMesCache();
 
     if (chatScrollEl !== chatEl) {
         if (chatScrollEl) {
