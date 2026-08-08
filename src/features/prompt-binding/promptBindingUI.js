@@ -32,22 +32,22 @@ const CC_PM_BIND_STYLES = `
     color: var(--SmartThemeQuoteColor, #6cf);
 }
 .cc-pm-bind-toggle[data-mode="on"] {
-    color: var(--SmartThemeEmColor, #4caf50);
+    color: var(--SmartThemeSuccessColor, #5c5) !important;
 }
 .cc-pm-bind-toggle[data-mode="on"]:hover {
-    color: var(--SmartThemeEmColor, #4caf50);
+    color: var(--SmartThemeSuccessColor, #5c5) !important;
 }
 .cc-pm-bind-toggle[data-mode="off"] {
-    color: var(--SmartThemeBodyColor, #f04747);
+    color: var(--SmartThemeDangerColor, #f88) !important;
 }
 .cc-pm-bind-toggle[data-mode="off"]:hover {
-    color: var(--SmartThemeBodyColor, #f04747);
+    color: var(--SmartThemeDangerColor, #f88) !important;
 }
 .cc-pm-bind-toggle[data-mode="inherit"] {
-    color: var(--SmartThemeDimColor, #8a8a8a);
+    color: var(--SmartThemeDimColor, #8a8a8a) !important;
 }
 .cc-pm-bind-toggle[data-mode="inherit"]:hover {
-    color: var(--SmartThemeQuoteColor, #6cf);
+    color: var(--SmartThemeQuoteColor, #6cf) !important;
 }
 .cc-pm-bind-menu {
     position: absolute;
@@ -210,10 +210,12 @@ function injectControlIntoEntry($entry) {
         try {
             await setPromptBinding(identifier, mode);
             await applyBindingsToPromptManager(true);
+            // applyBindingsToPromptManager 会 promptManager.render 重建列表、原 $entry 已脱离 DOM，
+            // 必须对整个活列表重新注入（内部按最新绑定刷新图标颜色），不能只 refresh 旧节点。
+            injectAllControls();
         } catch (err) {
             errorLog('[PM-BIND] 设置预设条目绑定失败', err);
         }
-        // 重渲染后由 observer 重新注入控件并刷新状态，这里无需手动刷新
     });
 
     return true;
