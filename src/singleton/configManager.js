@@ -20,23 +20,25 @@ export const DEFAULT_EXTENSION_CONFIG = {
     debugLogs: false, // 调试日志开关，默认关闭
     autoInject: false, // 自动注入开关，默认关闭
     buttonType: "embedded", // 按钮类型，默认嵌入按钮
-    enableMessageRangeView: false, // 是否在扩展菜单显示「消息区间视图」入口（显示区间消息 / 恢复默认消息）
-    quickReplyOptimize: false, // 是否优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线），默认关闭
-    scrollToTop: { // 消息导航条配置（替代原生滚动条）
-        enabled: false, // 是否启用导航条，默认关闭
-        smoothScroll: true, // 点击跳转是否平滑滑动（false=直接跳转无动画）
-        showPerMessageButtons: false, // 是否显示每条消息内的顶/底跳转按钮（默认关）
-    },
-    sendHijack: { // 发送键劫持：点击发送键/回车不直接发送，改为执行指定 Quick Reply
-        enabled: false, // 是否劫持发送键
-        set: '', // QR 集合名
-        label: '', // QR 标签
-    },
-    worldBookBinding: { // 世界书条目·绑定当前聊天：在三态（继承/本聊开/本聊关）记住每聊天的条目开关覆盖
-        enabled: false, // 是否启用世界书条目聊天绑定（默认开启，关闭后还原所有条目 disable 改动并移除编辑器控件）
-    },
-    promptBinding: { // 提示词预设条目·绑定当前聊天：在三态（继承/本聊开/本聊关）记住每聊天的条目开关覆盖
-        enabled: false, // 是否启用提示词预设条目聊天绑定
+    STFeatureEnhance: { // SillyTavern 功能增强合集（对应设置面板「功能增强」tab）
+        messageRangeView: false, // 在扩展菜单显示「消息区间视图」入口
+        quickReplyOptimize: false, // 优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线）
+        scrollToTop: { // 消息导航条配置（替代原生滚动条）
+            enabled: false,
+            smoothScroll: true,
+            showPerMessageButtons: false,
+        },
+        sendHijack: { // 发送键劫持：点击发送键/回车不直接发送，改为执行指定 Quick Reply
+            enabled: false,
+            set: '',
+            label: '',
+        },
+        worldBookBinding: { // 世界书条目·绑定当前聊天
+            enabled: false,
+        },
+        promptBinding: { // 提示词预设条目·绑定当前聊天
+            enabled: false,
+        },
     },
     moduleConfigAuthor: "", // 模块配置作者，默认空字符串
     moduleConfigVersion: "", // 模块配置版本，默认1.0.0
@@ -98,6 +100,42 @@ class ConfigManager {
     MODULE_TITLE_RIGHT = "";
 
     /**
+     * 从旧版顶级 key 迁移 → STFeatureEnhance（一次迁移后旧 key 删除，不再落盘）
+     * @param {Object} stored 来源配置对象（load 时为存储快照，set 时为入参）
+     * @returns {Object} 迁移后的新对象（浅拷贝，不修改入参）
+     */
+    _migrateFeatureEnhance(stored) {
+        const clone = { ...stored };
+        const fe = clone.STFeatureEnhance || {};
+        let migrated = false;
+
+        // 旧版顶级 key → STFeatureEnhance 子键（改名映射）
+        const OLD_MAP = [
+            ['enableMessageRangeView', 'messageRangeView'],
+            ['quickReplyOptimize', 'quickReplyOptimize'],
+            ['scrollToTop', 'scrollToTop'],
+            ['sendHijack', 'sendHijack'],
+            ['worldBookBinding', 'worldBookBinding'],
+            ['promptBinding', 'promptBinding'],
+        ];
+        for (const [oldKey, newKey] of OLD_MAP) {
+            if (clone[oldKey] !== undefined) {
+                // 仅当目标不存在时写入（新格式优先）
+                if (!(newKey in fe)) {
+                    fe[newKey] = clone[oldKey];
+                }
+                delete clone[oldKey];
+                migrated = true;
+            }
+        }
+
+        if (migrated) {
+            clone.STFeatureEnhance = fe;
+        }
+        return clone;
+    }
+
+    /**
      * 加载模块配置到内存缓存
      */
     loadModuleConfig() {
@@ -134,16 +172,34 @@ class ConfigManager {
             // 从扩展设置加载配置
             if (extension_settings[extensionName] && extension_settings[extensionName][EXTENSION_CONFIG_KEY]) {
                 const stored = extension_settings[extensionName][EXTENSION_CONFIG_KEY];
+                // 迁移旧版顶级功能增强键 → STFeatureEnhance
+                const migrated = this._migrateFeatureEnhance(stored);
                 this.extensionConfig = {
                     ...DEFAULT_EXTENSION_CONFIG,
-                    ...stored,
+                    ...migrated,
                     asyncModule: {
                         ...DEFAULT_EXTENSION_CONFIG.asyncModule,
-                        ...(stored.asyncModule || {}),
+                        ...(migrated.asyncModule || {}),
                     },
-                    sendHijack: {
-                        ...DEFAULT_EXTENSION_CONFIG.sendHijack,
-                        ...(stored.sendHijack || {}),
+                    STFeatureEnhance: {
+                        ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance,
+                        ...(migrated.STFeatureEnhance || {}),
+                        scrollToTop: {
+                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.scrollToTop,
+                            ...(migrated.STFeatureEnhance?.scrollToTop || {}),
+                        },
+                        sendHijack: {
+                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.sendHijack,
+                            ...(migrated.STFeatureEnhance?.sendHijack || {}),
+                        },
+                        worldBookBinding: {
+                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.worldBookBinding,
+                            ...(migrated.STFeatureEnhance?.worldBookBinding || {}),
+                        },
+                        promptBinding: {
+                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptBinding,
+                            ...(migrated.STFeatureEnhance?.promptBinding || {}),
+                        },
                     },
                 };
                 this.isExtensionConfigLoaded = true;
@@ -247,12 +303,23 @@ class ConfigManager {
     }
 
     /**
+     * 获取 ST 功能增强子配置（读路径统一入口，懒加载安全）
+     * @returns {Object} STFeatureEnhance 子配置对象
+     */
+    getSTFeatureEnhanceConfig() {
+        if (!this.isExtensionConfigLoaded) {
+            this.loadExtensionConfig();
+        }
+        return this.extensionConfig?.STFeatureEnhance || DEFAULT_EXTENSION_CONFIG.STFeatureEnhance;
+    }
+
+    /**
      * 获取发送键劫持目标 QR（含开关与空值校验，判断放源头）
      * @returns {{set: string, label: string} | null} 已启用且配置完整时返回目标，否则返回 null
      */
     getSendHijackTarget() {
-        const c = this.extensionConfig.sendHijack || {};
-        if (!c.enabled || !c.set || !c.label) return null;
+        const c = this.extensionConfig?.STFeatureEnhance?.sendHijack;
+        if (!c?.enabled || !c?.set || !c?.label) return null;
         return { set: c.set, label: c.label };
     }
 
@@ -276,31 +343,34 @@ class ConfigManager {
                 ...(newConfig.asyncModule || {}),
             };
 
-            // 字段补全：确保 sendHijack 子对象完整
-            const sendHijack = {
-                ...DEFAULT_EXTENSION_CONFIG.sendHijack,
-                ...(newConfig.sendHijack || {}),
-            };
-
-            // 字段补全：确保 worldBookBinding 子对象完整
-            const worldBookBinding = {
-                ...DEFAULT_EXTENSION_CONFIG.worldBookBinding,
-                ...(newConfig.worldBookBinding || {}),
-            };
-
-            // 字段补全：确保 promptBinding 子对象完整
-            const promptBinding = {
-                ...DEFAULT_EXTENSION_CONFIG.promptBinding,
-                ...(newConfig.promptBinding || {}),
+            // 字段补全：确保 STFeatureEnhance 子对象完整（含迁移旧键）
+            const migrated = this._migrateFeatureEnhance(newConfig);
+            const STFeatureEnhance = {
+                ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance,
+                ...(migrated.STFeatureEnhance || {}),
+                scrollToTop: {
+                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.scrollToTop,
+                    ...(migrated.STFeatureEnhance?.scrollToTop || {}),
+                },
+                sendHijack: {
+                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.sendHijack,
+                    ...(migrated.STFeatureEnhance?.sendHijack || {}),
+                },
+                worldBookBinding: {
+                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.worldBookBinding,
+                    ...(migrated.STFeatureEnhance?.worldBookBinding || {}),
+                },
+                promptBinding: {
+                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptBinding,
+                    ...(migrated.STFeatureEnhance?.promptBinding || {}),
+                },
             };
 
             this.extensionConfig = {
                 ...DEFAULT_EXTENSION_CONFIG,
-                ...newConfig,
+                ...migrated,
                 asyncModule,
-                sendHijack,
-                worldBookBinding,
-                promptBinding,
+                STFeatureEnhance,
                 version: DEFAULT_EXTENSION_CONFIG.version,
                 lastUpdated: new Date().toISOString()
             };

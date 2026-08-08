@@ -42,15 +42,15 @@ export function loadSettingsToUI() {
     $("#continuity_backend_url").val(extensionConfig.backendUrl);
     $("#continuity_debug_logs").prop("checked", extensionConfig.debugLogs);
     $("#continuity_button_type").val(extensionConfig.buttonType || "embedded");
-    $("#continuity_message_range_view").prop("checked", extensionConfig.enableMessageRangeView !== false);
-    $("#continuity_quick_reply_optimize").prop("checked", Boolean(extensionConfig.quickReplyOptimize));
-    $("#continuity_send_hijack").prop("checked", Boolean(extensionConfig.sendHijack?.enabled));
+    $("#continuity_message_range_view").prop("checked", extensionConfig.STFeatureEnhance?.messageRangeView !== false);
+    $("#continuity_quick_reply_optimize").prop("checked", Boolean(extensionConfig.STFeatureEnhance?.quickReplyOptimize));
+    $("#continuity_send_hijack").prop("checked", Boolean(extensionConfig.STFeatureEnhance?.sendHijack?.enabled));
     populateSendHijackOptions();
-    $("#continuity_scroll_to_top").prop("checked", Boolean(extensionConfig.scrollToTop?.enabled));
-    $("#continuity_smooth_scroll_to_top").prop("checked", extensionConfig.scrollToTop?.smoothScroll !== false);
-    $("#continuity_show_per_message_buttons").prop("checked", Boolean(extensionConfig.scrollToTop?.showPerMessageButtons));
-    $("#continuity_world_book_binding").prop("checked", extensionConfig.worldBookBinding?.enabled !== false);
-    $("#continuity_prompt_binding").prop("checked", extensionConfig.promptBinding?.enabled !== false);
+    $("#continuity_scroll_to_top").prop("checked", Boolean(extensionConfig.STFeatureEnhance?.scrollToTop?.enabled));
+    $("#continuity_smooth_scroll_to_top").prop("checked", extensionConfig.STFeatureEnhance?.scrollToTop?.smoothScroll !== false);
+    $("#continuity_show_per_message_buttons").prop("checked", Boolean(extensionConfig.STFeatureEnhance?.scrollToTop?.showPerMessageButtons));
+    $("#continuity_world_book_binding").prop("checked", extensionConfig.STFeatureEnhance?.worldBookBinding?.enabled !== false);
+    $("#continuity_prompt_binding").prop("checked", extensionConfig.STFeatureEnhance?.promptBinding?.enabled !== false);
 
     // 异步模块存储设置
     const asyncModule = extensionConfig.asyncModule || {};
@@ -138,7 +138,8 @@ export function onButtonTypeChange(event) {
 export function onMessageRangeViewToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.enableMessageRangeView = enabled;
+    extensionConfig.STFeatureEnhance ||= {};
+    extensionConfig.STFeatureEnhance.messageRangeView = enabled;
     configManager.setExtensionConfig(extensionConfig);
 
     if (enabled) {
@@ -155,7 +156,8 @@ export function onMessageRangeViewToggle(event) {
 export function onQuickReplyOptimizeToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.quickReplyOptimize = enabled;
+    extensionConfig.STFeatureEnhance ||= {};
+    extensionConfig.STFeatureEnhance.quickReplyOptimize = enabled;
     configManager.setExtensionConfig(extensionConfig);
 
     if (enabled) {
@@ -174,7 +176,7 @@ export function populateSendHijackOptions() {
     const api = globalThis.quickReplyApi;
     const $set = $("#continuity_send_hijack_set");
     const $label = $("#continuity_send_hijack_label");
-    const cfg = configManager.getExtensionConfig().sendHijack || {};
+    const cfg = configManager.getExtensionConfig().STFeatureEnhance?.sendHijack || {};
 
     if (!api) {
         $set.html('<option value="">（Quick Reply 不可用）</option>').prop("disabled", true);
@@ -200,7 +202,7 @@ export function populateSendHijackLabelOptions() {
     const api = globalThis.quickReplyApi;
     const setName = String($("#continuity_send_hijack_set").val() || "");
     const $label = $("#continuity_send_hijack_label");
-    const cfg = configManager.getExtensionConfig().sendHijack || {};
+    const cfg = configManager.getExtensionConfig().STFeatureEnhance?.sendHijack || {};
 
     if (!api || !setName) {
         $label.html('<option value="">— 未选择 —</option>').prop("disabled", !setName);
@@ -223,7 +225,8 @@ export function populateSendHijackLabelOptions() {
 export function onSendHijackToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.sendHijack = { ...(extensionConfig.sendHijack || {}), enabled };
+    extensionConfig.STFeatureEnhance ||= {};
+    extensionConfig.STFeatureEnhance.sendHijack = { ...(extensionConfig.STFeatureEnhance.sendHijack || {}), enabled };
     configManager.setExtensionConfig(extensionConfig);
 
     if (enabled) {
@@ -239,7 +242,8 @@ export function onSendHijackToggle(event) {
 export function onSendHijackSetChange() {
     const setName = String($("#continuity_send_hijack_set").val() || "");
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.sendHijack = { ...(extensionConfig.sendHijack || {}), set: setName, label: "" };
+    extensionConfig.STFeatureEnhance ||= {};
+    extensionConfig.STFeatureEnhance.sendHijack = { ...(extensionConfig.STFeatureEnhance.sendHijack || {}), set: setName, label: "" };
     configManager.setExtensionConfig(extensionConfig);
     populateSendHijackLabelOptions();
 }
@@ -250,7 +254,8 @@ export function onSendHijackSetChange() {
 export function onSendHijackLabelChange() {
     const label = String($("#continuity_send_hijack_label").val() || "");
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.sendHijack = { ...(extensionConfig.sendHijack || {}), label };
+    extensionConfig.STFeatureEnhance ||= {};
+    extensionConfig.STFeatureEnhance.sendHijack = { ...(extensionConfig.STFeatureEnhance.sendHijack || {}), label };
     configManager.setExtensionConfig(extensionConfig);
 }
 
@@ -261,8 +266,9 @@ export function onSendHijackLabelChange() {
 export function onScrollToTopToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    if (!extensionConfig.scrollToTop) extensionConfig.scrollToTop = { enabled: false, smoothScroll: true, showPerMessageButtons: false };
-    extensionConfig.scrollToTop.enabled = enabled;
+    extensionConfig.STFeatureEnhance ||= {};
+    if (!extensionConfig.STFeatureEnhance.scrollToTop) extensionConfig.STFeatureEnhance.scrollToTop = { enabled: false, smoothScroll: true, showPerMessageButtons: false };
+    extensionConfig.STFeatureEnhance.scrollToTop.enabled = enabled;
     configManager.setExtensionConfig(extensionConfig);
 
     if (enabled) {
@@ -279,8 +285,9 @@ export function onScrollToTopToggle(event) {
 export function onSmoothScrollToTopToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    if (!extensionConfig.scrollToTop) extensionConfig.scrollToTop = { enabled: false, smoothScroll: true, showPerMessageButtons: false };
-    extensionConfig.scrollToTop.smoothScroll = enabled;
+    extensionConfig.STFeatureEnhance ||= {};
+    if (!extensionConfig.STFeatureEnhance.scrollToTop) extensionConfig.STFeatureEnhance.scrollToTop = { enabled: false, smoothScroll: true, showPerMessageButtons: false };
+    extensionConfig.STFeatureEnhance.scrollToTop.smoothScroll = enabled;
     configManager.setExtensionConfig(extensionConfig);
     // 无需重新初始化导航条，scrollChatTo 已实时读 config
 }
@@ -292,13 +299,14 @@ export function onSmoothScrollToTopToggle(event) {
 export function onShowPerMessageButtonsToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    if (!extensionConfig.scrollToTop) extensionConfig.scrollToTop = { enabled: false, smoothScroll: true, showPerMessageButtons: false };
-    extensionConfig.scrollToTop.showPerMessageButtons = enabled;
+    extensionConfig.STFeatureEnhance ||= {};
+    if (!extensionConfig.STFeatureEnhance.scrollToTop) extensionConfig.STFeatureEnhance.scrollToTop = { enabled: false, smoothScroll: true, showPerMessageButtons: false };
+    extensionConfig.STFeatureEnhance.scrollToTop.showPerMessageButtons = enabled;
     configManager.setExtensionConfig(extensionConfig);
 
     if (enabled) {
         // 若导航条已启用，即时添加按钮；否则下次开导航条时会自动创建
-        if (configManager.getExtensionConfig().scrollToTop?.enabled) {
+        if (configManager.getExtensionConfig().STFeatureEnhance?.scrollToTop?.enabled) {
             addScrollTopButtonsToAllMessages();
         }
     } else {
@@ -313,7 +321,8 @@ export function onShowPerMessageButtonsToggle(event) {
 export function onWorldBookBindingToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.worldBookBinding = { ...(extensionConfig.worldBookBinding || {}), enabled };
+    extensionConfig.STFeatureEnhance ||= {};
+    extensionConfig.STFeatureEnhance.worldBookBinding = { ...(extensionConfig.STFeatureEnhance.worldBookBinding || {}), enabled };
     configManager.setExtensionConfig(extensionConfig);
 
     if (enabled) {
@@ -326,7 +335,8 @@ export function onWorldBookBindingToggle(event) {
 export function onPromptBindingToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
-    extensionConfig.promptBinding = { ...(extensionConfig.promptBinding || {}), enabled };
+    extensionConfig.STFeatureEnhance ||= {};
+    extensionConfig.STFeatureEnhance.promptBinding = { ...(extensionConfig.STFeatureEnhance.promptBinding || {}), enabled };
     configManager.setExtensionConfig(extensionConfig);
 
     if (enabled) {

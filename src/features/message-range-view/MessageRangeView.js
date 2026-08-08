@@ -46,7 +46,7 @@ let chatChangedListener = null;
  */
 export function initMessageRangeView() {
     // 独立开关：关闭时移除已注入的菜单项并返回
-    if (!configManager.getExtensionConfig().enableMessageRangeView) {
+    if (!configManager.getSTFeatureEnhanceConfig().messageRangeView) {
         removeMessageRangeView();
         return;
     }

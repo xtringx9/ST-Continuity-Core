@@ -15,7 +15,7 @@ let applied = false;
  */
 export function initWorldBookBinding() {
     // 按配置门控：未启用时不注入。启动、HMR、动态开关统一走此入口，门控集中在此一处。
-    if (configManager.extensionConfig.worldBookBinding?.enabled === false) return;
+    if (configManager.getSTFeatureEnhanceConfig().worldBookBinding?.enabled === false) return;
     if (applied) return;
     applied = true;
 
