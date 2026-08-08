@@ -27,7 +27,7 @@ const INHERITED_ST_VARS = [
     '--SmartThemeBodyColor',        // 文字色（目前仅需此项）
     // '--SmartThemeBlurTintColor', // body 背景色
     // '--SmartThemeEmColor',       // 强调色
-    // '--SmartThemeQuoteColor',    // 引用色
+    '--SmartThemeQuoteColor',        // 引用色（var-change 新值高亮色）
     // '--SmartThemeBorderColor',   // 边框色
     // '--SmartThemeShadowColor',   // 阴影色
     // '--mainFontFamily',          // 主字体

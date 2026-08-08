@@ -374,28 +374,37 @@ function replaceVariablesInStyles(styles, moduleConfig, moduleData, isProcessing
 }
 
 /**
+ * HTML 文本转义（用于直接插入标签内部文本的内容，避免内容中的 < > & 破坏结构）
+ */
+function escapeHtmlText(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/**
  * 切换变量显示状态
  * @param {string} id 容器元素ID
- * @param {string} lastValue 旧值
- * @param {string} currentValue 新值
  */
-function toggleVariableDisplay(id, lastValue, currentValue) {
+function toggleVariableDisplay(id) {
     const container = document.getElementById(id);
     if (!container) return;
 
-    const currentSpan = container.children[0];
-    const lastSpan = container.children[1];
+    const currentSpan = container.querySelector('.cc-variable-change-current');
+    const lastSpan = container.querySelector('.cc-variable-change-last');
+    if (!currentSpan || !lastSpan) return;
 
     if (currentSpan.style.display !== 'none') {
-        // 切换到显示旧值
+        // 当前显示新值 → 切换显示旧值，tip 提示将要显示的内容
         currentSpan.style.display = 'none';
         lastSpan.style.display = 'inline';
-        container.title = '点击显示新值: ' + currentValue;
+        container.title = '点击显示旧值：' + lastSpan.textContent;
     } else {
-        // 切换回显示新值
+        // 当前显示旧值 → 切换回显示新值
         currentSpan.style.display = 'inline';
         lastSpan.style.display = 'none';
-        container.title = '点击显示旧值: ' + lastValue;
+        container.title = '点击显示新值：' + currentSpan.textContent;
     }
 }
 
@@ -417,12 +426,18 @@ function generateVariableChangeHTML(lastString, currentString) {
         // 生成唯一ID避免冲突
         const uniqueId = 'var-change-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-        resultString = `<span id="${uniqueId}" style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;" onclick="toggleVariableDisplay('${uniqueId}', '${lastString.replace(/'/g, "\\'")}', '${currentString.replace(/'/g, "\\'")}')"><span style="color: #28a745; font-weight: 600; display: inline;">${currentString}</span><span style="color: #6c757d; text-decoration: line-through; opacity: 0.7; font-weight: 500; display: none;">${lastString}</span></span>`;
+        // 关键修复：不再把可能含换行/引号的内容塞进 onclick 的 JS 字符串字面量
+        // （换行会直接让 onclick 属性里的 JS 语法错误、点击失效）。
+        // 改用 class 定位子节点做切换；显示文本统一转义，并用 white-space: pre-wrap 保留换行。
+        // 颜色跟随 ST 主题变量：新值用引用色 --SmartThemeQuoteColor（亮眼琥珀），旧值用正文色 --SmartThemeBodyColor。
+        // 初始 tip 直接展示旧值内容（初始显示的是新值，悬停提示将切换到的旧值）。
+        const attrEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        resultString = `<span id="${uniqueId}" class="cc-variable-change" style="display: inline-flex; align-items: flex-start; gap: 4px; cursor: pointer; user-select: none;" onclick="toggleVariableDisplay('${uniqueId}')" title="点击显示旧值：${attrEsc(lastString)}"><span class="cc-variable-change-current" style="color: var(--SmartThemeQuoteColor); font-weight: 600; white-space: pre-wrap; display: inline;">${escapeHtmlText(currentString)}</span><span class="cc-variable-change-last" style="color: var(--SmartThemeBodyColor); text-decoration: line-through; opacity: 0.7; font-weight: 500; white-space: pre-wrap; display: none;">${escapeHtmlText(lastString)}</span></span>`;
     } else {
-        resultString = `<span style="
-                                        color: #28a745;
+        resultString = `<span class="cc-variable-change-current" style="
+                                        color: var(--SmartThemeQuoteColor);
                                         font-weight: 600;
-                                    ">${resultString}</span>`;
+                                    ">${escapeHtmlText(resultString)}</span>`;
     }
     return resultString;
 }

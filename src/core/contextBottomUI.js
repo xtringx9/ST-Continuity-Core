@@ -559,20 +559,20 @@ export function openContextBottomAsModal() {
     // interactionScript：toggle 变量显示功能（与 injectHtmlToIframe 一致）
     const interactionScript = `
     <script>
-        window.toggleVariableDisplay = function(id, lastValue, currentValue) {
+        window.toggleVariableDisplay = function(id) {
             const container = document.getElementById(id);
             if (!container) return;
-            const currentSpan = container.children[0];
-            const lastSpan = container.children[1];
+            const currentSpan = container.querySelector('.cc-variable-change-current');
+            const lastSpan = container.querySelector('.cc-variable-change-last');
             if (!currentSpan || !lastSpan) return;
             if (currentSpan.style.display !== 'none') {
                 currentSpan.style.display = 'none';
                 lastSpan.style.display = 'inline';
-                container.title = '点击显示新值: ' + currentValue;
+                container.title = '点击显示旧值：' + lastSpan.textContent;
             } else {
                 currentSpan.style.display = 'inline';
                 lastSpan.style.display = 'none';
-                container.title = '点击显示旧值: ' + lastValue;
+                container.title = '点击显示新值：' + currentSpan.textContent;
             }
         };
     </script>`;
