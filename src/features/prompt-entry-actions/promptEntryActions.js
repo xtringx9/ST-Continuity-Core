@@ -30,11 +30,23 @@ const CC_PM_ACT_STYLES = `
 .${CC_PM_ACT_CLASS}.cc-pm-act-remove { color: var(--SmartThemeDangerColor, #f88); }
 .${CC_PM_ACT_CLASS}.cc-pm-act-remove:hover { color: var(--SmartThemeDangerColor, #f88); filter: brightness(1.2); }
 
-/* 注入了我们按钮的条目：控件区改为靠右紧凑排列 + 固定间距，
-   消除原生 space-between 因各条目按钮数不同导致的参差不齐，同时保持开关最右对齐 */
+/* 注入了我们按钮的条目：控件区改为靠右紧凑排列（覆盖 ST 高特异性 space-between），
+   展开时给该条目 li 加宽网格控件列（grid 列加宽只向左延展、右边界不动 → edit/开关不动），
+   避免注入按钮溢出把 edit/开关挤出 */
 .prompt_manager_prompt_controls.cc-pm-controls-normalized {
     justify-content: flex-end !important;
 }
+#completion_prompt_manager #completion_prompt_manager_list li.cc-pm-entry {
+    grid-template-columns: 4fr 200px 45px !important;
+}
+
+/* 折叠：默认仅显示 “...”（cc-pm-act-toggle）；展开后显现 4 个操作按钮，
+   “...” 保持可见并变色提示「收起」（单按钮方案，避免伪装按钮不可见的问题）。
+   ST promptmanager.css 对控件区 span 设了 18x18 + display:flex，必须用 !important 覆盖 */
+.prompt_manager_prompt_controls.cc-pm-controls-normalized .${CC_PM_ACT_CLASS}.cc-pm-act-collapsible { display: none !important; }
+.prompt_manager_prompt_controls.cc-pm-controls-normalized.cc-pm-act-expanded .${CC_PM_ACT_CLASS}.cc-pm-act-collapsible { display: flex !important; }
+.${CC_PM_ACT_CLASS}.cc-pm-act-toggle { font-weight: bold; margin-left: auto; }
+.prompt_manager_prompt_controls.cc-pm-controls-normalized.cc-pm-act-expanded .${CC_PM_ACT_CLASS}.cc-pm-act-toggle { color: var(--SmartThemeQuoteColor, #6cf); }
 `;
 
 // ---- 心跳 + 窄 observer（与世界书/绑定同款，不再监听整页） ----
@@ -83,6 +95,7 @@ function detachListObservers() {
 function cleanupStrayControls() {
     $(`.${CC_PM_ACT_CLASS}`).remove();
     $('.prompt_manager_prompt_controls').removeClass('cc-pm-controls-normalized');
+    $('.cc-pm-entry').removeClass('cc-pm-entry');
 }
 
 function getListElement() {
@@ -199,7 +212,9 @@ function makeActionButton(fa, title, act, extra = '') {
 }
 
 function injectControlIntoEntry($entry) {
-    if ($entry.find(`.${CC_PM_ACT_CLASS}`).length) return false;
+    // 以 “...” 切换按钮为存在判据：已有则跳过；否则先清掉上一版本遗留的旧按钮再注入，避免热重载残留
+    if ($entry.find('.cc-pm-act-toggle').length) return false;
+    $entry.find(`.${CC_PM_ACT_CLASS}`).remove();
     const identifier = $entry.attr('data-pm-identifier');
     if (!identifier) return false;
 
@@ -218,7 +233,18 @@ function injectControlIntoEntry($entry) {
         { fa: 'fa-arrow-down', title: '在下方插入空白', act: () => insertBlankEntry(identifier, 'after') },
         { fa: 'fa-chain-broken cc-pm-act-remove', title: '移除', act: () => removeEntry(identifier) },
     ];
-    const $btns = ACTIONS.map(a => makeActionButton(a.fa, a.title, a.act, a.extra || ''));
+    const $collapsible = ACTIONS.map(a =>
+        makeActionButton(a.fa, a.title, a.act, (a.extra || '') + ' cc-pm-act-collapsible'));
+    // “...” 切换按钮：点击就地展开/收起 4 个操作按钮（切换控件区 cc-pm-act-expanded），
+    // 同时加宽条目网格控件列 li.cc-pm-entry（grid 列加宽只向左延展 → edit/开关不动）。
+    // 单一 “...” 始终可见：展开时变色提示「收起」，避免伪装按钮不可见的问题。
+    const toggleExpanded = () => {
+        $controls.toggleClass('cc-pm-act-expanded');
+        $entry.toggleClass('cc-pm-entry');
+    };
+    const $toggle = makeActionButton('fa-ellipsis', '更多操作 / 收起', toggleExpanded, 'cc-pm-act-toggle');
+    // 顺序（右→左插入前 edit）：[复制][上插][下插][移除][...][edit]
+    const $btns = [...$collapsible, $toggle];
 
     // 插入锚点优先级：编辑按钮左边 > 占位符右边 > 控件区最左
     let $anchor = null;
@@ -226,12 +252,13 @@ function injectControlIntoEntry($entry) {
     else if ($placeholder.length) $anchor = $placeholder;
 
     if ($anchor) {
-        // 逆序 insertBefore 才能保持 [复制][上插][下插][移除][锚点] 顺序
-        for (let i = $btns.length - 1; i >= 0; i--) $btns[i].insertBefore($anchor);
+        // 正向 insertBefore：最先插入的在最左、最后插入的（...）紧挨锚点左侧。
+        // 最终顺序 [复制][上插][下插][移除][...][锚点] → 展开时按钮在 “...” 左侧（向左展开），... 在最右。
+        $btns.forEach($b => $b.insertBefore($anchor));
     } else if ($controls.length) {
-        $btns.forEach($b => $controls.prepend($b));
+        $btns.forEach($b => $controls.append($b));
     } else {
-        $btns.forEach($b => $entry.prepend($b));
+        $btns.forEach($b => $entry.append($b));
     }
 
     // 隐藏原生 detach（Remove）按钮：其能力由本「移除」接管，避免重复
