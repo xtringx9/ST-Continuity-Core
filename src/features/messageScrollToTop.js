@@ -55,10 +55,6 @@ let scrollObserver = null;
 let refreshDebounceTimer = null;
 let repositionScheduled = false;
 let chatScrollEl = null;
-let mesVisibilityObserver = null; // 仅观察视口附近消息，避免每帧对全部按钮算几何
-let visibleMesIds = new Set();    // 当前与视口（含缓冲）相交的消息 mesid 集合
-let visibleMesEls = new Set();    // 与 visibleMesIds 同步的消息元素引用集合（B 用，避免每帧从全量过滤）
-let visibilityReady = false;      // 首个 IO 回调后置真，之后仅重排可见消息按钮
 let lastActiveDot = -1;           // 上一帧高亮的圆点索引，避免每帧遍历全部圆点
 let chatChangedListener = null;   // CHAT_CHANGED 监听（聊天页门控：进入/离开聊天页实时显隐导航条）
 
@@ -113,7 +109,6 @@ export function addScrollTopButtonsToAllMessages() {
             }
         });
 
-        observeAllMes();
         scheduleReposition();
     } catch (err) {
         debugLog(LOG_TAG, '为所有消息添加按钮失败:', err);
@@ -342,11 +337,23 @@ function onScrollHandleDown(event) {
  * 仍按视口底相对位置算比例，使高亮与进度对应同一消息、无错位。
  * @returns {HTMLElement|null}
  */
-/** B) 取视口附近消息元素（由 IntersectionObserver 维护的 visibleMesEls）。
- *  未就绪或为空时回退全量，避免极快滚动过渡帧 IO 滞后导致 anchor / 已读线短暂丢失。 */
+/** B) 取视口附近消息元素（rect 实时过滤 cachedAllMes，避免每帧 querySelectorAll）。
+ *  原用 IntersectionObserver 维护 visibleMesEls，但 ST 重建 #chat 时旧节点失效、IO 不报告
+ *  新节点，导致集合恒空；改为每帧基于已缓存的 cachedAllMes 用 getBoundingClientRect 过滤，
+ *  开销仅为 O(N) 次只读 rect（不 querySelector、不写 DOM），且始终随滚动正确更新。 */
 function getVisibleMes() {
-    if (!visibilityReady || visibleMesEls.size === 0) return cachedAllMes;
-    return Array.from(visibleMesEls);
+    const chatEl = document.getElementById('chat');
+    if (!chatEl) return cachedAllMes;
+    const chatRect = chatEl.getBoundingClientRect();
+    const MARGIN = 300;
+    const top = chatRect.top - MARGIN;
+    const bottom = chatRect.bottom + MARGIN;
+    const near = [];
+    for (const el of cachedAllMes) {
+        const r = el.getBoundingClientRect();
+        if (r.bottom > top && r.top < bottom) near.push(el);
+    }
+    return near.length > 0 ? near : cachedAllMes;
 }
 
 function getAnchorMesEl() {
@@ -428,7 +435,7 @@ function getMesAtY(y, allMes) {
     return best;
 }
 
-/** D) 刷新全部 .mes 缓存（由 MutationObserver / 初始化触发，避免每帧 querySelectorAll） */
+/** D) 刷新全部 .mes 缓存（由 MutationObserver / 初始化触发，避免每帧 querySelectorAll）。 */
 function refreshAllMesCache() {
     cachedAllMes = Array.from(document.querySelectorAll('#chat .mes'));
 }
@@ -627,12 +634,6 @@ function repositionButtons() {
         const mesId = btn.getAttribute('data-mes-id');
         const mesEl = mesId !== null ? mesMap.get(mesId) : null;
         if (!mesEl) {
-            if (btn.style.display !== 'none') btn.style.display = 'none';
-            return;
-        }
-        // 仅重排视口附近的消息按钮（由 IntersectionObserver 维护 visibleMesIds）；
-        // 未就绪时回退为全部重排，保证首帧正确
-        if (visibilityReady && !visibleMesIds.has(mesId)) {
             if (btn.style.display !== 'none') btn.style.display = 'none';
             return;
         }
@@ -879,13 +880,6 @@ export function removeMessageScrollToTop() {
         scrollObserver.disconnect();
         scrollObserver = null;
     }
-    if (mesVisibilityObserver) {
-        mesVisibilityObserver.disconnect();
-        mesVisibilityObserver = null;
-    }
-    visibleMesIds = new Set();
-    visibleMesEls = new Set();
-    visibilityReady = false;
     lastActiveDot = -1;
     cachedAllMes = [];
     cachedCenters = null;
@@ -911,30 +905,7 @@ export function removeMessageScrollToTop() {
     document.getElementById(STYLE_ID)?.remove();
 }
 
-/** 建立只观察视口附近消息的 IntersectionObserver，维护 visibleMesIds 供重排时过滤 */
-function setupMesVisibilityObserver(chatEl) {
-    if (mesVisibilityObserver) mesVisibilityObserver.disconnect();
-    visibleMesIds = new Set();
-    visibilityReady = false;
-    mesVisibilityObserver = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-            const id = entry.target.getAttribute('mesid');
-            if (id === null) continue;
-            if (entry.isIntersecting) { visibleMesIds.add(id); visibleMesEls.add(entry.target); }
-            else { visibleMesIds.delete(id); visibleMesEls.delete(entry.target); }
-        }
-        visibilityReady = true;
-        scheduleReposition();
-    }, { root: chatEl, rootMargin: '300px 0px 300px 0px', threshold: 0 });
-    chatEl.querySelectorAll('.mes').forEach((el) => mesVisibilityObserver.observe(el));
-}
-
-/** 把当前所有 .mes 交给可见性观察器（新增消息时调用，observe 重复调用安全） */
-function observeAllMes() {
-    if (!mesVisibilityObserver) return;
-    document.querySelectorAll('#chat .mes').forEach((el) => mesVisibilityObserver.observe(el));
-}
-
+/** 建立聊天 DOM 变更的 MutationObserver（消息增删时刷新缓存），以及滚动/resize 监听 */
 function setupChatObserver() {
     const chatEl = document.getElementById('chat');
     if (!chatEl) {
@@ -951,7 +922,6 @@ function setupChatObserver() {
         }, 200);
     });
     scrollObserver.observe(chatEl, { childList: true });
-    setupMesVisibilityObserver(chatEl);
     refreshAllMesCache();
 
     if (chatScrollEl !== chatEl) {
