@@ -37,7 +37,7 @@ const CC_PM_ACT_STYLES = `
     justify-content: flex-end !important;
 }
 #completion_prompt_manager #completion_prompt_manager_list li.cc-pm-entry {
-    grid-template-columns: 4fr 200px 45px !important;
+    grid-template-columns: 4fr 120px 45px !important;
 }
 
 /* 折叠：默认仅显示 “...”（cc-pm-act-toggle）；展开后显现 4 个操作按钮，
