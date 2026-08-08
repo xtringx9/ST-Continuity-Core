@@ -62,15 +62,20 @@ export function installPromptBindingOverride() {
     };
 }
 
-function restoreAllOverrides() {
+function restoreAllOverrides(scopeCharId = null) {
     if (!promptManager) {
         appliedOverrides.clear();
         return;
     }
     const orderList = promptManager.serviceSettings?.prompt_order || [];
+    // scopeCharId 非空时只还原该角色的覆盖（用于聊天切换）：
+    // prompt_order 按 character_id 组织，同角色的不同聊天共享同一批 order 条目对象，
+    // 因此切到同角色的另一个聊天必须把共享条目重置回默认，否则会串味。
+    const scope = scopeCharId !== null ? String(scopeCharId) : null;
     for (const [key, original] of appliedOverrides.entries()) {
         const [charId, identifier] = key.split('#');
-        const charObj = orderList.find(c => c.character_id === charId);
+        if (scope !== null && String(charId) !== scope) continue;
+        const charObj = orderList.find(c => String(c.character_id) === String(charId));
         if (charObj) {
             const entry = (charObj.order || []).find(e => e.identifier === identifier);
             if (entry) entry.enabled = original;
@@ -82,8 +87,8 @@ function restoreAllOverrides() {
 export function applyBindingsToPromptManager(rerender = true) {
     if (!promptManager || !promptManager.activeCharacter) return;
     installPromptBindingOverride();
-    // 先还原上一次瞬态改动
-    restoreAllOverrides();
+    // 先还原「当前角色」上一次瞬态改动（按当前角色定位共享条目，避免跨聊天串味）
+    restoreAllOverrides(promptManager.activeCharacter.id);
     // 再按当前聊天绑定重设 entry.enabled（仅视觉）
     const bindings = getPromptBindings();
     const activeId = promptManager.activeCharacter.id;
