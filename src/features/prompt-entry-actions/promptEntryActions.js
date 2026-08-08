@@ -23,7 +23,12 @@ const CC_PM_ACT_STYLES = `
     font-size: 14px;
     line-height: 1;
     color: var(--SmartThemeDimColor, #8a8a8a);
-    margin: 0 1px;
+    /* 用 !important 覆盖 ST 的高特异性干扰：
+       - ST span span span { margin-left:0.25em }(特异性 2,3,3) 会按主题字号撑大按钮间隙 → 列宽不足时被挤压；
+       - ST .prompt_manager_prompt_controls span { width:18px; display:flex } 固定了宽度但 flex-shrink 默认 1 → 也会被压 */
+    margin: 0 2px !important;
+    flex: 0 0 auto !important;
+    width: 18px !important;
     transition: color 0.15s ease;
 }
 .${CC_PM_ACT_CLASS}:hover { color: var(--SmartThemeQuoteColor, #6cf); }
@@ -37,7 +42,7 @@ const CC_PM_ACT_STYLES = `
     justify-content: flex-end !important;
 }
 #completion_prompt_manager #completion_prompt_manager_list li.cc-pm-entry {
-    grid-template-columns: 4fr 120px 45px !important;
+    grid-template-columns: 4fr auto 45px !important;
 }
 
 /* 折叠：默认仅显示 “...”（cc-pm-act-toggle）；展开后显现 4 个操作按钮，
@@ -263,6 +268,13 @@ function injectControlIntoEntry($entry) {
 
     // 隐藏原生 detach（Remove）按钮：其能力由本「移除」接管，避免重复
     $entry.find('.prompt-manager-detach-action').hide();
+    // 隐藏 ST 为系统/自带条目渲染的纯空占位 span（class 仅含 "fa-solid"、无图标类/无内容）：
+    // 它被 ST 设成 18px×18px，会在控件区左端留空白导致与自定义条目间距不一致。
+    // 注意：开关 prompt-manager-toggle-action 也带 fa-solid 类，不能用宽泛的 span.fa-solid 匹配，
+    // 必须精确判定 class 仅等于 "fa-solid"（无其他 fa- 图标类 / prompt-manager-* 类）。
+    $controls.children('span.fa-solid').filter(function () {
+        return this.className.trim() === 'fa-solid' && !this.textContent.trim();
+    }).hide();
     // 控件区归一化为靠右紧凑排列，统一各条目按钮间距
     if ($controls.length) $controls.addClass('cc-pm-controls-normalized');
     return true;
