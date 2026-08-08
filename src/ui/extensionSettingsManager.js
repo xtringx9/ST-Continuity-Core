@@ -17,6 +17,7 @@ import { initMessageScrollToTop, removeMessageScrollToTop, addScrollTopButtonsTo
 import { initSendHijack, removeSendHijack } from "../features/send-hijack/SendHijack.js";
 import { initWorldBookBinding, removeWorldBookBinding } from "../features/world-book-binding/worldBookBinding.js";
 import { initPromptBinding, removePromptBinding } from "../features/prompt-binding/promptBinding.js";
+import { initPromptEntryActions, removePromptEntryActions } from "../features/prompt-entry-actions/promptEntryActions.js";
 import { escapeHtmlEntities as escapeHtml } from "../utils/textConverter.js";
 import perMessageStorage from "../services/perMessageStorage.js";
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
@@ -51,6 +52,7 @@ export function loadSettingsToUI() {
     $("#continuity_show_per_message_buttons").prop("checked", Boolean(extensionConfig.STFeatureEnhance?.scrollToTop?.showPerMessageButtons));
     $("#continuity_world_book_binding").prop("checked", extensionConfig.STFeatureEnhance?.worldBookBinding?.enabled !== false);
     $("#continuity_prompt_binding").prop("checked", extensionConfig.STFeatureEnhance?.promptBinding?.enabled !== false);
+    $("#continuity_prompt_entry_actions").prop("checked", extensionConfig.STFeatureEnhance?.promptEntryActions?.enabled !== false);
 
     // 异步模块存储设置
     const asyncModule = extensionConfig.asyncModule || {};
@@ -343,6 +345,20 @@ export function onPromptBindingToggle(event) {
         initPromptBinding();
     } else {
         removePromptBinding();
+    }
+}
+
+export function onPromptEntryActionsToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.STFeatureEnhance ||= {};
+    extensionConfig.STFeatureEnhance.promptEntryActions = { ...(extensionConfig.STFeatureEnhance.promptEntryActions || {}), enabled };
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        initPromptEntryActions();
+    } else {
+        removePromptEntryActions();
     }
 }
 

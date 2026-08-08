@@ -39,6 +39,9 @@ export const DEFAULT_EXTENSION_CONFIG = {
         promptBinding: { // 提示词预设条目·绑定当前聊天
             enabled: false,
         },
+        promptEntryActions: { // 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
+            enabled: false,
+        },
     },
     moduleConfigAuthor: "", // 模块配置作者，默认空字符串
     moduleConfigVersion: "", // 模块配置版本，默认1.0.0
@@ -117,6 +120,7 @@ class ConfigManager {
             ['sendHijack', 'sendHijack'],
             ['worldBookBinding', 'worldBookBinding'],
             ['promptBinding', 'promptBinding'],
+            ['promptEntryActions', 'promptEntryActions'],
         ];
         for (const [oldKey, newKey] of OLD_MAP) {
             if (clone[oldKey] !== undefined) {
@@ -199,6 +203,10 @@ class ConfigManager {
                         promptBinding: {
                             ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptBinding,
                             ...(migrated.STFeatureEnhance?.promptBinding || {}),
+                        },
+                        promptEntryActions: {
+                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptEntryActions,
+                            ...(migrated.STFeatureEnhance?.promptEntryActions || {}),
                         },
                     },
                 };
@@ -363,6 +371,10 @@ class ConfigManager {
                 promptBinding: {
                     ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptBinding,
                     ...(migrated.STFeatureEnhance?.promptBinding || {}),
+                },
+                promptEntryActions: {
+                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptEntryActions,
+                    ...(migrated.STFeatureEnhance?.promptEntryActions || {}),
                 },
             };
 

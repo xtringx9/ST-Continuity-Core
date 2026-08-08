@@ -356,6 +356,8 @@
     "ccore_settings_world_book_binding_hint": "世界书条目提供三态控件（继承 / 本聊开 / 本聊关），按聊天记忆开关覆盖。",
     "ccore_settings_prompt_binding": "提示词预设条目·绑定当前聊天",
     "ccore_settings_prompt_binding_hint": "提示词预设条目提供三态控件（继承 / 本聊开 / 本聊关），按聊天记忆开关覆盖。",
+    "ccore_settings_prompt_entry_actions": "提示词预设条目·扩展操作",
+    "ccore_settings_prompt_entry_actions_hint": "预设条目提供「...」菜单：复制、在上方/下方插入空白、移除（接管原生 Remove），便于在长列表中快速增改条目。",
     "ccore_settings_send_hijack": "发送键改为触发快捷回复",
     "ccore_settings_send_hijack_hint": "开启后，点发送键或回车改为执行指定快捷回复，不再直接发送。",
     "ccore_settings_send_hijack_set": "QR 集合:",

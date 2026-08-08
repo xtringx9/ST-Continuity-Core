@@ -36,6 +36,11 @@ import {
     initPromptBinding,
 } from "./src/features/prompt-binding/promptBinding.js";
 
+// 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
+import {
+    initPromptEntryActions,
+} from "./src/features/prompt-entry-actions/promptEntryActions.js";
+
 // 发送键劫持设置面板：QR 下拉填充
 import { populateSendHijackOptions } from "./src/ui/extensionSettingsManager.js";
 
@@ -82,6 +87,9 @@ jQuery(async function () {
 
     // 提示词预设条目·聊天绑定：在 PromptManager 每条提示词上支持「绑定当前聊天」三态
     initPromptBinding();
+
+    // 提示词预设条目·扩展操作：复制 / 插入空白 / 移除（接管原生 Remove）
+    initPromptEntryActions();
 
     // ── 模块核心功能（受全局 enabled 控制）──
     // 检查全局开关状态
