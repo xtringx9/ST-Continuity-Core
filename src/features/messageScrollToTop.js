@@ -959,6 +959,8 @@ function injectStyles() {
     font-size: 12px;
     pointer-events: auto;
     z-index: 100;
+    /* 每帧改 top/left：提升合成层，避免主线程重绘 */
+    will-change: top, left;
 }
 .ccore-scroll-top-btn:hover {
     background: rgba(128,128,128,0.3);
@@ -969,6 +971,10 @@ function injectStyles() {
     position: fixed;
     z-index: 100;
     pointer-events: auto;
+    /* 提升为独立合成层：内部 dot/handle/进度线每帧改 top/height 走 GPU 合成，
+       避免主线程重绘整条导航层（滚轮卡顿的主要渲染开销来源） */
+    will-change: top, left, height;
+    transform: translateZ(0);
 }
 /* 半透明只作用于线和圆点（hover 导航条时变清晰）；拖拽滑块 handle 保持不透明 */
 /* 背景竖线：粗热区(透明)用于点击跳转，可见细线由 ::before 绘制(2px) */
@@ -1042,6 +1048,8 @@ function injectStyles() {
     touch-action: none;
     transition: transform 0.15s;
     z-index: 4;
+    /* 每帧改 top：提升合成层，避免主线程重绘（transition 仅作用于 hover 的 transform，不影响 top） */
+    will-change: top;
 }
 .ccore-msg-nav-scroll-handle:hover,
 .ccore-msg-nav-scroll-handle.dragging {
