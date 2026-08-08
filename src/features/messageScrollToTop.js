@@ -353,6 +353,7 @@ function getAnchorMesEl() {
     const chatEl = document.getElementById('chat');
     if (!chatEl) return null;
     const chatRect = chatEl.getBoundingClientRect();
+    // 高亮基准：视口中央（消息到达屏幕中心即视为「当前」）
     const refY = chatRect.top + chatRect.height / 2;
     if (cachedAllMes.length === 0) { refreshAllMesCache(); }
     if (cachedAllMes.length === 0) return null;
@@ -367,7 +368,14 @@ function getAnchorMesEl() {
         });
         if (anchor) return anchor;
     }
-    // 全量 fallback（保留原逻辑）
+    // 全量 fallback：先找「穿过 refY」的那条（与 candidates 同标准），命中即返回；
+    // 仅当 refY 恰落在两消息缝隙（都不穿过）才退回 center 距 refY 最近，避免原
+    // 「center 最近」算法在相邻消息 center 都偏一侧时切换点被压低（高亮偏晚）。
+    const hit = full.find((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top <= refY && r.bottom > refY;
+    });
+    if (hit) return hit;
     let best = null;
     let bestDist = Infinity;
     for (const el of full) {
