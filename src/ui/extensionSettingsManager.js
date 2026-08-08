@@ -16,6 +16,7 @@ import { initQuickReplyOptimize, removeQuickReplyOptimize } from "../features/qu
 import { initMessageScrollToTop, removeMessageScrollToTop, addScrollTopButtonsToAllMessages, removeAllScrollTopButtons } from "../features/messageScrollToTop.js";
 import { initSendHijack, removeSendHijack } from "../features/send-hijack/SendHijack.js";
 import { initWorldBookBinding, removeWorldBookBinding } from "../features/world-book-binding/worldBookBinding.js";
+import { initPromptBinding, removePromptBinding } from "../features/prompt-binding/promptBinding.js";
 import { escapeHtmlEntities as escapeHtml } from "../utils/textConverter.js";
 import perMessageStorage from "../services/perMessageStorage.js";
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
@@ -49,6 +50,7 @@ export function loadSettingsToUI() {
     $("#continuity_smooth_scroll_to_top").prop("checked", extensionConfig.scrollToTop?.smoothScroll !== false);
     $("#continuity_show_per_message_buttons").prop("checked", Boolean(extensionConfig.scrollToTop?.showPerMessageButtons));
     $("#continuity_world_book_binding").prop("checked", extensionConfig.worldBookBinding?.enabled !== false);
+    $("#continuity_prompt_binding").prop("checked", extensionConfig.promptBinding?.enabled !== false);
 
     // 异步模块存储设置
     const asyncModule = extensionConfig.asyncModule || {};
@@ -318,6 +320,19 @@ export function onWorldBookBindingToggle(event) {
         initWorldBookBinding();
     } else {
         removeWorldBookBinding();
+    }
+}
+
+export function onPromptBindingToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.promptBinding = { ...(extensionConfig.promptBinding || {}), enabled };
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        initPromptBinding();
+    } else {
+        removePromptBinding();
     }
 }
 

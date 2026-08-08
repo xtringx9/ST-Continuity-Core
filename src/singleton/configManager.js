@@ -35,6 +35,9 @@ export const DEFAULT_EXTENSION_CONFIG = {
     worldBookBinding: { // 世界书条目·绑定当前聊天：在三态（继承/本聊开/本聊关）记住每聊天的条目开关覆盖
         enabled: false, // 是否启用世界书条目聊天绑定（默认开启，关闭后还原所有条目 disable 改动并移除编辑器控件）
     },
+    promptBinding: { // 提示词预设条目·绑定当前聊天：在三态（继承/本聊开/本聊关）记住每聊天的条目开关覆盖
+        enabled: false, // 是否启用提示词预设条目聊天绑定
+    },
     moduleConfigAuthor: "", // 模块配置作者，默认空字符串
     moduleConfigVersion: "", // 模块配置版本，默认1.0.0
     asyncModule: {
@@ -285,12 +288,19 @@ class ConfigManager {
                 ...(newConfig.worldBookBinding || {}),
             };
 
+            // 字段补全：确保 promptBinding 子对象完整
+            const promptBinding = {
+                ...DEFAULT_EXTENSION_CONFIG.promptBinding,
+                ...(newConfig.promptBinding || {}),
+            };
+
             this.extensionConfig = {
                 ...DEFAULT_EXTENSION_CONFIG,
                 ...newConfig,
                 asyncModule,
                 sendHijack,
                 worldBookBinding,
+                promptBinding,
                 version: DEFAULT_EXTENSION_CONFIG.version,
                 lastUpdated: new Date().toISOString()
             };

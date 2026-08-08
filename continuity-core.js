@@ -31,6 +31,11 @@ import {
     initWorldBookBinding,
 } from "./src/features/world-book-binding/worldBookBinding.js";
 
+// 提示词预设条目·聊天绑定（给 PromptManager 每条提示词加「绑定当前聊天」三态）
+import {
+    initPromptBinding,
+} from "./src/features/prompt-binding/promptBinding.js";
+
 // 发送键劫持设置面板：QR 下拉填充
 import { populateSendHijackOptions } from "./src/ui/extensionSettingsManager.js";
 
@@ -74,6 +79,9 @@ jQuery(async function () {
 
     // 世界书条目·聊天绑定：在原生素世界书条目上支持「绑定当前聊天」三态
     initWorldBookBinding();
+
+    // 提示词预设条目·聊天绑定：在 PromptManager 每条提示词上支持「绑定当前聊天」三态
+    initPromptBinding();
 
     // ── 模块核心功能（受全局 enabled 控制）──
     // 检查全局开关状态

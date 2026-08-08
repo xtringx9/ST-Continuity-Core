@@ -354,6 +354,8 @@
     "ccore_settings_show_per_message_buttons": "Show Per-Message Top/Bottom Buttons",
     "ccore_settings_world_book_binding": "World Book Entry · Bind to Current Chat",
     "ccore_settings_world_book_binding_hint": "World book entries get a three-state control (inherit / on-for-chat / off-for-chat), remembering per-chat overrides.",
+    "ccore_settings_prompt_binding": "Prompt Preset Entry · Bind to Current Chat",
+    "ccore_settings_prompt_binding_hint": "Prompt preset entries get a three-state control (inherit / on-for-chat / off-for-chat), remembering per-chat overrides.",
     "ccore_settings_send_hijack": "Send Key Triggers Quick Reply",
     "ccore_settings_send_hijack_hint": "When enabled, clicking send or pressing Enter runs the specified Quick Reply instead of sending directly.",
     "ccore_settings_send_hijack_set": "QR Set:",

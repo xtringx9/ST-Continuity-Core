@@ -12,6 +12,7 @@ import {
     onSmoothScrollToTopToggle,
     onShowPerMessageButtonsToggle,
     onWorldBookBindingToggle,
+    onPromptBindingToggle,
     onSendHijackToggle,
     onSendHijackSetChange,
     onSendHijackLabelChange,
@@ -82,6 +83,7 @@ export class SettingsPanel {
         $('#continuity_smooth_scroll_to_top').on('input', onSmoothScrollToTopToggle);
         $('#continuity_show_per_message_buttons').on('input', onShowPerMessageButtonsToggle);
         $('#continuity_world_book_binding').on('input', onWorldBookBindingToggle);
+        $('#continuity_prompt_binding').on('input', onPromptBindingToggle);
         $('#continuity_send_hijack').on('input', onSendHijackToggle);
         $('#continuity_send_hijack_set').on('change', onSendHijackSetChange);
         $('#continuity_send_hijack_label').on('change', onSendHijackLabelChange);
