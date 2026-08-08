@@ -23,7 +23,7 @@ const CC_PM_ACT_STYLES = `
     font-size: 14px;
     line-height: 1;
     color: var(--SmartThemeDimColor, #8a8a8a);
-    margin: 0 2px;
+    margin: 0 1px;
     transition: color 0.15s ease;
 }
 .${CC_PM_ACT_CLASS}:hover { color: var(--SmartThemeQuoteColor, #6cf); }
@@ -34,7 +34,6 @@ const CC_PM_ACT_STYLES = `
    消除原生 space-between 因各条目按钮数不同导致的参差不齐，同时保持开关最右对齐 */
 .prompt_manager_prompt_controls.cc-pm-controls-normalized {
     justify-content: flex-end !important;
-    gap: 4px;
 }
 `;
 
