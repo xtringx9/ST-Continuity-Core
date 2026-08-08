@@ -237,7 +237,7 @@ function injectControlIntoEntry($entry) {
         { fa: 'fa-arrow-up', title: '在上方插入空白', act: () => insertBlankEntry(identifier, 'before') },
         { fa: 'fa-arrow-down', title: '在下方插入空白', act: () => insertBlankEntry(identifier, 'after') },
         { fa: 'fa-chain-broken cc-pm-act-remove', title: '移除', act: () => removeEntry(identifier) },
-    ];
+    ].reverse(); // 展开后顺序反过来：[移除][下插][上插][复制]，最左是移除、最右挨“...”的是复制
     const $collapsible = ACTIONS.map(a =>
         makeActionButton(a.fa, a.title, a.act, (a.extra || '') + ' cc-pm-act-collapsible'));
     // “...” 切换按钮：点击就地展开/收起 4 个操作按钮（切换控件区 cc-pm-act-expanded），
