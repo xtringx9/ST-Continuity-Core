@@ -1000,8 +1000,7 @@ function injectStyles() {
     transform: translateX(-50%);
     background: ${NAV_PROGRESS_COLOR};
     border-radius: 1px;
-    opacity: 0.5;
-    transition: opacity 0.2s;
+    opacity: 1;
 }
 /* 已读竖线：粗热区(透明)可点击，可见细线由 ::before 绘制(2px)，颜色取 --read-color */
 .ccore-msg-nav-progress-read {
@@ -1027,7 +1026,7 @@ function injectStyles() {
     transform: translateX(-50%);
     background: var(--read-color, ${NAV_PROGRESS_COLOR});
     border-radius: 1px;
-    opacity: 0.7;
+    opacity: 1;
     transition: opacity 0.2s;
 }
 /* 整条竖线末端拖拽滑块（替代原生滚动条 thumb）：默认隐藏，hover 导航条或拖拽时显示 */
@@ -1085,11 +1084,6 @@ function injectStyles() {
     box-sizing: border-box;
     transition: transform 0.15s, box-shadow 0.15s;
     z-index: 2;
-    opacity: 0.6;
-}
-.ccore-msg-nav:hover .ccore-msg-nav-progress::before,
-.ccore-msg-nav:hover .ccore-msg-nav-progress-read::before,
-.ccore-msg-nav:hover .ccore-msg-nav-dot {
     opacity: 1;
 }
 .ccore-msg-nav-dot:hover {
