@@ -10,6 +10,7 @@ import {
 import { getBinding, setBinding, applyBindingsToWorldInfo, WB_BIND_MODE } from './worldBookBindingState.js';
 import { isInChatPage } from '../../core/contextBottomUI.js';
 import { debugLog, errorLog } from '../../utils/logger.js';
+import { eventSource, event_types } from '../../../../../../../script.js';
 
 // 控件根元素 class（用于幂等判断）
 const CC_WB_BIND_CLASS = 'cc-wb-bind';
@@ -329,31 +330,67 @@ function injectAllControls() {
     }
 }
 
-let observer = null;
-let bootstrapObserver = null;
+let listObserver = null;     // 监听列表子树：条目增删（即时响应）
+let parentObserver = null;   // 监听列表父节点 childList：列表自身被移除时触发 rediscovery
+let heartbeatTimer = null;   // 轻量心跳：每 500ms 重新评估「列表存在 + 是否聊天页」，替代整页 subtree 监听
+let listPresent = false;
+let boundListEl = null;      // 当前绑定的列表节点（ST 可能整体替换节点，需检测重建）
+let throttleTimer = null;
+let eventRefresh = null;     // 世界书事件刷新回调（用于精确解绑）
 let initialized = false;
-let bootstrapTimer = null;
 
-let boundListEl = null;
-/**
- * 主 observer 绑定：若 #world_popup_entries_list 存在则监听其增删，并立即注入一次。
- * 每次都重绑到当前最新的 list 节点（ST 可能整体替换 list 节点，旧 observer 会失效）。
- * @returns {boolean} 是否成功绑定
- */
-function bindMainObserver() {
-    const list = document.getElementById('world_popup_entries_list');
-    if (!list) return false;
-    if (observer) { observer.disconnect(); observer = null; boundListEl = null; }
-    observer = new MutationObserver(() => injectAllControls());
-    observer.observe(list, { childList: true, subtree: false });
-    boundListEl = list;
-    debugLog('[WB-BIND] 主 observer 已绑定 #world_popup_entries_list');
-    injectAllControls(); // 列表存在，立即注入（幂等）
-    return true;
+function scheduleTick() {
+    if (throttleTimer) return;
+    throttleTimer = setTimeout(() => {
+        throttleTimer = null;
+        onTick();
+    }, 150);
+}
+
+function onTick() {
+    const listEl = document.getElementById('world_popup_entries_list');
+    if (listEl) {
+        // 列表存在：首次绑定，或 ST 重建了列表节点 → 重新挂载窄 observer
+        if (!listPresent || boundListEl !== listEl) attachListObservers(listEl);
+        injectAllControls();
+    } else if (listPresent) {
+        // 列表被移除（编辑器关闭）→ 断开 observer 并清理残留控件
+        detachListObservers();
+        cleanupStrayControls();
+    }
+}
+
+function attachListObservers(listEl) {
+    if (listObserver) { listObserver.disconnect(); listObserver = null; }
+    if (parentObserver) { parentObserver.disconnect(); parentObserver = null; }
+    listPresent = true;
+    boundListEl = listEl;
+    // 主 observer：仅条目增删（世界书条目是列表直接子节点）
+    listObserver = new MutationObserver(scheduleTick);
+    listObserver.observe(listEl, { childList: true, subtree: false });
+    // 父节点 observer：列表自身被移除时触发 rediscovery（编辑器关闭/重开）
+    const parent = listEl.parentNode;
+    if (parent) {
+        parentObserver = new MutationObserver(scheduleTick);
+        parentObserver.observe(parent, { childList: true });
+    }
+    debugLog('[WB-BIND] 已绑定 #world_popup_entries_list 监听');
+}
+
+function detachListObservers() {
+    listPresent = false;
+    boundListEl = null;
+    if (listObserver) { listObserver.disconnect(); listObserver = null; }
+    if (parentObserver) { parentObserver.disconnect(); parentObserver = null; }
+}
+
+function cleanupStrayControls() {
+    $(`.${CC_WB_BIND_CLASS}`).remove();
+    $('.world_entry.cc-wb-entry-open').removeClass('cc-wb-entry-open');
 }
 
 /**
- * 启动 UI 注入（监听世界书编辑器列表变化）
+ * 启动 UI 注入（心跳 + 窄 observer，不再监听整页 subtree）
  */
 export function initWorldBookBindingUI() {
     if (initialized) return;
@@ -361,50 +398,30 @@ export function initWorldBookBindingUI() {
 
     debugLog('[WB-BIND] 世界书条目·聊天绑定 UI 已初始化');
 
-    // 初次注入（若编辑器已打开）
-    if (!bindMainObserver()) {
-        debugLog('[WB-BIND] #world_popup_entries_list 尚不存在，等待编辑器打开');
-    }
+    // 轻量心跳：每 500ms 重新评估「列表存在 + 是否聊天页」。不监听整页 subtree，
+    // 编辑器懒加载 / 列表被重建 / 进入聊天页 等时序都不依赖整页 observer。
+    heartbeatTimer = setInterval(onTick, 500);
+    onTick();
 
-    // 引导 observer：世界书编辑器/列表懒加载，覆盖所有可能的时序
-    const tryBind = () => {
-        const list = document.getElementById('world_popup_entries_list');
-        if (list && observer && boundListEl === list) return;
-        if (bindMainObserver()) {
-            if (bootstrapObserver && boundListEl === list) {
-                bootstrapObserver.disconnect();
-                bootstrapObserver = null;
-            }
-        }
-    };
-    bootstrapObserver = new MutationObserver(() => {
-        if (bootstrapTimer) return;
-        bootstrapTimer = setTimeout(() => { bootstrapTimer = null; tryBind(); }, 150);
-    });
-    bootstrapObserver.observe(document.body, { childList: true, subtree: true });
-    // 兜底：即便 body 已稳定，也立即试一次
-    tryBind();
-
-    // 世界书设置/数据更新时刷新控件态（切换聊天、保存后）
-    import('../../../../../../../script.js').then(({ eventSource, event_types }) => {
-        const refresh = () => {
-            injectAllControls();
-            $('#world_popup_entries_list .world_entry').each(function () {
-                refreshEntryControl($(this));
-            });
-        };
-        eventSource.on(event_types.WORLDINFO_UPDATED, refresh);
-        eventSource.on(event_types.WORLDINFO_SETTINGS_UPDATED, refresh);
-        eventSource.on(event_types.CHAT_CHANGED, refresh);
-    });
+    // 世界书设置/数据更新时立即刷新控件态（切换聊天、保存后）
+    eventRefresh = () => onTick();
+    eventSource.on(event_types.WORLDINFO_UPDATED, eventRefresh);
+    eventSource.on(event_types.WORLDINFO_SETTINGS_UPDATED, eventRefresh);
+    eventSource.on(event_types.CHAT_CHANGED, eventRefresh);
 
     debugLog('[WB-BIND] UI 注入已启动');
 }
 
 export function removeWorldBookBindingUI() {
-    if (observer) { observer.disconnect(); observer = null; }
-    if (bootstrapObserver) { bootstrapObserver.disconnect(); bootstrapObserver = null; }
-    if (bootstrapTimer) { clearTimeout(bootstrapTimer); bootstrapTimer = null; }
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    detachListObservers();
+    if (throttleTimer) { clearTimeout(throttleTimer); throttleTimer = null; }
+    if (eventRefresh) {
+        eventSource.removeListener(event_types.WORLDINFO_UPDATED, eventRefresh);
+        eventSource.removeListener(event_types.WORLDINFO_SETTINGS_UPDATED, eventRefresh);
+        eventSource.removeListener(event_types.CHAT_CHANGED, eventRefresh);
+        eventRefresh = null;
+    }
     if (injectControlIntoEntry._globalBound) {
         $(document).off('click', injectControlIntoEntry._closeMenu); // 精确解绑全局关闭监听
         injectControlIntoEntry._globalBound = false;
@@ -413,4 +430,6 @@ export function removeWorldBookBindingUI() {
     $('.world_entry.cc-wb-entry-open').removeClass('cc-wb-entry-open');
     initialized = false;
     injectedOnceLogged = false;
+    listPresent = false;
+    boundListEl = null;
 }
