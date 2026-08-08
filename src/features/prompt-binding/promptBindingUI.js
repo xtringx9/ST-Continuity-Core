@@ -4,6 +4,7 @@
 // 三态：inherit（继承）/ on（本聊开）/ off（本聊关），切换即应用
 
 import { promptManager } from '../../../../../../openai.js';
+import { eventSource, event_types } from '../../../../../../../script.js';
 import { getPromptBinding, setPromptBinding, applyBindingsToPromptManager, WB_BIND_MODE } from './promptBindingState.js';
 import { isInChatPage } from '../../core/contextBottomUI.js';
 import { debugLog, errorLog } from '../../utils/logger.js';
@@ -100,8 +101,53 @@ const WB_BIND_MENU = [
     { mode: WB_BIND_MODE.OFF, fa: 'fa-comment-slash', tip: '本聊关（仅当前聊天禁用）' },
 ];
 
-let injectObserver = null;
+let listObserver = null;     // 监听列表子树：条目增删/重渲染（即时响应）
+let parentObserver = null;   // 监听列表父节点 childList：列表自身被移除时触发 rediscovery
+let heartbeatTimer = null;   // 轻量心跳：每 500ms 重新评估「列表存在 + 是否聊天页」，替代整页 subtree 监听
 let listPresent = false;
+let throttleTimer = null;
+
+function scheduleTick() {
+    if (throttleTimer) return;
+    throttleTimer = setTimeout(() => {
+        throttleTimer = null;
+        onTick();
+    }, 150);
+}
+
+function onTick() {
+    const listEl = getListElement();
+    if (listEl) {
+        if (!listPresent) attachListObservers(listEl);
+        injectAllControls();
+    } else if (listPresent) {
+        detachListObservers();
+        cleanupStrayControls();
+    }
+}
+
+function attachListObservers(listEl) {
+    listPresent = true;
+    applyBindingsToPromptManager(false);
+    listObserver = new MutationObserver(scheduleTick);
+    listObserver.observe(listEl, { childList: true, subtree: true });
+    const parent = listEl.parentNode;
+    if (parent) {
+        parentObserver = new MutationObserver(scheduleTick);
+        parentObserver.observe(parent, { childList: true });
+    }
+}
+
+function detachListObservers() {
+    listPresent = false;
+    if (listObserver) { listObserver.disconnect(); listObserver = null; }
+    if (parentObserver) { parentObserver.disconnect(); parentObserver = null; }
+}
+
+function cleanupStrayControls() {
+    $('.cc-pm-bind').remove();
+    $('.prompt_manager_prompt.cc-pm-entry-open').removeClass('cc-pm-entry-open');
+}
 
 function getListElement() {
     if (!promptManager) return null;
@@ -217,36 +263,25 @@ export function initPromptBindingUI() {
     };
     document.addEventListener('click', injectControlIntoEntry._closeMenu, true);
 
-    if (injectObserver) injectObserver.disconnect();
-    let throttleTimer = null;
-    injectObserver = new MutationObserver(() => {
-        if (throttleTimer) return;
-        throttleTimer = setTimeout(() => {
-            throttleTimer = null;
-            const present = !!getListElement();
-            if (present && !listPresent) {
-                listPresent = true;
-                applyBindingsToPromptManager(false);
-            } else if (!present && listPresent) {
-                listPresent = false;
-            }
-            injectAllControls();
-        }, 150);
-    });
-    injectObserver.observe(document.body, { childList: true, subtree: true });
+    // 聊天切换时刷新控件（列表可能随聊天上下文重建 / 离开聊天页需清理）。
+    // 注意：跨聊天的绑定还原由 promptBinding.js 的 CHAT_CHANGED 处理，此处只刷新 UI，不重复 apply。
+    eventSource.on(event_types.CHAT_CHANGED, onTick);
 
-    injectAllControls();
+    // 轻量心跳：每 500ms 重新评估「列表存在 + 是否聊天页」。不监听整页 subtree，
+    // 「进入聊天页」(isInChatPage false→true) 既非列表 DOM 变动、也未必发 CHAT_CHANGED，
+    // 必须靠心跳兜底，否则控件不会被重新注入。
+    heartbeatTimer = setInterval(onTick, 500);
+    onTick();
     debugLog('[PM-BIND] 预设条目绑定控件已初始化');
 }
 
 export function removePromptBindingUI() {
-    if (injectObserver) {
-        injectObserver.disconnect();
-        injectObserver = null;
-    }
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    detachListObservers();
+    if (throttleTimer) { clearTimeout(throttleTimer); throttleTimer = null; }
+    eventSource.removeListener(event_types.CHAT_CHANGED, onTick);
     document.removeEventListener('click', injectControlIntoEntry._closeMenu, true);
     closeAllMenus();
-    $('.cc-pm-bind').remove();
-    $('.prompt_manager_prompt.cc-pm-entry-open').removeClass('cc-pm-entry-open');
+    cleanupStrayControls();
     listPresent = false;
 }
