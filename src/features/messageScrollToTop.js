@@ -8,6 +8,7 @@
 import { debugLog, infoLog } from '../utils/logger.js';
 import configManager from '../singleton/configManager.js';
 import { isInChatPage } from '../core/contextBottomUI.js';
+import { eventSource, event_types } from '../../../../../../script.js';
 
 const LOG_TAG = '[MessageScrollToTop]';
 const BUTTON_CLASS = 'ccore-scroll-top-btn';
@@ -59,6 +60,7 @@ let visibleMesIds = new Set();    // 当前与视口（含缓冲）相交的消�
 let visibleMesEls = new Set();    // 与 visibleMesIds 同步的消息元素引用集合（B 用，避免每帧从全量过滤）
 let visibilityReady = false;      // 首个 IO 回调后置真，之后仅重排可见消息按钮
 let lastActiveDot = -1;           // 上一帧高亮的圆点索引，避免每帧遍历全部圆点
+let chatChangedListener = null;   // CHAT_CHANGED 监听（聊天页门控：进入/离开聊天页实时显隐导航条）
 
 // —— 性能优化缓存（A+D）——
 let cachedAllMes = [];            // D) 由 MutationObserver 维护的全部 .mes 元素数组，避免每帧 querySelectorAll
@@ -582,7 +584,12 @@ function removeNavControl() {
  */
 function repositionButtons() {
     const chatEl = document.getElementById('chat');
-    if (!chatEl) return;
+    if (!chatEl) {
+        // 非聊天页（#chat 不存在）：隐藏导航条，避免残留
+        const navEl = document.querySelector(`.${NAV_CLASS}`);
+        if (navEl) navEl.style.display = 'none';
+        return;
+    }
     const chatRect = chatEl.getBoundingClientRect();
     const vpMin = chatRect.top + EDGE_GAP; // 聊天视口顶部（避免压到 ST 顶栏）
     const vpMax = chatRect.bottom - BUTTON_SIZE - EDGE_GAP; // 聊天视口底部（避免压到输入区）
@@ -706,7 +713,7 @@ function repositionButtons() {
     // 背景进度条与当前圆点高亮标出正在阅读的位置（每帧只动进度条高度 + 相邻两圆点）
     const navEl = document.querySelector(`.${NAV_CLASS}`);
     if (navEl) {
-        navEl.style.display = hasMes ? '' : 'none';
+        navEl.style.display = (hasMes && isInChatPage()) ? '' : 'none';
         if (hasMes) {
             // 竖线撑满：圆点条高度 = 整个聊天视口高度（上下不留白），背景竖线由 CSS height:100% 贯穿到底
             const barH = chatRect.height;
@@ -841,6 +848,17 @@ export function initMessageScrollToTop() {
     // 整条竖线末端拖拽滑块：拖动 = 替代原生滚动条滚动聊天
     $(document).off('pointerdown.ccore-msg-nav-handle').on('pointerdown.ccore-msg-nav-handle', `.${NAV_SCROLL_HANDLE_CLASS}`, onScrollHandleDown);
     createNavControl();
+    // 聊天页门控：进入聊天页才显现，离开即隐藏（复用 isInChatPage + CHAT_CHANGED 成熟模式，
+    // 与 MessageRangeView / EntryButton 一致）。非聊天页也清掉消息按钮，避免残留。
+    if (!chatChangedListener) {
+        chatChangedListener = () => {
+            const nav = document.querySelector(`.${NAV_CLASS}`);
+            const inChat = isInChatPage();
+            if (nav) nav.style.display = (configManager.getExtensionConfig().scrollToTop.enabled && inChat) ? '' : 'none';
+            if (!inChat) removeAllScrollTopButtons();
+        };
+        eventSource.on(event_types.CHAT_CHANGED, chatChangedListener);
+    }
     addScrollTopButtonsToAllMessages();
     infoLog(LOG_TAG, '消息滚动/跳转按钮已启用');
 }
@@ -876,6 +894,10 @@ export function removeMessageScrollToTop() {
     $(document).off('click.ccore-scroll-to-top');
     $(document).off('click.ccore-msg-nav');
     $(document).off('click.ccore-msg-nav-line');
+    if (chatChangedListener) {
+        eventSource.removeListener(event_types.CHAT_CHANGED, chatChangedListener);
+        chatChangedListener = null;
+    }
     removeAllScrollTopButtons();
     removeNavControl();
     document.getElementById(STYLE_ID)?.remove();
