@@ -11,6 +11,7 @@
 
 import { promptManager } from '../../../../../../openai.js';
 import { eventSource, event_types } from '../../../../../../../script.js';
+import { Popup, POPUP_TYPE, POPUP_RESULT } from '../../../../../../popup.js';
 import { debugLog, errorLog } from '../../utils/logger.js';
 import configManager from '../../singleton/configManager.js';
 
@@ -34,6 +35,8 @@ const CC_PM_ACT_STYLES = `
 .${CC_PM_ACT_CLASS}:hover { color: var(--SmartThemeQuoteColor, #6cf); }
 .${CC_PM_ACT_CLASS}.cc-pm-act-remove { color: var(--SmartThemeDangerColor, #f88); }
 .${CC_PM_ACT_CLASS}.cc-pm-act-remove:hover { color: var(--SmartThemeDangerColor, #f88); filter: brightness(1.2); }
+.${CC_PM_ACT_CLASS}.cc-pm-act-delete { color: var(--SmartThemeDangerColor, #f88); }
+.${CC_PM_ACT_CLASS}.cc-pm-act-delete:hover { color: var(--SmartThemeDangerColor, #f88); filter: brightness(1.2); }
 
 /* 注入了我们按钮的条目：控件区改为靠右紧凑排列（覆盖 ST 高特异性 space-between），
    展开时给该条目 li 加宽网格控件列（grid 列加宽只向左延展、右边界不动 → edit/开关不动），
@@ -200,6 +203,29 @@ function removeEntry(id) {
     return true;
 }
 
+// 真删除：从 serviceSettings.prompts 永久删除定义（区别于 removeEntry 仅解绑）。
+// 仅允许非 system_prompt（与 ST isPromptDeletionAllowed 一致），系统/Marker 条目不可删。
+// 同时清理所有角色 prompt_order 的残留引用，避免定义删除后其它角色订单串留孤儿。
+function deleteEntry(id) {
+    if (!promptManager) return false;
+    const prompt = promptManager.getPromptById(id);
+    if (!prompt) return false;
+    if (promptManager.isPromptDeletionAllowed && promptManager.isPromptDeletionAllowed(prompt) === false) return false;
+    const idx = promptManager.getPromptIndexById(id);
+    if (idx == null) return false;
+    promptManager.serviceSettings.prompts.splice(Number(idx), 1);
+    const orderMap = promptManager.serviceSettings.prompt_order;
+    if (orderMap) {
+        for (const charId in orderMap) {
+            const ord = orderMap[charId];
+            if (ord && Array.isArray(ord.order)) ord.order = ord.order.filter(e => e && e.identifier !== id);
+        }
+    }
+    promptManager.render(false);
+    promptManager.saveServiceSettings();
+    return true;
+}
+
 // ---- UI 注入（逐个按钮注入到 edit 左边） ----
 function ensureStyles() {
     if ($('#cc-pm-act-style').length) return;
@@ -232,12 +258,39 @@ function injectControlIntoEntry($entry) {
         return !this.textContent.trim() && !this.querySelector('*');
     }).last();
 
+    // 仅非 system_prompt（ST isPromptDeletionAllowed）才提供「删除」，系统/Marker 条目不可删
+    const prompt = promptManager.getPromptById(identifier);
+    const canDelete = !!prompt && (!promptManager.isPromptDeletionAllowed || promptManager.isPromptDeletionAllowed(prompt) !== false);
+
     const ACTIONS = [
         { fa: 'fa-copy', title: '复制', act: () => clonePromptEntry(identifier, true) },
         { fa: 'fa-arrow-up', title: '在上方插入空白', act: () => insertBlankEntry(identifier, 'before') },
         { fa: 'fa-arrow-down', title: '在下方插入空白', act: () => insertBlankEntry(identifier, 'after') },
         { fa: 'fa-chain-broken cc-pm-act-remove', title: '移除', act: () => removeEntry(identifier) },
-    ].reverse(); // 展开后顺序反过来：[移除][下插][上插][复制]，最左是移除、最右挨“...”的是复制
+    ];
+    if (canDelete) {
+        ACTIONS.push({
+            fa: 'fa-trash-can cc-pm-act-delete',
+            title: '删除',
+            act: async () => {
+                // 自行构造 ST 风格确认弹窗（Popup + POPUP_TYPE.CONFIRM），不使用浏览器原生 confirm，
+                // 也不依赖 Popup.show.confirm 的调用栈时序
+                const $body = $('<div>').append(
+                    $('<p>').text('确定删除该提示词吗？此操作不可撤销。'),
+                );
+                try {
+                    const result = await new Popup($body, POPUP_TYPE.CONFIRM, '', {
+                        okButton: '删除',
+                        cancelButton: '取消',
+                    }).show();
+                    if (result === POPUP_RESULT.AFFIRMATIVE) deleteEntry(identifier);
+                } catch (err) {
+                    errorLog('[PM-ACTIONS] 删除确认弹窗失败', err);
+                }
+            },
+        });
+    }
+    ACTIONS.reverse(); // 展开后顺序反过来；删除按钮（若有）在最左，最右挨“...”的是复制
     const $collapsible = ACTIONS.map(a =>
         makeActionButton(a.fa, a.title, a.act, (a.extra || '') + ' cc-pm-act-collapsible'));
     // “...” 切换按钮：点击就地展开/收起 4 个操作按钮（切换控件区 cc-pm-act-expanded），
