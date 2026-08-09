@@ -14,6 +14,7 @@ import {
     onWorldBookBindingToggle,
     onPromptBindingToggle,
     onPromptEntryActionsToggle,
+    onIncludeHiddenMessagesToggle,
     onSendHijackToggle,
     onSendHijackSetChange,
     onSendHijackLabelChange,
@@ -86,6 +87,7 @@ export class SettingsPanel {
         $('#continuity_world_book_binding').on('input', onWorldBookBindingToggle);
         $('#continuity_prompt_binding').on('input', onPromptBindingToggle);
         $('#continuity_prompt_entry_actions').on('input', onPromptEntryActionsToggle);
+        $('#continuity_include_hidden_messages').on('input', onIncludeHiddenMessagesToggle);
         $('#continuity_send_hijack').on('input', onSendHijackToggle);
         $('#continuity_send_hijack_set').on('change', onSendHijackSetChange);
         $('#continuity_send_hijack_label').on('change', onSendHijackLabelChange);

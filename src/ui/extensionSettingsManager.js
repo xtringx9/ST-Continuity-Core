@@ -1,6 +1,7 @@
 // src/ui/extensionSettingsManager.js
 
 import configManager, { extensionFolderPath } from "../singleton/configManager.js";
+import moduleCacheManager from "../singleton/moduleCacheManager.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
 import { removeUIfromContextBottom } from "../core/contextBottomUI.js";
 import { addAiButtonsToAllMessages, removeAllAiButtons } from "../ui/messageAiButton.js";
@@ -56,6 +57,7 @@ export function loadSettingsToUI() {
     $("#continuity_world_book_binding").prop("checked", extensionConfig.stFeatureEnhance?.worldBookBinding?.enabled !== false);
     $("#continuity_prompt_binding").prop("checked", extensionConfig.stFeatureEnhance?.promptBinding?.enabled !== false);
     $("#continuity_prompt_entry_actions").prop("checked", extensionConfig.stFeatureEnhance?.promptEntryActions?.enabled !== false);
+    $("#continuity_include_hidden_messages").prop("checked", extensionConfig.module?.includeHiddenMessages?.enabled !== false);
 
     // 异步模块存储设置
     const asyncModule = extensionConfig.module?.asyncModule || {};
@@ -366,6 +368,16 @@ export function onPromptEntryActionsToggle(event) {
     } else {
         removePromptEntryActions();
     }
+}
+
+export function onIncludeHiddenMessagesToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.module ||= {};
+    extensionConfig.module.includeHiddenMessages = { ...(extensionConfig.module.includeHiddenMessages || {}), enabled };
+    configManager.setExtensionConfig(extensionConfig);
+    // 切换隐藏楼层包含策略会直接改变提取结果，必须让模块缓存失效并重建
+    moduleCacheManager.updateModuleCacheForce();
 }
 
 /**

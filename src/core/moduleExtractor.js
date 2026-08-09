@@ -41,6 +41,12 @@ export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFi
                     continue;
                 }
 
+                // 根据配置决定是否跳过隐藏消息（默认包含隐藏消息）
+                const includeHidden = configManager.getModuleDomainConfig().includeHiddenMessages?.enabled;
+                if (includeHidden === false && message.is_system === true) {
+                    continue;
+                }
+
                 // 支持两种消息格式：SillyTavern原生格式(mes)和标准格式(content)
                 const rawMessageContent = message.mes !== undefined ? message.mes : message.content;
 

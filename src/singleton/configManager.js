@@ -66,6 +66,9 @@ export const DEFAULT_EXTENSION_CONFIG = {
         },
         buttonType: "embedded", // 按钮类型，默认嵌入按钮
         autoInject: false, // 自动注入开关，默认关闭
+        includeHiddenMessages: { // 提取模块时是否包含隐藏楼层（is_system），默认开启
+            enabled: true,
+        },
         config: { // 导出配置时的元数据（非功能开关）
             author: "", // 模块配置作者，默认空字符串
             version: "", // 模块配置版本，默认空字符串

@@ -23,14 +23,14 @@
                 </div>
                 
                 <div class="continuity-tabs">
-                    <button class="continuity-tab-btn active" data-tab="interface" data-i18n="ccore_settings_tab_interface">界面设置</button>
+                    <button class="continuity-tab-btn active" data-tab="module-behavior" data-i18n="ccore_settings_tab_module_behavior">模块行为</button>
                     <button class="continuity-tab-btn" data-tab="feature-enhance" data-i18n="ccore_settings_tab_feature_enhance">功能增强</button>
                     <button class="continuity-tab-btn" data-tab="async" data-i18n="ccore_settings_tab_async">异步存储</button>
                     <button class="continuity-tab-btn" data-tab="backend" data-i18n="ccore_settings_tab_backend">后端配置</button>
                     <button class="continuity-tab-btn" data-tab="debug" data-i18n="ccore_settings_tab_debug">调试设置</button>
                 </div>
                 
-                <div class="continuity-tab-content active" id="tab-interface">
+                <div class="continuity-tab-content active" id="tab-module-behavior">
                     <div class="continuity-setting-card">
                         <div class="setting-main setting-inline">
                             <label for="continuity_button_type" data-i18n="ccore_settings_button_type">按钮类型</label>
@@ -38,6 +38,16 @@
                                 <option value="embedded" data-i18n="ccore_settings_button_embedded">嵌入按钮</option>
                                 <option value="floating" data-i18n="ccore_settings_button_floating">浮动按钮</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div class="continuity-setting-card">
+                        <div class="setting-main">
+                            <input id="continuity_include_hidden_messages" type="checkbox" />
+                            <div class="setting-text">
+                                <label for="continuity_include_hidden_messages" data-i18n="ccore_settings_include_hidden_messages">包含隐藏消息的模块</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_include_hidden_messages_hint">开启时，被隐藏的楼层（is_system）中的模块数据也会被提取处理；关闭则跳过隐藏楼层。</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -146,6 +156,7 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="continuity-setting-card">
                         <div class="setting-main">
                             <div class="setting-text">
