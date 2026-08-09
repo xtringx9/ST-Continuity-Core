@@ -68,7 +68,7 @@ let cachedCenterSig = '';         // A) 布局签名；变化（消息数/高度
  */
 export function addScrollTopButtonsToAllMessages() {
     try {
-        if (!configManager.getSTFeatureEnhanceConfig().scrollToTop?.showPerMessageButtons) return; // 顶/底按钮开关
+        if (!configManager.getStFeatureEnhanceConfig().scrollToTop?.showPerMessageButtons) return; // 顶/底按钮开关
         if (!isInChatPage()) return;
         const chatEl = document.getElementById('chat');
         if (!chatEl) return;
@@ -168,7 +168,7 @@ function scrollMessageToBottom(mesEl) {
  * @param {number} top 目标 scrollTop
  */
 function scrollChatTo(el, top) {
-    const smooth = configManager.getSTFeatureEnhanceConfig().scrollToTop?.smoothScroll !== false;
+    const smooth = configManager.getStFeatureEnhanceConfig().scrollToTop?.smoothScroll !== false;
     el.scrollTo({ top, behavior: smooth ? 'smooth' : 'instant' });
 }
 
@@ -845,7 +845,7 @@ function scheduleReposition() {
  * 初始化：根据开关决定是否注入按钮与监听
  */
 export function initMessageScrollToTop() {
-    if (!configManager.getSTFeatureEnhanceConfig().scrollToTop?.enabled) {
+    if (!configManager.getStFeatureEnhanceConfig().scrollToTop?.enabled) {
         removeMessageScrollToTop();
         return;
     }
@@ -863,7 +863,7 @@ export function initMessageScrollToTop() {
         chatChangedListener = () => {
             const nav = document.querySelector(`.${NAV_CLASS}`);
             const inChat = isInChatPage();
-            if (nav) nav.style.display = (configManager.getSTFeatureEnhanceConfig().scrollToTop?.enabled && inChat) ? '' : 'none';
+            if (nav) nav.style.display = (configManager.getStFeatureEnhanceConfig().scrollToTop?.enabled && inChat) ? '' : 'none';
             if (!inChat) removeAllScrollTopButtons();
         };
         eventSource.on(event_types.CHAT_CHANGED, chatChangedListener);

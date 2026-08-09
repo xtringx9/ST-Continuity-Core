@@ -129,7 +129,7 @@ export function addAiButtonToMessage(messageId) {
  * @returns {boolean} 是否应显示小 Cc 按钮
  */
 export function isMessageAiButtonVisible() {
-    const asyncEnabled = configManager.getExtensionConfig().asyncModule?.enabled ?? false;
+    const asyncEnabled = configManager.getModuleDomainConfig().asyncModule?.enabled ?? false;
     // TODO: 后续其他开关在此处用 && / || 合并（例如：&& otherFeatureEnabled）
     return asyncEnabled;
 }
@@ -285,7 +285,7 @@ function createInlineMenu(triggerButton, mesId) {
             alignItems: 'center',
         });
 
-    const asyncModule = configManager.getExtensionConfig().asyncModule || {};
+    const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
     const asyncEnabled = !!asyncModule.enabled;
 
     // 1. 模块框：重新生成 + 编辑 + 汇总（无 label）
@@ -492,7 +492,7 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
     }
 
     // 从配置读取选项
-    const asyncModule = configManager.getExtensionConfig().asyncModule || {};
+    const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
     const isModule = generatorName === 'modules';
     const useIndependentApi = asyncModule.useIndependentApi || false;
     let customApi = null;
@@ -598,7 +598,7 @@ function setRegenButtonState(button, state, generatorName = 'modules', mesId) {
  * 仅在异步存储开启时可用，编辑 modules key 的文本
  */
 async function onEditModules(mesId) {
-    const asyncModule = configManager.getExtensionConfig().asyncModule || {};
+    const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
     if (!asyncModule.enabled) {
         infoLog(LOG_TAG, '编辑模块数据仅在异步存储开启时可用');
         return;
@@ -688,7 +688,7 @@ async function onEditModules(mesId) {
  * @param {string} generatorName - generator.name
  */
 async function onEditGeneratedContent(mesId, generatorName) {
-    const asyncModule = configManager.getExtensionConfig().asyncModule || {};
+    const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
     if (!asyncModule.enabled) {
         infoLog(LOG_TAG, '编辑生成内容仅在异步存储开启时可用');
         return;

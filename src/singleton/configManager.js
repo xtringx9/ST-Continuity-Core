@@ -16,11 +16,13 @@ export const EXTENSION_CONFIG_KEY = 'extension_config';
 export const DEFAULT_EXTENSION_CONFIG = {
     version: "1.0.0",
     enabled: true, // 全局开关默认开启
-    backendUrl: "http://localhost:8888", // 后端服务器地址
-    debugLogs: false, // 调试日志开关，默认关闭
-    autoInject: false, // 自动注入开关，默认关闭
-    buttonType: "embedded", // 按钮类型，默认嵌入按钮
-    STFeatureEnhance: { // SillyTavern 功能增强合集（对应设置面板「功能增强」tab）
+    server: {
+        url: "http://localhost:8888", // 后端服务器地址
+    },
+    debug: {
+        global: false, // 调试日志总开关，默认关闭（后续按模块细分）
+    },
+    stFeatureEnhance: { // SillyTavern 功能增强合集（对应设置面板「功能增强」tab）
         messageRangeView: false, // 在扩展菜单显示「消息区间视图」入口
         quickReplyOptimize: false, // 优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线）
         scrollToTop: { // 消息导航条配置（替代原生滚动条）
@@ -43,25 +45,31 @@ export const DEFAULT_EXTENSION_CONFIG = {
             enabled: false,
         },
     },
-    moduleConfigAuthor: "", // 模块配置作者，默认空字符串
-    moduleConfigVersion: "", // 模块配置版本，默认1.0.0
-    asyncModule: {
-        enabled: false, // 异步模块存储（需服务器插件）
-        snapshotInterval: 5, // 快照间隔（层）
-        generationMode: 'pipeline', // AI 生成模式: 'pipeline' | 'raw'
-        useIndependentApi: false, // 是否使用独立 API（false=主API, true=独立API）
-        customApi: { // 独立 API 配置（useIndependentApi=true 时生效）
-            apiurl: '',
-            key: '',
-            model: '',
-            source: 'openai',
-            temperature: 0.3,
-            max_tokens: 0, // 0=不限制
+    module: { // 前端模块域合集（模块存储 / UI 呈现 / 元数据）
+        asyncModule: {
+            enabled: false, // 异步模块存储（需服务器插件）
+            snapshotInterval: 5, // 快照间隔（层）
+            generationMode: 'pipeline', // AI 生成模式: 'pipeline' | 'raw'
+            useIndependentApi: false, // 是否使用独立 API（false=主API, true=独立API）
+            customApi: { // 独立 API 配置（useIndependentApi=true 时生效）
+                apiurl: '',
+                key: '',
+                model: '',
+                source: 'openai',
+                temperature: 0.3,
+                max_tokens: 0, // 0=不限制
+            },
+            rawSystemPrompt: '你是一个模块数据提取助手。请从用户提供的文本中提取模块数据，使用 [模块名|键:值|键:值] 格式输出。只输出模块数据，不要输出其他内容。', // raw 模式的系统提示词
+            rawUserPromptTemplate: '--- 楼层 {{mesId}} ({{senderType}}) ---\n{{messageText}}', // raw 模式的用户提示词模板
+            pipelineModifier: '请根据以上对话内容，生成模块数据。使用 [模块名|键:值|键:值] 格式输出，每个模块占一行。只输出模块数据，不要输出其他内容。', // pipeline 模式追加的指令
+            showDebug: true, // 生成后是否显示调试面板
         },
-        rawSystemPrompt: '你是一个模块数据提取助手。请从用户提供的文本中提取模块数据，使用 [模块名|键:值|键:值] 格式输出。只输出模块数据，不要输出其他内容。', // raw 模式的系统提示词
-        rawUserPromptTemplate: '--- 楼层 {{mesId}} ({{senderType}}) ---\n{{messageText}}', // raw 模式的用户提示词模板
-        pipelineModifier: '请根据以上对话内容，生成模块数据。使用 [模块名|键:值|键:值] 格式输出，每个模块占一行。只输出模块数据，不要输出其他内容。', // pipeline 模式追加的指令
-        showDebug: true, // 生成后是否显示调试面板
+        buttonType: "embedded", // 按钮类型，默认嵌入按钮
+        autoInject: false, // 自动注入开关，默认关闭
+        config: { // 导出配置时的元数据（非功能开关）
+            author: "", // 模块配置作者，默认空字符串
+            version: "", // 模块配置版本，默认空字符串
+        },
     },
 };
 
@@ -103,16 +111,23 @@ class ConfigManager {
     MODULE_TITLE_RIGHT = "";
 
     /**
-     * 从旧版顶级 key 迁移 → STFeatureEnhance（一次迁移后旧 key 删除，不再落盘）
+     * 从旧版顶级 key 迁移 → stFeatureEnhance（一次迁移后旧 key 删除，不再落盘）
      * @param {Object} stored 来源配置对象（load 时为存储快照，set 时为入参）
      * @returns {Object} 迁移后的新对象（浅拷贝，不修改入参）
      */
     _migrateFeatureEnhance(stored) {
         const clone = { ...stored };
-        const fe = clone.STFeatureEnhance || {};
+        const fe = clone.stFeatureEnhance || {};
         let migrated = false;
 
-        // 旧版顶级 key → STFeatureEnhance 子键（改名映射）
+        // 兼容旧提交落盘的大写键 STFeatureEnhance → 小写 stFeatureEnhance（仅一次，迁移后删除）
+        if (clone.STFeatureEnhance !== undefined) {
+            Object.assign(fe, clone.STFeatureEnhance);
+            delete clone.STFeatureEnhance;
+            migrated = true;
+        }
+
+        // 旧版顶级 key → stFeatureEnhance 子键（改名映射）
         const OLD_MAP = [
             ['enableMessageRangeView', 'messageRangeView'],
             ['quickReplyOptimize', 'quickReplyOptimize'],
@@ -134,7 +149,86 @@ class ConfigManager {
         }
 
         if (migrated) {
-            clone.STFeatureEnhance = fe;
+            clone.stFeatureEnhance = fe;
+        }
+        return clone;
+    }
+
+    /**
+     * 从旧版顶级 key 迁移 → server / debug / module（一次迁移后旧 key 删除，不再落盘）
+     * 旧顶级键：backendUrl / debugLogs / autoInject / buttonType / moduleConfigAuthor / moduleConfigVersion / asyncModule
+     * @param {Object} stored 来源配置对象（load 时为存储快照，set 时为入参）
+     * @returns {Object} 迁移后的新对象（浅拷贝，不修改入参）
+     */
+    _migrateModuleDomain(stored) {
+        // 迁移函数必须直读 clone.server/debug/module（不能走 getXxxConfig getter），
+        // 因为 getter 本身就是基于迁移/补全后的 this.extensionConfig 实现的，此处是数据源，反向调用无意义。
+        const clone = { ...stored };
+        const server = clone.server || {};
+        const debug = clone.debug || {};
+        const module = clone.module || {};
+        let migrated = false;
+
+        // backendUrl → server.url
+        if (clone.backendUrl !== undefined) {
+            if (server.url === undefined) server.url = clone.backendUrl;
+            delete clone.backendUrl;
+            migrated = true;
+        }
+        // debugLogs → debug.global
+        if (clone.debugLogs !== undefined) {
+            if (debug.global === undefined) debug.global = clone.debugLogs;
+            delete clone.debugLogs;
+            migrated = true;
+        }
+        // autoInject → module.autoInject
+        if (clone.autoInject !== undefined) {
+            if (module.autoInject === undefined) module.autoInject = clone.autoInject;
+            delete clone.autoInject;
+            migrated = true;
+        }
+        // buttonType → module.buttonType
+        if (clone.buttonType !== undefined) {
+            if (module.buttonType === undefined) module.buttonType = clone.buttonType;
+            delete clone.buttonType;
+            migrated = true;
+        }
+        const moduleConfig = module.config || {};
+        // moduleConfigAuthor（旧顶级键）→ module.config.author
+        if (clone.moduleConfigAuthor !== undefined) {
+            if (moduleConfig.author === undefined) moduleConfig.author = clone.moduleConfigAuthor;
+            delete clone.moduleConfigAuthor;
+            migrated = true;
+        }
+        // moduleConfigVersion（旧顶级键）→ module.config.version
+        if (clone.moduleConfigVersion !== undefined) {
+            if (moduleConfig.version === undefined) moduleConfig.version = clone.moduleConfigVersion;
+            delete clone.moduleConfigVersion;
+            migrated = true;
+        }
+        // 已落盘的旧结构 module.author / module.version → module.config
+        if (module.author !== undefined) {
+            if (moduleConfig.author === undefined) moduleConfig.author = module.author;
+            delete module.author;
+            migrated = true;
+        }
+        if (module.version !== undefined) {
+            if (moduleConfig.version === undefined) moduleConfig.version = module.version;
+            delete module.version;
+            migrated = true;
+        }
+        if (module.config === undefined) module.config = moduleConfig;
+        // asyncModule → module.asyncModule（整体搬移，内部结构不变）
+        if (clone.asyncModule !== undefined) {
+            if (module.asyncModule === undefined) module.asyncModule = clone.asyncModule;
+            delete clone.asyncModule;
+            migrated = true;
+        }
+
+        if (migrated) {
+            clone.server = server;
+            clone.debug = debug;
+            clone.module = module;
         }
         return clone;
     }
@@ -176,40 +270,71 @@ class ConfigManager {
             // 从扩展设置加载配置
             if (extension_settings[extensionName] && extension_settings[extensionName][EXTENSION_CONFIG_KEY]) {
                 const stored = extension_settings[extensionName][EXTENSION_CONFIG_KEY];
-                // 迁移旧版顶级功能增强键 → STFeatureEnhance
-                const migrated = this._migrateFeatureEnhance(stored);
+                // 迁移旧版顶级功能增强键 → stFeatureEnhance
+                const migratedFe = this._migrateFeatureEnhance(stored);
+                // 迁移旧版顶级模块域键 → server / debug / module
+                const migrated = this._migrateModuleDomain(migratedFe);
                 this.extensionConfig = {
                     ...DEFAULT_EXTENSION_CONFIG,
                     ...migrated,
-                    asyncModule: {
-                        ...DEFAULT_EXTENSION_CONFIG.asyncModule,
-                        ...(migrated.asyncModule || {}),
+                    server: {
+                        ...DEFAULT_EXTENSION_CONFIG.server,
+                        ...(migrated.server || {}),
                     },
-                    STFeatureEnhance: {
-                        ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance,
-                        ...(migrated.STFeatureEnhance || {}),
+                    debug: {
+                        ...DEFAULT_EXTENSION_CONFIG.debug,
+                        ...(migrated.debug || {}),
+                    },
+                    module: {
+                        ...DEFAULT_EXTENSION_CONFIG.module,
+                        ...(migrated.module || {}),
+                        config: {
+                            ...DEFAULT_EXTENSION_CONFIG.module.config,
+                            ...(migrated.module?.config || {}),
+                        },
+                        asyncModule: {
+                            ...DEFAULT_EXTENSION_CONFIG.module.asyncModule,
+                            ...(migrated.module?.asyncModule || {}),
+                        },
+                    },
+                    stFeatureEnhance: {
+                        ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance,
+                        ...(migrated.stFeatureEnhance || {}),
                         scrollToTop: {
-                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.scrollToTop,
-                            ...(migrated.STFeatureEnhance?.scrollToTop || {}),
+                            ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.scrollToTop,
+                            ...(migrated.stFeatureEnhance?.scrollToTop || {}),
                         },
                         sendHijack: {
-                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.sendHijack,
-                            ...(migrated.STFeatureEnhance?.sendHijack || {}),
+                            ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.sendHijack,
+                            ...(migrated.stFeatureEnhance?.sendHijack || {}),
                         },
                         worldBookBinding: {
-                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.worldBookBinding,
-                            ...(migrated.STFeatureEnhance?.worldBookBinding || {}),
+                            ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.worldBookBinding,
+                            ...(migrated.stFeatureEnhance?.worldBookBinding || {}),
                         },
                         promptBinding: {
-                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptBinding,
-                            ...(migrated.STFeatureEnhance?.promptBinding || {}),
+                            ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptBinding,
+                            ...(migrated.stFeatureEnhance?.promptBinding || {}),
                         },
                         promptEntryActions: {
-                            ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptEntryActions,
-                            ...(migrated.STFeatureEnhance?.promptEntryActions || {}),
+                            ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntryActions,
+                            ...(migrated.stFeatureEnhance?.promptEntryActions || {}),
                         },
                     },
                 };
+                // 检查是否需要将迁移后的新结构写回落盘
+                const hasOldKeys = stored.backendUrl !== undefined || stored.debugLogs !== undefined ||
+                    stored.moduleConfigAuthor !== undefined || stored.moduleConfigVersion !== undefined ||
+                    stored.asyncModule !== undefined || stored.autoInject !== undefined || stored.buttonType !== undefined ||
+                    stored.STFeatureEnhance !== undefined || stored.enableMessageRangeView !== undefined ||
+                    stored.quickReplyOptimize !== undefined || stored.scrollToTop !== undefined ||
+                    stored.sendHijack !== undefined || stored.worldBookBinding !== undefined ||
+                    stored.promptBinding !== undefined || stored.promptEntryActions !== undefined;
+                if (hasOldKeys) {
+                    extension_settings[extensionName][EXTENSION_CONFIG_KEY] = this.extensionConfig;
+                    saveSettings();
+                    infoLog('扩展配置已从旧结构迁移并保存落盘');
+                }
                 this.isExtensionConfigLoaded = true;
                 debugLog('扩展配置已从扩展设置加载到内存缓存:', this.extensionConfig);
                 return;
@@ -312,13 +437,46 @@ class ConfigManager {
 
     /**
      * 获取 ST 功能增强子配置（读路径统一入口，懒加载安全）
-     * @returns {Object} STFeatureEnhance 子配置对象
+     * @returns {Object} stFeatureEnhance 子配置对象
      */
-    getSTFeatureEnhanceConfig() {
+    getStFeatureEnhanceConfig() {
         if (!this.isExtensionConfigLoaded) {
             this.loadExtensionConfig();
         }
-        return this.extensionConfig?.STFeatureEnhance || DEFAULT_EXTENSION_CONFIG.STFeatureEnhance;
+        return this.extensionConfig?.stFeatureEnhance || DEFAULT_EXTENSION_CONFIG.stFeatureEnhance;
+    }
+
+    /**
+     * 获取后端服务器子配置（读路径统一入口，懒加载安全）
+     * @returns {Object} server 子配置对象
+     */
+    getServerConfig() {
+        if (!this.isExtensionConfigLoaded) {
+            this.loadExtensionConfig();
+        }
+        return this.extensionConfig?.server || DEFAULT_EXTENSION_CONFIG.server;
+    }
+
+    /**
+     * 获取调试子配置（读路径统一入口，懒加载安全）
+     * @returns {Object} debug 子配置对象
+     */
+    getDebugConfig() {
+        if (!this.isExtensionConfigLoaded) {
+            this.loadExtensionConfig();
+        }
+        return this.extensionConfig?.debug || DEFAULT_EXTENSION_CONFIG.debug;
+    }
+
+    /**
+     * 获取前端模块域子配置（读路径统一入口，懒加载安全）
+     * @returns {Object} module 子配置对象
+     */
+    getModuleDomainConfig() {
+        if (!this.isExtensionConfigLoaded) {
+            this.loadExtensionConfig();
+        }
+        return this.extensionConfig?.module || DEFAULT_EXTENSION_CONFIG.module;
     }
 
     /**
@@ -326,7 +484,7 @@ class ConfigManager {
      * @returns {{set: string, label: string} | null} 已启用且配置完整时返回目标，否则返回 null
      */
     getSendHijackTarget() {
-        const c = this.extensionConfig?.STFeatureEnhance?.sendHijack;
+        const c = this.extensionConfig?.stFeatureEnhance?.sendHijack;
         if (!c?.enabled || !c?.set || !c?.label) return null;
         return { set: c.set, label: c.label };
     }
@@ -345,44 +503,63 @@ class ConfigManager {
                 throw new Error('无效的配置结构：配置必须是对象');
             }
 
-            // 字段补全：确保 asyncModule 子对象完整
-            const asyncModule = {
-                ...DEFAULT_EXTENSION_CONFIG.asyncModule,
-                ...(newConfig.asyncModule || {}),
-            };
+            // 字段补全：确保 stFeatureEnhance 子对象完整（含迁移旧键）
+            const migratedFe = this._migrateFeatureEnhance(newConfig);
+            const migrated = this._migrateModuleDomain(migratedFe);
 
-            // 字段补全：确保 STFeatureEnhance 子对象完整（含迁移旧键）
-            const migrated = this._migrateFeatureEnhance(newConfig);
-            const STFeatureEnhance = {
-                ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance,
-                ...(migrated.STFeatureEnhance || {}),
+            // 字段补全：确保 server / debug / module 子对象完整
+            const server = {
+                ...DEFAULT_EXTENSION_CONFIG.server,
+                ...(migrated.server || {}),
+            };
+            const debug = {
+                ...DEFAULT_EXTENSION_CONFIG.debug,
+                ...(migrated.debug || {}),
+            };
+            const module = {
+                ...DEFAULT_EXTENSION_CONFIG.module,
+                ...(migrated.module || {}),
+                config: {
+                    ...DEFAULT_EXTENSION_CONFIG.module.config,
+                    ...(migrated.module?.config || {}),
+                },
+                asyncModule: {
+                    ...DEFAULT_EXTENSION_CONFIG.module.asyncModule,
+                    ...(migrated.module?.asyncModule || {}),
+                },
+            };
+            const stFeatureEnhance = {
+                ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance,
+                ...(migrated.stFeatureEnhance || {}),
                 scrollToTop: {
-                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.scrollToTop,
-                    ...(migrated.STFeatureEnhance?.scrollToTop || {}),
+                    ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.scrollToTop,
+                    ...(migrated.stFeatureEnhance?.scrollToTop || {}),
                 },
                 sendHijack: {
-                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.sendHijack,
-                    ...(migrated.STFeatureEnhance?.sendHijack || {}),
+                    ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.sendHijack,
+                    ...(migrated.stFeatureEnhance?.sendHijack || {}),
                 },
                 worldBookBinding: {
-                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.worldBookBinding,
-                    ...(migrated.STFeatureEnhance?.worldBookBinding || {}),
+                    ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.worldBookBinding,
+                    ...(migrated.stFeatureEnhance?.worldBookBinding || {}),
                 },
                 promptBinding: {
-                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptBinding,
-                    ...(migrated.STFeatureEnhance?.promptBinding || {}),
+                    ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptBinding,
+                    ...(migrated.stFeatureEnhance?.promptBinding || {}),
                 },
                 promptEntryActions: {
-                    ...DEFAULT_EXTENSION_CONFIG.STFeatureEnhance.promptEntryActions,
-                    ...(migrated.STFeatureEnhance?.promptEntryActions || {}),
+                    ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntryActions,
+                    ...(migrated.stFeatureEnhance?.promptEntryActions || {}),
                 },
             };
 
             this.extensionConfig = {
                 ...DEFAULT_EXTENSION_CONFIG,
                 ...migrated,
-                asyncModule,
-                STFeatureEnhance,
+                server,
+                debug,
+                module,
+                stFeatureEnhance,
                 version: DEFAULT_EXTENSION_CONFIG.version,
                 lastUpdated: new Date().toISOString()
             };

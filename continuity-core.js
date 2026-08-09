@@ -70,7 +70,7 @@ jQuery(async function () {
     initMessageRangeView();
 
     // 优化原生 Quick Reply（单排横滑 / 按住拖拽平移 / 隐藏滚动条 / 集合分割线）
-    if (configManager.getSTFeatureEnhanceConfig().quickReplyOptimize) {
+    if (configManager.getStFeatureEnhanceConfig().quickReplyOptimize) {
         initQuickReplyOptimize();
     }
 

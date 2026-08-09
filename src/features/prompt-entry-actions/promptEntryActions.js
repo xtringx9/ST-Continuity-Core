@@ -363,7 +363,7 @@ export function removePromptEntryActionsUI() {
 let applied = false;
 
 export function initPromptEntryActions() {
-    if (configManager.getSTFeatureEnhanceConfig().promptEntryActions?.enabled === false) return;
+    if (configManager.getStFeatureEnhanceConfig().promptEntryActions?.enabled === false) return;
     if (applied) return;
     applied = true;
     try {

@@ -447,8 +447,10 @@ export function normalizeConfig(config, extension_config = null) {
 
     const normalized = {
         metadata: {
-            author: (extension_config && extension_config.moduleConfigAuthor) ? extension_config.moduleConfigAuthor : '',
-            authorConfigVersion: (extension_config && extension_config.moduleConfigVersion) ? extension_config.moduleConfigVersion : '',
+            // 导入规范化：extension_config 可能是外部导入的配置对象（非当前激活配置），
+            // 不能走 configManager.getModuleDomainConfig()（只返回当前激活配置）。故直读。
+            author: (extension_config && extension_config.module?.config?.author) ? extension_config.module.config.author : '',
+            authorConfigVersion: (extension_config && extension_config.module?.config?.version) ? extension_config.module.config.version : '',
             version: DEFAULT_CONFIG_VALUES.metadata.version,
             lastUpdated: config.metadata?.lastUpdated || config.lastUpdated || new Date().toISOString(),
             source: config.metadata?.source || DEFAULT_CONFIG_VALUES.metadata.source

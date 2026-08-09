@@ -29,7 +29,7 @@ export class EventHandler {
             }
 
             // 注册测试事件处理器（用于调试）
-            if (configManager.isLoaded && configManager.isExtensionEnabled() && configManager.getExtensionConfig().debugLogs)
+            if (configManager.isLoaded && configManager.isExtensionEnabled() && configManager.getDebugConfig().global)
                 this.registerTestEvents();
 
             this.initializeModuleCache();

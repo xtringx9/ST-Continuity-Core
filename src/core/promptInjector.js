@@ -74,7 +74,7 @@ export class PromptInjector {
     shouldInject() {
         // 获取当前设置（每次都重新获取，确保使用最新设置）
         const settings = extension_settings[extensionName];
-        const autoInject = settings?.autoInject !== false; // 默认为true
+        const autoInject = configManager.getModuleDomainConfig().autoInject !== false; // 默认为true
         const enabled = settings?.enabled || false;
 
         return enabled && this.injectionDepth >= 0 && autoInject;

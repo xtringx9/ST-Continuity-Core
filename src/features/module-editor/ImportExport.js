@@ -19,8 +19,8 @@ export function handleExport(doc) {
 
     // 获取上次保存的作者和版本信息
     const extConfig = configManager.getExtensionConfig();
-    const defaultAuthor = extConfig.moduleConfigAuthor || '';
-    const defaultVersion = extConfig.moduleConfigVersion || '';
+    const defaultAuthor = extConfig.module?.config?.author || '';
+    const defaultVersion = extConfig.module?.config?.version || '';
 
     // 生成模块选择列表 HTML
     const modulesHtml = currentModules.map(mod => `
@@ -95,8 +95,10 @@ export function handleExport(doc) {
 
                     // 保存作者和版本到扩展配置，方便下次使用
                     const newExtConfig = { ...configManager.getExtensionConfig() };
-                    if (author) newExtConfig.moduleConfigAuthor = author;
-                    if (version) newExtConfig.moduleConfigVersion = version;
+                    newExtConfig.module = newExtConfig.module || {};
+                    newExtConfig.module.config = newExtConfig.module.config || {};
+                    if (author) newExtConfig.module.config.author = author;
+                    if (version) newExtConfig.module.config.version = version;
                     configManager.setExtensionConfig(newExtConfig);
 
                     // 1. 构造导出选项

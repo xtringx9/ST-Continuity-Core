@@ -94,9 +94,11 @@ export function backupModuleConfig(exportOptions) {
         const bom = '\uFEFF';
         const blob = new Blob([bom + dataStr], { type: 'application/json;charset=utf-8' });
         const dataUri = URL.createObjectURL(blob);
+        // 导出文件名：读当前激活配置。此处读的是 configManager.getExtensionConfig() 返回的当前配置，
+        // 与 moduleConfigTemplate 的导入规范化（外部 config）同形处理，保持直读便于对比，避免引入 getter 差异。
         const extension_config = configManager.getExtensionConfig();
-        const author = (extension_config && extension_config.moduleConfigAuthor) ? extension_config.moduleConfigAuthor + '_' : '';
-        const version = (extension_config && extension_config.moduleConfigVersion) ? 'v' + extension_config.moduleConfigVersion + '_' : '';
+        const author = (extension_config && extension_config.module?.config?.author) ? extension_config.module.config.author + '_' : '';
+        const version = (extension_config && extension_config.module?.config?.version) ? 'v' + extension_config.module.config.version + '_' : '';
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -1);
         const configType = generateConfigType(exportOptions, currentConfig.modules);

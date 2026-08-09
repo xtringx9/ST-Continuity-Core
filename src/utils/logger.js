@@ -12,8 +12,10 @@ export function isDebugLogsEnabled() {
         return false;
     }
     const settings = extension_settings?.[extensionName]?.[EXTENSION_CONFIG_KEY];
-    // console.log("settings:", settings, settings.debugLogs);
-    return settings && settings.debugLogs === true;
+    // 注意：此处必须直读 extension_settings，不能走 configManager.getDebugConfig()。
+    // 原因：configManager.js 在初始化早期（load 阶段）就会调用 debugLog/errorLog，
+    // 若 logger 反向依赖 configManager 会形成循环依赖，导致 configManager is not defined。
+    return settings?.debug?.global === true;
 }
 
 /**

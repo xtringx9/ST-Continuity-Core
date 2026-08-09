@@ -44,7 +44,7 @@ export class EntryButton {
             return;
         }
 
-        const buttonType = config.buttonType || 'embedded';
+        const buttonType = configManager.getModuleDomainConfig().buttonType || 'embedded';
 
         if (buttonType === 'floating') {
             this._createFloatingButton();

@@ -33,7 +33,7 @@ export async function sendToBackend() {
     toastr.info(`准备发送: "${lastMessageContent.substring(0, 50)}..."`);
 
     try {
-        const response = await fetch(`${settings.backendUrl}/v1/st-extension/data`, {
+        const response = await fetch(`${configManager.getServerConfig().url}/v1/st-extension/data`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
