@@ -73,9 +73,8 @@ export class PromptInjector {
      */
     shouldInject() {
         // 获取当前设置（每次都重新获取，确保使用最新设置）
-        const settings = extension_settings[extensionName];
         const autoInject = configManager.getModuleDomainConfig().autoInject !== false; // 默认为true
-        const enabled = settings?.enabled || false;
+        const enabled = configManager.getExtensionConfig()?.enabled !== false; // 顶层总开关，默认为true
 
         return enabled && this.injectionDepth >= 0 && autoInject;
     }
