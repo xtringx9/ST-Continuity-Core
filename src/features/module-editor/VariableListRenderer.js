@@ -198,7 +198,7 @@ export function renderVariableList(module, container, doc, checkForChanges, allM
                 </div>
                 <div class="form-group">
                     <label>${translate('ccore_label_var_description')}</label>
-                    <input type="text" class="var-description" value="${variable.description || ''}">
+                    <textarea class="var-description" rows="2">${variable.description || ''}</textarea>
                 </div>
                 <div class="form-group">
                     <label>${translate('ccore_label_compatible_variables')}</label>
