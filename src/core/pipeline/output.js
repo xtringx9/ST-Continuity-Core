@@ -120,10 +120,12 @@ export function groupModulesByIdentifier(modules, needSort = false) {
  * @param {Array} modules 模块数组
  * @returns {Object} 合并后的模块数据
  */
-export function mergeModulesByOrder(modules) {
+export function mergeModulesByOrder(modules, moduleConfig) {
     if (modules.length === 0) {
         return null;
     }
+
+    const isIncremental = moduleConfig && moduleConfig.outputMode === 'incremental';
 
     const lastModule = modules[modules.length - 1];
     const merged = {
@@ -131,6 +133,13 @@ export function mergeModulesByOrder(modules) {
         variables: {},
         timeline: []
     };
+
+    // 增量模块：dedup 把同值楼层合并成一条，messageIndexHistory 记录所有同值楼层，
+    // 但 messageIndex 被 dedup 的 diff>2 门槛推到了最新。这里取 history 的最小值，
+    // 让显示楼层回到「与最新内容相同的最早那条」。
+    if (isIncremental && Array.isArray(lastModule.messageIndexHistory) && lastModule.messageIndexHistory.length > 0) {
+        merged.messageIndex = Math.min(...lastModule.messageIndexHistory);
+    }
 
     let cumulativeVariables = {};
     let hasTimeVar = false;
@@ -179,9 +188,15 @@ export function mergeModulesByOrder(modules) {
         });
 
         if (changedKeys.length > 0) {
+            // 增量模块：timeline 条目的 messageIndex 同样取该模块 history 的最小值，
+            // 与 merged.messageIndex 保持一致（与最新内容相同的最早那条楼层）。
+            let entryMessageIndex = module.messageIndex || 0;
+            if (isIncremental && Array.isArray(module.messageIndexHistory) && module.messageIndexHistory.length > 0) {
+                entryMessageIndex = Math.min(...module.messageIndexHistory);
+            }
             merged.timeline.push({
                 moduleName: module.moduleName,
-                messageIndex: module.messageIndex || 0,
+                messageIndex: entryMessageIndex,
                 messageIndexHistory: module.messageIndexHistory || [module.messageIndex],
                 raw: module.raw || '',
                 processedRaw: module.processedRaw || '',
