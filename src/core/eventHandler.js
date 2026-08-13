@@ -5,7 +5,7 @@ import configManager from "../singleton/configManager.js";
 import moduleCacheManager from "../singleton/moduleCacheManager.js";
 import generatedContentCache from "../singleton/generatedContentCache.js";
 import { eventSource, event_types } from "../../../../../../script.js";
-import { checkUItoContextBottom, checkUItoMsgBottom, checkRenderCurrentMessageContext } from "./contextBottomUI.js"
+import { checkUItoContextBottom, scheduleMsgBottom, checkRenderCurrentMessageContext } from "./contextBottomUI.js"
 import { addAiButtonToMessage, addAiButtonsToAllMessages } from "../ui/messageAiButton.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 /**
@@ -61,18 +61,21 @@ export class EventHandler {
             // this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkUItoContextBottom);
             // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkUItoContextBottom);
 
-            this.registerEvent(event_types.CHAT_CHANGED, checkUItoMsgBottom);
-            this.registerEvent(event_types.MESSAGE_EDITED, checkUItoMsgBottom);
-            this.registerEvent(event_types.MESSAGE_SWIPED, checkUItoMsgBottom);
-            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkUItoMsgBottom);
-            this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkUItoMsgBottom);
-            this.registerEvent(event_types.MORE_MESSAGES_LOADED, checkUItoMsgBottom);
+            // 消息底部 UI：Q1+Q2 调度器（合并 burst + 精准/后缀刷新）
+            // 带 mesid 的事件只刷单条；编辑走后缀刷新（X..末条，覆盖 messageIndexHistory 向后延续）；
+            // 切聊天/分页走全量；CHAT_COMPLETION_PROMPT_READY 暂不注册（生成前触发、无 mesid，易致无效全量提取）
+            this.registerEvent(event_types.CHAT_CHANGED, () => scheduleMsgBottom('full'));
+            this.registerEvent(event_types.MESSAGE_UPDATED, (mesid) => scheduleMsgBottom('suffix', mesid));// 从EDITED改成UPDATED
+            this.registerEvent(event_types.MESSAGE_SWIPED, (mesid) => scheduleMsgBottom('single', mesid));
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, (mesid) => scheduleMsgBottom('single', mesid));
+            // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, (mesid) => scheduleMsgBottom('full')); // 暂不注册
+            this.registerEvent(event_types.MORE_MESSAGES_LOADED, () => scheduleMsgBottom('full'));
 
             this.registerEvent(event_types.CHAT_CHANGED, checkRenderCurrentMessageContext);
-            this.registerEvent(event_types.MESSAGE_EDITED, checkRenderCurrentMessageContext);
+            // this.registerEvent(event_types.MESSAGE_EDITED, checkRenderCurrentMessageContext);
             this.registerEvent(event_types.MESSAGE_SWIPED, checkRenderCurrentMessageContext);
             this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkRenderCurrentMessageContext);
-            this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkRenderCurrentMessageContext);
+            // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkRenderCurrentMessageContext);
             this.registerEvent(event_types.MORE_MESSAGES_LOADED, checkRenderCurrentMessageContext);
             this.registerEvent(event_types.MESSAGE_UPDATED, checkRenderCurrentMessageContext);
             // infoLog('[EVENTS]UI相关事件处理器注册成功');

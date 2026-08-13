@@ -37,12 +37,92 @@ const contextBottomCssUrl = new URL('../../assets/css/context-bottom-ui.css', im
 // 汇总弹窗单例
 let summaryModal = null;
 
-let isUpdatingMsgUI = false;
+// ---- Q1+Q2 调度器：合并 burst 事件 + 精准/后缀刷新 ----
+// 数据层（moduleProcessor）始终全量提取，优化只发生在样式注入：只把 iframe 重注入脏消息集合。
+const REFRESH_DEBOUNCE_MS = 80;
+let scheduled = false;            // 单飞 + 防抖标记
+let fullRefreshRequested = false;
+let refreshFromIndex = null;      // number | null：suffix 起点（含）
+const dirtyMesIds = new Set();    // 单条精准刷新集合
+
+function recordRefreshRequest(kind, mesid) {
+    if (kind === 'full') {
+        fullRefreshRequested = true;
+    } else if (kind === 'suffix') {
+        const x = Number(mesid);
+        if (!Number.isNaN(x)) {
+            refreshFromIndex = (refreshFromIndex === null) ? x : Math.min(refreshFromIndex, x);
+        } else {
+            fullRefreshRequested = true; // 无 mesid 兜底全量
+        }
+    } else { // single
+        if (mesid != null && mesid !== 'undefined') {
+            dirtyMesIds.add(String(mesid));
+        } else {
+            fullRefreshRequested = true;
+        }
+    }
+}
+
+function collectTargetMesIds() {
+    const wantFull = fullRefreshRequested;
+    const fromIdx = refreshFromIndex;
+    const singles = [...dirtyMesIds];
+    // 取出即清空，使 flush 期间的迟达事件能累计进下一轮
+    fullRefreshRequested = false;
+    refreshFromIndex = null;
+    dirtyMesIds.clear();
+
+    if (wantFull) return null; // null = 全量
+
+    const ids = new Set(singles);
+    if (fromIdx !== null) {
+        document.querySelectorAll('#chat .mes').forEach(el => {
+            const id = Number(el.getAttribute('mesid'));
+            if (!Number.isNaN(id) && id >= fromIdx) ids.add(String(id));
+        });
+    }
+    return ids.size > 0 ? [...ids] : null; // 空集合兜底全量
+}
+
+async function flushMsgBottom() {
+    const targetMesIds = collectTargetMesIds();
+    await updateUItoMsgBottom(targetMesIds);
+    // trailing：flush 期间又有事件累计则再排一轮，否则释放单飞标记
+    if (fullRefreshRequested || refreshFromIndex !== null || dirtyMesIds.size > 0) {
+        setTimeout(flushMsgBottom, REFRESH_DEBOUNCE_MS);
+    } else {
+        scheduled = false;
+    }
+}
 
 /**
- * 将UI插入到mes_text下方，确保折叠功能正常工作
+ * 事件入口：合并 burst 事件，并按事件类型决定刷新范围。
+ * @param {'full'|'suffix'|'single'} kind
+ * @param {string|number} [mesid] 带 mesid 的事件（RENDERED/SWIPED/EDITED）传入
  */
-export async function updateUItoMsgBottom() {
+export function scheduleMsgBottom(kind, mesid) {
+    if (!configManager.isLoaded) return;
+    if (!configManager.isExtensionEnabled()) {
+        removeUIfromContextBottom();
+        return;
+    }
+    if (!isInChatPage()) {
+        debugLog('[PAGE_CHECK] 当前不在聊天页面，不插入UI');
+        return;
+    }
+    recordRefreshRequest(kind, mesid);
+    if (scheduled) return;
+    scheduled = true;
+    setTimeout(flushMsgBottom, REFRESH_DEBOUNCE_MS);
+}
+
+/**
+ * 将UI插入到mes_text下方。
+ * @param {string[]|null} targetMesIds 需要重注入样式的 mesid 集合；null = 全部消息。
+ * 数据层始终全量提取（moduleProcessor 不支持部分刷新），优化点在样式注入范围。
+ */
+export async function updateUItoMsgBottom(targetMesIds = null) {
     try {
         // 检查jQuery是否可用
         if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
@@ -67,7 +147,15 @@ export async function updateUItoMsgBottom() {
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, false, false);
         debugLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
-        const containers = getCurrentMessageContainer();
+        // 仅选取需要重注入样式的消息容器（Q1：精准/后缀刷新，避免对全部消息重建 iframe）
+        let containers;
+        if (targetMesIds === null) {
+            containers = getCurrentMessageContainer();
+        } else {
+            containers = targetMesIds
+                .map(id => document.querySelector(`#chat .mes[mesid="${CSS.escape(String(id))}"]`))
+                .filter(Boolean);
+        }
 
         for (let i = containers.length - 1; i >= 0; i--) {
             const message = $(containers[i]);
@@ -475,32 +563,12 @@ export function checkUItoContextBottom() {
 }
 
 
+/**
+ * 兼容旧调用 / 手动全量刷新入口（设置保存、强制刷新等场景）。
+ * 事件驱动的刷新统一走 scheduleMsgBottom。
+ */
 export function checkUItoMsgBottom() {
-    if (!configManager.isLoaded) return false;
-    debugLog('[UI EVENTS]UpdateUI: 开始更新消息底部UI');
-    if (configManager.isExtensionEnabled()) {
-        if (!isInChatPage()) {
-            debugLog('[PAGE_CHECK] 当前不在聊天页面，不插入UI');
-            return false;
-        }
-
-        if (!isUpdatingMsgUI) {
-            isUpdatingMsgUI = true;
-            (async () => {
-                try {
-                    await updateUItoMsgBottom();
-                } finally {
-                    isUpdatingMsgUI = false;
-                }
-            })();
-        }
-        else {
-            debugLog('消息底部UI插入操作正在进行中，跳过重复调用');
-        }
-    } else {
-        debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
-        removeUIfromContextBottom();
-    }
+    scheduleMsgBottom('full');
 }
 
 export function checkRenderCurrentMessageContext() {
