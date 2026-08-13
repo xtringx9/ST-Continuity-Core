@@ -488,7 +488,12 @@ export function processIncrementalModules(modules, moduleConfig) {
             }
         }
 
-        return moduleA.messageIndex - moduleB.messageIndex;
+        // 排序键：取该 identifier 组内【最早出现楼层】（min over 组内所有模块的 messageIndexHistory）。
+        // 不用 moduleA.messageIndex：dedup 的 diff>2 门槛会把同值 run 的 messageIndex 推到最新楼层，
+        // 导致单值 id（如某 id 全程同值，mi 被推到最新）排序错位到末尾。取最早楼层与显示语义一致。
+        const earliestA = Math.min(...modulesA.flatMap(m => m.messageIndexHistory || [m.messageIndex]));
+        const earliestB = Math.min(...modulesB.flatMap(m => m.messageIndexHistory || [m.messageIndex]));
+        return earliestA - earliestB;
     });
 
     debugLog('处理增量更新模块', moduleGroupsArray);
