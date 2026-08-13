@@ -390,55 +390,22 @@ function parseSingleTime(timeStr, isEnd = false) {
         if (match) {
             try {
                 const result = handler(match);
-
-                // 检查是否为不完全时间
-                const hasDate = result.year > 0 && result.month > 0 && result.day > 0;
-                const hasTime = result.hour > 0 || result.minute > 0 || result.second > 0;
-                const isComplete = hasDate && hasTime;
-
-                // 验证日期有效性（如果有日期）
-                if (hasDate) {
-                    const date = new Date(result.year, result.month - 1, result.day, result.hour, result.minute, result.second);
-                    if (isNaN(date.getTime())) {
-                        continue;
-                    }
-                }
-
-                // 如果没有星期信息且有日期，计算星期
-                let weekday = result.weekday;
-                if (!weekday && hasDate) {
-                    const date = new Date(result.year, result.month - 1, result.day);
-                    weekday = getWeekdayChinese(date);
-                }
-
-                // 计算时间戳（如果有完整日期时间） 不需要判断hasTimes
-                const timestamp = hasDate ?
-                    new Date(result.year, result.month - 1, ((!hasTime && isEnd) ? result.day + 1 : result.day), result.hour, result.minute, result.second).getTime() - ((!hasTime && isEnd) ? 1 : 0) : 0;
-
-                return {
-                    isValid: true,
-                    error: '',
-                    isRange: false,
-                    isComplete: isComplete,
-                    originalText: timeStr,
-                    startTime: {
-                        year: result.year,
-                        month: result.month,
-                        day: result.day,
-                        weekday: weekday,
-                        hour: result.hour,
-                        minute: result.minute,
-                        second: result.second,
-                        timestamp: timestamp,
-                        hasDate: hasDate,
-                        hasTime: hasTime
-                    },
-                    endTime: null
-                };
+                const built = buildSingleTimeResult(result, timeStr, isEnd);
+                if (built) return built;
+                continue;
             } catch (error) {
                 continue;
             }
         }
+    }
+
+    // 容错兜底：严格模式均未命中时，从字符串中尽力抠出年月日
+    // （含可识别的星期/时刻），忽略未识别的尾词或前缀，避免“2025-01-17 周五 晚间”
+    // 这类“日期+其它词”整体解析失败。
+    const lenientResult = extractLenientTime(timeStr);
+    if (lenientResult) {
+        const built = buildSingleTimeResult(lenientResult, timeStr, isEnd);
+        if (built) return built;
     }
 
     // 如果无法解析，返回错误结果
@@ -452,6 +419,98 @@ function parseSingleTime(timeStr, isEnd = false) {
         endTime: null,
         formattedString: null
     };
+}
+
+/**
+ * 由解析出的原始分量构造统一的单点时间结果
+ * 日期非法时返回 null（供调用方决定是否进入兜底）
+ * @param {Object} result 含 year/month/day/weekday/hour/minute/second
+ * @param {string} timeStr 原始时间字符串（回写 originalText）
+ * @param {boolean} isEnd 是否为时间段结束端
+ * @returns {Object|null}
+ */
+function buildSingleTimeResult(result, timeStr, isEnd) {
+    // 检查是否为不完全时间
+    const hasDate = result.year > 0 && result.month > 0 && result.day > 0;
+    const hasTime = result.hour > 0 || result.minute > 0 || result.second > 0;
+    const isComplete = hasDate && hasTime;
+
+    // 验证日期有效性（如果有日期）
+    if (hasDate) {
+        const date = new Date(result.year, result.month - 1, result.day, result.hour, result.minute, result.second);
+        if (isNaN(date.getTime())) {
+            return null;
+        }
+    }
+
+    // 如果没有星期信息且有日期，计算星期
+    let weekday = result.weekday;
+    if (!weekday && hasDate) {
+        const date = new Date(result.year, result.month - 1, result.day);
+        weekday = getWeekdayChinese(date);
+    }
+
+    // 计算时间戳（如果有完整日期时间） 不需要判断hasTimes
+    const timestamp = hasDate ?
+        new Date(result.year, result.month - 1, ((!hasTime && isEnd) ? result.day + 1 : result.day), result.hour, result.minute, result.second).getTime() - ((!hasTime && isEnd) ? 1 : 0) : 0;
+
+    return {
+        isValid: true,
+        error: '',
+        isRange: false,
+        isComplete: isComplete,
+        originalText: timeStr,
+        startTime: {
+            year: result.year,
+            month: result.month,
+            day: result.day,
+            weekday: weekday,
+            hour: result.hour,
+            minute: result.minute,
+            second: result.second,
+            timestamp: timestamp,
+            hasDate: hasDate,
+            hasTime: hasTime
+        },
+        endTime: null
+    };
+}
+
+/**
+ * 容错提取：从可能带有未识别尾词/前缀的字符串中尽力取出
+ * 年月日（及任意位置出现的星期与时刻）。无法取到有效日期时返回 null。
+ * @param {string} timeStr 时间字符串
+ * @returns {Object|null}
+ */
+function extractLenientTime(timeStr) {
+    // 日期：4位年（分隔符 - 年 .）或 2位年（年）
+    const dateMatch = timeStr.match(/(\d{4})[-年.](\d{1,2})[-月.](\d{1,2})日?/)
+        || timeStr.match(/(\d{2})年(\d{1,2})月(\d{1,2})日/);
+    if (!dateMatch) {
+        return null;
+    }
+
+    const year = parseInt(dateMatch[1], 10);
+    const month = parseInt(dateMatch[2], 10);
+    const day = parseInt(dateMatch[3], 10);
+
+    // 星期（出现在字符串任意位置即可）
+    let weekday = '';
+    const wd = timeStr.match(/(周[一二三四五六日]|星期[一二三四五六日]|Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
+    if (wd) {
+        weekday = normalizeWeekday(wd[1]);
+    }
+
+    // 时刻（取第一处出现的 HH:MM(:SS)）
+    let hour = 0, minute = 0, second = 0;
+    const tm = timeStr.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+    if (tm) {
+        hour = parseInt(tm[1], 10);
+        minute = parseInt(tm[2], 10);
+        second = tm[3] ? parseInt(tm[3], 10) : 0;
+    }
+
+    return { year, month, day, weekday, hour, minute, second };
 }
 
 /**
