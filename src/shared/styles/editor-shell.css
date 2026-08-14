@@ -21,15 +21,16 @@ body {
     overflow: hidden;
 }
 
-/* === 顶栏 === */
+/* === 顶栏（以 module-editor 为准） === */
 .app-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 16px;
+    height: 50px;
+    padding: 0 16px;
     border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
-    flex: 0 0 auto;
-    background: var(--bg-app, #fff);
+    flex-shrink: 0;
+    background: var(--bg-panel, #f9fafb);
 }
 
 .app-header .header-title {
@@ -51,7 +52,7 @@ body {
 
 /* === 左侧主导航（tab 模式，module-editor / nai-preset-switcher 共用） === */
 .main-nav {
-    width: 56px;
+    width: 50px;
     background-color: var(--bg-nav, #f9fafb);
     border-right: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
     display: flex;
@@ -65,7 +66,7 @@ body {
 
 .nav-item {
     width: 100%;
-    min-height: 40px;
+    height: 40px;
     margin-bottom: 10px;
     border-radius: 8px;
     display: flex;
