@@ -371,8 +371,8 @@ async function syncLegacyImagesToChatu8() {
 }
 
 // 把旧版 entry 映射为 Continuity 预设结构
-// 关键对照：旧插件与智绘姬的关联锚点就是 entry.name（applyPresetEntry 里 Y(name,...)
-// 直接写进 st.yushe[name]），故 name 即我们的关联 key；旧 category 数组 = 我们的 tags。
+// 关联锚点就是 entry.name（与智绘姬 yushe[name] 对应，直接写进 st.yushe[name]），
+// 故 name 即我们的关联 key；旧 category 数组 = 我们的 tags。
 // 丢弃项（我们不存储）：positive/negative（实时读智绘姬 yushe[name]）、
 // thumb（改用智绘姬原生 previewImageId）、naiParams/vibe*/source。
 function mapLegacyEntryToPreset(entry) {
@@ -455,6 +455,38 @@ function showToolsResult(el, message, isError) {
 function renderAll() {
     renderTagBar();
     renderList();
+}
+
+/**
+ * 应用预设后局部刷新当前预设视图，避免全量重建（预设多时重建成本高、图片会重新加载）。
+ * 仅做两件事：
+ *  1) 在列表中找到旧当前卡、新当前卡，切换它们的 .np-card-active 高亮与「应用」按钮禁用态；
+ *  2) 把列表最前的「当前预设」特殊副本卡替换为新当前预设的视图。
+ * 若旧当前卡被标签/搜索过滤而不可见，则只处理可见部分（高亮本就不在视图里，无影响）。
+ */
+function refreshCurrentPresetUi(newName) {
+    const list = doc.getElementById('np-list');
+    if (!list) return;
+
+    // 1) 切换新旧当前卡的高亮 + 应用按钮禁用态
+    list.querySelectorAll('.np-card[data-name]').forEach(card => {
+        const isNow = card.dataset.name === newName;
+        const applyBtn = card.querySelector('.np-card-actions .btn-primary');
+        if (isNow) {
+            card.classList.add('np-card-active');
+            if (applyBtn) applyBtn.disabled = true;
+        } else if (card.classList.contains('np-card-active')) {
+            card.classList.remove('np-card-active');
+            if (applyBtn) applyBtn.disabled = false;
+        }
+    });
+
+    // 2) 替换最前的特殊副本卡（第一个子节点固定为当前预设视图）
+    const oldSpecial = list.querySelector(':scope > .np-card-current-special');
+    if (oldSpecial && newName) {
+        const fresh = buildCurrentSpecialCard(newName);
+        list.replaceChild(fresh, oldSpecial);
+    }
 }
 
 function collectTags() {
@@ -542,6 +574,7 @@ function getChatu8CurrentPresetName() {
 function buildCard(p) {
     const card = doc.createElement('div');
     card.className = 'np-card';
+    if (p.name) card.dataset.name = p.name;
 
     // 高亮智绘姬当前选中的预设
     if (p.name && p.name === getChatu8CurrentPresetName()) {
@@ -911,22 +944,38 @@ function onTagCreate() {
     renderAll();
 }
 
-/* ============ 应用（第一步：复制到剪贴板，预留回写接口） ============ */
+/* ============ 应用（真正落地：切换智绘姬当前预设） ============ */
 
 async function applyPreset(p) {
-    // 提示词不在此存储：实时读智绘姬 yushe[name]
-    const chatu8Preset = extension_settings[CHATU8_SETTINGS_KEY]?.yushe?.[p.name];
-    const positive = chatu8Preset?.fixedPrompt || '';
-    const negative = chatu8Preset?.negativePrompt || '';
-    const text = [positive, negative ? `Negative prompt: ${negative}` : '']
-        .filter(Boolean).join('\n\n');
-    if (!text) {
-        infoLog(`[智绘姬NAI预设切换] 预设「${p.name}」在智绘姬中无提示词内容，未复制。`);
+    if (!p || !p.name) return;
+    const name = p.name;
+
+    // 我们不存储提示词/图片，这些一直都在智绘姬 yushe[name] 里。
+    // 应用 = 仅把「当前预设」指针切到该 name，不改动 yushe[name] 本身。
+    const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+    if (!chatu8 || typeof chatu8 !== 'object' || !chatu8.yushe || !chatu8.yushe[name]) {
+        infoLog(`[智绘姬NAI预设切换] 智绘姬中不存在预设「${name}」，无法应用。`);
         return;
     }
-    copyToClipboard(text);
-    infoLog(`[智绘姬NAI预设切换] 已复制预设「${p.name}」提示词到剪贴板`);
-    // TODO(C 阶段): 回写到文生图参数控件（prompt/negative/sampler 等）
+
+    const mode = chatu8.mode || 'comfyui';
+    chatu8['yusheid_' + mode] = name;
+
+    // 触发智绘姬预设下拉的 change：这是它内部切换当前预设的唯一入口
+    // （智绘姬自己的可视化选择器也是 select.value=name + trigger('change')）。
+    // 只触发下拉、不填三个文本框——文本框面板本就不可见，生图只读数据层。
+    const selectId = 'yusheid' + (mode === 'sd' ? '' : '_' + mode);
+    const presetSelect = document.getElementById(selectId);
+    if (presetSelect) {
+        presetSelect.value = name;
+        presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    // 4) 持久化（避免刷新后丢失当前预设）
+    try { saveSettings(); } catch (e) { errorLog('[智绘姬NAI预设切换] saveSettings 失败', e); }
+
+    infoLog(`[智绘姬NAI预设切换] 已应用预设「${name}」到智绘姬`);
+    refreshCurrentPresetUi(name); // 局部刷新：仅切换新旧当前卡高亮 + 替换最前特殊卡
 }
 
 function copyToClipboard(text) {
