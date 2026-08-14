@@ -475,6 +475,15 @@ class ConfigManager {
     }
 
     /**
+     * 判断「智绘姬文生图工作台启动器」是否开启
+     * （读 nai_preset_config.chatu8Launcher.enabled；仅门控发送栏按钮注入）
+     * @returns {boolean}
+     */
+    isChatu8LauncherEnabled() {
+        return this.getNaiPresetSwitcherConfig()?.chatu8Launcher?.enabled === true;
+    }
+
+    /**
      * 获取预设数组（读路径，走独立顶层键 nai_preset_config）
      * @returns {Array} presets
      */

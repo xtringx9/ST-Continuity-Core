@@ -63,6 +63,11 @@ export const NAI_PRESET_TEMPLATE = {
  */
 export const DEFAULT_NAI_PRESET_CONFIG = {
     enabled: false, // 功能开关（与数据同处 nai_preset_config 顶层键）
+    // 文生图工作台启动器：在发送栏（大Cc/魔棒右侧）独立按钮，点击打开智绘姬设置面板，
+    // 并轮询 #st-chatu8-fab.dataset.isLoading 实时反馈生图请求状态。
+    chatu8Launcher: {
+        enabled: false,
+    },
     metadata: {
         version: NAI_PRESET_CONSTANTS.version,
         lastUpdated: new Date().toISOString(),
@@ -70,6 +75,18 @@ export const DEFAULT_NAI_PRESET_CONFIG = {
     },
     presets: []
 };
+
+/**
+ * 归一化 chatu8Launcher 子配置，缺失字段补默认值。
+ * @param {Object} config
+ * @returns {{enabled: boolean}}
+ */
+export function normalizeChatu8Launcher(config) {
+    const src = config && typeof config === 'object' ? config : {};
+    return {
+        enabled: typeof src.enabled === 'boolean' ? src.enabled : DEFAULT_NAI_PRESET_CONFIG.chatu8Launcher.enabled,
+    };
+}
 
 /**
  * 验证 NAI 预设配置
@@ -120,6 +137,7 @@ export function normalizeNaiPresetConfig(config) {
     const now = Date.now();
     const normalized = {
         enabled: typeof config.enabled === 'boolean' ? config.enabled : DEFAULT_NAI_PRESET_CONFIG.enabled,
+        chatu8Launcher: normalizeChatu8Launcher(config.chatu8Launcher),
         metadata: {
             version: DEFAULT_NAI_PRESET_CONFIG.metadata.version,
             lastUpdated: config.metadata?.lastUpdated || new Date().toISOString(),

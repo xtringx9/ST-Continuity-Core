@@ -41,6 +41,9 @@ import {
     initPromptEntryActions,
 } from "./src/features/prompt-entry-actions/promptEntryActions.js";
 
+// 智绘姬文生图工作台启动器（独立模块，与 EntryButton 解耦）
+import { initChatu8Launcher } from "./src/features/chatu8-launcher/chatu8Launcher.js";
+
 // 发送键劫持设置面板：QR 下拉填充
 import { populateSendHijackOptions } from "./src/ui/extensionSettingsManager.js";
 
@@ -90,6 +93,11 @@ jQuery(async function () {
 
     // 提示词预设条目·扩展操作：复制 / 插入空白 / 移除（接管原生 Remove）
     initPromptEntryActions();
+
+    // 智绘姬文生图工作台启动器：独立模块（与 EntryButton 解耦），不受全局 enabled 控制，
+    // 仅看自身开关；此处聊天页已就绪、#leftSendForm 存在，保证刷新后自动注入
+    // （幂等，自带等待重试应对智绘姬面板时序）。置于 enabled 判定之前以维持独立生命周期。
+    initChatu8Launcher();
 
     // ── 模块核心功能（受全局 enabled 控制）──
     // 检查全局开关状态

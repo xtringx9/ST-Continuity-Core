@@ -369,6 +369,8 @@
     "ccore_nai_print_config": "Print Config",
     "ccore_settings_nai_preset_switcher": "ZhiHuiJi NAI Preset Switcher",
     "ccore_settings_nai_preset_switcher_hint": "ZhiHuiJi NAI prompt preset (positive/negative) switching and tag management. Entry is at the far right of the Cc menu.",
+    "ccore_settings_chatu8_launcher": "ZhiHuiJi Image Workbench Launcher",
+    "ccore_settings_chatu8_launcher_hint": "A persistent button at the send bar (right of the big Cc / wand) that opens the ZhiHuiJi settings panel; it shows a live loading spinner while a ZhiHuiJi image request is running.",
     "ccore_settings_include_hidden_messages": "Include Modules from Hidden Messages",
     "ccore_settings_include_hidden_messages_hint": "When enabled, modules inside hidden messages (is_system) are also extracted; when disabled, hidden messages are skipped.",
     "ccore_settings_send_hijack": "Send Key Triggers Quick Reply",

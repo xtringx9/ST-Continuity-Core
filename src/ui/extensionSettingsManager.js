@@ -19,6 +19,7 @@ import { initSendHijack, removeSendHijack } from "../features/send-hijack/SendHi
 import { initWorldBookBinding, removeWorldBookBinding } from "../features/world-book-binding/worldBookBinding.js";
 import { initPromptBinding, removePromptBinding } from "../features/prompt-binding/promptBinding.js";
 import { initPromptEntryActions, removePromptEntryActions } from "../features/prompt-entry-actions/promptEntryActions.js";
+import { initChatu8Launcher, removeChatu8Launcher } from "../features/chatu8-launcher/chatu8Launcher.js";
 import { escapeHtmlEntities as escapeHtml } from "../utils/textConverter.js";
 import perMessageStorage from "../services/perMessageStorage.js";
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
@@ -58,6 +59,7 @@ export function loadSettingsToUI() {
     $("#continuity_prompt_binding").prop("checked", extensionConfig.stFeatureEnhance?.promptBinding?.enabled !== false);
     $("#continuity_prompt_entry_actions").prop("checked", extensionConfig.stFeatureEnhance?.promptEntryActions?.enabled !== false);
     $("#continuity_nai_preset_switcher").prop("checked", configManager.isNaiPresetSwitcherEnabled());
+    $("#continuity_chatu8_launcher").prop("checked", configManager.isChatu8LauncherEnabled());
     $("#continuity_include_hidden_messages").prop("checked", extensionConfig.module?.includeHiddenMessages?.enabled !== false);
 
     // 异步模块存储设置
@@ -384,6 +386,23 @@ export function onNaiPresetSwitcherToggle(event) {
         infoLog('[智绘姬NAI预设切换] 功能已开启');
     } else {
         infoLog('[智绘姬NAI预设切换] 功能已关闭');
+    }
+}
+
+export function onChatu8LauncherToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const naiConfig = configManager.getNaiPresetSwitcherConfig();
+    configManager.setNaiPresetSwitcherConfig({
+        ...naiConfig,
+        chatu8Launcher: { ...(naiConfig.chatu8Launcher || {}), enabled },
+    });
+
+    if (enabled) {
+        initChatu8Launcher();
+        infoLog('[智绘姬文生图启动器] 功能已开启');
+    } else {
+        removeChatu8Launcher();
+        infoLog('[智绘姬文生图启动器] 功能已关闭');
     }
 }
 

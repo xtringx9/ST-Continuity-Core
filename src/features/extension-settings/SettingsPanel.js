@@ -15,6 +15,7 @@ import {
     onPromptBindingToggle,
     onPromptEntryActionsToggle,
     onNaiPresetSwitcherToggle,
+    onChatu8LauncherToggle,
     onIncludeHiddenMessagesToggle,
     onSendHijackToggle,
     onSendHijackSetChange,
@@ -89,6 +90,7 @@ export class SettingsPanel {
         $('#continuity_prompt_binding').on('input', onPromptBindingToggle);
         $('#continuity_prompt_entry_actions').on('input', onPromptEntryActionsToggle);
         $('#continuity_nai_preset_switcher').on('input', onNaiPresetSwitcherToggle);
+        $('#continuity_chatu8_launcher').on('input', onChatu8LauncherToggle);
         $('#continuity_include_hidden_messages').on('input', onIncludeHiddenMessagesToggle);
         $('#continuity_send_hijack').on('input', onSendHijackToggle);
         $('#continuity_send_hijack_set').on('change', onSendHijackSetChange);
