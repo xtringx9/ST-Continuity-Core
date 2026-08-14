@@ -5,7 +5,7 @@
 // 提示词与预览图不在此存储，实时读智绘姬（yushe[name] / previewImageId）。
 
 import configManager from '../../singleton/configManager.js';
-import { infoLog, errorLog } from '../../utils/logger.js';
+import { infoLog, errorLog, debugLog } from '../../utils/logger.js';
 import { translate } from '../../../../../../i18n.js';
 import { normalizeNaiPresetConfig } from '../../config/naiPresetConfigTemplate.js';
 // ST 的 extension_settings / saveSettings / getRequestHeaders 都是 ES module 顶层导出，
@@ -365,7 +365,7 @@ async function syncLegacyImagesToChatu8() {
     if (failed > 0) msg += `，失败 ${failed}（${failedNames.join('、')}）`;
     msg += '。';
     showToolsResult(resultEl, msg, failed > 0 && ok === 0);
-    infoLog(`[智绘姬NAI预设切换] ${msg}`);
+    debugLog(`[智绘姬NAI预设切换] ${msg}`);
     // 同步完成后刷新卡片，让新预览图立刻显示
     renderAll();
 }
@@ -420,7 +420,7 @@ function importLegacyPresets() {
 
     const msg = `成功导入 ${toAdd.length} 条预设` + (skipped > 0 ? `（跳过 ${skipped} 条重名）` : '') + '。';
     showToolsResult(resultEl, msg, false);
-    infoLog(`[智绘姬NAI预设切换] ${msg}`);
+    debugLog(`[智绘姬NAI预设切换] ${msg}`);
 }
 
 function printConfig() {
@@ -441,7 +441,7 @@ function printConfig() {
     const text = JSON.stringify(snapshot, null, 2);
     copyToClipboard(text);
     showToolsResult(resultEl, `已复制当前 ${presets.length} 条预设配置到剪贴板。`, false);
-    infoLog(`[智绘姬NAI预设切换] 打印配置：${presets.length} 条`);
+    debugLog(`[智绘姬NAI预设切换] 打印配置：${presets.length} 条`);
 }
 
 function showToolsResult(el, message, isError) {
@@ -627,7 +627,9 @@ function buildCard(p) {
     applyBtn.className = 'btn-primary np-card-btn';
     applyBtn.textContent = '应用';
     applyBtn.disabled = isCurrent;
-    if (!isCurrent) applyBtn.addEventListener('click', () => applyPreset(p));
+    // 始终绑定 click：当前预设靠 disabled 阻止点击，这样局部刷新切换 disabled 后
+    // 旧当前卡即可立即响应，无需重新绑监听。
+    applyBtn.addEventListener('click', () => applyPreset(p));
     actions.appendChild(applyBtn);
 
     const editBtn = doc.createElement('button');
@@ -954,7 +956,7 @@ async function applyPreset(p) {
     // 应用 = 仅把「当前预设」指针切到该 name，不改动 yushe[name] 本身。
     const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
     if (!chatu8 || typeof chatu8 !== 'object' || !chatu8.yushe || !chatu8.yushe[name]) {
-        infoLog(`[智绘姬NAI预设切换] 智绘姬中不存在预设「${name}」，无法应用。`);
+        errorLog(`[智绘姬NAI预设切换] 智绘姬中不存在预设「${name}」，无法应用。`);
         return;
     }
 
@@ -974,7 +976,7 @@ async function applyPreset(p) {
     // 4) 持久化（避免刷新后丢失当前预设）
     try { saveSettings(); } catch (e) { errorLog('[智绘姬NAI预设切换] saveSettings 失败', e); }
 
-    infoLog(`[智绘姬NAI预设切换] 已应用预设「${name}」到智绘姬`);
+    debugLog(`[智绘姬NAI预设切换] 已应用预设「${name}」到智绘姬`);
     refreshCurrentPresetUi(name); // 局部刷新：仅切换新旧当前卡高亮 + 替换最前特殊卡
 }
 
