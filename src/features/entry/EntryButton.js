@@ -1,7 +1,7 @@
 import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
-import { initModuleEditor } from '../module-editor/ModuleEditor.js';
-import { initGeneratorEditor } from '../generator-editor/GeneratorEditor.js';
+import { initModuleEditor, syncModuleTheme } from '../module-editor/ModuleEditor.js';
+import { initGeneratorEditor, syncGeneratorTheme } from '../generator-editor/GeneratorEditor.js';
 import { initNaiPresetSwitcher, syncNaiTheme } from '../nai-preset-switcher/NaiPresetSwitcher.js';
 import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
@@ -491,6 +491,7 @@ export class EntryButton {
                     variant: 'drawer-left',
                     keepAlive: true,
                     onLoad: (iframe) => {
+                        this.generatorIframe = iframe;
                         const doc = iframe.contentDocument;
                         if (doc) {
                             initGeneratorEditor(doc);
@@ -501,6 +502,8 @@ export class EntryButton {
                         }
                     }
                 });
+                // keepAlive 重开不重新 onLoad，补取一次主题让抽屉与当前设置一致
+                syncGeneratorTheme(this.generatorIframe?.contentDocument);
                 break;
             }
             case 'summary':
@@ -537,6 +540,7 @@ export class EntryButton {
             variant: 'drawer-left', // 显式指定样式，以后可以改成 'center' 或 'drawer-right'
             keepAlive: true,
             onLoad: (iframe) => {
+                this.editorIframe = iframe;
                 const doc = iframe.contentDocument;
                 if (doc) {
                     // 初始化编辑器逻辑 (传入 iframe 的 document)
@@ -550,5 +554,7 @@ export class EntryButton {
                 }
             }
         });
+        // keepAlive 重开不重新 onLoad，补取一次主题让抽屉与当前设置一致
+        syncModuleTheme(this.editorIframe?.contentDocument);
     }
 }

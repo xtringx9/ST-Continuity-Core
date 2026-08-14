@@ -470,3 +470,14 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+/**
+ * 每次打开抽屉时重新读取主题（keepAlive 模式下 onLoad 只跑一次，
+ * 重开抽屉不会重新初始化，因此需在显示时补取一次 localStorage 主题）。
+ * @param {Document} iframeDocument Iframe 的文档对象
+ */
+export function syncGeneratorTheme(iframeDocument) {
+    if (!iframeDocument) return;
+    const savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
+    iframeDocument.documentElement.setAttribute('data-theme', savedTheme);
+}
