@@ -31,61 +31,10 @@
     height: 100%;
 }
 
-/* 左侧：模块列表 */
-aside.module-list-panel {
-    background-color: var(--bg-panel);
-    border-right: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.list-toolbar {
-    padding: 10px;
-    border-bottom: 1px solid var(--border-light);
-    display: flex;
-    gap: 8px;
-}
-
-.list-content {
-    flex: 1;
-    overflow-y: auto;
-    /* 列表内部滚动 */
-    padding: 10px;
-}
-
-/* 列表项样式 (新增) */
-.module-list-item {
-    padding: 6px 10px;
-    margin-bottom: 0;
-    /* 去除间距 */
-    background-color: transparent;
-    /* 去除背景色 */
-    border: none;
-    /* 去除边框 */
-    border-bottom: 1px solid var(--border-light);
-    /* 仅保留底部分割线 */
-    border-radius: 0;
-    /* 去除圆角 */
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.module-list-item:hover {
-    background-color: var(--bg-hover);
-}
-
-.module-list-item.active {
-    background-color: var(--bg-hover);
-    border-left: 3px solid var(--accent-color);
-    padding-left: 9px;
-    /* 补偿左边框宽度 */
-}
-
 /* ===== 角色绑定页：左栏角色树 + 右栏编辑器 ===== */
+/* 注：左侧列表栏（module-list-panel / list-toolbar / list-content /
+ * module-list-item / module-item-* / toggle-switch 等）已抽到 editor-shell.css，
+ * 此处不再重复定义。 */
 #view-profiles {
     grid-template-columns: 200px 1fr;
 }
@@ -465,43 +414,7 @@ aside.module-list-panel {
     }
 }
 
-/* 模块列表项右侧操作区 */
-.module-item-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-}
-
-/* 复制格式按钮 */
-.module-copy-format-btn {
-    font-size: 11px;
-    color: var(--text-muted);
-    cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-}
-
-.module-copy-format-btn:hover {
-    opacity: 1;
-    color: var(--accent-color);
-}
-
-/* 复制整个模块按钮（侧边栏，与复制格式按钮并列） */
-.module-copy-module-btn {
-    font-size: 13px;
-    color: var(--text-muted);
-    cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-}
-
-.module-copy-module-btn:hover {
-    opacity: 1;
-    color: var(--accent-color);
-}
-
-/* 复制样式按钮（详情页样式设置标题旁） */
+/* 复制样式按钮（详情页样式设置标题旁，编辑器特有，未抽离） */
 .copy-styles-btn {
     font-size: 11px;
     color: var(--text-muted);
@@ -608,81 +521,6 @@ aside.module-list-panel {
     font-size: 11px;
     color: var(--text-muted);
     white-space: pre-wrap;
-}
-
-.module-item-content {
-    flex: 1;
-    min-width: 0;
-    /* 防止文本溢出 */
-}
-
-.module-item-header {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-/* 列表只显示名字，字体稍微调整 */
-.module-item-name {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.module-item-tags {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-/* === Toggle Switch 样式 === */
-.toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 34px;
-    height: 20px;
-    flex-shrink: 0;
-    margin-left: 10px;
-}
-
-.toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--bg-input);
-    border: 1px solid var(--border-color);
-    transition: .4s;
-    border-radius: 20px;
-}
-
-.slider:before {
-    position: absolute;
-    content: "";
-    height: 14px;
-    width: 14px;
-    left: 2px;
-    bottom: 2px;
-    background-color: var(--text-muted);
-    transition: .4s;
-    border-radius: 50%;
-}
-
-input:checked+.slider {
-    background-color: var(--accent-color);
-    border-color: var(--accent-color);
-}
-
-input:checked+.slider:before {
-    transform: translateX(14px);
-    background-color: #fff;
 }
 
 /* 右侧：详情编辑区 */

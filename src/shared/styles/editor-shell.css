@@ -1,9 +1,23 @@
 /* === Editor 通用外壳样式 ===
  * 所有 iframe editor（module-editor / generator-editor / nai-preset-switcher 等）共用的
- * 页面骨架：body 基础、顶栏、左侧 tab 导航、内容区、通用按钮、表单、弹层、手机适配。
+ * 页面骨架：body 基础、顶栏、左侧 tab 导航、内容区、通用按钮、表单、弹层、手机适配、列表栏。
  * 严格只使用 src/shared/styles/themes.css 的变量，确保浅色/深色主题全量生效，
- * 各 editor 的私有 layout.css 只需写自身特有样式（如卡片网格、列表项）。
+ * 各 editor 的私有 layout.css 只需写自身特有样式（如模块绑定、变量、工具箱、拖拽等）。
  * 依赖：引入本文件前必须先引入 themes.css。
+ *
+ * === 维护约定（重要）===
+ * 1. 以 module-editor 为样式基准：通用壳的视觉取值（宽度、背景、内边距等）一律对齐
+ *    module-editor 的原版，其他 editor 跟着统一，不要各写各的。
+ * 2. 后续若发现别的 editor 复用了 module-editor 的某段样式（类名一致、结构一致），
+ *    应把那段样式从 module-editor 的 layout.css 原样「搬」到本文件，而不是让别的 editor
+ *    去 link module 的 layout.css 借样式（否则归属混乱，且 module 的私有改动会污染他人）。
+ *    搬运时保持类名不变、取值不变（方案 A：最小改动、零 JS 改动），仅改变物理位置。
+ * 3. 搬运后，原 layout.css 里只保留「模块特有」的规则；若某条规则引用了已搬走的共享类
+ *    （如 .module-list-item.dragging、移动端隐藏规则），可继续留在原文件，它仍能正常匹配
+ *     shell 提供的基类。
+ * 4. 凡改动 shell 提供的规则，需确认所有引用它的 editor（module / generator / nai）外观
+ *    均不回归；尤其注意：带 ID 选择器（如 #view-modules）的规则若写死 display，会盖过
+ *    .view-section 的显隐，导致 tab 切不了——两栏视图应只在 `.active` 时才 display:grid。
  */
 
 * {
@@ -135,6 +149,161 @@ body {
     justify-content: center;
     color: var(--text-muted, #9ca3af);
     font-size: 14px;
+}
+
+/* === 列表栏（左栏：搜索/添加工具条 + 可滚动列表 + 列表项）===
+ * module-editor 与 generator-editor 共用同一套类名（列表项结构完全一致，
+ * generator 仅少两个复制按钮，靠自身是否渲染决定）。此处抽为共享。 */
+aside.module-list-panel {
+    background-color: var(--bg-panel, #f9fafb);
+    border-right: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.list-toolbar {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    display: flex;
+    gap: 8px;
+}
+
+.list-content {
+    flex: 1;
+    overflow-y: auto;
+    /* 列表内部滚动 */
+    padding: 10px;
+}
+
+/* 列表项 */
+.module-list-item {
+    padding: 6px 10px;
+    margin-bottom: 0;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    /* 仅保留底部分割线 */
+    border-radius: 0;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.module-list-item:hover {
+    background-color: var(--bg-hover, #f3f4f6);
+}
+
+.module-list-item.active {
+    background-color: var(--bg-hover, #f3f4f6);
+    border-left: 3px solid var(--accent-color, #2563eb);
+    padding-left: 9px;
+    /* 补偿左边框宽度 */
+}
+
+/* 列表项右侧操作区 */
+.module-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* 复制格式 / 复制整个模块 按钮 */
+.module-copy-format-btn,
+.module-copy-module-btn {
+    font-size: 11px;
+    color: var(--text-muted, #9ca3af);
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.module-copy-format-btn:hover,
+.module-copy-module-btn:hover {
+    opacity: 1;
+    color: var(--accent-color, #2563eb);
+}
+
+.module-copy-module-btn {
+    font-size: 13px;
+}
+
+/* 列表项内容结构 */
+.module-item-content {
+    flex: 1;
+    min-width: 0;
+    /* 防止文本溢出 */
+}
+
+.module-item-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.module-item-name {
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.module-item-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* Toggle Switch（列表项启用开关） */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-left: 10px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-input, #fff);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    transition: .4s;
+    border-radius: 20px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--text-muted, #9ca3af);
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: var(--accent-color, #2563eb);
+    border-color: var(--accent-color, #2563eb);
+}
+
+input:checked+.slider:before {
+    transform: translateX(14px);
+    background-color: #fff;
 }
 
 /* === 通用按钮 === */
