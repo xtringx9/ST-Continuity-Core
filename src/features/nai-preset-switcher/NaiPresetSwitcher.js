@@ -486,6 +486,12 @@ function renderList() {
     const items = filteredPresets();
     list.innerHTML = '';
 
+    // 列表最前永远插入「当前预设」特殊副本卡片（实时反映智绘姬选中项，不参与筛选）
+    const currentName = getChatu8CurrentPresetName();
+    if (currentName) {
+        list.appendChild(buildCurrentSpecialCard(currentName));
+    }
+
     if (items.length === 0) {
         const empty = doc.createElement('div');
         empty.className = 'np-empty';
@@ -561,10 +567,13 @@ function buildCard(p) {
     const actions = doc.createElement('div');
     actions.className = 'np-card-actions';
 
+    const isCurrent = p.name && p.name === getChatu8CurrentPresetName();
+
     const applyBtn = doc.createElement('button');
     applyBtn.className = 'np-btn np-btn-primary';
     applyBtn.textContent = '应用';
-    applyBtn.addEventListener('click', () => applyPreset(p));
+    applyBtn.disabled = isCurrent;
+    if (!isCurrent) applyBtn.addEventListener('click', () => applyPreset(p));
     actions.appendChild(applyBtn);
 
     const editBtn = doc.createElement('button');
@@ -578,6 +587,80 @@ function buildCard(p) {
     delBtn.textContent = '删除';
     delBtn.addEventListener('click', () => deletePreset(p.id));
     actions.appendChild(delBtn);
+
+    card.appendChild(actions);
+    return card;
+}
+
+// 列表最前的「当前预设」特殊副本卡片：实时反映智绘姬选中项。
+// 它独立于其余卡片——原当前预设卡片仍在列表中并保持高亮，本卡只是其副本视图。
+// 若当前预设不在我们的预设库中，则仅显示名称+预览，无编辑/删除（编辑/删除走原卡片）。
+function buildCurrentSpecialCard(currentName) {
+    const card = doc.createElement('div');
+    card.className = 'np-card np-card-current-special';
+
+    const badge = doc.createElement('div');
+    badge.className = 'np-card-current-badge';
+    badge.textContent = '当前预设（实时）';
+    card.appendChild(badge);
+
+    // 预览图（与 buildCard 同逻辑）
+    const imgWrap = doc.createElement('div');
+    imgWrap.className = 'np-card-image';
+    card.appendChild(imgWrap);
+    getChatu8PreviewImageUrl(currentName).then(url => {
+        if (url) {
+            const img = doc.createElement('img');
+            img.className = 'np-card-img';
+            img.alt = currentName;
+            img.src = url;
+            imgWrap.appendChild(img);
+        } else {
+            imgWrap.classList.add('np-card-image-empty');
+        }
+    });
+
+    const name = doc.createElement('div');
+    name.className = 'np-card-name';
+    name.textContent = currentName;
+    card.appendChild(name);
+
+    // 若当前预设也在我们的库中，显示其标签
+    const own = presets.find(p => p.name === currentName);
+    if (own && own.tags && own.tags.length) {
+        const tagWrap = doc.createElement('div');
+        tagWrap.className = 'np-card-tags';
+        own.tags.forEach(t => {
+            const tEl = doc.createElement('span');
+            tEl.className = 'np-card-tag';
+            tEl.textContent = t;
+            tagWrap.appendChild(tEl);
+        });
+        card.appendChild(tagWrap);
+    }
+
+    const actions = doc.createElement('div');
+    actions.className = 'np-card-actions';
+
+    const applyBtn = doc.createElement('button');
+    applyBtn.className = 'np-btn np-btn-primary';
+    applyBtn.textContent = '应用';
+    applyBtn.disabled = true; // 当前预设无需应用
+    actions.appendChild(applyBtn);
+
+    if (own) {
+        const editBtn = doc.createElement('button');
+        editBtn.className = 'np-btn';
+        editBtn.textContent = '编辑';
+        editBtn.addEventListener('click', () => openEditor(own.id));
+        actions.appendChild(editBtn);
+
+        const delBtn = doc.createElement('button');
+        delBtn.className = 'np-btn';
+        delBtn.textContent = '删除';
+        delBtn.addEventListener('click', () => deletePreset(own.id));
+        actions.appendChild(delBtn);
+    }
 
     card.appendChild(actions);
     return card;

@@ -89,7 +89,6 @@
 }
 
 /* 智绘姬当前选中的预设：高亮描边 */
-.nnp-card-active,
 .np-card-active {
     border-color: var(--accent-color, #2563eb);
     box-shadow: 0 0 0 2px var(--accent-color, #2563eb);
@@ -153,7 +152,7 @@
 .np-card-actions {
     display: flex;
     gap: 6px;
-    margin-top: 4px;
+    margin-top: auto;
 }
 
 .np-card-actions .np-btn {
@@ -161,6 +160,33 @@
     padding: 5px 0;
     font-size: 12px;
     text-align: center;
+}
+
+.np-btn:disabled,
+.np-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 列表最前：当前预设的特殊副本卡片（实时反映智绘姬选中项，不影响其余卡片） */
+.np-card-current-special {
+    border-color: var(--accent-color, #2563eb);
+    background: color-mix(in srgb, var(--accent-color, #2563eb) 8%, var(--bg-card, #fff));
+}
+
+.np-card-current-special .np-card-name::before {
+    content: '● ';
+    color: var(--accent-color, #2563eb);
+}
+
+.np-card-current-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-color, #2563eb);
+    background: color-mix(in srgb, var(--accent-color, #2563eb) 14%, transparent);
+    border-radius: 10px;
+    padding: 1px 8px;
+    align-self: flex-start;
 }
 
 .np-empty {
