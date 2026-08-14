@@ -165,7 +165,7 @@ export class EntryButton {
         this._ensureOnlyOneModal('nai-preset');
         const pageUrl = `${this.extensionPath}/src/features/nai-preset-switcher/index.html`;
         this.naiPresetModal.open(pageUrl, '智绘姬NAI预设切换增强', {
-            variant: 'drawer-right',
+            variant: 'drawer-left',
             keepAlive: true,
             onLoad: (iframe) => {
                 const doc = iframe.contentDocument;
