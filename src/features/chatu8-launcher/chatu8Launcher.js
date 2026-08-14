@@ -62,8 +62,28 @@ function openChatu8Panel() {
 
     const modal = document.getElementById(MODAL_ID);
     if (modal) {
-        modal.style.display = 'grid';
         const content = modal.querySelector('.st-chatu8-modal-content');
+        // 复刻智绘姬 showSettingsPanel 的布局逻辑（尤其手机端），
+        // 否则本功能直接 display:grid 打开时缺手机端适配，关闭按钮被推出视口不可见。
+        if (window.innerWidth <= 768) {
+            const aiConfigBtn = document.getElementById('ai-config-button');
+            const buttonHeight = aiConfigBtn ? aiConfigBtn.getBoundingClientRect().height : 0;
+            modal.style.alignItems = 'start';
+            const sendForm = document.getElementById('leftSendForm');
+            const sendFormTop = sendForm ? sendForm.getBoundingClientRect().top : window.innerHeight;
+            const newHeight = sendFormTop - buttonHeight - 15;
+            if (content) {
+                content.style.marginTop = `${buttonHeight}px`;
+                content.style.height = `${newHeight}px`;
+            }
+        } else {
+            modal.style.alignItems = '';
+            if (content) {
+                content.style.marginTop = '';
+                content.style.height = '';
+            }
+        }
+        modal.style.display = 'grid';
         if (content) content.focus();
         panelOpenedByUs = true;
         // 先解绑旧 handler（若有）再重新绑定：旧 handler 会在本次打开点击冒泡时
@@ -117,6 +137,13 @@ function closeChatu8Panel() {
     const modal = document.getElementById(MODAL_ID);
     if (modal) {
         modal.style.display = 'none';
+        // 还原手机端布局适配（对齐智绘姬 hideSettingsPanel），交还原生控制
+        modal.style.alignItems = '';
+        const content = modal.querySelector('.st-chatu8-modal-content');
+        if (content) {
+            content.style.marginTop = '';
+            content.style.height = '';
+        }
     }
     panelOpenedByUs = false;
 }
@@ -308,6 +335,17 @@ export function removeChatu8Launcher() {
     }
     // 解绑面板空白关闭监听
     unbindModalBackdropClose();
+    // 若面板由本功能打开过，还原手机端布局样式
+    const modal = document.getElementById(MODAL_ID);
+    if (modal) {
+        modal.style.display = 'none';
+        modal.style.alignItems = '';
+        const content = modal.querySelector('.st-chatu8-modal-content');
+        if (content) {
+            content.style.marginTop = '';
+            content.style.height = '';
+        }
+    }
     panelOpenedByUs = false;
     isInjected = false;
     lastLoading = false;
