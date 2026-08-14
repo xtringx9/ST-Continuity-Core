@@ -88,6 +88,20 @@
     gap: 6px;
 }
 
+/* 智绘姬当前选中的预设：高亮描边 */
+.nnp-card-active,
+.np-card-active {
+    border-color: var(--accent-color, #2563eb);
+    box-shadow: 0 0 0 2px var(--accent-color, #2563eb);
+}
+
+.np-card-active .np-card-name::after {
+    content: ' ● 当前';
+    color: var(--accent-color, #2563eb);
+    font-size: 11px;
+    font-weight: 600;
+}
+
 .np-card-name {
     font-weight: 600;
     font-size: 14px;
@@ -251,4 +265,82 @@
         width: 94%;
         max-height: 90%;
     }
+}
+
+/* 标签管理弹层 */
+.np-tag-new {
+    display: flex;
+    gap: 6px;
+}
+
+.np-tag-new .np-input {
+    flex: 1 1 auto;
+}
+
+.np-tag-manage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.np-tag-manage-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    border-radius: 6px;
+    background: var(--bg-input, #fff);
+}
+
+.np-tag-manage-name {
+    flex: 1 1 auto;
+    font-size: 13px;
+    color: var(--text-primary, #222);
+}
+
+.np-tag-manage-row .np-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+/* 编辑弹层内的标签芯片编辑器 */
+.np-tag-editor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-height: 30px;
+    padding: 5px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 6px;
+    background: var(--bg-input, #fff);
+}
+
+.np-tag-editor .np-tag-chip {
+    margin: 0;
+    cursor: default;
+    display: inline-flex;
+    align-items: center;
+}
+
+.np-tag-chip-x {
+    cursor: pointer;
+    color: var(--text-muted, #999);
+    font-weight: 700;
+}
+
+.np-tag-chip-x:hover {
+    color: var(--danger-color, #d9534f);
+}
+
+.np-tag-add {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.np-tag-add .np-input {
+    flex: 1 1 auto;
 }

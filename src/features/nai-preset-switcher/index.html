@@ -43,6 +43,7 @@
             <div id="view-preset" class="view-section active">
                 <div class="np-toolbar">
                     <input type="text" id="np-search" class="np-search" placeholder="搜索名称或标签…" />
+                    <button id="np-manage-tags" class="np-btn">管理标签</button>
                 </div>
 
                 <div class="np-tag-bar" id="np-tag-bar">
@@ -90,13 +91,42 @@
                 <input type="text" id="np-f-name" class="np-input" placeholder="预设名称" />
             </div>
             <div class="np-form-row">
-                <label>标签（逗号分隔）</label>
-                <input type="text" id="np-f-tags" class="np-input" placeholder="风格, 场景" />
+                <label>标签</label>
+                <div id="np-f-tags" class="np-tag-editor"></div>
+                <div class="np-tag-add">
+                    <input type="text" id="np-f-tag-input" class="np-input" placeholder="输入标签后回车添加" />
+                    <button id="np-f-tag-add" class="np-btn">添加</button>
+                </div>
             </div>
             <!-- 提示词（positive/negative）不在此编辑：实时读智绘姬 yushe[name] -->
             <div class="np-modal-actions">
                 <button id="np-cancel" class="np-btn">取消</button>
                 <button id="np-save" class="np-btn np-btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 标签管理弹层 -->
+    <div class="np-modal-mask" id="np-tag-mask" style="display:none;">
+        <div class="np-modal">
+            <div class="np-modal-title">标签管理</div>
+
+            <div class="np-form-row">
+                <label>新建标签（选择要附加到的预设）</label>
+                <div class="np-tag-new">
+                    <input type="text" id="np-tag-new-name" class="np-input" placeholder="新标签名" />
+                    <select id="np-tag-new-target" class="np-input"></select>
+                    <button id="np-tag-new-add" class="np-btn np-btn-primary">添加</button>
+                </div>
+            </div>
+
+            <div class="np-form-row">
+                <label>现有标签（点击改名，删除会同时从所有预设移除）</label>
+                <div id="np-tag-list" class="np-tag-manage-list"></div>
+            </div>
+
+            <div class="np-modal-actions">
+                <button id="np-tag-close" class="np-btn">关闭</button>
             </div>
         </div>
     </div>
