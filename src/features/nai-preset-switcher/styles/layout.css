@@ -197,28 +197,7 @@
     font-size: 13px;
 }
 
-/* 编辑弹层 */
-.np-modal-mask {
-    position: fixed;
-    inset: 0;
-    background: var(--bg-modal-backdrop, rgba(0, 0, 0, 0.5));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-}
-
-.np-modal {
-    width: min(92%, 460px);
-    max-height: 88%;
-    overflow-y: auto;
-    background: var(--bg-card, #fff);
-    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
-    border-radius: 10px;
-    padding: 16px;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
-}
-
+/* 编辑弹层（遮罩/容器复用 shell 的 .modal-mask / .modal，此处仅 nai 内容样式） */
 .np-modal-title {
     font-size: 15px;
     font-weight: 600;
@@ -285,6 +264,8 @@
 
     .np-list {
         grid-template-columns: 1fr;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .np-modal {

@@ -30,6 +30,7 @@ body {
     background: var(--bg-app, #fff);
     color: var(--text-primary, #222);
     height: 100vh;
+    height: 100dvh; /* 移动端地址栏更精确，避免内容被裁切无法滚动 */
     display: flex;
     flex-direction: column;
     overflow: hidden;
