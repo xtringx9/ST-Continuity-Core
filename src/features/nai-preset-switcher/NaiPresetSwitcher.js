@@ -149,6 +149,27 @@ function bindStaticControls() {
     if (tagClose) tagClose.addEventListener('click', closeTagManager);
     const tagNewAdd = doc.getElementById('np-tag-new-add');
     if (tagNewAdd) tagNewAdd.addEventListener('click', onTagCreate);
+
+    // 回到顶部浮动按钮：手机端滚动容器是 #view-preset（标签+卡片一起滚），
+    // 桌面端是 #np-list，按实际可滚动元素判断。
+    const scrollTopBtn = doc.getElementById('np-scroll-top');
+    if (scrollTopBtn) {
+        const getScrollEl = () => {
+            const vp = doc.getElementById('view-preset');
+            if (vp && vp.scrollHeight > vp.clientHeight + 2) return vp;
+            return doc.getElementById('np-list');
+        };
+        const toggleScrollTop = () => {
+            const el = getScrollEl();
+            scrollTopBtn.style.display = el && el.scrollTop > 120 ? 'block' : 'none';
+        };
+        doc.getElementById('np-list')?.addEventListener('scroll', toggleScrollTop);
+        doc.getElementById('view-preset')?.addEventListener('scroll', toggleScrollTop);
+        scrollTopBtn.addEventListener('click', () => {
+            const el = getScrollEl();
+            el?.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
 }
 
 /* ============ 工具箱 ============ */

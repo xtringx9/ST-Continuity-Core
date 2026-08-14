@@ -428,6 +428,17 @@ button:disabled,
     z-index: 50;
 }
 
+.modal {
+    width: min(92%, 460px);
+    max-height: 88%;
+    overflow-y: auto;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+}
+
 /* === 工具箱（通用面板，module / nai 等编辑器共用）===
  * 仅抽「容器 + 按钮行 + 复选列表」三件套；调试专属样式（.debug-*）仍留各编辑器私有 css。 */
 .toolbox-container {
@@ -461,6 +472,30 @@ button:disabled,
 
 .toolbox-checkbox {
     transform: scale(1.1);
+}
+
+/* === 简洁滚动条（通用，所有 editor 滚动区共享） === */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color, rgba(128, 128, 128, 0.6)) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--border-color, rgba(128, 128, 128, 0.6));
+    border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted, rgba(90, 90, 90, 0.85));
 }
 
 /* === 手机适配（参考 module-editor） === */

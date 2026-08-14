@@ -49,6 +49,12 @@
     gap: 6px;
     padding: 0 14px 10px;
     flex: 0 0 auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.np-tag-bar::-webkit-scrollbar {
+    display: none;
 }
 
 .np-tag-chip {
@@ -255,6 +261,24 @@
     border-color: var(--text-error, #ff6b6b);
 }
 
+/* 回到顶部浮动按钮 */
+.np-scroll-top {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    background: var(--bg-card, #fff);
+    color: var(--accent-color, #2563eb);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    z-index: 20;
+}
+
 /* nai 预设视图的手机适配（外壳的手机规则已处理 nav/容器/表单） */
 @media (max-width: 768px) {
     .np-toolbar {
@@ -262,10 +286,44 @@
         align-items: stretch;
     }
 
-    .np-list {
-        grid-template-columns: 1fr;
+    /* 手机端：标签与卡片一起上下滚动，避免标签占半屏且固定不动。
+       滚动移交到 #view-preset，标签栏/列表作为普通流内容一起滚。 */
+    #view-preset {
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    .np-list {
+        /* 多列自适应：窄屏一行多个，图片随列宽等比缩小 */
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 8px;
+        overflow: visible;
+        flex: none;
+        padding: 4px 10px 16px;
+    }
+
+    /* 手机端缩小卡片，多列更紧凑 */
+    .np-card {
+        padding: 7px;
+        gap: 4px;
+    }
+
+    .np-card-image {
+        border-radius: 5px;
+    }
+
+    .np-card-name {
+        font-size: 12px;
+    }
+
+    .np-card-tag {
+        font-size: 10px;
+        padding: 1px 6px;
+    }
+
+    .np-card-actions .np-btn {
+        font-size: 11px;
+        padding: 6px 0;
     }
 
     .np-modal {
