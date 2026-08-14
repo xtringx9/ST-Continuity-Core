@@ -2,7 +2,7 @@ import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
 import { initModuleEditor } from '../module-editor/ModuleEditor.js';
 import { initGeneratorEditor } from '../generator-editor/GeneratorEditor.js';
-import { initNaiPresetSwitcher } from '../nai-preset-switcher/NaiPresetSwitcher.js';
+import { initNaiPresetSwitcher, syncNaiTheme } from '../nai-preset-switcher/NaiPresetSwitcher.js';
 import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
@@ -169,6 +169,7 @@ export class EntryButton {
             variant: 'drawer-left',
             keepAlive: true,
             onLoad: (iframe) => {
+                this.naiPresetIframe = iframe;
                 const doc = iframe.contentDocument;
                 if (doc) {
                     const closeBtn = doc.getElementById('close-btn');
@@ -179,6 +180,8 @@ export class EntryButton {
                 }
             }
         });
+        // keepAlive 重开不重新 onLoad，补取一次主题让抽屉与当前设置一致
+        syncNaiTheme(this.naiPresetIframe?.contentDocument);
     }
 
     /**

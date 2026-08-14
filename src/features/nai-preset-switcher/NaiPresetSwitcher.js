@@ -29,6 +29,20 @@ export function initNaiPresetSwitcher(iframeDocument) {
     renderAll();
 }
 
+/**
+ * 每次打开抽屉时重新读取主题（keepAlive 模式下 onLoad 只跑一次，
+ * 重开抽屉不会重新初始化，因此需在显示时补取一次 localStorage 主题）。
+ * @param {Document} iframeDocument Iframe 的文档对象
+ */
+export function syncNaiTheme(iframeDocument) {
+    if (!iframeDocument) return;
+    let savedTheme = 'light';
+    try {
+        savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
+    } catch (e) { /* iframe localStorage 不可用时退回默认 */ }
+    iframeDocument.documentElement.setAttribute('data-theme', savedTheme);
+}
+
 /* ============ i18n ============ */
 
 function applyI18nToStaticElements() {
@@ -54,14 +68,6 @@ function bindThemeToggle() {
     } catch (e) { /* iframe localStorage 不可用时退回默认 */ }
 
     doc.documentElement.setAttribute('data-theme', savedTheme);
-
-    // 跨 iframe 联动：任一同源 iframe 写入 st_continuity_theme 后，本 iframe 会收到
-    // storage 事件（localStorage 变更广播到除写入方外的所有同源 window），同步自身主题。
-    window.addEventListener('storage', (e) => {
-        if (e.key !== 'st_continuity_theme') return;
-        const next = (e.newValue || 'light');
-        doc.documentElement.setAttribute('data-theme', next);
-    });
 
     const headerTitle = doc.querySelector('.header-title') || doc.getElementById('header-title');
     if (headerTitle) {
