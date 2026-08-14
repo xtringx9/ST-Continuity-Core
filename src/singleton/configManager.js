@@ -44,7 +44,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
         promptEntryActions: { // 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
             enabled: false,
         },
-        naiPresetSwitcher: { // 预设切换（提示词预设切换与标签管理）
+        naiPresetSwitcher: { // 智绘姬NAI预设切换（提示词预设切换与标签管理）
             enabled: false, // 默认关闭
             presets: [], // 预设数组（id/name/positive/negative/tags/...）
         },
@@ -458,7 +458,7 @@ class ConfigManager {
     }
 
     /**
-     * 获取「预设切换」子配置（读路径统一入口）
+     * 获取「智绘姬NAI预设切换」子配置（读路径统一入口）
      * @returns {Object} naiPresetSwitcher 子配置（含 enabled / presets）
      */
     getNaiPresetSwitcherConfig() {

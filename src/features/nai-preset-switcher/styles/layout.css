@@ -1,33 +1,8 @@
-/* src/features/nai-preset-switcher/styles/layout.css */
-
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    font-family: var(--font-family, sans-serif);
-    background: var(--bg-primary, #fff);
-    color: var(--text-primary, #222);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.app-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
-    flex: 0 0 auto;
-}
-
-.app-header .header-title {
-    font-size: 15px;
-    font-weight: 600;
-}
+/* src/features/nai-preset-switcher/styles/layout.css
+ * 仅包含 nai 预设切换特有样式；页面外壳（body/app-header/main-nav/content-area/
+ * 通用按钮/表单/弹层/手机适配）由 src/shared/styles/editor-shell.css 提供。
+ * 所有颜色均使用 themes.css 变量，确保浅色/深色主题全量生效。
+ */
 
 .np-toolbar {
     display: flex;
@@ -46,11 +21,12 @@ body {
     font-size: 13px;
 }
 
+/* nai 专属按钮（与 shell 的 .btn-* 区分，沿用既有类名） */
 .np-btn {
     padding: 7px 12px;
     border-radius: 6px;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
-    background: var(--bg-secondary, #f0f0f0);
+    background: var(--bg-card, #fff);
     color: var(--text-primary, #222);
     cursor: pointer;
     font-size: 13px;
@@ -58,12 +34,12 @@ body {
 }
 
 .np-btn:hover {
-    filter: brightness(0.96);
+    background: var(--bg-hover, #f3f4f6);
 }
 
 .np-btn-primary {
     background: var(--accent-color, #2563eb);
-    color: #fff;
+    color: var(--bg-app, #fff);
     border-color: transparent;
 }
 
@@ -88,7 +64,7 @@ body {
 
 .np-tag-chip.active {
     background: var(--accent-color, #2563eb);
-    color: #fff;
+    color: var(--bg-app, #fff);
     border-color: transparent;
 }
 
@@ -106,7 +82,7 @@ body {
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
     border-radius: 8px;
     padding: 10px;
-    background: var(--bg-input, #fff);
+    background: var(--bg-card, #fff);
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -128,7 +104,7 @@ body {
     font-size: 11px;
     padding: 1px 7px;
     border-radius: 10px;
-    background: var(--bg-secondary, #eee);
+    background: var(--bg-hover, #eee);
     color: var(--text-secondary, #555);
 }
 
@@ -165,7 +141,7 @@ body {
 .np-modal-mask {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--bg-modal-backdrop, rgba(0, 0, 0, 0.5));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -176,7 +152,7 @@ body {
     width: min(92%, 460px);
     max-height: 88%;
     overflow-y: auto;
-    background: var(--bg-primary, #fff);
+    background: var(--bg-card, #fff);
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
     border-radius: 10px;
     padding: 16px;
@@ -187,6 +163,7 @@ body {
     font-size: 15px;
     font-weight: 600;
     margin-bottom: 12px;
+    color: var(--text-primary, #111827);
 }
 
 .np-form-row {
@@ -219,4 +196,21 @@ body {
     justify-content: flex-end;
     gap: 8px;
     margin-top: 8px;
+}
+
+/* nai 预设视图的手机适配（外壳的手机规则已处理 nav/容器/表单） */
+@media (max-width: 768px) {
+    .np-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .np-list {
+        grid-template-columns: 1fr;
+    }
+
+    .np-modal {
+        width: 94%;
+        max-height: 90%;
+    }
 }

@@ -383,9 +383,9 @@ export function onNaiPresetSwitcherToggle(event) {
     new EntryButton(extensionFolderPath).init();
 
     if (enabled) {
-        infoLog('[预设切换] 功能已开启');
+        infoLog('[智绘姬NAI预设切换] 功能已开启');
     } else {
-        infoLog('[预设切换] 功能已关闭');
+        infoLog('[智绘姬NAI预设切换] 功能已关闭');
     }
 }
 
@@ -453,7 +453,7 @@ function disableContinuityCore() {
         removeAllAiButtons();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
-        // 插件关闭后：若「预设切换」独立开启，仍显示其独立按钮（全局工具）
+        // 插件关闭后：若「智绘姬NAI预设切换」独立开启，仍显示其独立按钮（全局工具）
         if (configManager.getStFeatureEnhanceConfig()?.naiPresetSwitcher?.enabled) {
             new EntryButton(extensionFolderPath).init();
         }

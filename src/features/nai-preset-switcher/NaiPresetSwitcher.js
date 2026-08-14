@@ -1,5 +1,5 @@
 // src/features/nai-preset-switcher/NaiPresetSwitcher.js
-// 预设切换 · 编辑器
+// 智绘姬NAI预设切换 · 编辑器
 // 运行在父窗口上下文，操作 iframe 的 document（与 module-editor / generator-editor 一致）。
 // 预设本质 = 提示词预设（positive / negative），标签系统为自建多标签。
 
@@ -14,7 +14,7 @@ let searchTerm = '';       // 当前搜索词
 let editingId = null;      // 正在编辑的预设 id（null = 新建）
 
 /**
- * 初始化预设切换编辑器
+ * 初始化智绘姬NAI预设切换编辑器
  * 由 EntryButton 在 iframe onLoad 回调中调用。
  * @param {Document} iframeDocument Iframe 的文档对象
  */
@@ -24,6 +24,7 @@ export function initNaiPresetSwitcher(iframeDocument) {
 
     applyI18nToStaticElements();
     bindThemeToggle();
+    bindNavTabs();
     bindStaticControls();
     renderAll();
 }
@@ -47,8 +48,20 @@ function applyI18nToStaticElements() {
 /* ============ 主题切换（点击标题，复用 module-editor 模式） ============ */
 
 function bindThemeToggle() {
-    const savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
+    let savedTheme = 'light';
+    try {
+        savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
+    } catch (e) { /* iframe localStorage 不可用时退回默认 */ }
+
     doc.documentElement.setAttribute('data-theme', savedTheme);
+
+    // 跨 iframe 联动：任一同源 iframe 写入 st_continuity_theme 后，本 iframe 会收到
+    // storage 事件（localStorage 变更广播到除写入方外的所有同源 window），同步自身主题。
+    window.addEventListener('storage', (e) => {
+        if (e.key !== 'st_continuity_theme') return;
+        const next = (e.newValue || 'light');
+        doc.documentElement.setAttribute('data-theme', next);
+    });
 
     const headerTitle = doc.querySelector('.header-title') || doc.getElementById('header-title');
     if (headerTitle) {
@@ -58,10 +71,29 @@ function bindThemeToggle() {
             const current = doc.documentElement.getAttribute('data-theme') || 'light';
             const next = current === 'light' ? 'dark' : 'light';
             doc.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('st_continuity_theme', next);
+            try {
+                localStorage.setItem('st_continuity_theme', next);
+            } catch (e) { /* 忽略持久化失败，本次会话仍切换 */ }
+            // 通知本 iframe 内其他组件（如 modal 内嵌视图）
             window.dispatchEvent(new CustomEvent('continuity-theme-change'));
         });
     }
+}
+
+/* ============ 左侧导航 tab 切换 ============ */
+
+function bindNavTabs() {
+    const items = doc.querySelectorAll('.main-nav .nav-item');
+    const sections = doc.querySelectorAll('.content-area .view-section');
+    if (!items.length) return;
+
+    items.forEach(item => {
+        item.addEventListener('click', () => {
+            const target = item.getAttribute('data-target');
+            items.forEach(i => i.classList.toggle('active', i === item));
+            sections.forEach(s => s.classList.toggle('active', s.id === target));
+        });
+    });
 }
 
 function bindStaticControls() {
@@ -299,7 +331,7 @@ function applyPreset(p) {
     const text = [p.positive || '', p.negative ? `Negative prompt: ${p.negative}` : '']
         .filter(Boolean).join('\n\n');
     copyToClipboard(text);
-    infoLog(`[预设切换] 已复制预设「${p.name}」到剪贴板`);
+    infoLog(`[智绘姬NAI预设切换] 已复制预设「${p.name}」到剪贴板`);
     // TODO(C 阶段): 回写到文生图参数控件（prompt/negative/sampler 等）
 }
 

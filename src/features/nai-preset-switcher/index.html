@@ -5,31 +5,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>预设切换</title>
+    <title>智绘姬NAI预设切换</title>
     <link rel="stylesheet" href="../../shared/styles/themes.css">
+    <link rel="stylesheet" href="../../shared/styles/editor-shell.css">
     <link rel="stylesheet" href="styles/layout.css">
 </head>
 
 <body>
     <header class="app-header">
-        <div class="header-title" data-i18n="ccore_nai_preset_title">预设切换</div>
+        <div class="header-title" data-i18n="ccore_nai_preset_title">智绘姬NAI预设切换</div>
         <div class="header-actions">
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
         </div>
     </header>
 
-    <div class="np-toolbar">
-        <input type="text" id="np-search" class="np-search" placeholder="搜索名称或标签…" />
-        <button id="np-new" class="np-btn np-btn-primary">+ 新建预设</button>
-    </div>
+    <div class="app-container">
+        <!-- 左侧主导航栏 -->
+        <nav class="main-nav">
+            <div class="nav-item active" data-target="view-preset">
+                <span class="nav-text" data-i18n="ccore_nai_tab_preset">预设</span>
+            </div>
+            <div class="nav-item" data-target="view-vibe">
+                <span class="nav-text" data-i18n="ccore_nai_tab_vibe">氛围</span>
+            </div>
+            <div class="nav-item" data-target="view-parse">
+                <span class="nav-text" data-i18n="ccore_nai_tab_parse">解析</span>
+            </div>
+        </nav>
 
-    <div class="np-tag-bar" id="np-tag-bar">
-        <!-- 标签筛选由 JS 生成 -->
-    </div>
+        <!-- 内容区域 -->
+        <main class="content-area">
+            <!-- 视图：预设 -->
+            <div id="view-preset" class="view-section active">
+                <div class="np-toolbar">
+                    <input type="text" id="np-search" class="np-search" placeholder="搜索名称或标签…" />
+                    <button id="np-new" class="np-btn np-btn-primary">+ 新建预设</button>
+                </div>
 
-    <div class="np-list" id="np-list">
-        <!-- 预设卡片由 JS 生成 -->
+                <div class="np-tag-bar" id="np-tag-bar">
+                    <!-- 标签筛选由 JS 生成 -->
+                </div>
+
+                <div class="np-list" id="np-list">
+                    <!-- 预设卡片由 JS 生成 -->
+                </div>
+            </div>
+
+            <!-- 视图：氛围（占位） -->
+            <div id="view-vibe" class="view-section">
+                <div class="np-placeholder">氛围功能开发中…</div>
+            </div>
+
+            <!-- 视图：解析（占位） -->
+            <div id="view-parse" class="view-section">
+                <div class="np-placeholder">解析功能开发中…</div>
+            </div>
+        </main>
     </div>
 
     <!-- 编辑弹层 -->
@@ -42,7 +74,7 @@
             </div>
             <div class="np-form-row">
                 <label>标签（逗号分隔）</label>
-                <input type="text" id="np-f-tags" class="np-input" placeholder="画师, 风格, 场景" />
+                <input type="text" id="np-f-tags" class="np-input" placeholder="风格, 场景" />
             </div>
             <div class="np-form-row">
                 <label>正向提示词</label>

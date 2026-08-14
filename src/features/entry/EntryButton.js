@@ -42,7 +42,7 @@ export class EntryButton {
         const config = configManager.getExtensionConfig();
 
         // 如果插件未启用：通常完全不显示。
-        // 例外：预设切换独立开启时，仍在其原位置显示一个独立按钮（全局工具，不依赖插件总开关）。
+        // 例外：智绘姬NAI预设切换独立开启时，仍在其原位置显示一个独立按钮（全局工具，不依赖插件总开关）。
         if (!config.enabled) {
             if (configManager.getStFeatureEnhanceConfig()?.naiPresetSwitcher?.enabled) {
                 this._createStandaloneNaiPresetButton();
@@ -159,13 +159,13 @@ export class EntryButton {
     }
 
     /**
-     * 打开「预设切换」抽屉（左侧）。
+     * 打开「智绘姬NAI预设切换」抽屉（左侧）。
      * 菜单项与独立按钮共用同一入口。
      */
     _openNaiPresetDrawer() {
         this._ensureOnlyOneModal('nai-preset');
         const pageUrl = `${this.extensionPath}/src/features/nai-preset-switcher/index.html`;
-        this.naiPresetModal.open(pageUrl, '预设切换', {
+        this.naiPresetModal.open(pageUrl, '智绘姬NAI预设切换', {
             variant: 'drawer-left',
             keepAlive: true,
             onLoad: (iframe) => {
@@ -182,7 +182,7 @@ export class EntryButton {
     }
 
     /**
-     * 创建独立「预设切换」按钮（插件总开关关闭、但本功能开启时）。
+     * 创建独立「智绘姬NAI预设切换」按钮（插件总开关关闭、但本功能开启时）。
      * 显示在 Cc 原嵌入式位置（#leftSendForm），点击直接打开抽屉，不带 Cc 菜单。
      */
     _createStandaloneNaiPresetButton() {
@@ -195,7 +195,7 @@ export class EntryButton {
         const btn = document.createElement('div');
         btn.id = 'continuity-nai-preset-standalone';
         btn.className = 'mes_text_paste';
-        btn.title = '预设切换';
+        btn.title = '智绘姬NAI预设切换';
         btn.innerHTML = '<i class="fa-solid fa-palette"></i>';
         Object.assign(btn.style, {
             cursor: 'pointer',
@@ -354,11 +354,11 @@ export class EntryButton {
             { action: 'generator-editor', icon: 'fa-wand-magic-sparkles', title: '生成内容配置' },
             { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
             { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式' },
-            { action: 'nai-preset', icon: 'fa-palette', title: '预设切换' },
+            { action: 'nai-preset', icon: 'fa-palette', title: '智绘姬NAI预设切换' },
         ];
 
         items.forEach(item => {
-            // 预设切换按钮：功能未开启则不注入菜单（门控在源头）
+            // 智绘姬 NAI 预设切换按钮：功能未开启则不注入菜单（门控在源头）
             if (item.action === 'nai-preset' && !configManager.getStFeatureEnhanceConfig()?.naiPresetSwitcher?.enabled) {
                 return;
             }

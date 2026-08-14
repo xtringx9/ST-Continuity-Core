@@ -45,6 +45,12 @@ export function initGeneratorEditor(iframeDocument) {
     const savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
     doc.documentElement.setAttribute('data-theme', savedTheme);
 
+    // 跨 iframe 联动：同源其他窗口写入主题后，本 iframe 收到 storage 事件并同步
+    window.addEventListener('storage', (e) => {
+        if (e.key !== 'st_continuity_theme') return;
+        doc.documentElement.setAttribute('data-theme', e.newValue || 'light');
+    });
+
     const headerTitle = doc.querySelector('.header-title');
     if (headerTitle) {
         headerTitle.style.cursor = 'pointer';
