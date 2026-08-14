@@ -19,7 +19,8 @@ let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
 let activeTag = 'ALL';     // 当前标签筛选
 let searchTerm = '';       // 当前搜索词
-let editingId = null;      // 正在编辑的预设 id（null = 新建）
+let editingId = null;      // 正在编辑的预设 id（null = 新建/按 name 首次建）
+let editingName = null;    // 编辑时的预设名（纯智绘姬预设首次建标签时用）
 let editingTags = [];       // 编辑弹层内当前标签（芯片编辑器工作副本）
 
 /**
@@ -491,8 +492,27 @@ function refreshCurrentPresetUi(newName) {
 
 function collectTags() {
     const set = new Set();
-    presets.forEach(p => (p.tags || []).forEach(t => set.add(t)));
+    mergePresetViews().forEach(p => (p.tags || []).forEach(t => set.add(t)));
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh'));
+}
+
+/**
+ * 渲染数据源：以智绘姬 yushe 的所有预设名为准（确保智绘姬里但还没建标签的预设也能显示），
+ * 标签来自我们自己的配置（按 name 匹配）。返回视图对象 { name, id, tags }：
+ *   - id 为 null 表示纯智绘姬预设（不在我们配置里），只能「应用」，编辑时按 name 新建。
+ */
+function mergePresetViews() {
+    const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+    const yushe = (chatu8 && chatu8.yushe) || {};
+    const ownByName = new Map(presets.map(p => [p.name, p]));
+    return Object.keys(yushe).map(name => {
+        const own = ownByName.get(name);
+        return {
+            name,
+            id: own ? own.id : null,
+            tags: own ? (own.tags || []) : [],
+        };
+    });
 }
 
 function renderTagBar() {
@@ -515,7 +535,7 @@ function renderTagBar() {
 }
 
 function filteredPresets() {
-    return presets.filter(p => {
+    return mergePresetViews().filter(p => {
         // 标签筛选
         if (activeTag !== 'ALL') {
             const tags = p.tags || [];
@@ -632,17 +652,21 @@ function buildCard(p) {
     applyBtn.addEventListener('click', () => applyPreset(p));
     actions.appendChild(applyBtn);
 
+    // 编辑：始终提供（纯智绘姬预设按 name 首次建标签即纳入我们配置）
     const editBtn = doc.createElement('button');
     editBtn.className = 'btn-secondary np-card-btn';
     editBtn.textContent = '编辑';
-    editBtn.addEventListener('click', () => openEditor(p.id));
+    editBtn.addEventListener('click', () => openEditor(p.id, p.name));
     actions.appendChild(editBtn);
 
-    const delBtn = doc.createElement('button');
-    delBtn.className = 'btn-secondary np-card-btn';
-    delBtn.textContent = '删除';
-    delBtn.addEventListener('click', () => deletePreset(p.id));
-    actions.appendChild(delBtn);
+    // 删除：仅在已纳入我们配置（有 id）时提供
+    if (p.id) {
+        const delBtn = doc.createElement('button');
+        delBtn.className = 'btn-secondary np-card-btn';
+        delBtn.textContent = '删除';
+        delBtn.addEventListener('click', () => deletePreset(p.id));
+        actions.appendChild(delBtn);
+    }
 
     card.appendChild(actions);
     return card;
@@ -724,15 +748,16 @@ function buildCurrentSpecialCard(currentName) {
 
 /* ============ 编辑弹层 ============ */
 
-function openEditor(id) {
+function openEditor(id, name) {
     editingId = id;
+    editingName = name || null;
     const mask = doc.getElementById('np-modal-mask');
     const title = doc.getElementById('np-modal-title');
     const fName = doc.getElementById('np-f-name');
 
     const p = id ? presets.find(x => x.id === id) : null;
-    title.textContent = p ? '编辑预设' : '新建预设';
-    fName.value = p?.name || '';
+    title.textContent = p ? '编辑预设' : '编辑预设（首次建标签）';
+    fName.value = p?.name || name || '';
     editingTags = p?.tags ? [...p.tags] : [];
     renderTagEditor();
     mask.style.display = 'flex';
@@ -804,14 +829,21 @@ function onSave() {
             p.updatedAt = Date.now();
         }
     } else {
-        presets.push({
-            id: genId(),
-            name,
-            tags,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            sortOrder: presets.length,
-        });
+        // 按 name 查找：纯智绘姬预设首次建标签时复用已有配置项，避免重复
+        const existing = presets.find(x => x.name === name);
+        if (existing) {
+            existing.tags = tags;
+            existing.updatedAt = Date.now();
+        } else {
+            presets.push({
+                id: genId(),
+                name,
+                tags,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                sortOrder: presets.length,
+            });
+        }
     }
 
     persist();
