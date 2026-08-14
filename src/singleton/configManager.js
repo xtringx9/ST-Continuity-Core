@@ -44,6 +44,9 @@ export const DEFAULT_EXTENSION_CONFIG = {
         promptEntryActions: { // 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
             enabled: false,
         },
+        naiPresetSwitcher: { // 智绘姬 NAI 预设切换增强（自建画师串 / 参数预设切换）
+            enabled: false, // 默认关闭
+        },
     },
     module: { // 前端模块域合集（模块存储 / UI 呈现 / 元数据）
         asyncModule: {
@@ -323,6 +326,10 @@ class ConfigManager {
                             ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntryActions,
                             ...(migrated.stFeatureEnhance?.promptEntryActions || {}),
                         },
+                        naiPresetSwitcher: {
+                            ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.naiPresetSwitcher,
+                            ...(migrated.stFeatureEnhance?.naiPresetSwitcher || {}),
+                        },
                     },
                 };
                 // 检查是否需要将迁移后的新结构写回落盘
@@ -553,6 +560,10 @@ class ConfigManager {
                 promptEntryActions: {
                     ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntryActions,
                     ...(migrated.stFeatureEnhance?.promptEntryActions || {}),
+                },
+                naiPresetSwitcher: {
+                    ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.naiPresetSwitcher,
+                    ...(migrated.stFeatureEnhance?.naiPresetSwitcher || {}),
                 },
             };
 

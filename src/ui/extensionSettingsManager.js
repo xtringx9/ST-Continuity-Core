@@ -57,6 +57,7 @@ export function loadSettingsToUI() {
     $("#continuity_world_book_binding").prop("checked", extensionConfig.stFeatureEnhance?.worldBookBinding?.enabled !== false);
     $("#continuity_prompt_binding").prop("checked", extensionConfig.stFeatureEnhance?.promptBinding?.enabled !== false);
     $("#continuity_prompt_entry_actions").prop("checked", extensionConfig.stFeatureEnhance?.promptEntryActions?.enabled !== false);
+    $("#continuity_nai_preset_switcher").prop("checked", extensionConfig.stFeatureEnhance?.naiPresetSwitcher?.enabled !== false);
     $("#continuity_include_hidden_messages").prop("checked", extensionConfig.module?.includeHiddenMessages?.enabled !== false);
 
     // 异步模块存储设置
@@ -370,6 +371,24 @@ export function onPromptEntryActionsToggle(event) {
     }
 }
 
+export function onNaiPresetSwitcherToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.stFeatureEnhance ||= {};
+    extensionConfig.stFeatureEnhance.naiPresetSwitcher = { ...(extensionConfig.stFeatureEnhance.naiPresetSwitcher || {}), enabled };
+    configManager.setExtensionConfig(extensionConfig);
+
+    // 重建入口按钮：开关即时反映到 Cc 菜单 / 独立按钮（init 自带 remove 旧按钮，幂等安全）。
+    // UI 模块（侧边栏 + 导入器）在后续阶段实现；门控内聚在其 init 内。
+    new EntryButton(extensionFolderPath).init();
+
+    if (enabled) {
+        infoLog('[智绘姬NAI预设切换增强] 功能已开启（UI 模块待实现）');
+    } else {
+        infoLog('[智绘姬NAI预设切换增强] 功能已关闭');
+    }
+}
+
 export function onIncludeHiddenMessagesToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
@@ -434,6 +453,10 @@ function disableContinuityCore() {
         removeAllAiButtons();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
+        // 插件关闭后：若「智绘姬 NAI 预设切换增强」独立开启，仍显示其独立按钮（全局工具）
+        if (configManager.getStFeatureEnhanceConfig()?.naiPresetSwitcher?.enabled) {
+            new EntryButton(extensionFolderPath).init();
+        }
         infoLog("♥️ Continuity Core has been disabled.");
     } catch (error) {
         errorLog("Failed to disable Continuity Core:", error);

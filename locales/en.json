@@ -358,6 +358,8 @@
     "ccore_settings_prompt_binding_hint": "Prompt preset entries get a three-state control (inherit / on-for-chat / off-for-chat), remembering per-chat overrides.",
     "ccore_settings_prompt_entry_actions": "Prompt Preset Entry · Extra Actions",
     "ccore_settings_prompt_entry_actions_hint": "Each preset entry gets a \"...\" menu: duplicate, insert blank above/below, and remove (takes over the native Remove), making it easy to add or edit entries in a long list.",
+    "ccore_settings_nai_preset_switcher": "ZhiHuiJi NAI Preset Switcher+",
+    "ccore_settings_nai_preset_switcher_hint": "Self-built NAI artist-string / parameter preset switcher. Entry is at the far right of the Cc menu.",
     "ccore_settings_include_hidden_messages": "Include Modules from Hidden Messages",
     "ccore_settings_include_hidden_messages_hint": "When enabled, modules inside hidden messages (is_system) are also extracted; when disabled, hidden messages are skipped.",
     "ccore_settings_send_hijack": "Send Key Triggers Quick Reply",

@@ -358,6 +358,8 @@
     "ccore_settings_prompt_binding_hint": "提示词预设条目提供三态控件（继承 / 本聊开 / 本聊关），按聊天记忆开关覆盖。",
     "ccore_settings_prompt_entry_actions": "提示词预设条目·扩展操作",
     "ccore_settings_prompt_entry_actions_hint": "预设条目提供「...」菜单：复制、在上方/下方插入空白、移除（接管原生 Remove），便于在长列表中快速增改条目。",
+    "ccore_settings_nai_preset_switcher": "智绘姬NAI预设切换增强",
+    "ccore_settings_nai_preset_switcher_hint": "自建 NAI 画师串 / 参数预设切换增强，入口在 Cc 菜单最右侧。",
     "ccore_settings_include_hidden_messages": "包含隐藏消息的模块",
     "ccore_settings_include_hidden_messages_hint": "开启时，被隐藏的楼层（is_system）中的模块数据也会被提取处理；关闭则跳过隐藏楼层。",
     "ccore_settings_send_hijack": "发送键改为触发快捷回复",

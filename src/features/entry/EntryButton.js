@@ -18,6 +18,7 @@ export class EntryButton {
         // 编辑器 / 生成内容配置各自独立实例，均 keepAlive（关闭仅隐藏，保留未保存编辑）
         this.editorModal = new IframeModal();
         this.generatorModal = new IframeModal();
+        this.naiPresetModal = new IframeModal();
         this._themeListener = null;
         this._activeMenu = null;
         this._activeTrigger = null;
@@ -39,8 +40,12 @@ export class EntryButton {
         // 获取配置
         const config = configManager.getExtensionConfig();
 
-        // 如果插件未启用，不显示按钮
+        // 如果插件未启用：通常完全不显示。
+        // 例外：智绘姬 NAI 预设切换增强独立开启时，仍在其原位置显示一个独立按钮（全局工具，不依赖插件总开关）。
         if (!config.enabled) {
+            if (configManager.getStFeatureEnhanceConfig()?.naiPresetSwitcher?.enabled) {
+                this._createStandaloneNaiPresetButton();
+            }
             return;
         }
 
@@ -64,12 +69,16 @@ export class EntryButton {
         // 彻底销毁可能打开的编辑器 modal，避免 window 上的 message listener 持有引用导致 modal + iframe 无法 GC
         this.editorModal?.destroy();
         this.generatorModal?.destroy();
+        this.naiPresetModal?.destroy();
 
         const embeddedBtn = document.getElementById(this.embeddedId);
         if (embeddedBtn) embeddedBtn.remove();
 
         const floatingBtn = document.getElementById(this.floatingId);
         if (floatingBtn) floatingBtn.remove();
+
+        const standaloneNaiBtn = document.getElementById('continuity-nai-preset-standalone');
+        if (standaloneNaiBtn) standaloneNaiBtn.remove();
 
         if (this._themeListener) {
             window.removeEventListener('storage', this._themeListener);
@@ -146,6 +155,63 @@ export class EntryButton {
         btn.addEventListener('click', () => this._toggleMenu(btn));
 
         document.body.appendChild(btn);
+    }
+
+    /**
+     * 打开「智绘姬 NAI 预设切换增强」抽屉（右侧）。
+     * 菜单项与独立按钮共用同一入口。
+     */
+    _openNaiPresetDrawer() {
+        this._ensureOnlyOneModal('nai-preset');
+        const pageUrl = `${this.extensionPath}/src/features/nai-preset-switcher/index.html`;
+        this.naiPresetModal.open(pageUrl, '智绘姬NAI预设切换增强', {
+            variant: 'drawer-right',
+            keepAlive: true,
+            onLoad: (iframe) => {
+                const doc = iframe.contentDocument;
+                if (doc) {
+                    const closeBtn = doc.getElementById('close-btn');
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', () => this.naiPresetModal.close());
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 创建独立「智绘姬 NAI 预设切换增强」按钮（插件总开关关闭、但本功能开启时）。
+     * 显示在 Cc 原嵌入式位置（#leftSendForm），点击直接打开抽屉，不带 Cc 菜单。
+     */
+    _createStandaloneNaiPresetButton() {
+        const targetContainer = document.querySelector('#form_sheld #send_form #nonQRFormItems #leftSendForm');
+        if (!targetContainer) {
+            warnLog('[Continuity] 无法找到独立 NAI 预设按钮注入容器 (#leftSendForm)');
+            return;
+        }
+
+        const btn = document.createElement('div');
+        btn.id = 'continuity-nai-preset-standalone';
+        btn.className = 'mes_text_paste';
+        btn.title = '智绘姬NAI预设切换增强';
+        btn.innerHTML = '<i class="fa-solid fa-palette"></i>';
+        Object.assign(btn.style, {
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            marginLeft: '5px',
+            order: '9999',
+            border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
+            borderRadius: '6px',
+            width: '30px',
+            height: '30px',
+            boxSizing: 'border-box'
+        });
+        btn.addEventListener('click', () => this._openNaiPresetDrawer());
+        targetContainer.appendChild(btn);
     }
 
     /**
@@ -286,9 +352,14 @@ export class EntryButton {
             { action: 'generator-editor', icon: 'fa-wand-magic-sparkles', title: '生成内容配置' },
             { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
             { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式' },
+            { action: 'nai-preset', icon: 'fa-palette', title: '智绘姬NAI预设切换增强' },
         ];
 
         items.forEach(item => {
+            // 智绘姬 NAI 预设切换增强按钮：功能未开启则不注入菜单（门控在源头）
+            if (item.action === 'nai-preset' && !configManager.getStFeatureEnhanceConfig()?.naiPresetSwitcher?.enabled) {
+                return;
+            }
             const btn = document.createElement('div');
             btn.className = 'continuity-entry-menu-item';
             btn.dataset.action = item.action;
@@ -364,7 +435,8 @@ export class EntryButton {
         this._activeMenu.querySelectorAll('.continuity-entry-menu-item').forEach(btn => {
             const action = btn.dataset.action;
             const title = btn.dataset.title || '';
-            const disabled = !inChat && action !== 'editor' && action !== 'generator-editor';
+            // nai-preset 是全局工具，不受聊天页限制（与 editor/generator-editor 同等待遇）
+            const disabled = !inChat && action !== 'editor' && action !== 'generator-editor' && action !== 'nai-preset';
             btn.dataset.disabled = disabled ? 'true' : 'false';
             if (disabled) {
                 btn.style.opacity = '0.4';
@@ -432,6 +504,10 @@ export class EntryButton {
             case 'mobile':
                 openPhoneModeModal(this.extensionPath);
                 break;
+            case 'nai-preset': {
+                this._openNaiPresetDrawer();
+                break;
+            }
         }
     }
 
@@ -442,6 +518,7 @@ export class EntryButton {
     _ensureOnlyOneModal(target) {
         if (target !== 'editor') this.editorModal.close();
         if (target !== 'generator') this.generatorModal.close();
+        if (target !== 'nai-preset') this.naiPresetModal.close();
     }
 
     /**

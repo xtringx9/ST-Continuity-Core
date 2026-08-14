@@ -1,0 +1,29 @@
+/* src/features/nai-preset-switcher/styles/layout.css */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-family, sans-serif);
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #222);
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+}
+
+.app-container {
+    height: calc(100% - 53px);
+}
+
+.content-area {
+    height: 100%;
+    overflow: auto;
+}
