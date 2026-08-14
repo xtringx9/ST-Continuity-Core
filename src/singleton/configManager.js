@@ -6,6 +6,7 @@ import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../config/moduleConfigTe
 import { normalizeGeneratorConfig, DEFAULT_GENERATOR_CONFIG_VALUES } from '../config/generatorConfigTemplate.js';
 import { normalizePhoneConfig, DEFAULT_PHONE_CONFIG_VALUES } from '../config/phoneConfigTemplate.js';
 import { normalizeCharacterBindingConfig, DEFAULT_CHARACTER_BINDING_VALUES } from '../config/characterBindingTemplate.js';
+import { normalizeNaiPresetConfig, DEFAULT_NAI_PRESET_CONFIG } from '../config/naiPresetConfigTemplate.js';
 
 // 扩展基本信息
 export const extensionName = "ST-Continuity-Core";
@@ -43,10 +44,6 @@ export const DEFAULT_EXTENSION_CONFIG = {
         },
         promptEntryActions: { // 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
             enabled: false,
-        },
-        naiPresetSwitcher: { // 智绘姬NAI预设切换（提示词预设切换与标签管理）
-            enabled: false, // 默认关闭
-            presets: [], // 预设数组（id/name/positive/negative/tags/...）
         },
     },
     module: { // 前端模块域合集（模块存储 / UI 呈现 / 元数据）
@@ -87,6 +84,7 @@ const MODULE_CONFIG_KEY = 'module_config';
 const GENERATOR_CONFIG_KEY = 'generator_config';
 const PHONE_CONFIG_KEY = 'phone_config';
 const CHARACTER_BINDING_KEY = 'character_bindings';
+const NAI_PRESET_CONFIG_KEY = 'nai_preset_config';
 
 // 开发用保存开关（仅开发/重构时使用，不保存到配置）
 const ENABLE_DEV_SAVE_GUARD = true; // true=允许保存，false=禁止保存
@@ -105,6 +103,8 @@ class ConfigManager {
         this.characterBindingConfig = null;
         this.isCharacterBindingConfigLoaded = false;
         this.characterBindingAutoSaveTimeout = null;
+        this.naiPresetConfig = null; // 智绘姬NAI预设切换·预设数据（独立顶层键 nai_preset_config）
+        this.isNaiPresetConfigLoaded = false;
         this.autoSaveTimeout = null; // 自动保存的超时ID
         this.autoSaveDelay = 1000; // 自动保存延迟（毫秒）
         this.generatorAutoSaveTimeout = null; // 生成内容配置自动保存的超时ID
@@ -327,10 +327,6 @@ class ConfigManager {
                             ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntryActions,
                             ...(migrated.stFeatureEnhance?.promptEntryActions || {}),
                         },
-                        naiPresetSwitcher: {
-                            ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.naiPresetSwitcher,
-                            ...(migrated.stFeatureEnhance?.naiPresetSwitcher || {}),
-                        },
                     },
                 };
                 // 检查是否需要将迁移后的新结构写回落盘
@@ -420,6 +416,7 @@ class ConfigManager {
         this.loadGeneratorConfig();
         this.loadPhoneConfig();
         this.loadCharacterBindingConfig();
+        this.loadNaiPresetConfig();
         this.isLoaded = true;
 
         // 执行所有注册的加载完成回调
@@ -458,34 +455,60 @@ class ConfigManager {
     }
 
     /**
-     * 获取「智绘姬NAI预设切换」子配置（读路径统一入口）
-     * @returns {Object} naiPresetSwitcher 子配置（含 enabled / presets）
+     * 获取「智绘姬NAI预设切换」完整配置（读路径统一入口）
+     * 独立顶层键 nai_preset_config = { enabled, metadata, presets }（开关与数据同处一键）。
+     * @returns {Object} naiPreset 配置
      */
     getNaiPresetSwitcherConfig() {
-        if (!this.isExtensionConfigLoaded) {
-            this.loadExtensionConfig();
+        if (!this.isNaiPresetConfigLoaded) {
+            this.loadNaiPresetConfig();
         }
-        return this.extensionConfig?.stFeatureEnhance?.naiPresetSwitcher || DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.naiPresetSwitcher;
+        return this.naiPresetConfig || { ...DEFAULT_NAI_PRESET_CONFIG };
     }
 
     /**
-     * 获取预设数组（读路径）
+     * 判断「智绘姬NAI预设切换」是否开启（读 nai_preset_config.enabled）
+     * @returns {boolean}
+     */
+    isNaiPresetSwitcherEnabled() {
+        return this.getNaiPresetSwitcherConfig().enabled === true;
+    }
+
+    /**
+     * 获取预设数组（读路径，走独立顶层键 nai_preset_config）
      * @returns {Array} presets
      */
     getNaiPresets() {
-        return this.getNaiPresetSwitcherConfig().presets || [];
+        if (!this.isNaiPresetConfigLoaded) {
+            this.loadNaiPresetConfig();
+        }
+        return this.naiPresetConfig?.presets || [];
     }
 
     /**
-     * 写入并落盘预设数组
+     * 写入并落盘预设数组（独立顶层键 nai_preset_config；保留当前 enabled 开关）
      * @param {Array} presets
      */
     setNaiPresets(presets) {
         if (!ENABLE_DEV_SAVE_GUARD) return;
-        const fe = this.getStFeatureEnhanceConfig();
-        fe.naiPresetSwitcher = fe.naiPresetSwitcher || {};
-        fe.naiPresetSwitcher.presets = Array.isArray(presets) ? presets : [];
-        this.setExtensionConfig(this.getExtensionConfig());
+        const current = this.getNaiPresetSwitcherConfig();
+        // 落盘前经模板归一化，保证字段完整、类型正确（enabled 沿用当前值）
+        const normalized = normalizeNaiPresetConfig({
+            enabled: current.enabled,
+            presets: Array.isArray(presets) ? presets : [],
+        });
+        this.naiPresetConfig = normalized;
+        this.saveNaiPresetConfigNow();
+    }
+
+    /**
+     * 写入并落盘完整预设配置（含 enabled 开关，独立顶层键 nai_preset_config）
+     * @param {Object} config { enabled, metadata?, presets? }
+     */
+    setNaiPresetSwitcherConfig(config) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        this.naiPresetConfig = normalizeNaiPresetConfig(config || {});
+        this.saveNaiPresetConfigNow();
     }
 
     /**
@@ -592,10 +615,6 @@ class ConfigManager {
                 promptEntryActions: {
                     ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntryActions,
                     ...(migrated.stFeatureEnhance?.promptEntryActions || {}),
-                },
-                naiPresetSwitcher: {
-                    ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.naiPresetSwitcher,
-                    ...(migrated.stFeatureEnhance?.naiPresetSwitcher || {}),
                 },
             };
 
@@ -962,9 +981,10 @@ class ConfigManager {
 
     /**
      * 清理扩展设置顶层废弃的配置键。
-     * 有效的顶层键仅 5 个（extension_config / module_config / generator_config / phone_config / character_bindings），
+     * 有效的顶层键（validTopLevelKeys）：extension_config / module_config / generator_config /
+     * phone_config / character_bindings / nai_preset_config。
      * 其余顶层键（历史遗留、重构前的旧键名等）一律删除并保存。
-     * 注意：仅删除顶层未知键；5 个已知配置内部的字段由其各自的 normalize* 函数在保存时负责迁移/清理。
+     * 注意：仅删除顶层未知键；已知配置内部的字段由其各自的 normalize* 函数在保存时负责迁移/清理。
      * @returns {string[]} 被删除的键名列表
      */
     cleanDeprecatedConfigKeys() {
@@ -982,6 +1002,7 @@ class ConfigManager {
                 GENERATOR_CONFIG_KEY,
                 PHONE_CONFIG_KEY,
                 CHARACTER_BINDING_KEY,
+                NAI_PRESET_CONFIG_KEY,
             ]);
 
             const removed = [];
@@ -1228,6 +1249,74 @@ class ConfigManager {
         }, this.autoSaveDelay);
     }
 
+
+    // ===== 智绘姬NAI预设切换（nai_preset_config，独立顶层键）=====
+    // 与 module_config / generator_config / phone_config / character_bindings 同构：
+    // 独立顶层键 + 内存缓存 + 模板归一化 + 落盘经 saveSettings()。
+    // 该键 = { enabled, metadata, presets }：功能开关与预设数据同处一键
+    // （用户决策 2026-08-14：不再走 stFeatureEnhance.naiPresetSwitcher）。
+    // 预设数据本身只含 name + tags；提示词/图片实时读智绘姬 yushe，不落此键。
+
+    /**
+     * 加载预设配置到内存缓存（含旧数据迁移：旧 stFeatureEnhance.naiPresetSwitcher 的 enabled + presets）
+     */
+    loadNaiPresetConfig() {
+        try {
+            debugLog(`开始加载预设配置，配置键名: ${NAI_PRESET_CONFIG_KEY}`);
+            const node = extension_settings[extensionName];
+            if (node && node[NAI_PRESET_CONFIG_KEY]) {
+                this.naiPresetConfig = normalizeNaiPresetConfig(node[NAI_PRESET_CONFIG_KEY]);
+                this.isNaiPresetConfigLoaded = true;
+                debugLog('预设配置已从扩展设置加载到内存缓存');
+                return;
+            }
+
+            // 兼容迁移：旧版把 enabled + presets 放在 stFeatureEnhance.naiPresetSwitcher
+            const legacy = node?.[EXTENSION_CONFIG_KEY]?.stFeatureEnhance?.naiPresetSwitcher;
+            if (legacy && (typeof legacy.enabled === 'boolean' || (Array.isArray(legacy.presets) && legacy.presets.length > 0))) {
+                this.naiPresetConfig = normalizeNaiPresetConfig({ enabled: legacy.enabled, presets: legacy.presets || [] });
+                this.isNaiPresetConfigLoaded = true;
+                this.saveNaiPresetConfigNow(); // 搬到新顶层键并落盘
+                debugLog('预设配置已从旧结构（stFeatureEnhance.naiPresetSwitcher）迁移到独立顶层键');
+                return;
+            }
+
+            this.naiPresetConfig = { ...DEFAULT_NAI_PRESET_CONFIG };
+            this.isNaiPresetConfigLoaded = true;
+            debugLog('使用默认预设配置初始化内存缓存');
+        } catch (error) {
+            errorLog('加载预设配置失败:', error);
+            this.naiPresetConfig = { ...DEFAULT_NAI_PRESET_CONFIG };
+            this.isNaiPresetConfigLoaded = true;
+        }
+    }
+
+    /**
+     * 立即保存预设配置到存储（独立顶层键）
+     * @returns {boolean} 是否保存成功
+     */
+    saveNaiPresetConfigNow() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，已阻止预设配置保存。');
+            return false;
+        }
+        try {
+            if (!this.isNaiPresetConfigLoaded) {
+                this.loadNaiPresetConfig();
+            }
+            this.naiPresetConfig = normalizeNaiPresetConfig(this.naiPresetConfig);
+            if (!extension_settings[extensionName]) {
+                extension_settings[extensionName] = {};
+            }
+            extension_settings[extensionName][NAI_PRESET_CONFIG_KEY] = this.naiPresetConfig;
+            saveSettings();
+            debugLog('预设配置已保存');
+            return true;
+        } catch (error) {
+            errorLog('保存预设配置失败:', error);
+            return false;
+        }
+    }
 
     // ===== 角色绑定配置（character_bindings）=====
 

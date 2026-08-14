@@ -403,10 +403,17 @@ button:disabled,
 .form-section-title {
     font-size: 14px;
     font-weight: 600;
-    color: var(--text-primary, #111827);
-    margin: 12px 0 8px;
-    padding-bottom: 4px;
+    color: var(--accent-color, #2563eb);
+    margin-top: 15px;
+    margin-bottom: 10px;
     border-bottom: 1px solid var(--border-light, #f3f4f6);
+    grid-column: span 2;
+}
+
+/* 移除首个标题的顶部间距，统一页面间距 */
+.form-grid>.form-section-title:first-child,
+.toolbox-container>.form-section-title:first-child {
+    margin-top: 0;
 }
 
 /* === 弹层遮罩（通用） === */
@@ -418,6 +425,41 @@ button:disabled,
     align-items: center;
     justify-content: center;
     z-index: 50;
+}
+
+/* === 工具箱（通用面板，module / nai 等编辑器共用）===
+ * 仅抽「容器 + 按钮行 + 复选列表」三件套；调试专属样式（.debug-*）仍留各编辑器私有 css。 */
+.toolbox-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 15px 20px;
+}
+
+.toolbox-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.toolbox-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg-card, #fff);
+    border-radius: 4px;
+}
+
+.toolbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.toolbox-checkbox {
+    transform: scale(1.1);
 }
 
 /* === 手机适配（参考 module-editor） === */
@@ -463,5 +505,9 @@ button:disabled,
     .form-group label {
         margin-right: 0;
         margin-bottom: 4px !important;
+    }
+
+    .toolbox-container {
+        padding: 15px;
     }
 }

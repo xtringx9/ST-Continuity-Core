@@ -108,12 +108,32 @@
     color: var(--text-secondary, #555);
 }
 
-.np-card-pos {
-    font-size: 11px;
-    color: var(--text-secondary, #666);
-    max-height: 48px;
+/* 预览图：实时读智绘姬 yushe[name].previewImageId，无图时显示占位文字 */
+.np-card-image {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
     overflow: hidden;
-    word-break: break-all;
+    background: var(--bg-hover, #eee);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+}
+
+.np-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.np-card-image-empty::after {
+    content: '无预览图';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--text-muted, #999);
 }
 
 .np-card-actions {
@@ -196,6 +216,24 @@
     justify-content: flex-end;
     gap: 8px;
     margin-top: 8px;
+}
+
+/* 工具箱：操作结果提示 */
+.np-tools-result {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+    color: var(--text-secondary, #555);
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.np-tools-result.error {
+    color: var(--text-error, #ff6b6b);
+    border-color: var(--text-error, #ff6b6b);
 }
 
 /* nai 预设视图的手机适配（外壳的手机规则已处理 nav/容器/表单） */

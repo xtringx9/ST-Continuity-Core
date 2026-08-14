@@ -554,26 +554,9 @@ section.module-detail-panel {
     flex: 1;
 }
 
-/* 模块编辑器：标题用强调色、跨两列，与 shell 基础版不同，故在此覆盖 */
-.form-section-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--accent-color);
-    margin-top: 15px;
-    /* 增加组间距 */
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--border-light);
-    grid-column: span 2;
-}
-    padding-bottom: 5px;
-    grid-column: span 2;
-}
-
-/* 移除首个标题的顶部间距，统一页面间距 */
+/* 首个标题顶部间距归零（form-grid / toolbox-container 已在 shell 统一处理，此处仅保留模块特有容器） */
 .detail-tab-panel>.form-section-title:first-child,
-.form-grid>.form-section-title:first-child,
-.settings-container>.form-section-title:first-child,
-.toolbox-container>.form-section-title:first-child {
+.settings-container>.form-section-title:first-child {
     margin-top: 0;
 }
 
@@ -758,10 +741,6 @@ section.module-detail-panel {
         /* 防止双重滚动 */
     }
 
-    .toolbox-container {
-        padding: 15px;
-    }
-
     /* 移动端头部优化 */
     .header-title span {
         display: none;
@@ -791,33 +770,7 @@ section.module-detail-panel {
     height: 50px;
 }
 
-/* 工具箱样式 */
-.toolbox-container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 15px 20px;
-}
-
-.toolbox-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-}
-
-.toolbox-checkbox {
-    transform: scale(1.1);
-}
-
-.toolbox-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 10px;
-    background: var(--bg-card);
-    border-radius: 4px;
-}
-
+/* 工具箱样式（容器/复选列表/勾选框等通用样式已在 editor-shell.css 统一提供，此处仅保留调试专属样式） */
 .debug-tools {
     display: flex;
     gap: 8px 14px;

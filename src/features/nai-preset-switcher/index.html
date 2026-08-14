@@ -24,13 +24,16 @@
         <!-- 左侧主导航栏 -->
         <nav class="main-nav">
             <div class="nav-item active" data-target="view-preset">
-                <span class="nav-text" data-i18n="ccore_nai_tab_preset">预设</span>
+                <span class="nav-text" data-i18n="ccore_nai_tab_preset">预设管理</span>
             </div>
             <div class="nav-item" data-target="view-vibe">
-                <span class="nav-text" data-i18n="ccore_nai_tab_vibe">氛围</span>
+                <span class="nav-text" data-i18n="ccore_nai_tab_vibe">氛围管理</span>
             </div>
             <div class="nav-item" data-target="view-parse">
                 <span class="nav-text" data-i18n="ccore_nai_tab_parse">解析</span>
+            </div>
+            <div class="nav-item" data-target="view-tools">
+                <span class="nav-text" data-i18n="ccore_nai_tab_tools">工具箱</span>
             </div>
         </nav>
 
@@ -40,7 +43,6 @@
             <div id="view-preset" class="view-section active">
                 <div class="np-toolbar">
                     <input type="text" id="np-search" class="np-search" placeholder="搜索名称或标签…" />
-                    <button id="np-new" class="np-btn np-btn-primary">+ 新建预设</button>
                 </div>
 
                 <div class="np-tag-bar" id="np-tag-bar">
@@ -61,6 +63,21 @@
             <div id="view-parse" class="view-section">
                 <div class="np-placeholder">解析功能开发中…</div>
             </div>
+
+            <!-- 视图：工具箱 -->
+            <div id="view-tools" class="view-section">
+                <div class="detail-content">
+                    <div class="toolbox-container">
+                        <div class="form-section-title" data-i18n="ccore_nai_tools_title">数据工具</div>
+                        <div class="toolbox-actions">
+                            <button id="np-import-legacy" class="btn-secondary" data-i18n="ccore_nai_import_legacy">导入旧配置</button>
+                            <button id="np-sync-images" class="btn-secondary" data-i18n="ccore_nai_sync_images">同步旧配置图片到智绘姬</button>
+                            <button id="np-print-config" class="btn-secondary" data-i18n="ccore_nai_print_config">打印配置</button>
+                        </div>
+                        <div id="np-tools-result" class="np-tools-result"></div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -76,14 +93,7 @@
                 <label>标签（逗号分隔）</label>
                 <input type="text" id="np-f-tags" class="np-input" placeholder="风格, 场景" />
             </div>
-            <div class="np-form-row">
-                <label>正向提示词</label>
-                <textarea id="np-f-positive" class="np-textarea" rows="5" placeholder="positive prompt"></textarea>
-            </div>
-            <div class="np-form-row">
-                <label>负向提示词</label>
-                <textarea id="np-f-negative" class="np-textarea" rows="4" placeholder="negative prompt"></textarea>
-            </div>
+            <!-- 提示词（positive/negative）不在此编辑：实时读智绘姬 yushe[name] -->
             <div class="np-modal-actions">
                 <button id="np-cancel" class="np-btn">取消</button>
                 <button id="np-save" class="np-btn np-btn-primary">保存</button>

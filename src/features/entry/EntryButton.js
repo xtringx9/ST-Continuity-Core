@@ -44,7 +44,7 @@ export class EntryButton {
         // 如果插件未启用：通常完全不显示。
         // 例外：智绘姬NAI预设切换独立开启时，仍在其原位置显示一个独立按钮（全局工具，不依赖插件总开关）。
         if (!config.enabled) {
-            if (configManager.getStFeatureEnhanceConfig()?.naiPresetSwitcher?.enabled) {
+            if (configManager.isNaiPresetSwitcherEnabled()) {
                 this._createStandaloneNaiPresetButton();
             }
             return;
@@ -362,7 +362,7 @@ export class EntryButton {
 
         items.forEach(item => {
             // 智绘姬 NAI 预设切换按钮：功能未开启则不注入菜单（门控在源头）
-            if (item.action === 'nai-preset' && !configManager.getStFeatureEnhanceConfig()?.naiPresetSwitcher?.enabled) {
+            if (item.action === 'nai-preset' && !configManager.isNaiPresetSwitcherEnabled()) {
                 return;
             }
             const btn = document.createElement('div');
