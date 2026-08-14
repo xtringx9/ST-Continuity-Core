@@ -591,20 +591,20 @@ function buildCard(p) {
     const isCurrent = p.name && p.name === getChatu8CurrentPresetName();
 
     const applyBtn = doc.createElement('button');
-    applyBtn.className = 'np-btn np-btn-primary';
+    applyBtn.className = 'btn-primary np-card-btn';
     applyBtn.textContent = '应用';
     applyBtn.disabled = isCurrent;
     if (!isCurrent) applyBtn.addEventListener('click', () => applyPreset(p));
     actions.appendChild(applyBtn);
 
     const editBtn = doc.createElement('button');
-    editBtn.className = 'np-btn';
+    editBtn.className = 'btn-secondary np-card-btn';
     editBtn.textContent = '编辑';
     editBtn.addEventListener('click', () => openEditor(p.id));
     actions.appendChild(editBtn);
 
     const delBtn = doc.createElement('button');
-    delBtn.className = 'np-btn';
+    delBtn.className = 'btn-secondary np-card-btn';
     delBtn.textContent = '删除';
     delBtn.addEventListener('click', () => deletePreset(p.id));
     actions.appendChild(delBtn);
@@ -664,20 +664,20 @@ function buildCurrentSpecialCard(currentName) {
     actions.className = 'np-card-actions';
 
     const applyBtn = doc.createElement('button');
-    applyBtn.className = 'np-btn np-btn-primary';
+    applyBtn.className = 'btn-primary np-card-btn';
     applyBtn.textContent = '应用';
     applyBtn.disabled = true; // 当前预设无需应用
     actions.appendChild(applyBtn);
 
     if (own) {
         const editBtn = doc.createElement('button');
-        editBtn.className = 'np-btn';
+        editBtn.className = 'btn-secondary np-card-btn';
         editBtn.textContent = '编辑';
         editBtn.addEventListener('click', () => openEditor(own.id));
         actions.appendChild(editBtn);
 
         const delBtn = doc.createElement('button');
-        delBtn.className = 'np-btn';
+        delBtn.className = 'btn-secondary np-card-btn';
         delBtn.textContent = '删除';
         delBtn.addEventListener('click', () => deletePreset(own.id));
         actions.appendChild(delBtn);
@@ -834,13 +834,13 @@ function renderTagManager() {
             row.appendChild(name);
 
             const renameBtn = doc.createElement('button');
-            renameBtn.className = 'np-btn';
+            renameBtn.className = 'btn-secondary np-tag-manage-btn';
             renameBtn.textContent = '改名';
             renameBtn.addEventListener('click', () => onTagRename(tag));
             row.appendChild(renameBtn);
 
             const delBtn = doc.createElement('button');
-            delBtn.className = 'np-btn';
+            delBtn.className = 'btn-secondary np-tag-manage-btn';
             delBtn.textContent = '删除';
             delBtn.addEventListener('click', () => onTagDelete(tag));
             row.appendChild(delBtn);

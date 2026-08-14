@@ -21,26 +21,17 @@
     font-size: 13px;
 }
 
-/* nai 专属按钮（与 shell 的 .btn-* 区分，沿用既有类名） */
-.np-btn {
-    padding: 7px 12px;
-    border-radius: 6px;
-    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
-    background: var(--bg-card, #fff);
-    color: var(--text-primary, #222);
-    cursor: pointer;
-    font-size: 13px;
-    white-space: nowrap;
+/* nai 按钮视觉统一复用 shell 的 .btn-secondary / .btn-primary；此处仅做卡片内布局微调 */
+.np-card-btn {
+    flex: 1 1 auto;
+    padding: 5px 0;
+    font-size: 12px;
+    text-align: center;
 }
 
-.np-btn:hover {
-    background: var(--bg-hover, #f3f4f6);
-}
-
-.np-btn-primary {
-    background: var(--accent-color, #2563eb);
-    color: var(--bg-app, #fff);
-    border-color: transparent;
+.np-tag-manage-btn {
+    padding: 4px 10px;
+    font-size: 12px;
 }
 
 .np-tag-bar {
@@ -159,19 +150,6 @@
     display: flex;
     gap: 6px;
     margin-top: auto;
-}
-
-.np-card-actions .np-btn {
-    flex: 1 1 auto;
-    padding: 5px 0;
-    font-size: 12px;
-    text-align: center;
-}
-
-.np-btn:disabled,
-.np-btn[disabled] {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 /* 列表最前：当前预设的特殊副本卡片（实时反映智绘姬选中项，不影响其余卡片） */
@@ -321,7 +299,7 @@
         padding: 1px 6px;
     }
 
-    .np-card-actions .np-btn {
+    .np-card-actions .np-card-btn {
         font-size: 11px;
         padding: 6px 0;
     }
@@ -366,7 +344,7 @@
     color: var(--text-primary, #222);
 }
 
-.np-tag-manage-row .np-btn {
+.np-tag-manage-row .np-tag-manage-btn {
     padding: 4px 10px;
     font-size: 12px;
 }
