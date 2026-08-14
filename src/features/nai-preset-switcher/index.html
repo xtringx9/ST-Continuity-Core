@@ -5,30 +5,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智绘姬NAI预设切换增强</title>
+    <title>预设切换</title>
     <link rel="stylesheet" href="../../shared/styles/themes.css">
     <link rel="stylesheet" href="styles/layout.css">
 </head>
 
 <body>
     <header class="app-header">
-        <div class="header-title">
-            <span>智绘姬NAI预设切换增强</span>
-            <small style="opacity: 0.6; font-weight: normal;">Continuity Core</small>
-        </div>
+        <div class="header-title" data-i18n="ccore_nai_preset_title">预设切换</div>
         <div class="header-actions">
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
         </div>
     </header>
 
-    <div class="app-container">
-        <main class="content-area">
-            <div class="detail-content" style="padding: 24px;">
-                <p style="color: var(--text-muted);">智绘姬 NAI 预设切换增强功能底层已就绪（开关 + 入口）。</p>
-                <p style="color: var(--text-muted);">预设切换 UI 与导入既有画师串数据的能力将在后续阶段实现。</p>
+    <div class="np-toolbar">
+        <input type="text" id="np-search" class="np-search" placeholder="搜索名称或标签…" />
+        <button id="np-new" class="np-btn np-btn-primary">+ 新建预设</button>
+    </div>
+
+    <div class="np-tag-bar" id="np-tag-bar">
+        <!-- 标签筛选由 JS 生成 -->
+    </div>
+
+    <div class="np-list" id="np-list">
+        <!-- 预设卡片由 JS 生成 -->
+    </div>
+
+    <!-- 编辑弹层 -->
+    <div class="np-modal-mask" id="np-modal-mask" style="display:none;">
+        <div class="np-modal">
+            <div class="np-modal-title" id="np-modal-title">新建预设</div>
+            <div class="np-form-row">
+                <label>名称</label>
+                <input type="text" id="np-f-name" class="np-input" placeholder="预设名称" />
             </div>
-        </main>
+            <div class="np-form-row">
+                <label>标签（逗号分隔）</label>
+                <input type="text" id="np-f-tags" class="np-input" placeholder="画师, 风格, 场景" />
+            </div>
+            <div class="np-form-row">
+                <label>正向提示词</label>
+                <textarea id="np-f-positive" class="np-textarea" rows="5" placeholder="positive prompt"></textarea>
+            </div>
+            <div class="np-form-row">
+                <label>负向提示词</label>
+                <textarea id="np-f-negative" class="np-textarea" rows="4" placeholder="negative prompt"></textarea>
+            </div>
+            <div class="np-modal-actions">
+                <button id="np-cancel" class="np-btn">取消</button>
+                <button id="np-save" class="np-btn np-btn-primary">保存</button>
+            </div>
+        </div>
     </div>
 </body>
 

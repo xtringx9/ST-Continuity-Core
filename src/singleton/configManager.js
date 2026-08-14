@@ -44,8 +44,9 @@ export const DEFAULT_EXTENSION_CONFIG = {
         promptEntryActions: { // 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
             enabled: false,
         },
-        naiPresetSwitcher: { // 智绘姬 NAI 预设切换增强（自建画师串 / 参数预设切换）
+        naiPresetSwitcher: { // 预设切换（提示词预设切换与标签管理）
             enabled: false, // 默认关闭
+            presets: [], // 预设数组（id/name/positive/negative/tags/...）
         },
     },
     module: { // 前端模块域合集（模块存储 / UI 呈现 / 元数据）
@@ -454,6 +455,37 @@ class ConfigManager {
             this.loadExtensionConfig();
         }
         return this.extensionConfig?.stFeatureEnhance || DEFAULT_EXTENSION_CONFIG.stFeatureEnhance;
+    }
+
+    /**
+     * 获取「预设切换」子配置（读路径统一入口）
+     * @returns {Object} naiPresetSwitcher 子配置（含 enabled / presets）
+     */
+    getNaiPresetSwitcherConfig() {
+        if (!this.isExtensionConfigLoaded) {
+            this.loadExtensionConfig();
+        }
+        return this.extensionConfig?.stFeatureEnhance?.naiPresetSwitcher || DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.naiPresetSwitcher;
+    }
+
+    /**
+     * 获取预设数组（读路径）
+     * @returns {Array} presets
+     */
+    getNaiPresets() {
+        return this.getNaiPresetSwitcherConfig().presets || [];
+    }
+
+    /**
+     * 写入并落盘预设数组
+     * @param {Array} presets
+     */
+    setNaiPresets(presets) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        const fe = this.getStFeatureEnhanceConfig();
+        fe.naiPresetSwitcher = fe.naiPresetSwitcher || {};
+        fe.naiPresetSwitcher.presets = Array.isArray(presets) ? presets : [];
+        this.setExtensionConfig(this.getExtensionConfig());
     }
 
     /**
