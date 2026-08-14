@@ -232,21 +232,23 @@ export class EventHandler {
     }
 
     initializeModuleCache() {
-        // CHAT_CHANGED:先清空旧聊天缓存(跨聊天累积主因),再重建当前聊天缓存
+        // Tier 2：缓存维护按「是否有同步读约束」分两类。
+        // - Immediate（同步）：CHAT_CHANGED（进聊天需新鲜缓存）、MESSAGE_SENT（PROMPT_READY 宏同步读前需含用户新消息）
+        // - Debounced（80ms 合并 + force 取并集）：RECEIVED/EDITED/UPDATED/SWIPED 等 burst 事件，无同步读约束
+        // - CHAT_COMPLETION_PROMPT_READY 移除：生成前触发、缓存已 warm、立即被后续事件覆盖，纯浪费
         this.registerEvent(event_types.CHAT_CHANGED, () => {
             moduleCacheManager.clearAllCache();
-            moduleCacheManager.updateModuleCacheNoForce();
+            moduleCacheManager.updateModuleCacheImmediate(false);
         }, true, "Module Cache");
         this.registerEvent(event_types.CHAT_CHANGED, () => generatedContentCache.clear(), true, "Generated Content Cache");
-        this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
-        this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, moduleCacheManager.updateModuleCacheNoForce, true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_RECEIVED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_EDITED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_DELETED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_SWIPED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_SWIPE_DELETED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_UPDATED, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_SENT, moduleCacheManager.updateModuleCacheForce, true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_SENT, () => moduleCacheManager.updateModuleCacheImmediate(true), true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_RECEIVED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_EDITED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_DELETED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_SWIPED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_SWIPE_DELETED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
+        this.registerEvent(event_types.MESSAGE_UPDATED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
+        this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, () => moduleCacheManager.updateModuleCacheDebounced(false), true, "Module Cache");
     }
 }
 

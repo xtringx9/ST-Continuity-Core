@@ -3,6 +3,12 @@ import { chat, chat_metadata, saveSettingsDebounced } from "../../../../../../sc
 import { getContext, extension_settings } from "../../../../../extensions.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
 import { processModuleData } from "../core/moduleProcessor.js";
+
+// Tier 2：缓存更新防抖状态（模块级单例状态）
+const CACHE_DEBOUNCE_MS = 80;
+let _cacheUpdateTimer = null;
+let _cacheUpdatePendingForce = false;
+
 class ModuleCacheManager {
     constructor() {
         // 使用嵌套Map结构存储缓存数据
@@ -14,43 +20,90 @@ class ModuleCacheManager {
         console.log("[Module Cache]ModuleCacheManager 初始化完成");
     }
 
-    updateModuleCache(isForce) {
+    /**
+     * 实际执行缓存重建（双范围写）。
+     * 优化：末条是用户消息时，0-endIndex 与 0-null 范围相同，只提取一次、写两个键，
+     * 省一次全量提取。末条是 AI 消息时两范围不同，仍提取两次。
+     */
+    _doUpdateModuleCache(isForce) {
         if (!configManager.isLoaded) return;
         if (!chat || chat.length < 1) return;
-        // infoLog("conetext:", getContext());
-        // infoLog("Chat Metadata:", chat_metadata);
-        // debugLog("[Module Cache]updateModuleCache 开始执行, isForce: ", isForce);
-        const isUserMessage = chat[chat.length - 1].is_user !== undefined ? chat[chat.length - 1].is_user : chat[chat.length - 1].role === 'user';
+
+        const lastMsg = chat[chat.length - 1];
+        const isUserMessage = lastMsg.is_user !== undefined ? lastMsg.is_user : lastMsg.role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
+        const lastIdx = chat.length - 1;
 
-        const extractParams = {
-            startIndex: 0,
-            endIndex: endIndex,
-            moduleFilters: null
-        };
-        processModuleData(
-            extractParams,
+        // 第一次提取（0-endIndex），processModuleData 内部会写 0-endIndex 缓存键
+        const result = processModuleData(
+            { startIndex: 0, endIndex, moduleFilters: null },
             'auto',
             undefined,
             isForce
         );
 
-        extractParams.endIndex = null;
-        processModuleData(
-            extractParams,
-            'auto',
-            undefined,
-            isForce
-        );
+        if (endIndex !== lastIdx) {
+            // 末条是 AI 消息：0-null 范围不同，需独立提取
+            processModuleData(
+                { startIndex: 0, endIndex: null, moduleFilters: null },
+                'auto',
+                undefined,
+                isForce
+            );
+        } else {
+            // 末条是用户消息：0-endIndex === 0-null，复用第一次结果写 0-null 键
+            moduleCacheManager.setCurrentChatData(0, null, result);
+        }
+
         infoLog("[Module Cache]updateModuleCache 执行完成, isForce:", isForce);
     }
 
-    updateModuleCacheNoForce() {
-        moduleCacheManager.updateModuleCache(false);
+    /**
+     * 立即刷新缓存（同步）。
+     * 用于必须在同步读（宏 PROMPT_READY）前保证缓存新鲜的场景：CHAT_CHANGED / MESSAGE_SENT。
+     * 会合并并消费已排队的 debounce 请求（force 取并集）。
+     */
+    updateModuleCacheImmediate(isForce) {
+        if (_cacheUpdateTimer !== null) {
+            if (isForce) _cacheUpdatePendingForce = true;
+            isForce = _cacheUpdatePendingForce;
+            _cacheUpdatePendingForce = false;
+            clearTimeout(_cacheUpdateTimer);
+            _cacheUpdateTimer = null;
+        }
+        moduleCacheManager._doUpdateModuleCache(isForce);
     }
 
+    /**
+     * 防抖刷新缓存（80ms 合并 + force 取并集）。
+     * 用于 burst 事件（RECEIVED+RENDERED、EDITED+UPDATED 等），无同步读约束。
+     */
+    updateModuleCacheDebounced(isForce) {
+        if (!configManager.isLoaded) return;
+        if (!chat || chat.length < 1) return;
+        if (isForce) _cacheUpdatePendingForce = true;
+        if (_cacheUpdateTimer !== null) return;
+        _cacheUpdateTimer = setTimeout(() => {
+            const force = _cacheUpdatePendingForce;
+            _cacheUpdatePendingForce = false;
+            _cacheUpdateTimer = null;
+            moduleCacheManager._doUpdateModuleCache(force);
+        }, CACHE_DEBOUNCE_MS);
+    }
+
+    /** @deprecated 用 updateModuleCacheDebounced/Immediate */
+    updateModuleCache(isForce) {
+        moduleCacheManager.updateModuleCacheDebounced(isForce);
+    }
+
+    /** @deprecated */
+    updateModuleCacheNoForce() {
+        moduleCacheManager.updateModuleCacheDebounced(false);
+    }
+
+    /** @deprecated */
     updateModuleCacheForce() {
-        moduleCacheManager.updateModuleCache(true);
+        moduleCacheManager.updateModuleCacheDebounced(true);
     }
 
     /**
