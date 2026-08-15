@@ -655,3 +655,54 @@
     border-color: var(--accent-color, #2563eb);
     color: #fff;
 }
+
+/* 编辑弹层·预览图拖拽区 */
+.np-dropzone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 140px;
+    padding: 12px;
+    border: 1.5px dashed var(--border-color, rgba(128, 128, 128, 0.4));
+    border-radius: 8px;
+    background: var(--bg-input, #fff);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.np-dropzone:hover {
+    border-color: var(--accent-color, #2563eb);
+}
+
+.np-dropzone.dragover {
+    border-color: var(--accent-color, #2563eb);
+    background: color-mix(in srgb, var(--accent-color, #2563eb) 8%, var(--bg-input, #fff));
+}
+
+.np-dropzone-img {
+    max-width: 100%;
+    max-height: 180px;
+    border-radius: 6px;
+    object-fit: contain;
+}
+
+.np-dropzone-hint {
+    color: var(--text-muted, #999);
+    font-size: 13px;
+    text-align: center;
+}
+
+.np-dropzone-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.np-dropzone-btn {
+    padding: 3px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+}

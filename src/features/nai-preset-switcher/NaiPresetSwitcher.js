@@ -223,6 +223,114 @@ function bindToolbox() {
             renderAll();
         }));
     }
+
+    bindEditorDropzone();
+}
+
+/* ============ 编辑弹层·预览图拖拽/选择 ============ */
+
+function bindEditorDropzone() {
+    const zone = doc.getElementById('np-f-dropzone');
+    const input = doc.getElementById('np-f-img-input');
+    const hint = doc.getElementById('np-f-dropzone-hint');
+    const actions = doc.getElementById('np-f-dropzone-actions');
+    const changeBtn = doc.getElementById('np-f-img-change');
+    const removeBtn = doc.getElementById('np-f-img-remove');
+    if (!zone || !input) return;
+
+    // 打开弹层时刷新一次（显示已有预览图）；放在 openEditor 调用
+    zone.addEventListener('click', (e) => {
+        // 点击放置区（非按钮）触发选择
+        if (e.target === changeBtn || e.target === removeBtn) return;
+        input.click();
+    });
+    input.addEventListener('change', () => {
+        if (input.files && input.files[0]) handleEditorImageFile(input.files[0]);
+        input.value = '';
+    });
+    zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('dragover');
+    });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) handleEditorImageFile(file);
+    });
+    if (changeBtn) changeBtn.addEventListener('click', () => input.click());
+    if (removeBtn) removeBtn.addEventListener('click', () => {
+        const name = editingName;
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        if (name && chatu8?.yushe?.[name]) {
+            delete chatu8.yushe[name].previewImageId;
+            try { saveSettings(); } catch (e) { errorLog('保存失败', e); }
+        }
+        renderEditorDropzone(null);
+    });
+}
+
+// 渲染放置区：给定预览图 URL（或 null 表示无图）
+function renderEditorDropzone(url) {
+    const img = doc.getElementById('np-f-preview-img');
+    const hint = doc.getElementById('np-f-dropzone-hint');
+    const actions = doc.getElementById('np-f-dropzone-actions');
+    if (!img || !hint || !actions) return;
+    if (url) {
+        img.src = url;
+        img.style.display = '';
+        hint.style.display = 'none';
+        actions.style.display = 'flex';
+    } else {
+        img.removeAttribute('src');
+        img.style.display = 'none';
+        hint.style.display = '';
+        actions.style.display = 'none';
+    }
+}
+
+async function handleEditorImageFile(file) {
+    if (!file.type || !file.type.startsWith('image/')) {
+        // 用通用 Toast？编辑器内用 alert 简化；此处仅 debug
+        errorLog('[智绘姬NAI预设切换] 选择的不是图片文件');
+        return;
+    }
+    if (file.size > MAX_RAW_IMAGE_BYTES) {
+        errorLog('[智绘姬NAI预设切换] 图片过大（超过 20MB）');
+        return;
+    }
+    const name = editingName;
+    if (!name) {
+        errorLog('[智绘姬NAI预设切换] 尚未确定预设名，无法设置预览图');
+        return;
+    }
+    const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+    if (!chatu8?.yushe?.[name]) {
+        errorLog(`[智绘姬NAI预设切换] 智绘姬中不存在预设「${name}」，无法设置预览图`);
+        return;
+    }
+
+    // 先本地预览（压缩前用原始 dataURL 即时显示，体验更顺）
+    const localUrl = await new Promise(res => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result));
+        r.onerror = () => res(null);
+        r.readAsDataURL(file);
+    });
+    if (localUrl) renderEditorDropzone(localUrl);
+
+    const payload = await compressImageFile(file);
+    if (!payload) {
+        errorLog('[智绘姬NAI预设切换] 图片压缩失败');
+        return;
+    }
+    const res = await uploadPreviewImage(name, payload);
+    if (res) {
+        try { saveSettings(); } catch (e) { errorLog('保存失败', e); }
+        // 用服务器 path 作为最终预览（与卡片读取同源）
+        renderEditorDropzone(res.path);
+    }
 }
 
 // 旧版预设数据源的 extension_settings key（中性标识，不涉及任何插件名）
@@ -249,6 +357,101 @@ function parseThumbBase64(thumb) {
         return { data: str.slice(commaIdx + 1), format: match ? match[1].toLowerCase() : 'png' };
     }
     return { data: str, format: 'png' };
+}
+
+// 预览图压缩上限（原始文件，超过直接拒绝，避免内存爆）
+const MAX_RAW_IMAGE_BYTES = 20 * 1024 * 1024; // 20MB
+// 压缩后最长边像素与质量
+const PREVIEW_MAX_EDGE = 1024;
+const PREVIEW_QUALITY = 0.85;
+
+/**
+ * 将用户选择的图片文件压缩为适合做预设预览的小图：
+ * 1) 限制最长边 PREVIEW_MAX_EDGE 等比缩放；
+ * 2) 编码为 JPEG quality 0.85（预设预览无需透明通道）。
+ * 返回 { data: base64(去前缀), format } 或 null（非图片/解析失败）。
+ * @param {File} file
+ * @returns {Promise<{data:string, format:string}|null>}
+ */
+function compressImageFile(file) {
+    return new Promise(resolve => {
+        if (!file || !file.type || !file.type.startsWith('image/')) return resolve(null);
+        const reader = new FileReader();
+        reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    const scale = Math.min(1, PREVIEW_MAX_EDGE / Math.max(img.width, img.height));
+                    const w = Math.max(1, Math.round(img.width * scale));
+                    const h = Math.max(1, Math.round(img.height * scale));
+                    const canvas = doc.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#fff'; // JPEG 无透明，填白底
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob(blob => {
+                        if (!blob) return resolve(null);
+                        const fr = new FileReader();
+                        fr.onload = () => {
+                            const dataUrl = String(fr.result);
+                            const comma = dataUrl.indexOf(',');
+                            resolve({ data: dataUrl.slice(comma + 1), format: 'jpeg' });
+                        };
+                        fr.onerror = () => resolve(null);
+                        fr.readAsDataURL(blob);
+                    }, 'image/jpeg', PREVIEW_QUALITY);
+                } catch (e) {
+                    errorLog('[智绘姬NAI预设切换] 压缩图片失败:', e);
+                    resolve(null);
+                }
+            };
+            img.onerror = () => resolve(null);
+            img.src = String(reader.result);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+    });
+}
+
+/**
+ * 上传某预设的预览图到 ST 服务器，并写入智绘姬配置（与图片同步逻辑同源）：
+ *   extension_settings["st-chatu8"].configImageStorage[id] = { path, date }
+ *   yushe[name].previewImageId = id
+ * 注意：调用方负责先确认 yushe[name] 存在。
+ * @param {string} name 预设名（= 智绘姬 yushe key）
+ * @param {{data:string, format:string}} payload 已压缩的 base64 图片（去 data: 前缀）
+ * @returns {Promise<{id:string, path:string}|null>}
+ */
+async function uploadPreviewImage(name, payload) {
+    try {
+        const response = await fetch('/api/images/upload', {
+            method: 'POST',
+            headers: getRequestHeaders(window.token),
+            body: JSON.stringify({
+                image: payload.data,
+                format: payload.format,
+                ch_name: 'chatu8_config',
+                filename: `preset_${name}_preview`,
+            }),
+        });
+        if (!response.ok) throw new Error(`上传失败: ${response.statusText}`);
+        const result = await response.json();
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        if (!chatu8.configImageStorage || typeof chatu8.configImageStorage !== 'object') {
+            chatu8.configImageStorage = {};
+        }
+        const id = `cfgimg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        chatu8.configImageStorage[id] = { path: result.path, date: Date.now() };
+        if (chatu8.yushe && chatu8.yushe[name]) {
+            chatu8.yushe[name].previewImageId = id;
+        }
+        return { id, path: result.path };
+    } catch (e) {
+        errorLog(`[智绘姬NAI预设切换] 上传预设「${name}」预览图失败:`, e);
+        return null;
+    }
 }
 
 /**
@@ -357,10 +560,6 @@ async function syncLegacyImagesToChatu8() {
         showToolsResult(resultEl, '智绘姬预设列表（yushe）为空。', true);
         return;
     }
-    if (!chatu8.configImageStorage || typeof chatu8.configImageStorage !== 'object') {
-        chatu8.configImageStorage = {};
-    }
-    const storage = chatu8.configImageStorage;
 
     let ok = 0;
     let skippedHasImage = 0;
@@ -373,28 +572,9 @@ async function syncLegacyImagesToChatu8() {
         if (preset.previewImageId) { skippedHasImage++; continue; }
         const thumb = parseThumbBase64(entry.thumb);
         if (!thumb) { failed++; failedNames.push(entry.name); continue; }
-        try {
-            const response = await fetch('/api/images/upload', {
-                method: 'POST',
-                headers: getRequestHeaders(window.token),
-                body: JSON.stringify({
-                    image: thumb.data,
-                    format: thumb.format,
-                    ch_name: 'chatu8_config',
-                    filename: `preset_${entry.name}_preview`,
-                }),
-            });
-            if (!response.ok) throw new Error(`上传失败: ${response.statusText}`);
-            const result = await response.json();
-            const id = `cfgimg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-            storage[id] = { path: result.path, date: Date.now() };
-            preset.previewImageId = id;
-            ok++;
-        } catch (e) {
-            errorLog(`[智绘姬NAI预设切换] 同步预设「${entry.name}」图片失败:`, e);
-            failed++;
-            failedNames.push(entry.name);
-        }
+        const res = await uploadPreviewImage(entry.name, thumb);
+        if (res) ok++;
+        else { failed++; failedNames.push(entry.name); }
     }
 
     if (ok > 0) saveSettings();
@@ -835,6 +1015,15 @@ function openEditor(id, name) {
     fName.value = p?.name || name || '';
     editingTags = p?.tags ? [...p.tags] : [];
     renderTagEditor();
+    // 显示已有预览图（实时读智绘姬 yushe[name].previewImageId）
+    const existingUrl = (name && extension_settings[CHATU8_SETTINGS_KEY]?.yushe?.[name]?.previewImageId)
+        ? getChatu8PreviewImageUrl(name)
+        : null;
+    if (existingUrl && typeof existingUrl.then === 'function') {
+        existingUrl.then(url => renderEditorDropzone(url));
+    } else {
+        renderEditorDropzone(existingUrl);
+    }
     mask.style.display = 'flex';
     fName.focus();
 }

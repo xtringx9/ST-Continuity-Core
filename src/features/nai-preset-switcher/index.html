@@ -97,6 +97,18 @@
                 <input type="text" id="np-f-name" class="np-input" placeholder="预设名称" />
             </div>
             <div class="np-form-row">
+                <label>预览图</label>
+                <div id="np-f-dropzone" class="np-dropzone">
+                    <img id="np-f-preview-img" class="np-dropzone-img" alt="" style="display:none;" />
+                    <div id="np-f-dropzone-hint" class="np-dropzone-hint">拖拽图片到此处，或点击选择</div>
+                    <div id="np-f-dropzone-actions" class="np-dropzone-actions" style="display:none;">
+                        <button id="np-f-img-change" class="btn-secondary np-dropzone-btn">更换</button>
+                        <button id="np-f-img-remove" class="btn-secondary np-dropzone-btn">移除</button>
+                    </div>
+                </div>
+                <input type="file" id="np-f-img-input" accept="image/*" style="display:none;" />
+            </div>
+            <div class="np-form-row">
                 <label>标签</label>
                 <div id="np-f-tags" class="np-tag-editor"></div>
                 <div class="np-tag-pool-wrap">
