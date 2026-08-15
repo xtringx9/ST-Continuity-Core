@@ -257,6 +257,22 @@
     border-color: transparent;
 }
 
+/* 失联预设：本地有配置但智绘姬侧已无对应（已删/改名），虚线灰边提示 */
+.np-card-orphan {
+    border-style: dashed;
+    border-color: var(--text-muted, #999);
+    opacity: 0.92;
+}
+
+.np-card-orphan::after {
+    content: '⚠ 智绘姬无此预设';
+    display: block;
+    margin-top: 2px;
+    font-size: 10px;
+    color: #b45309;
+    font-weight: 600;
+}
+
 /* 编辑弹层（遮罩/容器复用 shell 的 .modal-mask / .modal，此处仅 nai 内容样式） */
 .np-modal-title {
     font-size: 15px;

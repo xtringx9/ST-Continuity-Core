@@ -87,6 +87,8 @@ export function syncNaiPresetData(iframeDocument) {
     try {
         presets = configManager.getNaiPresets().map(p => ({ ...p }));
         tagLib = configManager.getNaiTags().map(t => ({ ...t }));
+        // 打开时把本地预设 name 与智绘姬 yushe key 对齐（自愈失联：智绘姬侧改名导致本地指向旧名）
+        reconcilePresetNamesWithChatu8();
     } catch (e) {
         errorLog('[智绘姬NAI预设切换] 打开时重读配置失败:', e);
     }
@@ -241,6 +243,9 @@ function bindToolbox() {
 
     const printBtn = doc.getElementById('np-print-config');
     if (printBtn) printBtn.addEventListener('click', printConfig);
+
+    const printChatu8Btn = doc.getElementById('np-print-chatu8');
+    if (printChatu8Btn) printChatu8Btn.addEventListener('click', printChatu8Presets);
 
     const exportTagsBtn = doc.getElementById('np-export-tags');
     if (exportTagsBtn) exportTagsBtn.addEventListener('click', () => handleTagExport(doc));
@@ -513,9 +518,10 @@ function renameChatu8Preset(oldName, newName) {
             chatu8[key] = newName;
         }
     }
-    try { saveSettings(); } catch (e) { errorLog('[智绘姬NAI预设切换] 重命名后保存失败', e); }
-    // 即时刷新智绘姬预设下拉（否则需手动刷新页面才看到新名）
+    // 先刷新智绘姬预设下拉（让其 UI 反映新名），再 saveSettings，
+    // 避免 saveSettings 用旧下拉状态覆盖我们刚迁移的 yushe key
     refreshChatu8PresetSelectors();
+    try { saveSettings(); } catch (e) { errorLog('[智绘姬NAI预设切换] 重命名后保存失败', e); }
     return { ok: true };
 }
 
@@ -767,6 +773,35 @@ function printConfig() {
     debugLog(`[智绘姬NAI预设切换] 打印配置：${presets.length} 条`);
 }
 
+// 打印智绘姬原始预设数据（yushe + 各模式指针），便于对照「我们配置」与「智绘姬实际数据」是否一致
+function printChatu8Presets() {
+    const resultEl = doc.getElementById('np-tools-result');
+    const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+    if (!chatu8) {
+        showToolsResult(resultEl, '未找到智绘姬配置（extension_settings["st-chatu8"]）。', true);
+        return;
+    }
+    const yushe = chatu8.yushe || {};
+    // 各模式当前指针：novelai → yusheid_novelai / sd → yusheid / comfyui → yusheid_comfyui
+    const pointers = {
+        novelai: chatu8['yusheid_novelai'] || null,
+        sd: chatu8['yusheid'] || null,
+        comfyui: chatu8['yusheid_comfyui'] || null,
+    };
+    const snapshot = {
+        exportedAt: new Date().toISOString(),
+        mode: chatu8.mode || 'comfyui',
+        currentPresetName: getChatu8CurrentPresetName(),
+        pointers,
+        presetCount: Object.keys(yushe).length,
+        yushe,
+    };
+    const text = JSON.stringify(snapshot, null, 2);
+    copyToClipboard(text);
+    showToolsResult(resultEl, `已复制智绘姬 ${snapshot.presetCount} 条预设原始数据到剪贴板。`, false);
+    debugLog(`[智绘姬NAI预设切换] 打印智绘姬预设：${snapshot.presetCount} 条`);
+}
+
 function showToolsResult(el, message, isError) {
     if (!el) return;
     el.textContent = message;
@@ -832,8 +867,13 @@ function mergePresetViews() {
     const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
     const yushe = (chatu8 && chatu8.yushe) || {};
     const ownByName = new Map(presets.map(p => [p.name, p]));
-    return Object.keys(yushe).map(name => {
+    // 以「智绘姬 yushe」与「本地配置 presets」的并集为基准，确保两类都显示：
+    //  - 仅智绘姬预设（yushe 有、本地无）：own 为 undefined，id=null
+    //  - 仅我们配置（本地有、yushe 无，如智绘姬侧已删/改名）：仍要显示，inChatu8=false
+    const names = new Set([...Object.keys(yushe), ...presets.map(p => p.name)]);
+    return [...names].map(name => {
         const own = ownByName.get(name);
+        const inChatu8 = !!yushe[name];
         return {
             name,
             id: own ? own.id : null,
@@ -841,6 +881,7 @@ function mergePresetViews() {
             favorite: own ? !!own.favorite : false,
             createdAt: own ? own.createdAt : null,
             updatedAt: own ? own.updatedAt : null,
+            inChatu8,
         };
     });
 }
@@ -976,6 +1017,11 @@ function getChatu8CurrentPresetName() {
     }
 }
 
+// 智绘姬内置默认预设不可更名（与智绘姬自身判定一致：名为「默认」/「default」时禁止改名）
+function isChatu8DefaultPreset(name) {
+    return name === '默认' || name === 'default';
+}
+
 // 智绘姬 yushe 中是否只剩这一个预设（删了就无预设可选，需禁用删除）
 function isOnlyPresetInChatu8(name) {
     try {
@@ -987,12 +1033,54 @@ function isOnlyPresetInChatu8(name) {
     }
 }
 
+/**
+ * 打开窗口时，将本地预设的 name 与智绘姬 yushe 的 key 做轻量对齐（自愈）。
+ * 场景：用户在智绘姬侧直接改了预设名（绕开本插件），导致本地 presets[].name 失联
+ * （指向 yushe 中已不存在的旧名）。若恰好只有一个「孤儿」yushe key 未被任何本地
+ * 预设引用，则无歧义地自动重绑该本地预设的 name，使其重新对齐。
+ * 多候选 / 无候选时不自动改动（避免误绑，留给未来的失联重绑 UI）。
+ * 仅改本地 name，不动智绘姬 yushe。
+ */
+function reconcilePresetNamesWithChatu8() {
+    try {
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        const yushe = (chatu8 && chatu8.yushe) || {};
+        const yusheKeys = Object.keys(yushe);
+        if (!yusheKeys.length || !presets.length) return;
+
+        // 已被本地预设有效引用的 key
+        const referenced = new Set(
+            presets.map(p => p.name).filter(n => yusheKeys.includes(n))
+        );
+        // 未被引用的 yushe key（可候选重绑）
+        const orphans = yusheKeys.filter(k => !referenced.has(k));
+
+        let changed = false;
+        for (const p of presets) {
+            if (yusheKeys.includes(p.name)) continue; // 仍有效，跳过
+            if (orphans.length === 1) {
+                // 唯一孤儿：无歧义，自动重绑
+                p.name = orphans[0];
+                p.updatedAt = Date.now();
+                changed = true;
+                debugLog(`[智绘姬NAI预设切换] 自动重绑失联预设 →「${orphans[0]}」`);
+            }
+            // 多候选或空：不自动处理
+        }
+        if (changed) persist();
+    } catch (e) {
+        errorLog('[智绘姬NAI预设切换] 打开时对齐预设名失败:', e);
+    }
+}
+
 function buildCard(p) {
     const card = doc.createElement('div');
     card.className = 'np-card';
     if (p.name) card.dataset.name = p.name;
     // 收藏预设：底部特殊样式让它更明显
     if (p.favorite) card.classList.add('np-card-fav');
+    // 失联预设：本地有配置但智绘姬侧已无对应（已删/改名），加标记便于识别
+    if (p.inChatu8 === false) card.classList.add('np-card-orphan');
 
     // 高亮智绘姬当前选中的预设
     if (p.name && p.name === getChatu8CurrentPresetName()) {
@@ -1055,7 +1143,10 @@ function buildCard(p) {
     const applyBtn = doc.createElement('button');
     applyBtn.className = 'btn-primary np-card-btn';
     applyBtn.textContent = '应用';
-    applyBtn.disabled = isCurrent;
+    // 当前预设无需应用；智绘姬侧已无此预设（失联）也无法应用
+    const orphan = !p.inChatu8;
+    applyBtn.disabled = isCurrent || orphan;
+    if (orphan) applyBtn.title = '智绘姬中已无此预设，无法应用';
     // 始终绑定 click：当前预设靠 disabled 阻止点击，这样局部刷新切换 disabled 后
     // 旧当前卡即可立即响应，无需重新绑监听。
     applyBtn.addEventListener('click', () => applyPreset(p));
@@ -1183,6 +1274,11 @@ function openEditor(id, name) {
     const p = id ? presets.find(x => x.id === id) : null;
     title.textContent = p ? '编辑预设' : '编辑预设（首次建标签）';
     fName.value = p?.name || name || '';
+    // 智绘姬内置默认预设不可更名：禁用名称输入框并提示（仍可编辑标签/收藏）
+    const isDefault = isChatu8DefaultPreset(p?.name || name || '');
+    fName.disabled = isDefault;
+    fName.style.opacity = isDefault ? '0.6' : '';
+    fName.title = isDefault ? '智绘姬默认预设不可更名' : '';
     editingTags = p?.tags ? [...p.tags] : [];
     renderTagEditor();
     // 显示已有预览图（实时读智绘姬 yushe[name].previewImageId）
@@ -1324,25 +1420,40 @@ function onSave() {
     if (editingId) {
         const p = presets.find(x => x.id === editingId);
         if (p) {
-            // 改名：真正同步到智绘姬侧（重命名 yushe key + 模式指针），避免锚点失联
-            if (name !== p.name) {
-                const res = renameChatu8Preset(p.name, name);
+            // 智绘姬内置默认预设不可更名：忽略名称改动，保持原名（仅允许编辑标签）
+            if (isChatu8DefaultPreset(p.name)) {
+                name = p.name;
+            }
+            const oldName = p.name;
+            if (name !== oldName) {
+                // 先把本地 name 更新并落盘（本地配置权威），避免改名后本地仍是旧名导致失联
+                p.name = name;
+                p.tags = tags;
+                p.updatedAt = Date.now();
+                persist();
+                editingName = name; // 同步锚点，供预览图操作使用新 key
+                // 再同步智绘姬侧：迁移 yushe key + 模式指针
+                const res = renameChatu8Preset(oldName, name);
                 if (res.conflict) {
-                    // 目标名在智绘姬已存在，拒绝保存，保留弹层让用户改
+                    // 目标名在智绘姬已存在：回滚本地 name 并提示，保留弹层让用户改
+                    p.name = oldName;
+                    p.updatedAt = Date.now();
+                    persist();
                     showToast(doc, `智绘姬中已存在名为「${name}」的预设，请换一个名字。`, 'error');
                     fName.focus();
                     fName.select();
                     return;
                 }
                 if (!res.ok) {
-                    // 智绘姬侧不存在该预设（纯本地残留），仅更新本配置 name
-                    errorLog(`[智绘姬NAI预设切换] 智绘姬中不存在预设「${p.name}」，仅更新本地名称`);
+                    // 智绘姬侧不存在该预设（纯本地残留），本地已更新即可，仅留日志
+                    errorLog(`[智绘姬NAI预设切换] 智绘姬中不存在预设「${oldName}」，仅更新本地名称`);
                 }
+            } else {
+                // 未改名：正常保存标签
+                p.tags = tags;
+                p.updatedAt = Date.now();
+                persist();
             }
-            p.name = name;
-            p.tags = tags;
-            p.updatedAt = Date.now();
-            editingName = name; // 同步锚点，供预览图操作使用新 key
         }
     } else {
         // 按 name 查找：纯智绘姬预设首次建标签时复用已有配置项，避免重复
