@@ -84,6 +84,50 @@ export const NAI_PRESET_TEMPLATE = {
     // 只收藏图片（点红心即时收藏，不弹标签窗）；标签在「图片收藏」tab 内管理。
     // items 的 key = 图片唯一标识（chat:<uuid|path> / character:<configId> / outfit:<configId>）。
     // 图片被删后对应收藏项自动清除（失效自愈）。
+    // 聊天扫描（2026-08-15 用户拍板：持久化存 nai_preset_config）
+    // 扫描当前聊天，确定「提示词 ↔ 楼层/角色」对应关系，供文生图按 角色→楼层→提示词 分组。
+    // 按 chatId 区分（切聊天不串）；map[].storageKey = jiuguanStorage 的 md5 key（定位图）。
+    chatScan: {
+        chatId: {
+            type: 'string',
+            default: '',
+            description: '扫描的聊天标识（getCurrentChatId()）'
+        },
+        scannedAt: {
+            type: 'number',
+            default: 0,
+            description: '扫描时间（ms 时间戳）'
+        },
+        map: [
+            {
+                tag: {
+                    type: 'string',
+                    default: '',
+                    description: '提示词原文（jiuguanStorage[md5].change）'
+                },
+                storageKey: {
+                    type: 'string',
+                    default: '',
+                    description: 'jiuguanStorage 的 md5 key（关联图）'
+                },
+                floors: [
+                    {
+                        floor: {
+                            type: 'number',
+                            default: 0,
+                            description: '消息索引'
+                        },
+                        characterName: {
+                            type: 'string',
+                            default: '',
+                            description: '该消息归属（角色名，用户消息为空/特殊）'
+                        },
+                    }
+                ],
+            }
+        ],
+    },
+
     imageFavorites: {
         tags: [
             {
@@ -158,6 +202,11 @@ export const DEFAULT_NAI_PRESET_CONFIG = {
     },
     tags: [],
     presets: [],
+    chatScan: {
+        chatId: '',
+        scannedAt: 0,
+        map: [],
+    },
     imageFavorites: {
         tags: [],
         items: [],
@@ -233,6 +282,19 @@ export function normalizeNaiPresetConfig(config) {
         },
         tags: [],
         presets: [],
+        chatScan: {
+            chatId: String((config.chatScan && config.chatScan.chatId) || ''),
+            scannedAt: typeof (config.chatScan && config.chatScan.scannedAt) === 'number' ? config.chatScan.scannedAt : 0,
+            map: Array.isArray(config.chatScan && config.chatScan.map) ? config.chatScan.map
+                .filter(m => m && (m.tag || m.storageKey))
+                .map(m => ({
+                    tag: String(m.tag || ''),
+                    storageKey: String(m.storageKey || ''),
+                    floors: Array.isArray(m.floors) ? m.floors
+                        .filter(f => f && typeof f.floor === 'number')
+                        .map(f => ({ floor: f.floor, characterName: String(f.characterName || '') })) : [],
+                })) : [],
+        },
         imageFavorites: {
             tags: [],
             items: [],

@@ -20,6 +20,7 @@
             <button id="np-export-tags" class="btn-secondary" data-nav="preset" style="padding:6px 12px; font-size:13px;">导出标签</button>
             <button id="np-inspect-copy" class="btn-secondary" data-nav="parse" style="padding:6px 12px; font-size:13px;" disabled>复制全部</button>
             <button id="np-add-from-inspect" class="btn-primary" data-nav="parse" style="padding:6px 12px; font-size:13px;" disabled>添加为预设</button>
+            <button id="np-chat-scan" class="btn-secondary" data-nav="vibe" style="padding:6px 12px; font-size:13px;" title="扫描当前聊天，确定提示词与聊天/角色的对应关系">扫描聊天</button>
             <button id="np-img-manage" class="btn-secondary" data-nav="vibe" style="padding:6px 12px; font-size:13px;">管理模式</button>
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
@@ -77,10 +78,11 @@
                         <button class="np-img-cat" data-cat="outfit">服装图</button>
                     </div>
                     <div class="np-img-sub" id="np-img-sub">
-                        <!-- 文内生图：按提示词/按预设二选一；左侧分隔线视觉区分 -->
-                        <div class="np-img-sub-group" data-for="chat">
-                            <button class="np-img-sub-btn active" data-group="prompt">按提示词</button>
-                            <button class="np-img-sub-btn" data-group="preset">按预设</button>
+                        <!-- 文内生图：按提示词/按预设/按角色可叠加 toggle（空=默认按提示词） -->
+                        <div class="np-img-sub-group np-img-sub-toggle" data-for="chat">
+                            <button class="np-img-sub-btn" data-group="prompt">+按提示词</button>
+                            <button class="np-img-sub-btn" data-group="preset">+按预设</button>
+                            <button class="np-img-sub-btn" data-group="character">+按角色</button>
                         </div>
                         <!-- 角色/服装：按提示词/按预设可叠加的独立开关（默认不选） -->
                         <div class="np-img-sub-group np-img-sub-toggle" data-for="presetcat">

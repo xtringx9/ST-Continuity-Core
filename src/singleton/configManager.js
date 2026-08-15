@@ -500,12 +500,13 @@ class ConfigManager {
      */
     setNaiPresets(presets) {        if (!ENABLE_DEV_SAVE_GUARD) return;
         const current = this.getNaiPresetSwitcherConfig();
-        // 落盘前经模板归一化，保证字段完整、类型正确（enabled / chatu8Launcher / imageFavorites 沿用当前值，避免被重置）
+        // 落盘前经模板归一化，保证字段完整、类型正确（enabled / chatu8Launcher / imageFavorites / chatScan 沿用当前值，避免被重置）
         const normalized = normalizeNaiPresetConfig({
             enabled: current.enabled,
             chatu8Launcher: current.chatu8Launcher,
             presets: Array.isArray(presets) ? presets : [],
             imageFavorites: current.imageFavorites,
+            chatScan: current.chatScan,
         });
         this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();
@@ -535,6 +536,7 @@ class ConfigManager {
             presets: current.presets || [],
             tags: Array.isArray(tags) ? tags : [],
             imageFavorites: current.imageFavorites,
+            chatScan: current.chatScan,
         });
         this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();
@@ -574,6 +576,37 @@ class ConfigManager {
             presets: current.presets || [],
             tags: current.tags || [],
             imageFavorites: imageFavorites || {},
+            chatScan: current.chatScan,
+        });
+        this.naiPresetConfig = normalized;
+        this.saveNaiPresetConfigNow();
+    }
+
+    /**
+     * 获取聊天扫描结果（读路径，走独立顶层键 nai_preset_config.chatScan）
+     * @returns {{chatId:string, scannedAt:number, map:Array}} chatScan
+     */
+    getNaiChatScan() {
+        if (!this.isNaiPresetConfigLoaded) {
+            this.loadNaiPresetConfig();
+        }
+        return this.naiPresetConfig?.chatScan || { chatId: '', scannedAt: 0, map: [] };
+    }
+
+    /**
+     * 写入并落盘聊天扫描结果（独立顶层键 nai_preset_config.chatScan；保留其他字段）
+     * @param {{chatId?:string, scannedAt?:number, map?:Array}} chatScan
+     */
+    setNaiChatScan(chatScan) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        const current = this.getNaiPresetSwitcherConfig();
+        const normalized = normalizeNaiPresetConfig({
+            enabled: current.enabled,
+            chatu8Launcher: current.chatu8Launcher,
+            presets: current.presets || [],
+            tags: current.tags || [],
+            imageFavorites: current.imageFavorites,
+            chatScan: chatScan || {},
         });
         this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();
