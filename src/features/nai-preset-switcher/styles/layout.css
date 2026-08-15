@@ -21,6 +21,31 @@
     font-size: 13px;
 }
 
+/* 排序按钮：图标 + 当前排序标签，视觉与 .btn-secondary 一致 */
+.btn-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 7px 10px;
+    font-size: 12px;
+    background: var(--bg-input, #fff);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    color: var(--text-input, #222);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-sort:hover {
+    opacity: 0.9;
+}
+
+.np-sort-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
 /* nai 按钮视觉统一复用 shell 的 .btn-secondary / .btn-primary；此处仅做卡片内布局微调 */
 .np-card-btn {
     flex: 1 1 auto;
@@ -237,6 +262,112 @@
 .np-tools-result.error {
     color: var(--text-error, #ff6b6b);
     border-color: var(--text-error, #ff6b6b);
+}
+
+/* 导入/导出标签弹窗（IframeDialog 内容区）的优雅列表 */
+.np-io-dialog .np-io-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.np-io-dialog .np-io-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary, #222);
+}
+
+.np-io-dialog .np-io-bar-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.np-io-dialog .np-io-btn {
+    padding: 3px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+.np-io-dialog .np-io-list {
+    max-height: 32vh;
+    overflow-y: auto;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+    border-radius: 8px;
+    background: var(--bg-input, #fff);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.np-io-dialog .np-io-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.np-io-dialog .np-io-item:hover {
+    background: var(--bg-hover, #f3f4f6);
+}
+
+.np-io-dialog .np-io-item input[type="checkbox"] {
+    margin: 0;
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    accent-color: var(--accent-color, #2563eb);
+    cursor: pointer;
+}
+
+.np-io-dialog .np-io-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary, #222);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 40%;
+    flex-shrink: 0;
+}
+
+.np-io-dialog .np-io-tags {
+    font-size: 12px;
+    color: var(--text-muted, #9ca3af);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.np-io-dialog .np-io-tags-empty {
+    font-style: italic;
+    opacity: 0.7;
+}
+
+.np-io-dialog .np-io-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--bg-hover, #f3f4f6);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary, #4b5563);
+}
+
+.np-io-dialog .np-io-option input[type="checkbox"] {
+    margin: 0;
+    width: 15px;
+    height: 15px;
+    accent-color: var(--accent-color, #2563eb);
+    cursor: pointer;
 }
 
 /* 回到顶部浮动按钮 */

@@ -5,7 +5,7 @@
 // 提示词与预览图不在此存储，实时读智绘姬（yushe[name] / previewImageId）。
 
 import configManager from '../../singleton/configManager.js';
-import { infoLog, errorLog, debugLog } from '../../utils/logger.js';
+import { errorLog, debugLog } from '../../utils/logger.js';
 import { translate } from '../../../../../../i18n.js';
 import { normalizeNaiPresetConfig } from '../../config/naiPresetConfigTemplate.js';
 // ST 的 extension_settings / saveSettings / getRequestHeaders 都是 ES module 顶层导出，
@@ -14,11 +14,14 @@ import { extension_settings } from '../../../../../../extensions.js';
 // ⚠️ script.js 位于 public/ 根（public/script.js），不在 public/scripts/，
 // 从 src/features/xxx/ 需要 7 层；extensions.js / i18n.js 在 public/scripts/ 只需 6 层。
 import { saveSettings, getRequestHeaders } from '../../../../../../../script.js';
+import { handleTagExport, handleTagImport } from './TagImportExport.js';
+import { initSortControl } from './SortControl.js';
 
 let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
 let activeTag = 'ALL';     // 当前标签筛选
 let searchTerm = '';       // 当前搜索词
+let sortMode = 'nameAsc';  // 卡片排序方式：nameAsc/nameDesc/createdDesc/createdAsc/updatedDesc/updatedAsc
 let editingId = null;      // 正在编辑的预设 id（null = 新建/按 name 首次建）
 let editingName = null;    // 编辑时的预设名（纯智绘姬预设首次建标签时用）
 let editingTags = [];       // 编辑弹层内当前标签（芯片编辑器工作副本）
@@ -122,6 +125,15 @@ function bindStaticControls() {
         });
     }
 
+    // 排序控件（图标按钮 + 下拉菜单）由 SortControl.js 独立管理
+    initSortControl(doc, {
+        getCurrentMode: () => sortMode,
+        onModeChange: (mode) => {
+            sortMode = mode;
+            renderList();
+        },
+    });
+
     const newBtn = doc.getElementById('np-new');
     if (newBtn) newBtn.addEventListener('click', () => openEditor(null)); // 新建入口暂移除（无新建功能），保留备用
 
@@ -184,6 +196,18 @@ function bindToolbox() {
 
     const printBtn = doc.getElementById('np-print-config');
     if (printBtn) printBtn.addEventListener('click', printConfig);
+
+    const exportTagsBtn = doc.getElementById('np-export-tags');
+    if (exportTagsBtn) exportTagsBtn.addEventListener('click', () => handleTagExport(doc));
+
+    const importTagsBtn = doc.getElementById('np-import-tags');
+    if (importTagsBtn) {
+        importTagsBtn.addEventListener('click', () => handleTagImport(doc, () => {
+            // 导入成功后同步内存并刷新列表
+            presets = configManager.getNaiPresets().map(p => ({ ...p }));
+            renderAll();
+        }));
+    }
 }
 
 // 旧版预设数据源的 extension_settings key（中性标识，不涉及任何插件名）
@@ -498,8 +522,9 @@ function collectTags() {
 
 /**
  * 渲染数据源：以智绘姬 yushe 的所有预设名为准（确保智绘姬里但还没建标签的预设也能显示），
- * 标签来自我们自己的配置（按 name 匹配）。返回视图对象 { name, id, tags }：
- *   - id 为 null 表示纯智绘姬预设（不在我们配置里），只能「应用」，编辑时按 name 新建。
+ * 标签来自我们自己的配置（按 name 匹配）。返回视图对象 { name, id, tags, createdAt, updatedAt }：
+ *   - id 为 null 表示纯智绘姬预设（不在我们配置里），只能「应用」，编辑时按 name 新建；
+ *     时间戳同样为 null（排序时沉底）。
  */
 function mergePresetViews() {
     const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
@@ -511,6 +536,8 @@ function mergePresetViews() {
             name,
             id: own ? own.id : null,
             tags: own ? (own.tags || []) : [],
+            createdAt: own ? own.createdAt : null,
+            updatedAt: own ? own.updatedAt : null,
         };
     });
 }
@@ -535,7 +562,7 @@ function renderTagBar() {
 }
 
 function filteredPresets() {
-    return mergePresetViews().filter(p => {
+    const items = mergePresetViews().filter(p => {
         // 标签筛选
         if (activeTag !== 'ALL') {
             const tags = p.tags || [];
@@ -551,6 +578,34 @@ function filteredPresets() {
         }
         return true;
     });
+    // 排序（名称 / 创建时间 / 修改时间）
+    const ts = v => {
+        const n = typeof v === 'number' ? v : Date.parse(v || '');
+        return Number.isFinite(n) ? n : 0;
+    };
+    const byName = (a, b) => (a.name || '').localeCompare(b.name || '', 'zh');
+    switch (sortMode) {
+        case 'nameDesc':
+            items.sort((a, b) => byName(b, a));
+            break;
+        case 'createdDesc':
+            items.sort((a, b) => ts(b.createdAt) - ts(a.createdAt) || byName(a, b));
+            break;
+        case 'createdAsc':
+            items.sort((a, b) => ts(a.createdAt) - ts(b.createdAt) || byName(a, b));
+            break;
+        case 'updatedDesc':
+            items.sort((a, b) => ts(b.updatedAt) - ts(a.updatedAt) || byName(a, b));
+            break;
+        case 'updatedAsc':
+            items.sort((a, b) => ts(a.updatedAt) - ts(b.updatedAt) || byName(a, b));
+            break;
+        case 'nameAsc':
+        default:
+            items.sort(byName);
+            break;
+    }
+    return items;
 }
 
 function renderList() {

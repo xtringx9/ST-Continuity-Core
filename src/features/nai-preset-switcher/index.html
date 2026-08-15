@@ -15,6 +15,9 @@
     <header class="app-header">
         <div class="header-title" data-i18n="ccore_nai_preset_title">智绘姬NAI预设切换</div>
         <div class="header-actions">
+            <!-- 与 module-editor header 对齐：导入在左、导出在右，按钮样式一致 -->
+            <button id="np-import-tags" class="btn-secondary" style="padding:6px 12px; font-size:13px;">导入标签</button>
+            <button id="np-export-tags" class="btn-secondary" style="padding:6px 12px; font-size:13px;">导出标签</button>
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
         </div>
@@ -43,6 +46,7 @@
             <div id="view-preset" class="view-section active">
                 <div class="np-toolbar">
                     <input type="text" id="np-search" class="np-search" placeholder="搜索名称或标签…" />
+                    <button id="np-sort" class="btn-sort" title="排序方式"></button>
                     <button id="np-manage-tags" class="btn-secondary">管理标签</button>
                 </div>
 

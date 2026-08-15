@@ -1007,71 +1007,9 @@ section.module-detail-panel {
 }
 
 /* === Iframe Dialog === */
-.iframe-dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.iframe-dialog-overlay.show {
-    opacity: 1;
-}
-
-.iframe-dialog-content {
-    background-color: var(--bg-panel);
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    width: 90%;
-    max-width: 600px;
-    display: flex;
-    flex-direction: column;
-    max-height: 80vh;
-}
-
-.iframe-dialog-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.iframe-dialog-title {
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.iframe-dialog-close {
-    background: none;
-    border: none;
-    font-size: 20px;
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-
-.iframe-dialog-body {
-    padding: 16px;
-    overflow-y: auto;
-}
-
-.iframe-dialog-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 12px 16px;
-    border-top: 1px solid var(--border-color);
-}
-
-/* Styles for changes summary */
+/* 核心弹窗壳样式（.iframe-dialog-overlay/content/header/title/close/body/footer）
+ * 已搬到 src/shared/styles/editor-shell.css 供所有 editor 共享。
+ * 以下仅保留 changes-summary 专属的正文排版样式。 */
 .iframe-dialog-body h4 {
     color: var(--accent-color);
     margin-top: 10px;
