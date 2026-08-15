@@ -2,7 +2,7 @@ import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
 import { initModuleEditor, syncModuleTheme } from '../module-editor/ModuleEditor.js';
 import { initGeneratorEditor, syncGeneratorTheme } from '../generator-editor/GeneratorEditor.js';
-import { initNaiPresetSwitcher, syncNaiTheme } from '../nai-preset-switcher/NaiPresetSwitcher.js';
+import { initNaiPresetSwitcher, syncNaiTheme, syncNaiPresetData } from '../nai-preset-switcher/NaiPresetSwitcher.js';
 import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
@@ -182,6 +182,8 @@ export class EntryButton {
         });
         // keepAlive 重开不重新 onLoad，补取一次主题让抽屉与当前设置一致
         syncNaiTheme(this.naiPresetIframe?.contentDocument);
+        // 同时重读智绘姬数据层（当前预设 / 列表），让外部改动即时反映到本页
+        syncNaiPresetData(this.naiPresetIframe?.contentDocument);
     }
 
     /**

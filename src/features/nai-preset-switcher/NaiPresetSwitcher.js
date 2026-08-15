@@ -72,6 +72,26 @@ export function syncNaiTheme(iframeDocument) {
     iframeDocument.documentElement.setAttribute('data-theme', savedTheme);
 }
 
+/**
+ * 每次打开抽屉时从智绘姬数据层重新同步：
+ * keepAlive 模式下 onLoad 只跑一次，重开抽屉不会重新初始化，
+ * 但用户在智绘姬侧改了当前预设 / 增删预设后，本页需要反映最新状态。
+ * 重读本地配置（presets/tagLib 可能也被其它入口改动），并强制 renderAll
+ * （renderAll → mergePresetViews 实时读智绘姬 yushe，因此当前预设与列表都会刷新）。
+ * @param {Document} iframeDocument Iframe 的文档对象
+ */
+export function syncNaiPresetData(iframeDocument) {
+    if (!iframeDocument) return;
+    doc = iframeDocument;
+    try {
+        presets = configManager.getNaiPresets().map(p => ({ ...p }));
+        tagLib = configManager.getNaiTags().map(t => ({ ...t }));
+    } catch (e) {
+        errorLog('[智绘姬NAI预设切换] 打开时重读配置失败:', e);
+    }
+    renderAll();
+}
+
 /* ============ i18n ============ */
 
 function applyI18nToStaticElements() {
@@ -927,6 +947,17 @@ function getChatu8CurrentPresetName() {
     }
 }
 
+// 智绘姬 yushe 中是否只剩这一个预设（删了就无预设可选，需禁用删除）
+function isOnlyPresetInChatu8(name) {
+    try {
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        if (!chatu8 || !chatu8.yushe || !chatu8.yushe[name]) return false;
+        return Object.keys(chatu8.yushe).length <= 1;
+    } catch (e) {
+        return false;
+    }
+}
+
 function buildCard(p) {
     const card = doc.createElement('div');
     card.className = 'np-card';
@@ -995,12 +1026,14 @@ function buildCard(p) {
     editBtn.addEventListener('click', () => openEditor(p.id, p.name));
     actions.appendChild(editBtn);
 
-    // 删除：仅在已纳入我们配置（有 id）时提供
-    if (p.id) {
+    // 删除：只要智绘姬 yushe 中存在该预设就提供（含纯智绘姬预设）
+    // 仅剩一个预设时禁用（置灰），避免删空导致无预设可选
+    if (p.name) {
         const delBtn = doc.createElement('button');
         delBtn.className = 'btn-secondary np-card-btn';
         delBtn.textContent = '删除';
-        delBtn.addEventListener('click', () => deletePreset(p.id));
+        delBtn.disabled = isOnlyPresetInChatu8(p.name);
+        delBtn.addEventListener('click', () => deletePreset(p.id, p.name));
         actions.appendChild(delBtn);
     }
 
@@ -1010,7 +1043,7 @@ function buildCard(p) {
 
 // 列表最前的「当前预设」特殊副本卡片：实时反映智绘姬选中项。
 // 它独立于其余卡片——原当前预设卡片仍在列表中并保持高亮，本卡只是其副本视图。
-// 若当前预设不在我们的预设库中，则仅显示名称+预览，无编辑/删除（编辑/删除走原卡片）。
+// 本卡始终提供编辑/删除（按 name，含纯智绘姬预设）；仅剩一个预设时删除按钮置灰禁用。
 function buildCurrentSpecialCard(currentName) {
     const card = doc.createElement('div');
     card.className = 'np-card np-card-current-special';
@@ -1058,25 +1091,27 @@ function buildCurrentSpecialCard(currentName) {
     const actions = doc.createElement('div');
     actions.className = 'np-card-actions';
 
+    // 应用：当前预设已是选中态，禁用（保持可见以表明其状态）
     const applyBtn = doc.createElement('button');
     applyBtn.className = 'btn-primary np-card-btn';
     applyBtn.textContent = '应用';
-    applyBtn.disabled = true; // 当前预设无需应用
+    applyBtn.disabled = true;
     actions.appendChild(applyBtn);
 
-    if (own) {
-        const editBtn = doc.createElement('button');
-        editBtn.className = 'btn-secondary np-card-btn';
-        editBtn.textContent = '编辑';
-        editBtn.addEventListener('click', () => openEditor(own.id));
-        actions.appendChild(editBtn);
+    // 编辑：始终提供（按 name；纯智绘姬预设首次编辑即纳入我们配置）
+    const editBtn = doc.createElement('button');
+    editBtn.className = 'btn-secondary np-card-btn';
+    editBtn.textContent = '编辑';
+    editBtn.addEventListener('click', () => openEditor(own ? own.id : null, currentName));
+    actions.appendChild(editBtn);
 
-        const delBtn = doc.createElement('button');
-        delBtn.className = 'btn-secondary np-card-btn';
-        delBtn.textContent = '删除';
-        delBtn.addEventListener('click', () => deletePreset(own.id));
-        actions.appendChild(delBtn);
-    }
+    // 删除：始终提供（按 name，含纯智绘姬预设）；仅剩一个预设时禁用（置灰）
+    const delBtn = doc.createElement('button');
+    delBtn.className = 'btn-secondary np-card-btn';
+    delBtn.textContent = '删除';
+    delBtn.disabled = isOnlyPresetInChatu8(currentName);
+    delBtn.addEventListener('click', () => deletePreset(own ? own.id : null, currentName));
+    actions.appendChild(delBtn);
 
     card.appendChild(actions);
     return card;
@@ -1279,13 +1314,69 @@ function onSave() {
     renderAll();
 }
 
-function deletePreset(id) {
-    const p = presets.find(x => x.id === id);
-    if (!p) return;
-    if (!confirm(`确定删除预设「${p.name}」？`)) return;
-    presets = presets.filter(x => x.id !== id);
+async function deletePreset(id, name) {
+    // 优先按 id 定位；纯智绘姬预设（未纳入我们配置）仅有 name，无 id
+    let p = id ? presets.find(x => x.id === id) : null;
+    if (!p && name) p = presets.find(x => x.name === name);
+    const targetName = (p && p.name) || name;
+    if (!targetName) return;
+    if (!confirm(`确定删除预设「${targetName}」？\n\n注意：这会同时删除智绘姬中对应的预设条目，不可恢复。`)) return;
+
+    // 若删除的是当前预设：先在删除前挑出下一个要应用的预设名（删除后 yushe 里就没它了）
+    const wasCurrent = getChatu8CurrentPresetName() === targetName;
+    const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+    const nextName = wasCurrent && chatu8 && chatu8.yushe
+        ? Object.keys(chatu8.yushe)
+            .filter(n => n !== targetName)
+            .sort((a, b) => a.localeCompare(b, 'zh'))[0] || null
+        : null;
+
+    presets = presets.filter(x => x.id !== id && x.name !== targetName);
+    // 真正删除智绘姬 yushe 里的关联条目（删除即真的删除，而非仅移除本地配置）
+    deleteChatu8Preset(targetName);
     persist();
-    renderAll();
+
+    if (nextName) {
+        // 删除当前预设后手动应用下一个，避免智绘姬当前预设变空（它不会自动跳选）
+        await applyPreset({ name: nextName });
+    } else {
+        renderAll();
+    }
+}
+
+/**
+ * 真正删除智绘姬 yushe 中的预设条目：
+ * 1) 删除 yushe[name] 整条数据；
+ * 2) 清空所有指向该名的模式指针（yusheid_*），避免下拉选中已不存在的预设；
+ * 3) 若该条目有 previewImageId，顺带移除 configImageStorage 中对应的图片引用；
+ * 4) saveSettings 落盘并即时刷新智绘姬预设下拉 UI。
+ * 运行在父窗口上下文（document 即主 doc）。
+ */
+function deleteChatu8Preset(name) {
+    try {
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        if (!chatu8 || !chatu8.yushe || !chatu8.yushe[name]) {
+            // 本地有记录但智绘姬侧已无对应条目，无需操作
+            return;
+        }
+        const entry = chatu8.yushe[name] || {};
+        const previewId = entry.previewImageId;
+        delete chatu8.yushe[name];
+        // 清空指向被删预设的模式指针
+        for (const key in chatu8) {
+            if (key.startsWith('yusheid_') && chatu8[key] === name) {
+                chatu8[key] = '';
+            }
+        }
+        // 清理配套预览图引用
+        if (previewId && chatu8.configImageStorage && chatu8.configImageStorage[previewId]) {
+            delete chatu8.configImageStorage[previewId];
+        }
+        saveSettings();
+        refreshChatu8PresetSelectors();
+    } catch (e) {
+        errorLog('[智绘姬NAI预设切换] 删除智绘姬预设条目失败:', e);
+    }
 }
 
 /* ============ 标签管理 ============ */
