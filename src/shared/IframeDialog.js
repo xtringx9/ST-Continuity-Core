@@ -67,10 +67,17 @@ export class IframeDialog {
         }
 
         this.dialogElement.querySelector('.iframe-dialog-close').addEventListener('click', () => this.close());
+        // 遮罩关闭：仅当 mousedown 与 click 都落在 overlay 本身才关，
+        // 避免从弹窗内拖选文字到遮罩释放被误判为点遮罩而关闭。
+        let downOnOverlay = false;
+        this.dialogElement.addEventListener('mousedown', (e) => {
+            downOnOverlay = (e.target === this.dialogElement);
+        });
         this.dialogElement.addEventListener('click', (e) => {
-            if (e.target === this.dialogElement) {
+            if (downOnOverlay && e.target === this.dialogElement) {
                 this.close();
             }
+            downOnOverlay = false;
         });
 
         this.doc.body.appendChild(this.dialogElement);
