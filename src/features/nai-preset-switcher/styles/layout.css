@@ -706,3 +706,14 @@
     font-size: 12px;
     border-radius: 6px;
 }
+
+/* 编辑预设弹层：PC 上放宽（手机保持通用 .modal 尺寸） */
+#np-modal-mask .modal {
+    width: min(92%, 640px);
+}
+
+@media (max-width: 768px) {
+    #np-modal-mask .modal {
+        width: min(92%, 460px);
+    }
+}

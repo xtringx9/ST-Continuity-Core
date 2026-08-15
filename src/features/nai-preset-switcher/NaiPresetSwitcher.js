@@ -20,6 +20,7 @@ import { initSortControl } from './SortControl.js';
 let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
 let tagLib = [];           // 独立标签库（configManager.getNaiTags() 的副本，可无关联预设存在）
+let editorSession = 0;     // 编辑弹层会话标记，防止异步预览回调覆盖后续操作
 let activeTag = 'ALL';     // 当前标签筛选
 let searchTerm = '';       // 当前搜索词
 // 卡片排序方式：nameAsc/nameDesc/createdDesc/createdAsc/updatedDesc/updatedAsc
@@ -328,7 +329,8 @@ async function handleEditorImageFile(file) {
     const res = await uploadPreviewImage(name, payload);
     if (res) {
         try { saveSettings(); } catch (e) { errorLog('保存失败', e); }
-        // 用服务器 path 作为最终预览（与卡片读取同源）
+        // 用服务器 path 作为最终预览（与卡片读取同源）。
+        // 此处已是同一编辑会话，直接渲染即可；会话守卫只阻断 openEditor 的初始化回调。
         renderEditorDropzone(res.path);
     }
 }
@@ -1016,11 +1018,13 @@ function openEditor(id, name) {
     editingTags = p?.tags ? [...p.tags] : [];
     renderTagEditor();
     // 显示已有预览图（实时读智绘姬 yushe[name].previewImageId）
+    // 用会话标记守卫：避免异步读取晚于用户的更换/上传操作，把新图覆盖回旧图（闪回 bug）
+    const session = ++editorSession;
     const existingUrl = (name && extension_settings[CHATU8_SETTINGS_KEY]?.yushe?.[name]?.previewImageId)
         ? getChatu8PreviewImageUrl(name)
         : null;
     if (existingUrl && typeof existingUrl.then === 'function') {
-        existingUrl.then(url => renderEditorDropzone(url));
+        existingUrl.then(url => { if (session === editorSession) renderEditorDropzone(url); });
     } else {
         renderEditorDropzone(existingUrl);
     }
