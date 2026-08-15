@@ -14,7 +14,7 @@ import { extension_settings } from '../../../../../../extensions.js';
 import { getRequestHeaders } from '../../../../../../../script.js';
 import { errorLog } from '../../utils/logger.js';
 import { initSortControl } from './SortControl.js';
-import { setDupContext, setDeleteDoc, deleteImageItem, isDeleteReady } from './ImageDelete.js';
+import { setDupContext, setDeleteDoc, deleteImageItem, deleteImageItems, isDeleteReady } from './ImageDelete.js';
 
 const CHATU8 = 'st-chatu8';
 
@@ -494,9 +494,8 @@ async function deleteSelected() {
         }
     }
     if (items.length === 0) return;
-    for (const item of items) {
-        await deleteImageItem(item);
-    }
+    // 批量删除：只弹一次汇总确认，不逐张弹窗
+    await deleteImageItems(items);
     // 删除完成后清空选择、退出管理模式（ImageDelete 内 onChanged 会重渲）
     selectedSet.clear();
     setManageMode(false);
@@ -523,8 +522,9 @@ async function deleteLightboxImage() {
         showToast(doc, '副本识别未完成，请稍候再试', 'error');
         return;
     }
-    await deleteImageItem(item);
-    // 删除后关闭 lightbox（图已移除，留在原索引会显示错误内容）
+    // 仅在真正删除成功后才关闭 lightbox（取消/失败时保持预览不关闭）
+    const deleted = await deleteImageItem(item);
+    if (!deleted) return;
     closeLightbox();
     // onChanged（ImageDelete 内）已触发 render 重渲列表
 }

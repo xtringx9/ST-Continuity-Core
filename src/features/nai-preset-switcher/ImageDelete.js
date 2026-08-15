@@ -235,7 +235,7 @@ async function confirmDeletion(dupList) {
 /* ============ 对外删除入口 ============ */
 
 /**
- * 删除单个图片项。
+ * 删除单个图片项（单图：确认弹窗一次）。
  * @param {Object} item 定位信息：
  *  - cat: 'chat'|'character'|'outfit'
  *  - path: 服务端文件路径（用于反查/物理删）
@@ -245,40 +245,108 @@ async function confirmDeletion(dupList) {
  */
 export async function deleteImageItem(item) {
     if (!item || !item.cat) return;
-    // 反向索引未就绪 → 禁止删除（防误删双写另一份时无提示；调用方应先 ensureFullDupScan）
     if (!isDeleteReady()) {
         showToast(doc, '副本识别未完成，请稍候再试', 'error');
         return;
     }
     const dupList = item.hash ? findDuplicates(item) : [];
     const action = await confirmDeletion(dupList);
-    if (action === 'cancel') return;
+    if (action === 'cancel') return false;
+    const done = await executeDeletion(item, action, dupList);
+    if (!done) return false;
+    saveSettings();
+    if (_onChanged) _onChanged();
+    showToast(doc, action === 'both' ? '已删除（含副本）' : '已删除', 'success');
+    return true;
+}
 
+/**
+ * 批量删除（多选：只弹一次汇总确认，不逐张弹）。
+ * 汇总所有选中项的副本情况后一次性询问，统一执行。
+ * @param {Object[]} items 与 deleteImageItem 相同结构的定位信息数组
+ */
+export async function deleteImageItems(items) {
+    if (!Array.isArray(items) || items.length === 0) return;
+    if (!isDeleteReady()) {
+        showToast(doc, '副本识别未完成，请稍候再试', 'error');
+        return;
+    }
+    // 1) 汇总：每项计算副本列表
+    const withDup = [];
+    const withoutDup = [];
+    for (const item of items) {
+        const dupList = item.hash ? findDuplicates(item) : [];
+        if (dupList.length > 0) withDup.push({ item, dupList });
+        else withoutDup.push(item);
+    }
+    // 2) 一次性确认
+    const totalDupCount = withDup.reduce((n, x) => n + x.dupList.length, 0);
+    const action = await confirmBatchDeletion(items.length, withDup.length, totalDupCount);
+    if (action === 'cancel') return;
+    // 3) 统一执行：有副本项按 action 处理（both=一起删 / self=只删当前），无副本项直接删
     try {
-        let deletedHere = false;
+        let ok = 0;
+        for (const { item, dupList } of withDup) {
+            const done = await executeDeletion(item, action === 'both' ? 'both' : 'self', dupList);
+            if (done) ok++;
+        }
+        for (const item of withoutDup) {
+            const done = await executeDeletion(item, 'self', []);
+            if (done) ok++;
+        }
+        saveSettings();
+        if (_onChanged) _onChanged();
+        showToast(doc, `已删除 ${ok} 张${action === 'both' && totalDupCount ? '（含副本）' : ''}`, 'success');
+    } catch (e) {
+        errorLog('[图片删除] 批量删除失败:', e);
+        showToast(doc, '批量删除失败：' + (e?.message || e), 'error');
+    }
+}
+
+// 批量删除的汇总确认弹窗
+function confirmBatchDeletion(total, withDupCount, dupTotal) {
+    if (!doc) return 'cancel';
+    const hasDup = withDupCount > 0;
+    const desc = hasDup
+        ? `<p>将删除 <b>${total}</b> 张图片，其中 <b>${withDupCount}</b> 张存在共 <b>${dupTotal}</b> 张相同副本。</p><p>副本是否一起删除？</p>`
+        : `<p>将删除 <b>${total}</b> 张图片。</p>`;
+    return new Promise(resolve => {
+        const dlg = new IframeDialog(doc);
+        dlg.open({
+            title: '删除选中图片',
+            content: `<p>${desc}</p><p style="opacity:0.7">此操作不可恢复。</p>`,
+            buttons: [
+                { text: '取消', className: 'btn-primary', onClick: () => { dlg.close(); resolve('cancel'); } },
+                { text: hasDup ? '只删当前' : '删除', className: 'btn-secondary', onClick: () => { dlg.close(); resolve('self'); } },
+                ...(hasDup ? [{ text: '一起删除', className: 'btn-danger', onClick: () => { dlg.close(); resolve('both'); } }] : []),
+            ],
+        });
+    });
+}
+
+// 真正执行删除（不弹确认；返回是否删除成功）
+async function executeDeletion(item, action, dupList) {
+    if (!item || !item.cat) return false;
+    let deletedHere = false;
+    try {
         if (item.cat === 'chat') {
             deletedHere = await deleteChatImage(item.entry || { path: item.path });
         } else {
             const res = await deletePresetImage(item.presetType || item.cat, item.presetName, item.configId);
             deletedHere = res.removedId;
         }
-        if (!deletedHere) {
-            showToast(doc, '未找到对应图片', 'error');
-            return;
-        }
+        if (!deletedHere) return false;
         // 一起删副本
-        if (action === 'both') {
+        if (action === 'both' && dupList) {
             for (const d of dupList) {
                 if (d.cat === 'chat') await deleteChatImage({ path: d.path });
                 else await deletePresetImage(d.cat, d.name, d.configId);
             }
         }
-        saveSettings();
-        if (_onChanged) _onChanged();
-        showToast(doc, action === 'both' ? '已删除（含副本）' : '已删除', 'success');
+        return true;
     } catch (e) {
         errorLog('[图片删除] 删除失败:', e);
-        showToast(doc, '删除失败：' + (e?.message || e), 'error');
+        return false;
     }
 }
 
