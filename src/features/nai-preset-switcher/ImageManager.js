@@ -432,7 +432,7 @@ function appendGroups(start, end) {
         grid.className = 'np-img-grid';
 
         const visible = g.images.slice(0, IMAGES_PER_GROUP);
-        visible.forEach(img => grid.appendChild(buildImageCell(img)));
+        visible.forEach(img => grid.appendChild(buildImageCell(img, g.images)));
 
         // 单组图片超过阈值：提供「展开全部」
         if (g.images.length > IMAGES_PER_GROUP) {
@@ -440,7 +440,7 @@ function appendGroups(start, end) {
             more.className = 'np-img-group-more';
             more.textContent = `展开剩余 ${g.images.length - IMAGES_PER_GROUP} 张`;
             more.addEventListener('click', () => {
-                g.images.slice(IMAGES_PER_GROUP).forEach(img => grid.appendChild(buildImageCell(img)));
+                g.images.slice(IMAGES_PER_GROUP).forEach(img => grid.appendChild(buildImageCell(img, g.images)));
                 more.remove();
             });
             grid.appendChild(more);
@@ -451,7 +451,7 @@ function appendGroups(start, end) {
     }
 }
 
-function buildImageCell(img) {
+function buildImageCell(img, groupImages) {
     const cell = doc.createElement('div');
     cell.className = 'np-img-cell';
     const el = doc.createElement('div');
@@ -468,7 +468,8 @@ function buildImageCell(img) {
         im.className = 'np-img-thumb-img';
         im.src = src;
         im.alt = img.title;
-        im.addEventListener('click', () => openLightbox(src, img.title, img.meta, img.path));
+        const idx = groupImages.indexOf(img);
+        im.addEventListener('click', () => openLightbox(groupImages, idx));
         el.appendChild(im);
         if (img.dup) el.appendChild(buildDupBadge(img.dup));
     }).catch(() => { el.textContent = '读取失败'; });
@@ -606,39 +607,122 @@ function removePager() {
     if (pager) pager.innerHTML = '';
 }
 
-/* ============ lightbox ============ */
+/* ============ lightbox（组内左右切图 + 下载原图） ============ */
 
-function openLightbox(src, title, meta, filePath) {
-    if (!doc) return;
+// 当前 lightbox 状态：所属分组的所有图片对象 + 当前索引
+let _lbList = [];
+let _lbIndex = 0;
+let _lbSession = 0; // 会话计数器：切图/关闭时自增，丢弃迟到的异步渲染
+
+function openLightbox(groupImages, index) {
+    if (!doc || !Array.isArray(groupImages) || !groupImages.length) return;
+    _lbList = groupImages;
+    _lbIndex = Math.max(0, Math.min(index, groupImages.length - 1));
     const box = doc.getElementById('np-lightbox');
+    if (!box) return;
+    box.style.display = 'flex';
+    renderLightbox();
+    updateLightboxNav();
+    box.focus(); // 让键盘左右切图/ESC 生效
+}
+
+// 渲染当前索引的图片（异步取 src；防止切图竞态：用会话计数器守卫）
+async function renderLightbox() {
+    if (!doc) return;
     const img = doc.getElementById('np-lightbox-img');
     const info = doc.getElementById('np-lightbox-info');
-    if (!box || !img) return;
-    img.src = src;
-    if (info) {
-        let html = `<div class="np-lb-title">${escapeHtml(title)}</div>`;
-        // 文件路径（如 /user/images/chatu8/xxx.png），便于与控制台脚本核对
-        if (filePath) html += `<div class="np-lb-file">${escapeHtml(filePath)}</div>`;
-        if (meta) {
-            const rows = [];
-            if (meta.yushe) rows.push(`预设：${escapeHtml(meta.yushe)}`);
-            if (meta.resolvedPrompt) rows.push(`提示词：${escapeHtml(meta.resolvedPrompt)}`);
-            if (meta.backend) rows.push(`后端：${escapeHtml(meta.backend)}`);
-            if (meta.model) rows.push(`模型：${escapeHtml(meta.model)}`);
-            if (meta.seed) rows.push(`种子：${escapeHtml(String(meta.seed))}`);
-            if (rows.length) html += `<div class="np-lb-meta">${rows.join('<br>')}</div>`;
-        }
-        info.innerHTML = html;
+    if (!img || !info) return;
+    const item = _lbList[_lbIndex];
+    if (!item) return;
+    const session = ++_lbSession;
+    img.src = '';
+    img.alt = '加载中…';
+
+    let html = `<div class="np-lb-title">${escapeHtml(item.title)}</div>`;
+    // 文件路径（如 /user/images/chatu8/xxx.png），便于与控制台脚本核对
+    if (item.path) html += `<div class="np-lb-file">${escapeHtml(item.path)}</div>`;
+    if (item.meta) {
+        const rows = [];
+        if (item.meta.yushe) rows.push(`预设：${escapeHtml(item.meta.yushe)}`);
+        if (item.meta.resolvedPrompt) rows.push(`提示词：${escapeHtml(item.meta.resolvedPrompt)}`);
+        if (item.meta.backend) rows.push(`后端：${escapeHtml(item.meta.backend)}`);
+        if (item.meta.model) rows.push(`模型：${escapeHtml(item.meta.model)}`);
+        if (item.meta.seed) rows.push(`种子：${escapeHtml(String(item.meta.seed))}`);
+        if (rows.length) html += `<div class="np-lb-meta">${rows.join('<br>')}</div>`;
     }
-    box.style.display = 'flex';
+    if (item.dup) html += `<div class="np-lb-dup">${escapeHtml(item.dup.source === 'character' ? '角色副本' : '服装副本')}：${escapeHtml(item.dup.name)}</div>`;
+    info.innerHTML = html;
+
+    const src = currentCat === 'chat'
+        ? await resolveImageSrc(item.entry)
+        : await resolveConfigImageSrc(item.imageId);
+    if (session !== _lbSession) return; // 会话已变（切图/关闭），丢弃晚到结果
+    if (!src) { img.alt = '读取失败'; return; }
+    img.src = src;
+    img.alt = item.title;
+}
+
+function updateLightboxNav() {
+    if (!doc) return;
+    const prev = doc.getElementById('np-lightbox-prev');
+    const next = doc.getElementById('np-lightbox-next');
+    if (prev) prev.disabled = _lbIndex <= 0;
+    if (next) next.disabled = _lbIndex >= _lbList.length - 1;
+}
+
+function stepLightbox(dir) {
+    const next = _lbIndex + dir;
+    if (next < 0 || next >= _lbList.length) return;
+    _lbIndex = next;
+    renderLightbox();
+    updateLightboxNav();
+}
+
+// 下载当前图片的原图（服务器原文件，优先用 path；无 path 用当前 blob/src）
+async function downloadLightboxImage() {
+    if (!doc) return;
+    const item = _lbList[_lbIndex];
+    if (!item) return;
+    const img = doc.getElementById('np-lightbox-img');
+    let blob = null;
+    let filename = '';
+    // 优先：按 path 重新 fetch 服务器原图（带鉴权头）
+    if (item.path) {
+        try {
+            const res = await fetch(item.path, { headers: getRequestHeaders() });
+            if (res.ok) {
+                blob = await res.blob();
+                filename = item.path.split('/').pop() || '';
+            }
+        } catch (e) { /* 回退当前显示图 */ }
+    }
+    // 回退：当前已渲染的 blob/src（IndexedDB 或 objectURL）
+    if (!blob && img && img.src) {
+        try {
+            const res = await fetch(img.src);
+            if (res.ok) blob = await res.blob();
+        } catch (e) { /* 忽略 */ }
+    }
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = doc.createElement('a');
+    a.href = url;
+    a.download = filename || `${item.title.replace(/[^\w\u4e00-\u9fa5-]+/g, '_') || 'image'}.png`;
+    doc.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 function closeLightbox() {
     if (!doc) return;
+    _lbSession++; // 使在途异步渲染失效
     const box = doc.getElementById('np-lightbox');
     const img = doc.getElementById('np-lightbox-img');
     if (box) box.style.display = 'none';
     if (img) img.src = '';
+    _lbList = [];
+    _lbIndex = 0;
 }
 
 // 角色/服装副本徽标（A2：文内视图保留显示，emoji 角标识别，无背景不依赖主题）
@@ -760,14 +844,27 @@ function bindControls() {
         pagerBox._npResizeObs = ro;
     }
 
-    // lightbox 关闭
+    // lightbox 关闭 / 切图 / 下载
     const closeBtn = doc.getElementById('np-lightbox-close');
     if (closeBtn) closeBtn.addEventListener('click', closeLightbox);
+    const prevBtn = doc.getElementById('np-lightbox-prev');
+    if (prevBtn) prevBtn.addEventListener('click', () => stepLightbox(-1));
+    const nextBtn = doc.getElementById('np-lightbox-next');
+    if (nextBtn) nextBtn.addEventListener('click', () => stepLightbox(1));
+    const dlBtn = doc.getElementById('np-lightbox-download');
+    if (dlBtn) dlBtn.addEventListener('click', downloadLightboxImage);
     const box = doc.getElementById('np-lightbox');
     if (box) {
         box.addEventListener('click', (e) => {
             if (e.target === box) closeLightbox();
         });
+        // 键盘左右切图（lightbox 打开时）
+        box.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') stepLightbox(-1);
+            else if (e.key === 'ArrowRight') stepLightbox(1);
+            else if (e.key === 'Escape') closeLightbox();
+        });
+        box.setAttribute('tabindex', '-1');
     }
 }
 

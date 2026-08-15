@@ -1419,11 +1419,12 @@
     justify-content: center;
     gap: 12px;
     padding: 24px;
+    outline: none;
 }
 
 .np-lightbox-img {
     max-width: 92vw;
-    max-height: 80vh;
+    max-height: 68vh; /* 给下方信息区留出空间，避免超长内容把图片顶出 */
     object-fit: contain;
     border-radius: 6px;
     box-shadow: 0 6px 30px rgba(0, 0, 0, 0.5);
@@ -1431,6 +1432,8 @@
 
 .np-lightbox-info {
     max-width: 92vw;
+    max-height: 26vh; /* 超长提示词/手机窄屏时内部滚动，不顶出图片 */
+    overflow-y: auto;
     color: #eee;
     font-size: 13px;
     text-align: center;
@@ -1457,22 +1460,67 @@
     font-size: 12px;
 }
 
-.np-lightbox-close {
-    position: absolute;
-    top: 14px;
-    right: 18px;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-    font-size: 18px;
-    cursor: pointer;
+/* 底部操作条：下载 / 关闭（不占右上角，避免与背后 editor 的关闭按钮重叠；flex-shrink:0 防压缩） */
+.np-lightbox-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-shrink: 0;
 }
 
-.np-lightbox-close:hover {
-    background: rgba(255, 255, 255, 0.3);
+.np-lightbox-actions button {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.np-lightbox-actions button:hover {
+    background: rgba(255, 255, 255, 0.32);
+}
+
+/* 左右切图按钮（组内切换，垂直居中贴边） */
+.np-lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 64px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+.np-lightbox-nav:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.np-lightbox-nav:disabled {
+    opacity: 0.25;
+    cursor: default;
+}
+
+.np-lightbox-prev {
+    left: 12px;
+}
+
+.np-lightbox-next {
+    right: 12px;
+}
+
+/* lightbox 内的副本标识（区别于缩略图角标的 emoji，这里显示文字说明） */
+.np-lb-dup {
+    color: #ffd08a;
+    font-size: 12px;
+    margin-bottom: 4px;
 }
 
 @media (max-width: 768px) {
