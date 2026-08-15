@@ -159,17 +159,25 @@ function bindStaticControls() {
     const saveBtn = doc.getElementById('np-save');
     if (saveBtn) saveBtn.addEventListener('click', onSave);
 
+    // 遮罩关闭：只有「直接在遮罩空白处按下并释放」才关，避免从弹层内拖选文字
+    // 到遮罩上释放（mousedown 在输入框/弹层内）被误判为点遮罩而关闭弹层。
     const mask = doc.getElementById('np-modal-mask');
     if (mask) {
+        let downOnMask = false;
+        mask.addEventListener('mousedown', (e) => { downOnMask = (e.target === mask); });
         mask.addEventListener('click', (e) => {
-            if (e.target === mask) closeEditor();
+            if (downOnMask && e.target === mask) closeEditor();
+            downOnMask = false;
         });
     }
 
     const tagMask = doc.getElementById('np-tag-mask');
     if (tagMask) {
+        let tagDownOnMask = false;
+        tagMask.addEventListener('mousedown', (e) => { tagDownOnMask = (e.target === tagMask); });
         tagMask.addEventListener('click', (e) => {
-            if (e.target === tagMask) closeTagManager();
+            if (tagDownOnMask && e.target === tagMask) closeTagManager();
+            tagDownOnMask = false;
         });
     }
     const manageTagsBtn = doc.getElementById('np-manage-tags');
