@@ -232,6 +232,9 @@ function bindStaticControls() {
             el?.scrollTo({ top: 0, behavior: 'smooth' });
         });
     }
+
+    const randomBtn = doc.getElementById('np-random');
+    if (randomBtn) randomBtn.addEventListener('click', randomApplyInRange);
 }
 
 /* ============ 工具箱 ============ */
@@ -1724,6 +1727,20 @@ function onTagDelete(tag) {
 }
 
 /* ============ 应用（真正落地：切换智绘姬当前预设） ============ */
+
+// 在当前筛选范围内随机应用一个预设（排除智绘姬侧已失联的卡片）
+function randomApplyInRange() {
+    // 复用当前筛选结果：标签 + 收藏 + 搜索 + 排序后的集合
+    const pool = filteredPresets().filter(p => p.inChatu8 !== false && p.name);
+    if (pool.length === 0) {
+        showToast(doc, '当前筛选范围内没有可应用的预设');
+        return;
+    }
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    debugLog(`[智绘姬NAI预设切换] 随机应用：从 ${pool.length} 个候选中选中「${pick.name}」`);
+    applyPreset(pick);
+    showToast(doc, `已随机应用：${pick.name}`, 'success');
+}
 
 async function applyPreset(p) {
     if (!p || !p.name) return;
