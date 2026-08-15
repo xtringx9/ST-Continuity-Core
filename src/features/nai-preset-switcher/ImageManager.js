@@ -208,7 +208,7 @@ function buildChatGroups(pendingSet) {
                 date: img.date || 0, // 供组内按日期排序
                 path: img.path || '', // 文件路径（lightbox 显示）
                 dup: judgeChatImage(img, pendingSet), // 角色/服装副本标记（可为 null）
-                chatMeta: { md5, change, yushe }, // 供 chatMetaByHash 填充 / 二级分组
+                chatMeta: { md5, change, yushe, uuid: img.uuid || '' }, // 供 chatMetaByHash 填充 / 二级分组 / 对侧 key
             });
         });
     }
@@ -508,24 +508,59 @@ function isFavorited(img) {
 }
 
 // 切换收藏（只收藏/取消，不弹标签窗；标签在收藏 tab 内管理）
+// B2 双向联动：若该图是双写副本（dupReverse 反查到对侧），对侧 key 一并收藏/取消。
 function toggleFavoriteImage(img) {
     const key = favKeyFor(img);
     const existed = favMap.has(key);
+    // 收集对侧 key（同内容 hash 桶里其它 cat 的项）——双向图红心同步
+    const otherKeys = findDupFavKeys(img);
     if (existed) {
         favMap.delete(key);
+        otherKeys.forEach(k => favMap.delete(k.key));
     } else {
-        favMap.set(key, {
-            key,
-            cat: currentCat,
-            path: img.path || '',
-            tags: [],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+        const now = Date.now();
+        const myPath = img.path || (img.entry && img.entry.path) || '';
+        const myHash = myPath && imgHashCache.get(myPath) || '';
+        favMap.set(key, { key, cat: currentCat, path: myPath, hash: myHash, tags: [], createdAt: now, updatedAt: now });
+        // 对侧项：若无对应记录则补建（path/hash 从 dupReverse 项取，双向红心同步）
+        otherKeys.forEach(dup => {
+            if (!favMap.has(dup.key)) {
+                favMap.set(dup.key, {
+                    key: dup.key,
+                    cat: dup.cat,
+                    path: dup.path || '',
+                    hash: myHash, // 同内容，hash 一致
+                    tags: [],
+                    createdAt: now,
+                    updatedAt: now,
+                });
+            }
         });
     }
     persistFavs();
     showToast(doc, existed ? '已取消收藏' : '已收藏 ♥', existed ? 'info' : 'success');
     return !existed;
+}
+
+// 反查当前图的对侧收藏 key（dupReverse 同 hash 桶里其它 cat 的项）
+function findDupFavKeys(img) {
+    const path = img.path || (img.entry && img.entry.path) || '';
+    const hash = path && imgHashCache.get(path);
+    if (!hash || !dupReverse.has(hash)) return [];
+    const chatMeta = chatMetaByHash.get(hash) || null;
+    const chatUuid = (chatMeta && chatMeta.uuid) || '';
+    const out = [];
+    for (const d of dupReverse.get(hash)) {
+        if (d.cat === 'chat') {
+            // 文内图 key = chat:<uuid>（优先）或 chat:<path>
+            const k = chatUuid ? 'chat:' + chatUuid : (d.path ? 'chat:' + d.path : '');
+            if (k && k !== imgKey(img)) out.push({ cat: 'chat', key: k, path: d.path });
+        } else {
+            // 角色/服装 key = <cat>:<configId>
+            if (d.configId) out.push({ cat: d.cat, key: d.cat + ':' + d.configId, path: d.path });
+        }
+    }
+    return out;
 }
 
 // 批量收藏已选（管理模式「收藏已选」）
@@ -534,13 +569,16 @@ function favoriteSelectedImages() {
     for (const g of _allGroups) {
         for (const img of g.images) {
             if (selectedSet.has(imgKey(img)) && !favMap.has(favKeyFor(img))) {
+                const now = Date.now();
+                const p = img.path || (img.entry && img.entry.path) || '';
                 favMap.set(favKeyFor(img), {
                     key: favKeyFor(img),
                     cat: currentCat,
-                    path: img.path || '',
+                    path: p,
+                    hash: (p && imgHashCache.get(p)) || '',
                     tags: [],
-                    createdAt: Date.now(),
-                    updatedAt: Date.now(),
+                    createdAt: now,
+                    updatedAt: now,
                 });
                 items.push(img);
             }

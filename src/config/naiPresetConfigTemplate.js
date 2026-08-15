@@ -116,6 +116,11 @@ export const NAI_PRESET_TEMPLATE = {
                     default: '',
                     description: '服务端文件路径（渲染/失效检查用）'
                 },
+                hash: {
+                    type: 'string',
+                    default: '',
+                    description: '内容指纹（双向图两记录 hash 相同，收藏 tab 按此去重合并显示）'
+                },
                 tags: {
                     type: 'array',
                     default: [],
@@ -255,6 +260,7 @@ export function normalizeNaiPresetConfig(config) {
             key: String(f.key),
             cat: ['chat', 'character', 'outfit'].includes(f.cat) ? f.cat : 'chat',
             path: String(f.path || ''),
+            hash: String(f.hash || ''), // 内容指纹（双向图两记录同 hash，收藏 tab 去重用）
             tags: Array.isArray(f.tags) ? f.tags.map(t => String(t).trim()).filter(Boolean) : [],
             createdAt: typeof f.createdAt === 'number' ? f.createdAt : now,
             updatedAt: typeof f.updatedAt === 'number' ? f.updatedAt : now,

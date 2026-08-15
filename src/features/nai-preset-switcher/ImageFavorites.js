@@ -93,9 +93,30 @@ function render() {
     }
     if (tip) tip.style.display = 'none';
 
+    // 按 hash 合并去重（双向图两记录 hash 相同 → 只显示一张；无 hash 按 key 独立）
+    const merged = [];
+    const seenHash = new Map(); // hash -> merged 项
+    shown.forEach(item => {
+        if (item.hash) {
+            if (seenHash.has(item.hash)) {
+                const m = seenHash.get(item.hash);
+                m.items.push(item);
+                // 合并标签
+                (item.tags || []).forEach(t => { if (!m.tags.includes(t)) m.tags.push(t); });
+                return;
+            }
+            const m = { items: [item], tags: [...(item.tags || [])] };
+            seenHash.set(item.hash, m);
+            merged.push(m);
+        } else {
+            merged.push({ items: [item], tags: [...(item.tags || [])] });
+        }
+    });
+
     // 失效自愈：逐个渲染，path 读取失败则标记移除
     const deadKeys = [];
-    shown.forEach(item => {
+    merged.forEach(m => {
+        const item = m.items[0]; // 主项（取第一条的 path 渲染；同 hash 内容一致）
         const cell = doc.createElement('div');
         cell.className = 'np-fav-cell';
 
@@ -105,10 +126,19 @@ function render() {
         loading.textContent = '加载中…';
         el.appendChild(loading);
 
+        // 来源徽标（双向图显示多来源 emoji，与图片管理角标一致）
+        if (m.items.length > 1) {
+            const srcBadge = doc.createElement('span');
+            srcBadge.className = 'np-fav-src-badge';
+            srcBadge.textContent = m.items.map(i => catLabel(i.cat)).join('');
+            srcBadge.title = m.items.map(i => catName(i.cat)).join('/');
+            el.appendChild(srcBadge);
+        }
+
         resolveSrc(item.path).then(src => {
             if (!src) {
-                // 失效：图片已删，自动清除收藏
-                deadKeys.push(item.key);
+                // 失效：图片已删，自动清除收藏（合并组内全部 key）
+                m.items.forEach(i => deadKeys.push(i.key));
                 loading.textContent = '已失效';
                 el.title = '图片已被删除，将自动移除收藏';
                 return;
@@ -120,34 +150,34 @@ function render() {
             im.alt = item.key;
             el.appendChild(im);
         }).catch(() => {
-            deadKeys.push(item.key);
+            m.items.forEach(i => deadKeys.push(i.key));
             loading.textContent = '已失效';
         });
 
-        // 标签显示（小 chip）
+        // 标签显示（小 chip，合并后标签）
         const tagsEl = doc.createElement('div');
         tagsEl.className = 'np-fav-tags-show';
-        (item.tags || []).forEach(t => {
+        m.tags.forEach(t => {
             const chip = doc.createElement('span');
             chip.className = 'np-fav-tag-chip';
             chip.textContent = t;
             tagsEl.appendChild(chip);
         });
 
-        // 操作：取消收藏 + 编辑标签
+        // 操作：取消收藏（合并组全部取消）+ 编辑标签（编辑主项，保存时同步组内）
         const actions = doc.createElement('div');
         actions.className = 'np-fav-actions';
         const unfav = doc.createElement('button');
         unfav.className = 'np-fav-unfav';
         unfav.textContent = '♥';
         unfav.title = '取消收藏';
-        unfav.addEventListener('click', () => removeFavorite(item.key));
+        unfav.addEventListener('click', () => m.items.forEach(i => removeFavorite(i.key)));
         actions.appendChild(unfav);
         const tagBtn = doc.createElement('button');
         tagBtn.className = 'np-fav-tag-edit';
         tagBtn.textContent = '🏷';
         tagBtn.title = '编辑标签';
-        tagBtn.addEventListener('click', () => openTagEditor(item));
+        tagBtn.addEventListener('click', () => openTagEditor(item, m.items));
         actions.appendChild(tagBtn);
 
         cell.appendChild(el);
@@ -156,12 +186,15 @@ function render() {
         list.appendChild(cell);
     });
 
+    // 失效自愈：合并组内全部 key 去重
+    const deadSet = new Set(deadKeys);
+
     // 失效自愈落盘（延迟到渲染后统一处理，避免渲染中改数据）
-    if (deadKeys.length) {
+    if (deadSet.size) {
         setTimeout(() => {
-            favItems = favItems.filter(f => !deadKeys.includes(f.key));
+            favItems = favItems.filter(f => !deadSet.has(f.key));
             persist(favItems, favTags);
-            showToast(doc, `已自动移除 ${deadKeys.length} 条失效收藏`, 'info');
+            showToast(doc, `已自动移除 ${deadSet.size} 条失效收藏`, 'info');
             renderTagBar();
             render();
         }, 50);
@@ -207,9 +240,11 @@ function removeFavorite(key) {
     if (window.__refreshImageManagerFavs) window.__refreshImageManagerFavs();
 }
 
-// 编辑单张收藏的标签（弹窗：已选 + 可点选标签池 + 新建）
-function openTagEditor(item) {
+// 编辑收藏的标签（弹窗：已选 + 可点选标签池 + 新建）
+// items：合并组的全部 item（双向图同步标签到组内每条记录）
+function openTagEditor(item, groupItems) {
     if (!doc) return;
+    const syncItems = Array.isArray(groupItems) && groupItems.length ? groupItems : [item];
     const editing = [...(item.tags || [])];
     const poolHtml = favTags.map((t, i) =>
         `<span class="np-fav-pool-chip" data-i="${i}" data-name="${escapeHtml(t.name)}">${escapeHtml(t.name)}</span>`
@@ -236,8 +271,11 @@ function openTagEditor(item) {
                 onClick: (d) => {
                     // 收集最终标签（从 DOM 读取已选）
                     const finalTags = collectSelectedTags(d);
-                    item.tags = finalTags;
-                    item.updatedAt = Date.now();
+                    // 同步到合并组内全部 item（双向图标签一致）
+                    syncItems.forEach(it => {
+                        it.tags = [...finalTags];
+                        it.updatedAt = Date.now();
+                    });
                     // 新建的标签也并入标签库
                     const nowNames = new Set(favTags.map(t => t.name));
                     finalTags.forEach(t => { if (!nowNames.has(t)) favTags.push({ name: t, createdAt: Date.now() }); });
@@ -392,6 +430,20 @@ function bindControls() {
     if (manageBtn) manageBtn.addEventListener('click', openTagManager);
     const emptyBtn = doc.getElementById('np-fav-empty');
     if (emptyBtn) emptyBtn.addEventListener('click', clearAllFavorites);
+}
+
+// 分类显示 emoji（与图片管理副本角标一致：角色👤 服装👗 文生图💬）
+function catLabel(cat) {
+    if (cat === 'character') return '👤';
+    if (cat === 'outfit') return '👗';
+    return '💬';
+}
+
+// 分类文字名（悬停提示）
+function catName(cat) {
+    if (cat === 'character') return '角色';
+    if (cat === 'outfit') return '服装';
+    return '文生图';
 }
 
 function escapeHtml(s) {

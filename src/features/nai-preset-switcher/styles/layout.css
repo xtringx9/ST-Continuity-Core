@@ -1358,6 +1358,18 @@
     display: block;
 }
 
+/* 收藏图来源徽标（双向图多来源 emoji，无背景，与图片管理角标一致） */
+.np-fav-src-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    z-index: 2;
+    font-size: 14px;
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+}
+
 .np-fav-tags-show {
     display: flex;
     flex-wrap: wrap;
