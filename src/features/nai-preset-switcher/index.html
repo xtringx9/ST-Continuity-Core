@@ -20,6 +20,7 @@
             <button id="np-export-tags" class="btn-secondary" data-nav="preset" style="padding:6px 12px; font-size:13px;">导出标签</button>
             <button id="np-inspect-copy" class="btn-secondary" data-nav="parse" style="padding:6px 12px; font-size:13px;" disabled>复制全部</button>
             <button id="np-add-from-inspect" class="btn-primary" data-nav="parse" style="padding:6px 12px; font-size:13px;" disabled>添加为预设</button>
+            <button id="np-img-manage" class="btn-secondary" data-nav="vibe" style="padding:6px 12px; font-size:13px;">管理模式</button>
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
         </div>
@@ -82,6 +83,14 @@
                     <button id="np-img-sort" class="btn-sort" title="排序方式"></button>
                     <input type="text" id="np-img-search" class="np-img-search" placeholder="搜索分组名 / 提示词…" />
                 </div>
+                <!-- 批量操作栏（管理模式显示） -->
+                <div class="np-img-batchbar" id="np-img-batchbar" style="display:none;">
+                    <span id="np-img-sel-count">已选 0 张</span>
+                    <div class="np-img-batch-actions">
+                        <button class="btn-secondary" id="np-img-sel-clear">清空</button>
+                        <button class="btn-danger" id="np-img-sel-delete" disabled>删除已选</button>
+                    </div>
+                </div>
                 <!-- 顶部页码导航（分组分页） -->
                 <div class="np-img-pager" id="np-img-pager-top"></div>
                 <div class="np-img-list" id="np-img-list">
@@ -135,6 +144,7 @@
         <div class="np-lightbox-info" id="np-lightbox-info"></div>
         <div class="np-lightbox-actions">
             <button class="np-lightbox-download" id="np-lightbox-download" title="下载原图">⤓ 下载原图</button>
+            <button class="btn-danger np-lightbox-delete" id="np-lightbox-delete" title="删除这张图片">🗑 删除</button>
             <button class="np-lightbox-close" id="np-lightbox-close">✕ 关闭</button>
         </div>
         <button class="np-lightbox-nav np-lightbox-prev" id="np-lightbox-prev" title="上一张">‹</button>

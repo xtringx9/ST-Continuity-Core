@@ -14,6 +14,7 @@ import { extension_settings } from '../../../../../../extensions.js';
 import { getRequestHeaders } from '../../../../../../../script.js';
 import { errorLog } from '../../utils/logger.js';
 import { initSortControl } from './SortControl.js';
+import { setDupContext, setDeleteDoc, deleteImageItem, isDeleteReady } from './ImageDelete.js';
 
 const CHATU8 = 'st-chatu8';
 
@@ -37,6 +38,8 @@ const blobUrlCache = new Map(); // path -> objectURL，避免重复 fetch
 let presetRefs = null;           // [{path,size,source,name,hash}] 引用图索引
 let presetRefsSignature = '';    // 引用图 path 集合签名（变化则重建）
 let dupCache = new Map();        // 文内图 path -> {source,name}|null（null=已判定非副本）
+let dupReverse = new Map();      // hash -> [{cat,name,path,configId?}] 内容反查（预设+文内对称）
+let imgHashCache = new Map();    // path -> hash（删除反查用，构建时填充）
 let dupCheckRunning = false;     // 防并发
 let refsBuildPromise = null;     // 引用图索引构建共享 promise（多次触发只建一次）
 const DUP_BATCH = 20;            // 每批确认的疑似副本数
@@ -243,9 +246,9 @@ async function buildPresetRefs() {
         for (const name in (map || {})) {
             const preset = map[name];
             const ids = (preset && Array.isArray(preset.photoImageIds)) ? preset.photoImageIds : [];
-            for (const id of ids) {
-                const entry = storage[id];
-                if (entry && entry.path) refs.push({ path: entry.path, source: type, name });
+            for (const configId of ids) {
+                const entry = storage[configId];
+                if (entry && entry.path) refs.push({ path: entry.path, source: type, name, configId });
             }
         }
     }
@@ -253,16 +256,23 @@ async function buildPresetRefs() {
     if (sig === presetRefsSignature) return;
     presetRefsSignature = sig;
     const indexed = [];
+    const reverse = new Map();
     for (let i = 0; i < refs.length; i += DUP_BATCH) {
         const batch = refs.slice(i, i + DUP_BATCH);
         await Promise.all(batch.map(async (r) => {
             try {
                 const buf = await fetchBuffer(r.path);
-                indexed.push({ ...r, size: buf.byteLength, hash: await hashBuffer(buf) });
+                const hash = await hashBuffer(buf);
+                indexed.push({ ...r, size: buf.byteLength, hash });
+                imgHashCache.set(r.path, hash);
+                // 反向索引：hash → 预设引用（含 configId，供删除定位）
+                if (!reverse.has(hash)) reverse.set(hash, []);
+                reverse.get(hash).push({ cat: r.source, name: r.name, path: r.path, configId: r.configId });
             } catch (e) { /* 单张读取失败跳过 */ }
         }));
     }
     presetRefs = indexed;
+    dupReverse = reverse;
     dupCache = new Map(); // 引用图变化 → 旧判定清空重判
 }
 
@@ -286,8 +296,16 @@ async function runDupCheck(pendingSet) {
                 try {
                     const buf = await fetchBuffer(path);
                     const hash = await hashBuffer(buf);
+                    imgHashCache.set(path, hash);
                     const hit = presetRefs.find(r => r.size === buf.byteLength && r.hash === hash);
                     dupCache.set(path, hit ? { source: hit.source, name: hit.name } : null);
+                    // 命中文内副本时也并入反向索引（与预设引用同一 hash 桶），删除任一侧可对称查全
+                    if (hit && dupReverse.has(hash)) {
+                        const list = dupReverse.get(hash);
+                        if (!list.some(x => x.cat === 'chat' && x.path === path)) {
+                            list.push({ cat: 'chat', path });
+                        }
+                    }
                 } catch (e) {
                     dupCache.set(path, null); // 读取失败按非副本处理，避免反复重试
                 }
@@ -320,6 +338,7 @@ function buildPresetGroups(presetType) {
                 title: `${name} #${idx + 1}`,
                 date: sd, // 供组内按日期排序
                 path: (storage[id] && storage[id].path) || '', // 文件路径（lightbox 显示）
+                presetName: name, // 供删除定位
             };
         });
         groups.push({ key: 'preset:' + name, label: name, images, date });
@@ -363,6 +382,143 @@ let _allGroups = [];
 let _currentPage = 1;
 let _totalPages = 1;
 
+/* ============ 管理模式（勾选 + 批量删除） ============ */
+let manageMode = false;            // 管理模式开关
+const selectedSet = new Set();     // 已选图片唯一 key（见 imgKey）
+
+// 图片项的唯一 key（跨分组稳定，重渲不丢失选择）
+function imgKey(img) {
+    if (currentCat === 'chat') return 'chat:' + (img.entry?.uuid || img.path);
+    return currentCat + ':' + img.imageId;
+}
+
+// 选择状态 → 勾选框
+function isSelected(img) { return selectedSet.has(imgKey(img)); }
+function toggleSelect(img) {
+    const k = imgKey(img);
+    if (selectedSet.has(k)) selectedSet.delete(k);
+    else selectedSet.add(k);
+    updateBatchBar();
+}
+
+function updateBatchBar() {
+    if (!doc) return;
+    const bar = doc.getElementById('np-img-batchbar');
+    const count = doc.getElementById('np-img-sel-count');
+    const del = doc.getElementById('np-img-sel-delete');
+    if (bar) bar.style.display = manageMode ? 'flex' : 'none';
+    if (count) count.textContent = `已选 ${selectedSet.size} 张`;
+    if (del) del.disabled = selectedSet.size === 0;
+    // 勾选框显隐
+    doc.querySelectorAll('.np-img-check').forEach(cb => {
+        cb.style.display = manageMode ? 'block' : 'none';
+    });
+}
+
+// 管理模式开关
+function setManageMode(on) {
+    manageMode = on;
+    const btn = doc.getElementById('np-img-manage');
+    if (btn) {
+        btn.textContent = on ? '取消管理' : '管理模式';
+        btn.classList.toggle('active', on);
+    }
+    if (!on) selectedSet.clear();
+    // 分组头全选按钮显隐
+    doc.querySelectorAll('.np-img-group-sel').forEach(b => { b.style.display = on ? 'inline-block' : 'none'; });
+    updateBatchBar();
+    render(); // 重渲以显示/隐藏勾选框
+}
+
+// 构建图片项的删除定位信息（供 ImageDelete 使用）
+function buildDeleteItem(img) {
+    const base = { cat: currentCat, path: img.path || '' };
+    if (currentCat === 'chat') {
+        base.entry = img.entry;
+        base.hash = (img.entry && img.entry.path && imgHashCache.get(img.entry.path)) || undefined;
+    } else {
+        base.configId = img.imageId;
+        base.presetName = img.presetName;
+        base.presetType = currentCat;
+        base.hash = (img.path && imgHashCache.get(img.path)) || undefined;
+    }
+    return base;
+}
+
+// 删除前确保反向索引完整：遍历全部 jiuguanStorage 图（不受当前视图限制），
+// size 疑似命中预设引用图的才 fetch 比对；幂等（dupCache 已判定则跳过）。
+let _fullScanPromise = null;
+function ensureFullDupScan() {
+    if (!_fullScanPromise) {
+        _fullScanPromise = (async () => {
+            await ensurePresetRefs();
+            if (!presetRefs || presetRefs.length === 0) return;
+            const chatu8 = getChatu8();
+            const storage = (chatu8 && chatu8.jiuguanStorage) || {};
+            const pending = new Set();
+            for (const md5 in storage) {
+                const entry = storage[md5];
+                if (!entry || !Array.isArray(entry.images)) continue;
+                for (const img of entry.images) {
+                    const path = img.path || '';
+                    if (!path || dupCache.has(path)) continue;
+                    if (typeof img.size !== 'number') { dupCache.set(path, null); continue; }
+                    if (presetRefs.some(r => r.size === img.size)) pending.add(path);
+                }
+            }
+            if (pending.size > 0) await runDupCheck(pending);
+        })().finally(() => { _fullScanPromise = null; });
+    }
+    return _fullScanPromise;
+}
+
+// 批量删除已选图片（逐张走副本确认）
+async function deleteSelected() {
+    if (selectedSet.size === 0) return;
+    // 先补全反向索引（可能不在文生图视图），再检查就绪
+    try { await ensureFullDupScan(); } catch (e) { /* 扫描失败不阻塞删除，仅提示 */ }
+    if (!isDeleteReady()) {
+        showToast(doc, '副本识别未完成，请稍候再试', 'error');
+        return;
+    }
+    // 从当前分组收集所选图片对象（selectedSet 的 key 可能在重渲后丢失引用，这里重建）
+    const items = [];
+    for (const g of _allGroups) {
+        for (const img of g.images) {
+            if (selectedSet.has(imgKey(img))) items.push(buildDeleteItem(img));
+        }
+    }
+    if (items.length === 0) return;
+    for (const item of items) {
+        await deleteImageItem(item);
+    }
+    // 删除完成后清空选择、退出管理模式（ImageDelete 内 onChanged 会重渲）
+    selectedSet.clear();
+    setManageMode(false);
+}
+
+// 向 ImageDelete 注入反向索引与变更回调（渲染后同步，删除后重渲）
+function syncDupContext() {
+    setDupContext({
+        dupMap: dupCache,
+        reverseMap: dupReverse,
+        onChanged: () => render(),
+    });
+}
+
+// 删除 lightbox 当前查看的图片（复用管理模式的删除入口）
+async function deleteLightboxImage() {
+    if (!_lbList.length || _lbIndex < 0) return;
+    const item = buildDeleteItem(_lbList[_lbIndex]);
+    if (!item || !item.path) return;
+    // 删除前补全反向索引，确保副本提示准确
+    try { await ensureFullDupScan(); } catch (e) { /* 不阻塞 */ }
+    await deleteImageItem(item);
+    // 删除后关闭 lightbox（图已移除，留在原索引会显示错误内容）
+    closeLightbox();
+    // onChanged（ImageDelete 内）已触发 render 重渲列表
+}
+
 // 截断提示词分组名（仅文内生图按提示词分组时 label 可能很长）
 function makeGroupTitle(g) {
     const full = g.label;
@@ -399,6 +555,31 @@ function appendGroups(start, end) {
         }
         title.textContent = `${titleInfo.short} (${g.images.length}${dateLabel})`;
         header.appendChild(title);
+
+        // 管理模式：分组级全选 / 全不选
+        if (manageMode) {
+            const selWrap = doc.createElement('span');
+            selWrap.className = 'np-img-group-sel';
+            const allBtn = doc.createElement('button');
+            allBtn.className = 'np-img-group-sel-all';
+            allBtn.textContent = '全选';
+            allBtn.addEventListener('click', () => {
+                g.images.forEach(img => selectedSet.add(imgKey(img)));
+                updateBatchBar();
+                render();
+            });
+            selWrap.appendChild(allBtn);
+            const noneBtn = doc.createElement('button');
+            noneBtn.className = 'np-img-group-sel-none';
+            noneBtn.textContent = '全不选';
+            noneBtn.addEventListener('click', () => {
+                g.images.forEach(img => selectedSet.delete(imgKey(img)));
+                updateBatchBar();
+                render();
+            });
+            selWrap.appendChild(noneBtn);
+            header.appendChild(selWrap);
+        }
 
         // 提示词过长：提供「展开」+「复制」按钮；展开后可「收回」
         if (titleInfo.truncated) {
@@ -456,23 +637,45 @@ function buildImageCell(img, groupImages) {
     cell.className = 'np-img-cell';
     const el = doc.createElement('div');
     el.className = 'np-img-thumb';
-    el.textContent = '加载中…';
+    const loading = doc.createElement('span');
+    loading.textContent = '加载中…';
+    el.appendChild(loading);
+
+    // 管理模式勾选框（覆盖在缩略图左上角；不随 src 异步重建，直接挂在 el 上）
+    const check = doc.createElement('span');
+    check.className = 'np-img-check';
+    check.style.display = manageMode ? 'block' : 'none';
+    check.textContent = '✓';
+    check.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSelect(img);
+        check.classList.toggle('checked', isSelected(img));
+    });
+    check.classList.toggle('checked', isSelected(img));
+    el.appendChild(check);
 
     const srcPromise = currentCat === 'chat'
         ? resolveImageSrc(img.entry)
         : resolveConfigImageSrc(img.imageId);
     srcPromise.then(src => {
-        if (!src) { el.textContent = '读取失败'; return; }
-        el.textContent = '';
+        if (!src) { loading.textContent = '读取失败'; return; }
+        loading.remove();
         const im = doc.createElement('img');
         im.className = 'np-img-thumb-img';
         im.src = src;
         im.alt = img.title;
         const idx = groupImages.indexOf(img);
-        im.addEventListener('click', () => openLightbox(groupImages, idx));
+        im.addEventListener('click', () => {
+            if (manageMode) {
+                toggleSelect(img);
+                check.classList.toggle('checked', isSelected(img));
+            } else {
+                openLightbox(groupImages, idx);
+            }
+        });
         el.appendChild(im);
         if (img.dup) el.appendChild(buildDupBadge(img.dup));
-    }).catch(() => { el.textContent = '读取失败'; });
+    }).catch(() => { loading.textContent = '读取失败'; });
 
     cell.appendChild(el);
     const cap = doc.createElement('div');
@@ -520,6 +723,7 @@ function render() {
     if (currentCat === 'chat') {
         ensurePresetRefs().then(() => collectPendingAndCheck()).catch(() => { /* 失败不影响浏览 */ });
     }
+    syncDupContext();
 }
 
 // 在 presetRefs 已就绪的前提下，重新扫描当前分组的文内图：
@@ -853,6 +1057,8 @@ function bindControls() {
     if (nextBtn) nextBtn.addEventListener('click', () => stepLightbox(1));
     const dlBtn = doc.getElementById('np-lightbox-download');
     if (dlBtn) dlBtn.addEventListener('click', downloadLightboxImage);
+    const lbDelBtn = doc.getElementById('np-lightbox-delete');
+    if (lbDelBtn) lbDelBtn.addEventListener('click', deleteLightboxImage);
     const box = doc.getElementById('np-lightbox');
     if (box) {
         box.addEventListener('click', (e) => {
@@ -866,6 +1072,19 @@ function bindControls() {
         });
         box.setAttribute('tabindex', '-1');
     }
+
+    // 管理模式开关
+    const manageBtn = doc.getElementById('np-img-manage');
+    if (manageBtn) manageBtn.addEventListener('click', () => setManageMode(!manageMode));
+
+    // 批量操作：清空 / 删除已选（删除按钮只在批量操作栏，顶栏不重复放）
+    const clearBtn = doc.getElementById('np-img-sel-clear');
+    if (clearBtn) clearBtn.addEventListener('click', () => { selectedSet.clear(); updateBatchBar(); render(); });
+    const selDeleteBtn = doc.getElementById('np-img-sel-delete');
+    if (selDeleteBtn) selDeleteBtn.addEventListener('click', deleteSelected);
+
+    // 初始同步一次批量栏状态
+    updateBatchBar();
 }
 
 /* ============ 初始化 ============ */
@@ -876,8 +1095,10 @@ function bindControls() {
 export function initImageManager(iframeDocument) {
     doc = iframeDocument;
     if (!doc.getElementById('np-img-list')) return;
+    setDeleteDoc(doc);
     try {
         bindControls();
+        syncDupContext();
     } catch (e) {
         errorLog('[图片管理] 初始化失败（不影响预设管理）:', e);
     }
