@@ -19,9 +19,21 @@ import { initSortControl } from './SortControl.js';
 
 let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
+let tagLib = [];           // 独立标签库（configManager.getNaiTags() 的副本，可无关联预设存在）
 let activeTag = 'ALL';     // 当前标签筛选
 let searchTerm = '';       // 当前搜索词
-let sortMode = 'nameAsc';  // 卡片排序方式：nameAsc/nameDesc/createdDesc/createdAsc/updatedDesc/updatedAsc
+// 卡片排序方式：nameAsc/nameDesc/createdDesc/createdAsc/updatedDesc/updatedAsc
+// 持久化到 localStorage，刷新页面后仍记住（keepAlive 抽屉不重建，整页刷新才重建）
+const SORT_MODE_KEY = 'st_continuity_nai_sort_mode';
+function loadSortMode() {
+    try {
+        const v = localStorage.getItem(SORT_MODE_KEY);
+        const valid = ['nameAsc', 'nameDesc', 'createdDesc', 'createdAsc', 'updatedDesc', 'updatedAsc'];
+        if (v && valid.includes(v)) return v;
+    } catch (e) { /* iframe localStorage 不可用时退回默认 */ }
+    return 'nameAsc';
+}
+let sortMode = loadSortMode();
 let editingId = null;      // 正在编辑的预设 id（null = 新建/按 name 首次建）
 let editingName = null;    // 编辑时的预设名（纯智绘姬预设首次建标签时用）
 let editingTags = [];       // 编辑弹层内当前标签（芯片编辑器工作副本）
@@ -34,6 +46,7 @@ let editingTags = [];       // 编辑弹层内当前标签（芯片编辑器工�
 export function initNaiPresetSwitcher(iframeDocument) {
     doc = iframeDocument;
     presets = configManager.getNaiPresets().map(p => ({ ...p }));
+    tagLib = configManager.getNaiTags().map(t => ({ ...t }));
 
     applyI18nToStaticElements();
     bindThemeToggle();
@@ -130,6 +143,7 @@ function bindStaticControls() {
         getCurrentMode: () => sortMode,
         onModeChange: (mode) => {
             sortMode = mode;
+            try { localStorage.setItem(SORT_MODE_KEY, mode); } catch (e) { /* 忽略持久化失败 */ }
             renderList();
         },
     });
@@ -205,6 +219,7 @@ function bindToolbox() {
         importTagsBtn.addEventListener('click', () => handleTagImport(doc, () => {
             // 导入成功后同步内存并刷新列表
             presets = configManager.getNaiPresets().map(p => ({ ...p }));
+            tagLib = configManager.getNaiTags().map(t => ({ ...t }));
             renderAll();
         }));
     }
@@ -441,6 +456,7 @@ function importLegacyPresets() {
 
     presets = presets.concat(toAdd);
     persist();
+    reloadTagLib();
     renderAll();
 
     const msg = `成功导入 ${toAdd.length} 条预设` + (skipped > 0 ? `（跳过 ${skipped} 条重名）` : '') + '。';
@@ -515,9 +531,13 @@ function refreshCurrentPresetUi(newName) {
 }
 
 function collectTags() {
-    const set = new Set();
-    mergePresetViews().forEach(p => (p.tags || []).forEach(t => set.add(t)));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh'));
+    // 标签是一等概念（独立 tags 库），直接从标签库取，不依赖预设
+    return (tagLib || []).map(t => t.name).sort((a, b) => a.localeCompare(b, 'zh'));
+}
+
+// 从 configManager 重新载入标签库到内存（导入/落盘后调用）
+function reloadTagLib() {
+    tagLib = configManager.getNaiTags().map(t => ({ ...t }));
 }
 
 /**
@@ -826,33 +846,97 @@ function closeEditor() {
     editingTags = [];
 }
 
-// 编辑弹层内的标签芯片编辑器
+// 编辑弹层内的标签芯片编辑器：已选芯片区 + 可点选标签池（多选，横向流式）
 function renderTagEditor() {
     const box = doc.getElementById('np-f-tags');
-    const input = doc.getElementById('np-f-tag-input');
-    if (!box) return;
+    const search = doc.getElementById('np-f-tag-search');
+    const pool = doc.getElementById('np-f-tag-pool');
+    const countEl = doc.getElementById('np-f-tag-count');
+    if (!box || !pool) return;
+
+    // 1) 已选标签芯片区（可移除）
     box.innerHTML = '';
-    editingTags.forEach((tag, idx) => {
-        const chip = doc.createElement('span');
-        chip.className = 'np-tag-chip';
-        chip.textContent = tag;
-        const x = doc.createElement('span');
-        x.className = 'np-tag-chip-x';
-        x.textContent = ' ×';
-        x.addEventListener('click', () => {
-            editingTags.splice(idx, 1);
-            renderTagEditor();
+    if (editingTags.length === 0) {
+        const empty = doc.createElement('span');
+        empty.className = 'np-tag-editor-empty';
+        empty.textContent = '尚未选择标签';
+        box.appendChild(empty);
+    } else {
+        editingTags.forEach((tag, idx) => {
+            const chip = doc.createElement('span');
+            chip.className = 'np-tag-chip';
+            chip.textContent = tag;
+            const x = doc.createElement('span');
+            x.className = 'np-tag-chip-x';
+            x.textContent = ' ×';
+            x.addEventListener('click', () => {
+                editingTags.splice(idx, 1);
+                renderTagEditor();
+            });
+            chip.appendChild(x);
+            box.appendChild(chip);
         });
-        chip.appendChild(x);
-        box.appendChild(chip);
-    });
+    }
+
+    // 2) 标签池：标签库全部标签，按搜索词过滤，点击切换选中
+    const kw = (search && search.value || '').trim().toLowerCase();
+    const poolTags = tagLib
+        .filter(t => !kw || t.name.toLowerCase().includes(kw))
+        .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+    pool.innerHTML = '';
+    if (poolTags.length === 0) {
+        const empty = doc.createElement('span');
+        empty.className = 'np-tag-pool-empty';
+        empty.textContent = kw ? '无匹配标签' : '暂无标签（可在下方新建）';
+        pool.appendChild(empty);
+    } else {
+        poolTags.forEach(t => {
+            const chip = doc.createElement('span');
+            const selected = editingTags.includes(t.name);
+            chip.className = 'np-tag-pool-chip' + (selected ? ' selected' : '');
+            chip.textContent = t.name;
+            chip.addEventListener('click', () => {
+                const i = editingTags.indexOf(t.name);
+                if (i >= 0) editingTags.splice(i, 1);
+                else editingTags.push(t.name);
+                renderTagEditor();
+            });
+            pool.appendChild(chip);
+        });
+    }
+
+    if (countEl) {
+        countEl.textContent = `已选 ${editingTags.length} / 共 ${tagLib.length}`;
+    }
+
+    // 搜索框：输入即过滤标签池
+    if (search) {
+        search.oninput = () => renderTagEditor();
+    }
+    // 全选：当前过滤结果全部纳入
+    const allBtn = doc.getElementById('np-f-tag-all');
+    if (allBtn) allBtn.onclick = () => {
+        const kw2 = (search && search.value || '').trim().toLowerCase();
+        tagLib
+            .filter(t => !kw2 || t.name.toLowerCase().includes(kw2))
+            .forEach(t => { if (!editingTags.includes(t.name)) editingTags.push(t.name); });
+        renderTagEditor();
+    };
+    // 清空：移除全部已选
+    const clearBtn = doc.getElementById('np-f-tag-clear');
+    if (clearBtn) clearBtn.onclick = () => {
+        editingTags = [];
+        renderTagEditor();
+    };
+    // 新建并选中
+    const addBtn = doc.getElementById('np-f-tag-add');
+    if (addBtn) addBtn.onclick = addEditingTag;
+    const input = doc.getElementById('np-f-tag-input');
     if (input) {
         input.onkeydown = (e) => {
             if (e.key === 'Enter') { e.preventDefault(); addEditingTag(); }
         };
     }
-    const addBtn = doc.getElementById('np-f-tag-add');
-    if (addBtn) addBtn.onclick = addEditingTag;
 }
 
 function addEditingTag() {
@@ -902,6 +986,7 @@ function onSave() {
     }
 
     persist();
+    registerTags(tags); // 同步标签库：编辑弹层里手动新增的标签也纳入独立标签库
     closeEditor();
     renderAll();
 }
@@ -935,15 +1020,14 @@ function closeTagManager() {
 
 function renderTagManager() {
     const list = doc.getElementById('np-tag-list');
-    const targetSel = doc.getElementById('np-tag-new-target');
-    if (!list || !targetSel) return;
+    if (!list) return;
 
     const tags = collectTags();
     list.innerHTML = '';
     if (tags.length === 0) {
         const empty = doc.createElement('div');
         empty.className = 'np-empty';
-        empty.textContent = '暂无标签';
+        empty.textContent = '暂无标签，可在下方直接新建（无需关联预设）';
         list.appendChild(empty);
     } else {
         tags.forEach(tag => {
@@ -970,65 +1054,66 @@ function renderTagManager() {
             list.appendChild(row);
         });
     }
-
-    // 新建标签的目标预设下拉
-    targetSel.innerHTML = '';
-    presets.forEach(p => {
-        const opt = doc.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.name || '(未命名)';
-        targetSel.appendChild(opt);
-    });
 }
 
-// 改名：在所有预设中将 old 重映射为 new；若 new 已存在则合并（去重）
+// 新建独立标签（无需关联任何预设，直接写入标签库）
+function onTagCreate() {
+    const input = doc.getElementById('np-tag-new-name');
+    if (!input) return;
+    const tag = input.value.trim();
+    if (!tag) { input.focus(); return; }
+    if (tagLib.some(t => t.name === tag)) {
+        input.value = '';
+        input.focus();
+        return; // 已存在则不重复添加
+    }
+    tagLib.push({ name: tag, createdAt: Date.now() });
+    input.value = '';
+    persistTags();
+    renderTagManager();
+    renderAll();
+}
+
+// 改名：同步更新标签库 + 所有预设中的引用（若 new 已存在则合并去重）
 function onTagRename(oldTag) {
     const next = prompt(`将标签「${oldTag}」改名为：`, oldTag);
     if (next === null) return;
     const newTag = next.trim();
     if (!newTag || newTag === oldTag) return;
+
+    const oldEntry = tagLib.find(t => t.name === oldTag);
+    const newExists = tagLib.some(t => t.name === newTag);
+    if (newExists) {
+        // 目标已存在：删除旧库项，并把所有预设引用重映射
+        tagLib = tagLib.filter(t => t.name !== oldTag);
+    } else if (oldEntry) {
+        oldEntry.name = newTag;
+    }
+
     for (const p of presets) {
         if (!p.tags) continue;
         if (p.tags.includes(oldTag)) {
             p.tags = p.tags
                 .filter(t => t !== oldTag)
                 .concat(p.tags.includes(newTag) ? [] : [newTag]);
+            p.updatedAt = Date.now();
         }
     }
     persist();
+    persistTags();
     renderTagManager();
     renderAll();
 }
 
-// 删除：从所有预设移除该标签
+// 删除：从标签库移除，并从所有预设中移除该引用
 function onTagDelete(tag) {
     if (!confirm(`删除标签「${tag}」？它将从所有 ${tagUsageCount(tag)} 个预设中移除。`)) return;
+    tagLib = tagLib.filter(t => t.name !== tag);
     for (const p of presets) {
         if (p.tags) p.tags = p.tags.filter(t => t !== tag);
     }
     persist();
-    renderTagManager();
-    renderAll();
-}
-
-// 新建：创建标签并附加到所选预设（空标签无意义，必须落到某个预设）
-function onTagCreate() {
-    const input = doc.getElementById('np-tag-new-name');
-    const targetSel = doc.getElementById('np-tag-new-target');
-    if (!input || !targetSel) return;
-    const tag = input.value.trim();
-    if (!tag) { input.focus(); return; }
-    const targetId = targetSel.value;
-    const p = presets.find(x => x.id === targetId);
-    if (p) {
-        p.tags = p.tags || [];
-        if (!p.tags.includes(tag)) {
-            p.tags.push(tag);
-            p.updatedAt = Date.now();
-        }
-    }
-    input.value = '';
-    persist();
+    persistTags();
     renderTagManager();
     renderAll();
 }
@@ -1094,6 +1179,23 @@ function fallbackCopy(text) {
 
 function persist() {
     configManager.setNaiPresets(presets);
+}
+
+// 落盘标签库（独立顶层键 nai_preset_config.tags）
+function persistTags() {
+    configManager.setNaiTags(tagLib);
+}
+
+// 把一组标签名注册进标签库（去重），用于预设编辑/保存时同步标签来源
+function registerTags(tagNames) {
+    let changed = false;
+    for (const name of tagNames) {
+        if (name && !tagLib.some(t => t.name === name)) {
+            tagLib.push({ name, createdAt: Date.now() });
+            changed = true;
+        }
+    }
+    if (changed) persistTags();
 }
 
 function genId() {

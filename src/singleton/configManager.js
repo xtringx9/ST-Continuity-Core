@@ -498,13 +498,39 @@ class ConfigManager {
      * 写入并落盘预设数组（独立顶层键 nai_preset_config；保留当前 enabled 开关）
      * @param {Array} presets
      */
-    setNaiPresets(presets) {
-        if (!ENABLE_DEV_SAVE_GUARD) return;
+    setNaiPresets(presets) {        if (!ENABLE_DEV_SAVE_GUARD) return;
         const current = this.getNaiPresetSwitcherConfig();
         // 落盘前经模板归一化，保证字段完整、类型正确（enabled 沿用当前值）
         const normalized = normalizeNaiPresetConfig({
             enabled: current.enabled,
             presets: Array.isArray(presets) ? presets : [],
+        });
+        this.naiPresetConfig = normalized;
+        this.saveNaiPresetConfigNow();
+    }
+
+    /**
+     * 获取独立标签库（读路径，走独立顶层键 nai_preset_config）
+     * @returns {Array<{name:string, createdAt:number}>} tags
+     */
+    getNaiTags() {
+        if (!this.isNaiPresetConfigLoaded) {
+            this.loadNaiPresetConfig();
+        }
+        return this.naiPresetConfig?.tags || [];
+    }
+
+    /**
+     * 写入并落盘独立标签库（独立顶层键 nai_preset_config；保留当前 enabled / presets）
+     * @param {Array<{name:string, createdAt?:number}>} tags
+     */
+    setNaiTags(tags) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        const current = this.getNaiPresetSwitcherConfig();
+        const normalized = normalizeNaiPresetConfig({
+            enabled: current.enabled,
+            presets: current.presets || [],
+            tags: Array.isArray(tags) ? tags : [],
         });
         this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();

@@ -15,11 +15,29 @@ export const NAI_PRESET_CONSTANTS = {
  * - 预览图不在此存储 —— 实时读智绘姬 yushe[name].previewImageId（经 saveConfigImage/getConfigImage，
  *   存于 st-chatu8 的 configImageStorage），两边共享同一张图。
  * - 因此 preset 只需：name（= 智绘姬 yushe key，可变）+ tags（自建多标签）+ 时间戳/排序占位。
+ * - 标签是一等概念（独立 tags 库，2026-08-15 方案 A）：可无关联预设独立存在，
+ *   预设的 preset.tags 只引用 tags 库里的 name。新增/改名/删除标签须同时维护 tags 库与预设引用。
  * - 失联处理：若 yushe[name] 不存在（智绘姬侧改名/删除），tags 仍可用，需提供「重新关联」功能（待做）。
  */
 export const NAI_PRESET_TEMPLATE = {
     version: NAI_PRESET_CONSTANTS.version,
     lastUpdated: new Date().toISOString(),
+
+    // 独立标签库：可脱离预设存在，preset.tags 仅引用这里的 name
+    tags: [
+        {
+            name: {
+                type: 'string',
+                required: true,
+                description: '标签名（唯一，preset.tags 的引用锚点）'
+            },
+            createdAt: {
+                type: 'number',
+                default: 0,
+                description: '创建时间（ms 时间戳）'
+            },
+        }
+    ],
 
     // 预设数组
     presets: [
@@ -73,6 +91,7 @@ export const DEFAULT_NAI_PRESET_CONFIG = {
         lastUpdated: new Date().toISOString(),
         source: "ST-Continuity-Core",
     },
+    tags: [],
     presets: []
 };
 
@@ -143,6 +162,7 @@ export function normalizeNaiPresetConfig(config) {
             lastUpdated: config.metadata?.lastUpdated || new Date().toISOString(),
             source: config.metadata?.source || DEFAULT_NAI_PRESET_CONFIG.metadata.source
         },
+        tags: [],
         presets: [],
     };
 
@@ -156,6 +176,26 @@ export function normalizeNaiPresetConfig(config) {
             sortOrder: typeof p.sortOrder === 'number' ? p.sortOrder : index,
         }));
     }
+
+    // 独立标签库：优先用显式 tags，否则从预设引用反推补全（兼容旧数据仅含 preset.tags 的情况）
+    const tagSet = new Map();
+    if (Array.isArray(config.tags)) {
+        config.tags.forEach((t, i) => {
+            const name = t && typeof t === 'object' ? String(t.name || '').trim() : String(t || '').trim();
+            if (!name) return;
+            tagSet.set(name, {
+                name,
+                createdAt: (t && typeof t === 'object' && typeof t.createdAt === 'number') ? t.createdAt : now,
+            });
+        });
+    }
+    // 反推补全：预设里引用了但 tags 库没有的标签，自动纳入（时间戳取该标签最早出现的预设 updatedAt）
+    normalized.presets.forEach(p => {
+        (p.tags || []).forEach(tag => {
+            if (!tagSet.has(tag)) tagSet.set(tag, { name: tag, createdAt: p.createdAt || now });
+        });
+    });
+    normalized.tags = Array.from(tagSet.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh'));
 
     return normalized;
 }

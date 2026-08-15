@@ -99,9 +99,18 @@
             <div class="np-form-row">
                 <label>标签</label>
                 <div id="np-f-tags" class="np-tag-editor"></div>
+                <div class="np-tag-pool-wrap">
+                    <div class="np-tag-pool-bar">
+                        <input type="text" id="np-f-tag-search" class="np-input np-tag-search" placeholder="搜索标签…" />
+                        <button id="np-f-tag-all" class="btn-secondary np-tag-pool-btn">全选</button>
+                        <button id="np-f-tag-clear" class="btn-secondary np-tag-pool-btn">清空</button>
+                        <span id="np-f-tag-count" class="np-tag-pool-count"></span>
+                    </div>
+                    <div id="np-f-tag-pool" class="np-tag-pool"></div>
+                </div>
                 <div class="np-tag-add">
-                    <input type="text" id="np-f-tag-input" class="np-input" placeholder="输入标签后回车添加" />
-                    <button id="np-f-tag-add" class="btn-secondary">添加</button>
+                    <input type="text" id="np-f-tag-input" class="np-input" placeholder="新建标签名" />
+                    <button id="np-f-tag-add" class="btn-secondary">新建并选中</button>
                 </div>
             </div>
             <!-- 提示词（positive/negative）不在此编辑：实时读智绘姬 yushe[name] -->
@@ -118,10 +127,9 @@
             <div class="np-modal-title">标签管理</div>
 
             <div class="np-form-row">
-                <label>新建标签（选择要附加到的预设）</label>
+                <label>新建标签（独立创建，无需关联预设）</label>
                 <div class="np-tag-new">
                     <input type="text" id="np-tag-new-name" class="np-input" placeholder="新标签名" />
-                    <select id="np-tag-new-target" class="np-input"></select>
                     <button id="np-tag-new-add" class="btn-primary">添加</button>
                 </div>
             </div>

@@ -211,6 +211,12 @@ function applyTagImport(doc, picked, override, onApplied) {
     let added = 0;
     let updated = 0;
 
+    // 导入的标签名也纳入独立标签库（去重）
+    const tags = configManager.getNaiTags() || [];
+    const tagNames = new Set(tags.map(t => t.name));
+    const newTagEntries = [];
+    const now = Date.now();
+
     for (const item of picked) {
         const existing = byName.get(item.name);
         if (existing) {
@@ -221,24 +227,35 @@ function applyTagImport(doc, picked, override, onApplied) {
                 item.tags.forEach(t => merged.add(t));
                 existing.tags = Array.from(merged);
             }
-            existing.updatedAt = Date.now();
+            existing.updatedAt = now;
             updated++;
         } else {
             const np = {
                 id: genId(),
                 name: item.name,
                 tags: [...item.tags],
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
+                createdAt: now,
+                updatedAt: now,
                 sortOrder: presets.length,
             };
             presets.push(np);
             byName.set(np.name, np);
             added++;
         }
+        // 收集导入文件里的全部标签名
+        item.tags.forEach(t => {
+            if (!tagNames.has(t)) {
+                tagNames.add(t);
+                newTagEntries.push({ name: t, createdAt: now });
+            }
+        });
     }
 
     configManager.setNaiPresets(presets);
+    // 合并写回标签库（仅追加文件里出现但库里没有的标签）
+    if (newTagEntries.length) {
+        configManager.setNaiTags(tags.concat(newTagEntries));
+    }
     if (typeof onApplied === 'function') onApplied();
     const msg = `导入完成：新增 ${added}，更新 ${updated}。`;
     showResult(doc, msg, 'success');
