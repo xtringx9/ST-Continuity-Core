@@ -77,10 +77,15 @@
                         <button class="np-img-cat" data-cat="outfit">服装图</button>
                     </div>
                     <div class="np-img-sub" id="np-img-sub">
-                        <!-- 仅文内生图有二级分组（按提示词/按预设）；左侧分隔线视觉区分 -->
+                        <!-- 文内生图：按提示词/按预设二选一；左侧分隔线视觉区分 -->
                         <div class="np-img-sub-group" data-for="chat">
                             <button class="np-img-sub-btn active" data-group="prompt">按提示词</button>
                             <button class="np-img-sub-btn" data-group="preset">按预设</button>
+                        </div>
+                        <!-- 角色/服装：按提示词/按预设可叠加的独立开关（默认不选） -->
+                        <div class="np-img-sub-group np-img-sub-toggle" data-for="presetcat">
+                            <button class="np-img-sub-btn" data-group="prompt">+按提示词</button>
+                            <button class="np-img-sub-btn" data-group="preset">+按预设</button>
                         </div>
                     </div>
                     <button id="np-img-sort" class="btn-sort" title="排序方式"></button>

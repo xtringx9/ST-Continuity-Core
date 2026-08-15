@@ -41,10 +41,27 @@ let presetRefs = null;           // [{path,size,source,name,hash}] 引用图索�
 let presetRefsSignature = '';    // 引用图 path 集合签名（变化则重建）
 let dupCache = new Map();        // 文内图 path -> {source,name}|null（null=已判定非副本）
 let dupReverse = new Map();      // hash -> [{cat,name,path,configId?}] 内容反查（预设+文内对称）
-let imgHashCache = new Map();    // path -> hash（删除反查用，构建时填充）
+let imgHashCache = new Map();    // path -> hash（删除反查/二级分组用，构建时填充）
+let chatMetaByHash = new Map();  // hash -> {md5, change, yushe}（角色/服装图反查提示词/预设分组）
 let dupCheckRunning = false;     // 防并发
 let refsBuildPromise = null;     // 引用图索引构建共享 promise（多次触发只建一次）
 const DUP_BATCH = 20;            // 每批确认的疑似副本数
+
+/* ============ 分组维度（通用嵌套分组引擎） ============ */
+// 角色/服装分类的二级分组开关：prompt(按提示词) | preset(按预设)，可叠加、默认不选。
+// 存 localStorage 持久化（与 sortMode 同约定）。chat 分类仍用原 chatGroupMode（二选一）。
+let presetGroupDims = new Set(); // 角色/服装激活的维度
+const DIMS_KEY = 'st_continuity_nai_img_dims';
+function loadPresetGroupDims() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(DIMS_KEY) || '[]');
+        presetGroupDims = new Set(Array.isArray(saved) ? saved.filter(d => d === 'prompt' || d === 'preset') : []);
+    } catch (e) { presetGroupDims = new Set(); }
+}
+function persistPresetGroupDims() {
+    try { localStorage.setItem(DIMS_KEY, JSON.stringify([...presetGroupDims])); } catch (e) { /* 忽略 */ }
+}
+loadPresetGroupDims();
 
 /* ============ 数据读取 ============ */
 
@@ -183,6 +200,7 @@ function buildChatGroups(pendingSet) {
         if (!groups[gKey]) groups[gKey] = { key: gKey, label: gLabel, images: [], date: 0 };
         entry.images.forEach((img, idx) => {
             if (img.date && img.date > groups[gKey].date) groups[gKey].date = img.date;
+            const yushe = (img.genParams && img.genParams.yushe) || '';
             groups[gKey].images.push({
                 entry: img,
                 title: `${label} #${idx + 1}`,
@@ -190,6 +208,7 @@ function buildChatGroups(pendingSet) {
                 date: img.date || 0, // 供组内按日期排序
                 path: img.path || '', // 文件路径（lightbox 显示）
                 dup: judgeChatImage(img, pendingSet), // 角色/服装副本标记（可为 null）
+                chatMeta: { md5, change, yushe }, // 供 chatMetaByHash 填充 / 二级分组
             });
         });
     }
@@ -201,15 +220,17 @@ function buildChatGroups(pendingSet) {
 //  - size 不命中引用图集合 → 记为 null（非副本），无需 fetch
 //  - size 疑似命中 → 把 path 记入 pendingSet，返回 null（等待后台 fetch 确认）
 function judgeChatImage(img, pendingSet) {
-    const path = img.path || '';
+    // 兼容：直接传原图 entry（无 chatMeta）或包装对象（含 chatMeta/entry）
+    const entry = img.entry || img;
+    const path = entry.path || '';
     if (!path || !presetRefs || presetRefs.length === 0) return null;
     if (dupCache.has(path)) return dupCache.get(path);
-    const size = typeof img.size === 'number' ? img.size : null;
+    const size = typeof entry.size === 'number' ? entry.size : null;
     if (size === null || !presetRefs.some(r => r.size === size)) {
         dupCache.set(path, null);
         return null;
     }
-    if (pendingSet) pendingSet.add(path);
+    if (pendingSet) pendingSet.set(path, img.chatMeta || null); // Map<path, meta>
     return null;
 }
 
@@ -257,6 +278,7 @@ async function buildPresetRefs() {
     const sig = refs.map(r => r.path).join('|');
     if (sig === presetRefsSignature) return;
     presetRefsSignature = sig;
+    _fullScanned = false; // 引用图变化 → 全量扫描需重跑
     const indexed = [];
     const reverse = new Map();
     for (let i = 0; i < refs.length; i += DUP_BATCH) {
@@ -286,21 +308,33 @@ function ensurePresetRefs() {
 }
 
 // 后台分批确认 size 疑似命中的图，完成后整体重渲一次（徽标出现）
-async function runDupCheck(pendingSet) {
-    if (dupCheckRunning || !pendingSet || pendingSet.size === 0) return;
+// pendingMap: Map<path, meta>（meta 含 md5/change/yushe，供 chatMetaByHash 填充）
+async function runDupCheck(pendingMap) {
+    if (dupCheckRunning || !pendingMap || pendingMap.size === 0) return;
     dupCheckRunning = true;
-    const paths = [...pendingSet];
+    const paths = [...pendingMap.keys()];
     try {
         for (let i = 0; i < paths.length; i += DUP_BATCH) {
             const batch = paths.slice(i, i + DUP_BATCH);
             await Promise.all(batch.map(async (path) => {
-                if (dupCache.has(path)) return;
+                // 已判定过的图：跳过 fetch，但补齐缺失的 chatMetaByHash（hash 已有则直接补 meta）
+                if (dupCache.has(path)) {
+                    const cachedHash = imgHashCache.get(path);
+                    const meta = pendingMap.get(path);
+                    if (cachedHash && meta && meta.md5 && !chatMetaByHash.has(cachedHash)) {
+                        chatMetaByHash.set(cachedHash, meta);
+                    }
+                    return;
+                }
                 try {
                     const buf = await fetchBuffer(path);
                     const hash = await hashBuffer(buf);
                     imgHashCache.set(path, hash);
                     const hit = presetRefs.find(r => r.size === buf.byteLength && r.hash === hash);
                     dupCache.set(path, hit ? { source: hit.source, name: hit.name } : null);
+                    // 记录文内图 meta（供角色/服装图反查提示词/预设分组）
+                    const meta = pendingMap.get(path);
+                    if (meta && meta.md5) chatMetaByHash.set(hash, meta);
                     // 命中文内副本时也并入反向索引（与预设引用同一 hash 桶），删除任一侧可对称查全
                     if (hit && dupReverse.has(hash)) {
                         const list = dupReverse.get(hash);
@@ -320,6 +354,8 @@ async function runDupCheck(pendingSet) {
 }
 
 // 角色/服装预设：遍历预设对象 → photoImageIds
+// 支持通用嵌套分组：外层按预设名，内层按激活维度（prompt/preset，可叠加）。
+// 内层分组数据来自 chatMetaByHash（hash 反查文内 md5/change/yushe）。
 function buildPresetGroups(presetType) {
     const chatu8 = getChatu8();
     if (!chatu8) return [];
@@ -327,6 +363,8 @@ function buildPresetGroups(presetType) {
     const storage = chatu8.configImageStorage || {};
     if (!map) return [];
     const groups = [];
+    // 激活的嵌套维度（localStorage 持久化，可叠加）；字符串转 {key} 供通用引擎消费
+    const dims = [...presetGroupDims].map(d => ({ key: d }));
     for (const name in map) {
         const preset = map[name];
         const ids = (preset && Array.isArray(preset.photoImageIds)) ? preset.photoImageIds : [];
@@ -335,17 +373,72 @@ function buildPresetGroups(presetType) {
         const images = ids.map((id, idx) => {
             const sd = (storage[id] && storage[id].date) || 0;
             if (sd && sd > date) date = sd;
+            const path = (storage[id] && storage[id].path) || '';
+            // 反查文内 meta（hash → chatMetaByHash）
+            const hash = (path && imgHashCache.get(path)) || null;
+            const meta = (hash && chatMetaByHash.get(hash)) || null;
             return {
                 imageId: id,
                 title: `${name} #${idx + 1}`,
                 date: sd, // 供组内按日期排序
-                path: (storage[id] && storage[id].path) || '', // 文件路径（lightbox 显示）
+                path, // 文件路径（lightbox 显示）
                 presetName: name, // 供删除定位
+                hash, // 反查键
+                meta, // {md5, change, yushe} 或 null
             };
         });
-        groups.push({ key: 'preset:' + name, label: name, images, date });
+        // 无嵌套维度：保持原有单层分组（按预设名）
+        if (dims.length === 0) {
+            groups.push({ key: 'preset:' + name, label: name, images, date });
+            continue;
+        }
+        // 有嵌套维度：按维度逐层构建子树（通用嵌套分组）
+        const children = buildNestedGroupTree(images, dims);
+        groups.push({ key: 'preset:' + name, label: name, date, children, images: [] });
     }
     return groups;
+}
+
+// 通用嵌套分组：把图片列表按维度序列逐层分组。
+// 每个维度：{ key, getLabel(img) -> string }，返回树的叶子节点带 images。
+// node = { key, label, date, children?: [node], images?: [img] }
+function buildNestedGroupTree(items, dims) {
+    // 根节点持有全部图片，逐层按维度细分
+    let nodes = [{ key: 'root', label: '', children: [], images: items || [] }];
+    for (const dim of dims) {
+        const next = [];
+        const byKey = new Map();
+        for (const node of nodes) {
+            for (const img of (node.images || [])) {
+                const label = getDimLabel(dim, img);
+                const key = `${dim.key}:${label}`;
+                if (!byKey.has(key)) byKey.set(key, { key, label, children: [], images: [] });
+                byKey.get(key).images.push(img);
+            }
+        }
+        nodes = [...byKey.values()];
+    }
+    // 计算每层 date（取组内最新）
+    const calcDate = (node) => {
+        let d = 0;
+        (node.images || []).forEach(im => { if (im.date && im.date > d) d = im.date; });
+        node.date = d;
+        return d;
+    };
+    nodes.forEach(calcDate);
+    return nodes;
+}
+
+// 嵌套维度 → 图片的分组 label（提示词/预设）
+function getDimLabel(dim, img) {
+    const meta = img.meta;
+    if (dim.key === 'prompt') {
+        return (meta && meta.change) || img.title.split(' #')[0] || '(未命名提示词)';
+    }
+    if (dim.key === 'preset') {
+        return (meta && meta.yushe) || '未关联预设';
+    }
+    return '未知';
 }
 
 /* ============ 渲染（分组分页：顶部页码导航） ============ */
@@ -360,23 +453,27 @@ function getGroups(pendingSet) {
     else if (currentCat === 'character') groups = buildPresetGroups('character');
     else if (currentCat === 'outfit') groups = buildPresetGroups('outfit');
     else groups = [];
-    // 排序：日期降序/升序/名称
-    if (sortMode === 'nameAsc') {
-        groups.sort((a, b) => a.label.localeCompare(b.label, 'zh'));
-    } else if (sortMode === 'dateAsc') {
-        groups.sort((a, b) => (a.date || 0) - (b.date || 0));
-    } else {
-        groups.sort((a, b) => (b.date || 0) - (a.date || 0));
-    }
-    // 组内图片同样按排序模式排序（dateDesc/dateAsc 按各自 date；nameAsc 保持原有顺序）
-    for (const g of groups) {
-        if (sortMode === 'dateAsc') {
-            g.images.sort((x, y) => (x.date || 0) - (y.date || 0));
-        } else if (sortMode === 'dateDesc') {
-            g.images.sort((x, y) => (y.date || 0) - (x.date || 0));
+    // 排序：日期降序/升序/名称（顶层组）
+    sortGroupNodes(groups);
+    return groups;
+}
+
+// 通用：对一组分组节点排序（按 sortMode），并递归排序 children 与组内图片
+function sortGroupNodes(nodes) {
+    if (!Array.isArray(nodes)) return;
+    const cmpDate = sortMode === 'dateAsc'
+        ? (a, b) => (a.date || 0) - (b.date || 0)
+        : (a, b) => (b.date || 0) - (a.date || 0);
+    const cmpName = (a, b) => a.label.localeCompare(b.label, 'zh');
+    nodes.sort(sortMode === 'nameAsc' ? cmpName : cmpDate);
+    for (const g of nodes) {
+        if (g.children && g.children.length) {
+            sortGroupNodes(g.children);
+        } else {
+            if (sortMode === 'dateAsc') g.images.sort((x, y) => (x.date || 0) - (y.date || 0));
+            else if (sortMode === 'dateDesc') g.images.sort((x, y) => (y.date || 0) - (x.date || 0));
         }
     }
-    return groups;
 }
 
 // 全局缓存当前过滤后的分组列表与当前页码（分页用）
@@ -550,25 +647,38 @@ function buildDeleteItem(img) {
 // 删除前确保反向索引完整：遍历全部 jiuguanStorage 图（不受当前视图限制），
 // size 疑似命中预设引用图的才 fetch 比对；幂等（dupCache 已判定则跳过）。
 let _fullScanPromise = null;
+let _fullScanned = false; // 全量扫描完成标志（防 render 循环触发）
 function ensureFullDupScan() {
+    if (_fullScanned) return Promise.resolve();
     if (!_fullScanPromise) {
         _fullScanPromise = (async () => {
             await ensurePresetRefs();
             if (!presetRefs || presetRefs.length === 0) return;
             const chatu8 = getChatu8();
             const storage = (chatu8 && chatu8.jiuguanStorage) || {};
-            const pending = new Set();
+            const pending = new Map();
             for (const md5 in storage) {
                 const entry = storage[md5];
                 if (!entry || !Array.isArray(entry.images)) continue;
                 for (const img of entry.images) {
                     const path = img.path || '';
-                    if (!path || dupCache.has(path)) continue;
+                    if (!path) continue;
+                    const yushe = (img.genParams && img.genParams.yushe) || '';
+                    const meta = { md5, change: entry.change || '', yushe };
                     if (typeof img.size !== 'number') { dupCache.set(path, null); continue; }
-                    if (presetRefs.some(r => r.size === img.size)) pending.add(path);
+                    // 已判定过的图：仅当 chatMetaByHash 缺 meta 时才补（runDupCheck 走缓存补 meta 分支）
+                    if (dupCache.has(path)) {
+                        const h = imgHashCache.get(path);
+                        if (h && meta.md5 && !chatMetaByHash.has(h)) pending.set(path, meta);
+                        continue;
+                    }
+                    if (presetRefs.some(r => r.size === img.size)) {
+                        pending.set(path, meta);
+                    }
                 }
             }
             if (pending.size > 0) await runDupCheck(pending);
+            _fullScanned = true;
         })().finally(() => { _fullScanPromise = null; });
     }
     return _fullScanPromise;
@@ -650,10 +760,10 @@ async function deleteLightboxImage() {
     // onChanged（ImageDelete 内）已触发 render 重渲列表
 }
 
-// 截断提示词分组名（仅文内生图按提示词分组时 label 可能很长）
+// 截断过长分组名（提示词分组名可能很长；嵌套分组的子组同样适用）
 function makeGroupTitle(g) {
-    const full = g.label;
-    if (currentCat === 'chat' && chatGroupMode === 'prompt' && full.length > PROMPT_LABEL_MAX) {
+    const full = g.label || '';
+    if (full.length > PROMPT_LABEL_MAX) {
         const short = full.slice(0, PROMPT_LABEL_MAX) + '…';
         return { short, full, truncated: true };
     }
@@ -666,86 +776,94 @@ function appendGroups(start, end) {
     if (!list) return;
 
     for (let i = start; i < end && i < _allGroups.length; i++) {
-        const g = _allGroups[i];
-        const groupEl = doc.createElement('div');
-        groupEl.className = 'np-img-group';
+        appendGroupNode(_allGroups[i], list, 0);
+    }
+}
 
-        const header = doc.createElement('div');
-        header.className = 'np-img-group-header';
-        const titleInfo = makeGroupTitle(g);
+// 通用递归渲染分组节点：叶子组渲染图片网格；父组渲染子分组头 + 递归 children。
+// depth 用于缩进嵌套层级的样式（CSS 类 np-img-group-depth-{depth}）。
+function appendGroupNode(g, parent, depth) {
+    if (!g) return;
+    const groupEl = doc.createElement('div');
+    groupEl.className = 'np-img-group np-img-group-depth-' + Math.min(depth, 3);
+    const isLeaf = !(g.children && g.children.length);
 
-        const title = doc.createElement('span');
-        title.className = 'np-img-group-title';
-        let dateLabel = '';
-        if (g.date) {
-            try {
-                const d = new Date(g.date);
-                const pad = (n) => String(n).padStart(2, '0');
-                dateLabel = ` · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-            } catch (e) { /* ignore */ }
-        }
-        title.textContent = `${titleInfo.short} (${g.images.length}${dateLabel})`;
-        header.appendChild(title);
+    const header = doc.createElement('div');
+    header.className = 'np-img-group-header';
+    const titleInfo = makeGroupTitle(g);
 
-        // 管理模式：分组级全选 / 全不选
-        if (manageMode) {
-            const selWrap = doc.createElement('span');
-            selWrap.className = 'np-img-group-sel';
-            const allBtn = doc.createElement('button');
-            allBtn.className = 'np-img-group-sel-all';
-            allBtn.textContent = '全选';
-            allBtn.addEventListener('click', () => {
-                g.images.forEach(img => selectedSet.add(imgKey(img)));
-                updateBatchBar();
-                render();
-            });
-            selWrap.appendChild(allBtn);
-            const noneBtn = doc.createElement('button');
-            noneBtn.className = 'np-img-group-sel-none';
-            noneBtn.textContent = '全不选';
-            noneBtn.addEventListener('click', () => {
-                g.images.forEach(img => selectedSet.delete(imgKey(img)));
-                updateBatchBar();
-                render();
-            });
-            selWrap.appendChild(noneBtn);
-            header.appendChild(selWrap);
-        }
+    const title = doc.createElement('span');
+    title.className = 'np-img-group-title';
+    let dateLabel = '';
+    if (g.date) {
+        try {
+            const d = new Date(g.date);
+            const pad = (n) => String(n).padStart(2, '0');
+            dateLabel = ` · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        } catch (e) { /* ignore */ }
+    }
+    const imgCount = countGroupImages(g);
+    title.textContent = `${titleInfo.short} (${imgCount}${dateLabel})`;
+    header.appendChild(title);
 
-        // 提示词过长：提供「展开」+「复制」按钮；展开后可「收回」
-        if (titleInfo.truncated) {
-            const expand = doc.createElement('button');
-            expand.className = 'np-img-group-expand';
-            expand.textContent = '展开';
-            let expanded = false;
-            expand.addEventListener('click', () => {
-                expanded = !expanded;
-                title.textContent = `${expanded ? titleInfo.full : titleInfo.short} (${g.images.length})`;
-                expand.textContent = expanded ? '收回' : '展开';
-            });
-            header.appendChild(expand);
+    // 管理模式：分组级全选 / 全不选（收集整棵子树所有图片）
+    if (manageMode && isLeaf) {
+        const selWrap = doc.createElement('span');
+        selWrap.className = 'np-img-group-sel';
+        const allBtn = doc.createElement('button');
+        allBtn.className = 'np-img-group-sel-all';
+        allBtn.textContent = '全选';
+        allBtn.addEventListener('click', () => {
+            collectGroupImages(g).forEach(img => selectedSet.add(imgKey(img)));
+            updateBatchBar();
+            render();
+        });
+        selWrap.appendChild(allBtn);
+        const noneBtn = doc.createElement('button');
+        noneBtn.className = 'np-img-group-sel-none';
+        noneBtn.textContent = '全不选';
+        noneBtn.addEventListener('click', () => {
+            collectGroupImages(g).forEach(img => selectedSet.delete(imgKey(img)));
+            updateBatchBar();
+            render();
+        });
+        selWrap.appendChild(noneBtn);
+        header.appendChild(selWrap);
+    }
 
-            const copy = doc.createElement('button');
-            copy.className = 'np-img-group-copy';
-            copy.textContent = '复制';
-            copy.addEventListener('click', async () => {
-                // 非安全上下文（如 http://局域网IP 访问 ST）navigator.clipboard 为 undefined，
-                // 直接 writeText 会抛 TypeError → 必须走 copyText 的 execCommand 兜底
-                const ok = await copyText(titleInfo.full);
-                copy.textContent = ok ? '已复制' : '复制失败';
-                copy.classList.toggle('copied', ok);
-                setTimeout(() => { copy.textContent = '复制'; copy.classList.remove('copied'); }, 1500);
-            });
-            header.appendChild(copy);
-        }
-        groupEl.appendChild(header);
+    // 提示词过长：提供「展开」+「复制」按钮；展开后可「收回」（仅提示词分组名）
+    if (titleInfo.truncated) {
+        const expand = doc.createElement('button');
+        expand.className = 'np-img-group-expand';
+        expand.textContent = '展开';
+        let expanded = false;
+        expand.addEventListener('click', () => {
+            expanded = !expanded;
+            title.textContent = `${expanded ? titleInfo.full : titleInfo.short} (${imgCount})`;
+            expand.textContent = expanded ? '收回' : '展开';
+        });
+        header.appendChild(expand);
 
+        const copy = doc.createElement('button');
+        copy.className = 'np-img-group-copy';
+        copy.textContent = '复制';
+        copy.addEventListener('click', async () => {
+            // 非安全上下文（如 http://局域网IP 访问 ST）navigator.clipboard 为 undefined，
+            // 直接 writeText 会抛 TypeError → 必须走 copyText 的 execCommand 兜底
+            const ok = await copyText(titleInfo.full);
+            copy.textContent = ok ? '已复制' : '复制失败';
+            copy.classList.toggle('copied', ok);
+            setTimeout(() => { copy.textContent = '复制'; copy.classList.remove('copied'); }, 1500);
+        });
+        header.appendChild(copy);
+    }
+    groupEl.appendChild(header);
+
+    if (isLeaf) {
         const grid = doc.createElement('div');
         grid.className = 'np-img-grid';
-
         const visible = g.images.slice(0, IMAGES_PER_GROUP);
         visible.forEach(img => grid.appendChild(buildImageCell(img, g.images)));
-
         // 单组图片超过阈值：提供「展开全部」
         if (g.images.length > IMAGES_PER_GROUP) {
             const more = doc.createElement('button');
@@ -757,10 +875,33 @@ function appendGroups(start, end) {
             });
             grid.appendChild(more);
         }
-
         groupEl.appendChild(grid);
-        list.appendChild(groupEl);
+    } else {
+        // 递归渲染子分组
+        const sub = doc.createElement('div');
+        sub.className = 'np-img-subgroups';
+        g.children.forEach(child => appendGroupNode(child, sub, depth + 1));
+        groupEl.appendChild(sub);
     }
+    parent.appendChild(groupEl);
+}
+
+// 统计组内图片总数（含子组递归）
+function countGroupImages(g) {
+    if (!g) return 0;
+    if (g.children && g.children.length) {
+        return g.children.reduce((n, c) => n + countGroupImages(c), 0);
+    }
+    return (g.images || []).length;
+}
+
+// 收集组内所有图片（含子组递归，管理模式全选用）
+function collectGroupImages(g) {
+    if (!g) return [];
+    if (g.children && g.children.length) {
+        return g.children.flatMap(c => collectGroupImages(c));
+    }
+    return g.images || [];
 }
 
 function buildImageCell(img, groupImages) {
@@ -857,7 +998,12 @@ function render() {
     // 无论当前在哪个分类都要构建索引（删除按钮需依赖就绪态解锁；角色/服装视图同样可删）。
     // 首次进入时 presetRefs 为 null（pendingSet 恒空），必须无条件触发构建，
     // 构建完成后统一 collectPendingAndCheck 重新扫描当前列表，否则徽标永远不会出现。
-    ensurePresetRefs().then(() => collectPendingAndCheck()).catch(() => { /* 失败不影响浏览 */ });
+    ensurePresetRefs().then(() => {
+        // chat：扫描当前列表出徽标；角色/服装：需全量扫描（chatMetaByHash 完整才能反查分组）
+        if (currentCat === 'chat') return collectPendingAndCheck();
+        if (presetGroupDims.size > 0) return ensureFullDupScan();
+        return undefined;
+    }).catch(() => { /* 失败不影响浏览 */ });
     syncDupContext();
 }
 
@@ -870,10 +1016,10 @@ async function collectPendingAndCheck() {
         updateLightboxDeleteBtn();
     };
     if (currentCat !== 'chat' || !presetRefs || presetRefs.length === 0) { unlock(); return; }
-    const pending = new Set();
+    const pending = new Map();
     for (const g of _allGroups) {
         for (const img of g.images) {
-            judgeChatImage(img.entry, pending);
+            judgeChatImage(img, pending); // 包装对象含 chatMeta
         }
     }
     if (pending.size > 0) await runDupCheck(pending);
@@ -1154,20 +1300,25 @@ function bindControls() {
     if (!doc) return;
     // 大类切换
     const cats = doc.querySelectorAll('#np-img-cats .np-img-cat');
+    const syncSubVisibility = () => {
+        const sub = doc.getElementById('np-img-sub');
+        if (!sub) return;
+        // chat 显示 chat 组；角色/服装显示 presetcat 组（分隔线一起显示）
+        const chatGroup = sub.querySelector('.np-img-sub-group[data-for="chat"]');
+        const presetGroup = sub.querySelector('.np-img-sub-group[data-for="presetcat"]');
+        if (chatGroup) chatGroup.style.display = (currentCat === 'chat') ? 'inline-flex' : 'none';
+        if (presetGroup) presetGroup.style.display = (currentCat === 'character' || currentCat === 'outfit') ? 'inline-flex' : 'none';
+    };
     cats.forEach(btn => {
         btn.addEventListener('click', () => {
             cats.forEach(b => b.classList.toggle('active', b === btn));
             currentCat = btn.getAttribute('data-cat');
-            // 显示/隐藏文内生图的子分组切换（角色/服装预设无二级分组，连分隔线一起隐藏）
-            const sub = doc.getElementById('np-img-sub');
-            if (sub) {
-                sub.style.display = (currentCat === 'chat') ? 'flex' : 'none';
-            }
+            syncSubVisibility();
             reloadFirstPage();
         });
     });
 
-    // 文内生图子分组（按提示词/按预设）
+    // 文内生图子分组（按提示词/按预设，二选一）
     const subBtns = doc.querySelectorAll('.np-img-sub-group[data-for="chat"] .np-img-sub-btn');
     subBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1176,6 +1327,27 @@ function bindControls() {
             reloadFirstPage();
         });
     });
+
+    // 角色/服装子分组（按提示词/按预设，可叠加 toggle，localStorage 持久化）
+    const presetSubBtns = doc.querySelectorAll('.np-img-sub-group[data-for="presetcat"] .np-img-sub-btn');
+    const syncPresetToggle = () => {
+        presetSubBtns.forEach(b => b.classList.toggle('active', presetGroupDims.has(b.getAttribute('data-group'))));
+    };
+    presetSubBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const dim = btn.getAttribute('data-group');
+            if (presetGroupDims.has(dim)) presetGroupDims.delete(dim);
+            else presetGroupDims.add(dim);
+            persistPresetGroupDims();
+            syncPresetToggle();
+            reloadFirstPage();
+            // 开启维度时重置全量扫描标记，确保 chatMetaByHash 补齐（旧的 meta 可能缺失）
+            if (presetGroupDims.size > 0) _fullScanned = false;
+        });
+    });
+    // 初始同步一次
+    syncSubVisibility();
+    syncPresetToggle();
 
     // 搜索
     const search = doc.getElementById('np-img-search');
