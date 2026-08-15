@@ -385,6 +385,10 @@ function buildPresetGroups(presetType) {
                 presetName: name, // 供删除定位
                 hash, // 反查键
                 meta, // {md5, change, yushe} 或 null
+                // 反向副本角标：hash 在 chatMetaByHash 有记录 → 文内生图里也有对应副本
+                dup: (hash && chatMetaByHash.has(hash))
+                    ? { source: 'chat', name: '文生图' }
+                    : null,
             };
         });
         // 无嵌套维度：保持原有单层分组（按预设名）
@@ -392,41 +396,44 @@ function buildPresetGroups(presetType) {
             groups.push({ key: 'preset:' + name, label: name, images, date });
             continue;
         }
-        // 有嵌套维度：按维度逐层构建子树（通用嵌套分组）
+        // 有嵌套维度：按维度逐层构建子树（通用嵌套分组），顶层是「预设名」组，其 children 为维度分组
         const children = buildNestedGroupTree(images, dims);
         groups.push({ key: 'preset:' + name, label: name, date, children, images: [] });
     }
     return groups;
 }
 
-// 通用嵌套分组：把图片列表按维度序列逐层分组。
-// 每个维度：{ key, getLabel(img) -> string }，返回树的叶子节点带 images。
+// 通用嵌套分组：把图片列表按维度序列逐层分组（递归）。
+// 每个维度：{ key }，树的中间节点有 children，叶子节点有 images（叶子即最后一维分组，label 非空）。
 // node = { key, label, date, children?: [node], images?: [img] }
 function buildNestedGroupTree(items, dims) {
-    // 根节点持有全部图片，逐层按维度细分
-    let nodes = [{ key: 'root', label: '', children: [], images: items || [] }];
-    for (const dim of dims) {
-        const next = [];
+    // 按剩余维度序列分组；返回该层节点
+    const groupLayer = (list, layerIndex) => {
+        const dim = dims[layerIndex];
         const byKey = new Map();
-        for (const node of nodes) {
-            for (const img of (node.images || [])) {
-                const label = getDimLabel(dim, img);
-                const key = `${dim.key}:${label}`;
-                if (!byKey.has(key)) byKey.set(key, { key, label, children: [], images: [] });
-                byKey.get(key).images.push(img);
+        for (const img of list) {
+            const label = getDimLabel(dim, img);
+            const key = `${dim.key}:${label}`;
+            if (!byKey.has(key)) byKey.set(key, { key, label, children: [], images: [] });
+            byKey.get(key).images.push(img);
+        }
+        const isLast = layerIndex >= dims.length - 1;
+        const nodes = [];
+        for (const [key, node] of byKey) {
+            let date = 0;
+            node.images.forEach(im => { if (im.date && im.date > date) date = im.date; });
+            if (isLast) {
+                // 最后一维：叶子，持有图片（label 非空，标题显示「名字 (数量 · 日期)」）
+                nodes.push({ key, label: node.label, date, children: [], images: node.images });
+            } else {
+                // 非最后一维：中间节点，递归细分
+                const children = groupLayer(node.images, layerIndex + 1);
+                nodes.push({ key, label: node.label, date, children, images: [] });
             }
         }
-        nodes = [...byKey.values()];
-    }
-    // 计算每层 date（取组内最新）
-    const calcDate = (node) => {
-        let d = 0;
-        (node.images || []).forEach(im => { if (im.date && im.date > d) d = im.date; });
-        node.date = d;
-        return d;
+        return nodes;
     };
-    nodes.forEach(calcDate);
-    return nodes;
+    return groupLayer(items, 0);
 }
 
 // 嵌套维度 → 图片的分组 label（提示词/预设）
@@ -653,7 +660,7 @@ function ensureFullDupScan() {
     if (!_fullScanPromise) {
         _fullScanPromise = (async () => {
             await ensurePresetRefs();
-            if (!presetRefs || presetRefs.length === 0) return;
+            if (!presetRefs || presetRefs.length === 0) { _fullScanned = true; return; }
             const chatu8 = getChatu8();
             const storage = (chatu8 && chatu8.jiuguanStorage) || {};
             const pending = new Map();
@@ -794,20 +801,24 @@ function appendGroupNode(g, parent, depth) {
 
     const title = doc.createElement('span');
     title.className = 'np-img-group-title';
-    let dateLabel = '';
-    if (g.date) {
-        try {
-            const d = new Date(g.date);
-            const pad = (n) => String(n).padStart(2, '0');
-            dateLabel = ` · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-        } catch (e) { /* ignore */ }
+    // 叶子组显示数量/日期；嵌套中间节点只显示名字（数量/日期在叶子已体现，避免重复）
+    if (isLeaf) {
+        let dateLabel = '';
+        if (g.date) {
+            try {
+                const d = new Date(g.date);
+                const pad = (n) => String(n).padStart(2, '0');
+                dateLabel = ` · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            } catch (e) { /* ignore */ }
+        }
+        title.textContent = `${titleInfo.short} (${g.images.length}${dateLabel})`;
+    } else {
+        title.textContent = titleInfo.short;
     }
-    const imgCount = countGroupImages(g);
-    title.textContent = `${titleInfo.short} (${imgCount}${dateLabel})`;
     header.appendChild(title);
 
-    // 管理模式：分组级全选 / 全不选（收集整棵子树所有图片）
-    if (manageMode && isLeaf) {
+    // 管理模式：分组级全选 / 全不选（中间节点收集整棵子树图片，叶子收集自身）
+    if (manageMode) {
         const selWrap = doc.createElement('span');
         selWrap.className = 'np-img-group-sel';
         const allBtn = doc.createElement('button');
@@ -839,7 +850,9 @@ function appendGroupNode(g, parent, depth) {
         let expanded = false;
         expand.addEventListener('click', () => {
             expanded = !expanded;
-            title.textContent = `${expanded ? titleInfo.full : titleInfo.short} (${imgCount})`;
+            // 展开时显示全名；叶子追加数量，中间节点无数量
+            const countText = isLeaf ? ` (${g.images.length})` : '';
+            title.textContent = `${expanded ? titleInfo.full : titleInfo.short}${countText}`;
             expand.textContent = expanded ? '收回' : '展开';
         });
         header.appendChild(expand);
@@ -970,7 +983,7 @@ function render() {
     list.innerHTML = '';
     removePager();
 
-    const pendingSet = new Set();
+    const pendingSet = new Map(); // Map<path, meta>（chat 视图收集待判定的文内图）
     _allGroups = getGroups(pendingSet);
 
     // 搜索过滤（分组名 / 提示词原文）
@@ -999,10 +1012,9 @@ function render() {
     // 首次进入时 presetRefs 为 null（pendingSet 恒空），必须无条件触发构建，
     // 构建完成后统一 collectPendingAndCheck 重新扫描当前列表，否则徽标永远不会出现。
     ensurePresetRefs().then(() => {
-        // chat：扫描当前列表出徽标；角色/服装：需全量扫描（chatMetaByHash 完整才能反查分组）
+        // chat：扫描当前列表出徽标；角色/服装：全量扫描（chatMetaByHash 完整才能出反向角标 + 反查分组）
         if (currentCat === 'chat') return collectPendingAndCheck();
-        if (presetGroupDims.size > 0) return ensureFullDupScan();
-        return undefined;
+        return ensureFullDupScan();
     }).catch(() => { /* 失败不影响浏览 */ });
     syncDupContext();
 }
@@ -1152,7 +1164,12 @@ async function renderLightbox() {
         if (item.meta.seed) rows.push(`种子：${escapeHtml(String(item.meta.seed))}`);
         if (rows.length) html += `<div class="np-lb-meta">${rows.join('<br>')}</div>`;
     }
-    if (item.dup) html += `<div class="np-lb-dup">${escapeHtml(item.dup.source === 'character' ? '角色副本' : '服装副本')}：${escapeHtml(item.dup.name)}</div>`;
+    if (item.dup) {
+        const srcLabel = item.dup.source === 'character' ? '角色副本'
+            : item.dup.source === 'outfit' ? '服装副本'
+            : '文生图副本';
+        html += `<div class="np-lb-dup">${escapeHtml(srcLabel)}：${escapeHtml(item.dup.name)}</div>`;
+    }
     info.innerHTML = html;
 
     const src = currentCat === 'chat'
@@ -1240,13 +1257,20 @@ function closeLightbox() {
     _lbIndex = 0;
 }
 
-// 角色/服装副本徽标（A2：文内视图保留显示，emoji 角标识别，无背景不依赖主题）
+// 副本徽标（双向：文内视图显示角色/服装副本；角色/服装视图显示文生图副本）
 function buildDupBadge(dup) {
     const badge = doc.createElement('span');
     badge.className = 'np-img-dup-badge';
-    const isChar = dup.source === 'character';
-    badge.textContent = isChar ? '👤' : '👗';
-    badge.title = `${isChar ? '角色' : '服装'}预设「${dup.name}」的副本`;
+    if (dup.source === 'character') {
+        badge.textContent = '👤';
+        badge.title = `角色预设「${dup.name}」的副本`;
+    } else if (dup.source === 'outfit') {
+        badge.textContent = '👗';
+        badge.title = `服装预设「${dup.name}」的副本`;
+    } else {
+        badge.textContent = '💬';
+        badge.title = `文生图中也有此图（${dup.name}）`;
+    }
     return badge;
 }
 
