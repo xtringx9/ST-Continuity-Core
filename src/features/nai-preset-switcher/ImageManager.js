@@ -169,6 +169,7 @@ function buildChatGroups() {
                 entry: img,
                 title: `${label} #${idx + 1}`,
                 meta: img.genParams || null,
+                date: img.date || 0, // 供组内按日期排序
             });
         });
     }
@@ -189,11 +190,12 @@ function buildPresetGroups(presetType) {
         if (ids.length === 0) continue;
         let date = 0;
         const images = ids.map((id, idx) => {
-            const sd = storage[id] && storage[id].date;
+            const sd = (storage[id] && storage[id].date) || 0;
             if (sd && sd > date) date = sd;
             return {
                 imageId: id,
                 title: `${name} #${idx + 1}`,
+                date: sd, // 供组内按日期排序
             };
         });
         groups.push({ key: 'preset:' + name, label: name, images, date });
@@ -220,6 +222,14 @@ function getGroups() {
         groups.sort((a, b) => (a.date || 0) - (b.date || 0));
     } else {
         groups.sort((a, b) => (b.date || 0) - (a.date || 0));
+    }
+    // 组内图片同样按排序模式排序（dateDesc/dateAsc 按各自 date；nameAsc 保持原有顺序）
+    for (const g of groups) {
+        if (sortMode === 'dateAsc') {
+            g.images.sort((x, y) => (x.date || 0) - (y.date || 0));
+        } else if (sortMode === 'dateDesc') {
+            g.images.sort((x, y) => (y.date || 0) - (x.date || 0));
+        }
     }
     return groups;
 }

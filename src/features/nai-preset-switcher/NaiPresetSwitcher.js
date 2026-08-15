@@ -104,8 +104,10 @@ export function syncNaiPresetData(iframeDocument) {
         errorLog('[智绘姬NAI预设切换] 打开时重读配置失败:', e);
     }
     renderAll();
-    // 注意：图片管理 tab 不在打开抽屉时渲染，避免与预设渲染抢资源；
-    // 仅在用户实际切到「图片管理」tab 时才由 nav 切换逻辑触发 render（见 bindNavTabs）。
+    // 若抽屉上次停在「图片管理」tab（keepAlive 保持激活状态），打开抽屉时也要刷新一次，
+    // 否则用户需手动再点一次 tab 才看到新图。refreshImageManagerIfActive 内部会判定
+    // 当前激活 tab 不是 view-vibe 就直接跳过——非图片 tab 仍不渲染，不影响其他功能。
+    refreshImageManagerIfActive();
 }
 
 /* ============ i18n ============ */
@@ -1553,11 +1555,20 @@ function openEditor(id, name) {
     fName.focus();
 }
 
+// 若当前停留在图片管理 tab，关闭弹层后顺带刷新（期间可能在别处生成了新图）
+function refreshImageManagerIfActive() {
+    const active = doc.querySelector('.content-area .view-section.active');
+    if (active && active.id === 'view-vibe') {
+        try { renderImageManagerOnDemand(doc); } catch (e) { /* 不影响主流程 */ }
+    }
+}
+
 function closeEditor() {
     const mask = doc.getElementById('np-modal-mask');
     mask.style.display = 'none';
     editingId = null;
     editingTags = [];
+    refreshImageManagerIfActive();
 }
 
 // 编辑弹层内的标签芯片编辑器：已选芯片区 + 可点选标签池（多选，横向流式）
@@ -1851,6 +1862,7 @@ function openTagManager() {
 function closeTagManager() {
     const mask = doc.getElementById('np-tag-mask');
     if (mask) mask.style.display = 'none';
+    refreshImageManagerIfActive();
 }
 
 function renderTagManager() {
