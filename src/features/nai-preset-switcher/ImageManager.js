@@ -799,6 +799,17 @@ function appendGroupNode(g, parent, depth) {
     header.className = 'np-img-group-header';
     const titleInfo = makeGroupTitle(g);
 
+    // 折叠/展开按钮（每个分组节点都有；折叠隐藏内容区）
+    const collapse = doc.createElement('button');
+    collapse.className = 'np-img-group-collapse';
+    collapse.textContent = '▾';
+    collapse.title = '折叠/展开';
+    collapse.addEventListener('click', () => {
+        groupEl.classList.toggle('collapsed');
+        collapse.textContent = groupEl.classList.contains('collapsed') ? '▸' : '▾';
+    });
+    header.appendChild(collapse);
+
     const title = doc.createElement('span');
     title.className = 'np-img-group-title';
     // 每个分组节点都显示数量（中间节点递归统计子树总数）；日期只在叶子组显示

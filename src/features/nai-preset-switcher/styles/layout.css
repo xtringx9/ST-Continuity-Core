@@ -1523,6 +1523,16 @@
     margin-bottom: 18px;
 }
 
+.np-img-group.collapsed {
+    margin-bottom: 8px; /* 折叠后收紧间距 */
+}
+
+/* 折叠状态：隐藏内容区（网格或子分组），仅保留分组头 */
+.np-img-group.collapsed > .np-img-grid,
+.np-img-group.collapsed > .np-img-subgroups {
+    display: none;
+}
+
 .np-img-group-header {
     display: flex;
     align-items: center;
@@ -1533,6 +1543,27 @@
     top: 0;
     background: var(--bg-app, #fff);
     z-index: 1;
+}
+
+/* 折叠/展开按钮 */
+.np-img-group-collapse {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin-right: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted, #888);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.np-img-group-collapse:hover {
+    background: var(--bg-hover, rgba(128, 128, 128, 0.1));
+    color: var(--text-primary, #222);
 }
 
 .np-img-group-title {
