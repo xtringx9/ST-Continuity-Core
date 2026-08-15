@@ -500,9 +500,10 @@ class ConfigManager {
      */
     setNaiPresets(presets) {        if (!ENABLE_DEV_SAVE_GUARD) return;
         const current = this.getNaiPresetSwitcherConfig();
-        // 落盘前经模板归一化，保证字段完整、类型正确（enabled 沿用当前值）
+        // 落盘前经模板归一化，保证字段完整、类型正确（enabled / chatu8Launcher 沿用当前值，避免被重置）
         const normalized = normalizeNaiPresetConfig({
             enabled: current.enabled,
+            chatu8Launcher: current.chatu8Launcher,
             presets: Array.isArray(presets) ? presets : [],
         });
         this.naiPresetConfig = normalized;
@@ -529,6 +530,7 @@ class ConfigManager {
         const current = this.getNaiPresetSwitcherConfig();
         const normalized = normalizeNaiPresetConfig({
             enabled: current.enabled,
+            chatu8Launcher: current.chatu8Launcher,
             presets: current.presets || [],
             tags: Array.isArray(tags) ? tags : [],
         });

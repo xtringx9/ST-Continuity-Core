@@ -485,7 +485,46 @@ function renameChatu8Preset(oldName, newName) {
         }
     }
     try { saveSettings(); } catch (e) { errorLog('[智绘姬NAI预设切换] 重命名后保存失败', e); }
+    // 即时刷新智绘姬预设下拉（否则需手动刷新页面才看到新名）
+    refreshChatu8PresetSelectors();
     return { ok: true };
+}
+
+/**
+ * 重建智绘姬三个模式的预设下拉（novelai / sd / comfyui），让改名即时反映在 UI 上。
+ * 仅重建 option 列表与选中值；若某个模式当前正指向被改名的预设，则触发 change
+ * 让智绘姬重新载入该预设的提示词到面板。运行在父窗口上下文（document 即主 doc）。
+ */
+function refreshChatu8PresetSelectors() {
+    try {
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        if (!chatu8 || !chatu8.yushe) return;
+        const modes = [
+            { mode: 'novelai', id: 'yusheid_novelai' },
+            { mode: 'sd', id: 'yusheid' },
+            { mode: 'comfyui', id: 'yusheid_comfyui' },
+        ];
+        modes.forEach(({ mode, id }) => {
+            const select = document.getElementById(id);
+            if (!select) return;
+            const current = chatu8['yusheid_' + mode] || '';
+            select.innerHTML = '';
+            Object.keys(chatu8.yushe).forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                if (name === current) opt.selected = true;
+                select.appendChild(opt);
+            });
+            // 若当前选中项被改名，触发 change 让面板重载提示词
+            if (current) {
+                select.value = current;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    } catch (e) {
+        errorLog('[智绘姬NAI预设切换] 刷新智绘姬预设下拉失败:', e);
+    }
 }
 
 /**
