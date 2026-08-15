@@ -14,6 +14,7 @@ import { errorLog } from '../../utils/logger.js';
 import configManager from '../../singleton/configManager.js';
 import { IframeDialog } from '../../shared/IframeDialog.js';
 import { showToast } from '../../shared/Toast.js';
+import { openSharedLightbox } from './ImageManager.js';
 
 const CHATU8 = 'st-chatu8';
 
@@ -148,6 +149,18 @@ function render() {
             im.className = 'np-fav-thumb-img';
             im.src = src;
             im.alt = item.key;
+            im.addEventListener('click', () => {
+                // 打开共享 lightbox：合并组全部 item 作为组内列表（可左右切图）
+                const lbList = m.items.map(i => ({
+                    key: i.key,
+                    cat: i.cat,
+                    title: catName(i.cat) + ' #' + i.key,
+                    path: i.path,
+                    meta: null,
+                }));
+                const idx = m.items.indexOf(item);
+                openSharedLightbox(lbList, Math.max(0, idx), { noDelete: true });
+            });
             el.appendChild(im);
         }).catch(() => {
             m.items.forEach(i => deadKeys.push(i.key));

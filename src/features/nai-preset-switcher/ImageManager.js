@@ -500,7 +500,11 @@ function reloadFavs() {
 }
 
 // 图片唯一 key（与 imgKey 一致：chat=uuid/path，character/outfit=configId）
-function favKeyFor(img) { return imgKey(img); }
+// 收藏 tab 的项自带 key（含 cat），直接复用；图片管理的项走 imgKey 构造
+function favKeyFor(img) {
+    if (img && typeof img.key === 'string' && img.key.includes(':')) return img.key;
+    return imgKey(img);
+}
 
 function isFavorited(img) {
     if (favMap.size === 0) reloadFavs();
@@ -539,6 +543,8 @@ function toggleFavoriteImage(img) {
     }
     persistFavs();
     showToast(doc, existed ? '已取消收藏' : '已收藏 ♥', existed ? 'info' : 'success');
+    // 重渲图片管理：同步所有相同内容图的红心状态（含双向副本在不同分组/缩略图）
+    if (window.__refreshImageManagerFavs) window.__refreshImageManagerFavs();
     return !existed;
 }
 
@@ -1174,6 +1180,11 @@ function openLightbox(groupImages, index) {
     renderLightbox();
     updateLightboxNav();
     updateLightboxDeleteBtn();
+    // 恢复删除/下载按钮显示（收藏 tab 打开时可能隐藏过）
+    const delBtn = doc.getElementById('np-lightbox-delete');
+    const dlBtn = doc.getElementById('np-lightbox-download');
+    if (delBtn) delBtn.style.display = '';
+    if (dlBtn) dlBtn.style.display = '';
     box.focus(); // 让键盘左右切图/ESC 生效
 }
 
@@ -1219,9 +1230,20 @@ async function renderLightbox() {
     }
     info.innerHTML = html;
 
-    const src = currentCat === 'chat'
-        ? await resolveImageSrc(item.entry)
-        : await resolveConfigImageSrc(item.imageId);
+    let src = null;
+    if (item.entry) {
+        // 文内图（图片管理）
+        src = await resolveImageSrc(item.entry);
+    } else if (item.imageId) {
+        // 角色/服装图（图片管理）
+        src = await resolveConfigImageSrc(item.imageId);
+    } else if (item.path) {
+        // 纯 path 项（收藏 tab 等）：直接 fetch
+        try {
+            const res = await fetch(item.path, { headers: getRequestHeaders() });
+            if (res.ok) src = URL.createObjectURL(await res.blob());
+        } catch (e) { /* 读取失败 */ }
+    }
     if (session !== _lbSession) return; // 会话已变（切图/关闭），丢弃晚到结果
     if (!src) { img.alt = '读取失败'; return; }
     img.src = src;
@@ -1473,6 +1495,8 @@ function bindControls() {
         if (!item) return;
         toggleFavoriteImage(item);
         updateLightboxFav();
+        // 通知收藏 tab 刷新（lightbox 里收藏/取消也要同步列表）
+        if (window.__refreshImageFavTab) window.__refreshImageFavTab();
     });
     const box = doc.getElementById('np-lightbox');
     if (box) {
@@ -1538,4 +1562,13 @@ export function renderImageManagerOnDemand(iframeDocument) {
 // 保留旧导出名作为别名，避免调用方遗漏（实际不再主动调用）
 export function syncImageManager(iframeDocument) {
     renderImageManagerOnDemand(iframeDocument);
+}
+
+// 共享 lightbox：供收藏 tab 等外部模块打开图片预览。
+// list 项需含 title/path（可选 entry/imageId/meta/dup/key）。
+// opts.noDelete=true 时隐藏删除按钮（收藏 tab 删除语义=取消收藏，不物理删图）；下载/红心保留。
+export function openSharedLightbox(list, index, opts = {}) {
+    openLightbox(list, index);
+    const delBtn = doc && doc.getElementById('np-lightbox-delete');
+    if (delBtn) delBtn.style.display = opts.noDelete ? 'none' : '';
 }
