@@ -1070,11 +1070,12 @@ function renderPager() {
     pages.appendChild(mk('«', 1, { disabled: _currentPage === 1 }));
     pages.appendChild(mk('‹', _currentPage - 1, { disabled: _currentPage === 1 }));
 
-    // 页码窗口：按容器实际宽度动态估算可显示的页码数（撑满整行）
-    const pageW = 44;  // 单页码按钮约 38px + gap 6px
+    // 页码窗口：按容器实际宽度动态估算可显示的页码数（撑满整行；info 固定右侧）
+    const pageW = 36;  // 紧凑按钮约 30px + gap 4px
     const arrowsW = pageW * 4; // « ‹ › » 四个箭头
+    const infoW = 140; // 右侧 info「第 x/y 页 · 共 z 组」预留
     const boxW = pager.getBoundingClientRect ? pager.getBoundingClientRect().width : 0;
-    const usableW = boxW > arrowsW + pageW ? boxW - arrowsW : 320;
+    const usableW = boxW > arrowsW + pageW + infoW ? boxW - arrowsW - infoW : 260;
     let win = Math.max(1, Math.floor(usableW / pageW)); // 当前页两侧各显示 win 个
     win = Math.min(win, Math.ceil(_totalPages / 2));
     const from = Math.max(1, _currentPage - win);

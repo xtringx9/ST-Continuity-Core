@@ -1678,37 +1678,39 @@
     font-size: 14px;
 }
 
-/* 顶部页码导航（分组分页，置于列表上方） */
+/* 顶部页码导航（分组分页，置于列表上方）——整条单行，不换行 */
 .np-img-pager {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 4px 6px;
-    padding: 8px 14px;
+    gap: 6px;
+    padding: 6px 10px;
     flex: 0 0 auto;
     border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.18));
 }
 
-/* 页码常驻区：撑满剩余宽度，按页面宽度自适应排布 */
+/* 页码常驻区：撑满剩余宽度（flex:1），单行排布，超宽横向滚动 */
 .np-img-pager-pages {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 4px 6px;
+    gap: 2px 4px;
     flex: 1 1 auto;
-    justify-content: center;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
 }
 
 .np-img-page {
-    min-width: 30px;
-    padding: 5px 9px;
+    min-width: 26px;
+    padding: 4px 6px;
     font-size: 12px;
     border-radius: 6px;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
     background: var(--bg-input, #fff);
     color: var(--text-input, #222);
     cursor: pointer;
+    white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .np-img-page:hover:not(.disabled):not(.active) {
@@ -1734,7 +1736,8 @@
 }
 
 .np-img-page-info {
-    padding-left: 10px;
+    flex: 0 0 auto; /* 固定右侧不压缩不换行 */
+    padding-left: 8px;
     font-size: 12px;
     color: var(--text-muted, #888);
     white-space: nowrap;
