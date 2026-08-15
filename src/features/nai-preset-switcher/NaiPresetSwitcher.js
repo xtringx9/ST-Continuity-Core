@@ -16,6 +16,7 @@ import { extension_settings } from '../../../../../../extensions.js';
 import { saveSettings, getRequestHeaders } from '../../../../../../../script.js';
 import { handleTagExport, handleTagImport } from './TagImportExport.js';
 import { initSortControl } from './SortControl.js';
+import { showToast } from '../../shared/Toast.js';
 
 let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
@@ -1192,6 +1193,7 @@ function onSave() {
                 const res = renameChatu8Preset(p.name, name);
                 if (res.conflict) {
                     // 目标名在智绘姬已存在，拒绝保存，保留弹层让用户改
+                    showToast(doc, `智绘姬中已存在名为「${name}」的预设，请换一个名字。`, 'error');
                     fName.focus();
                     fName.select();
                     return;
