@@ -319,16 +319,84 @@
     display: grid;
     grid-template-columns: minmax(0, 300px) 1fr;
     gap: 16px;
-    align-items: start;
+    align-items: stretch;
 }
 
 .np-editor-split > .np-form-row {
     margin-bottom: 10px;
 }
 
+/* 图片栏：min-height:0 允许收缩，确保栏高由标签栏（右栏）主导。 */
+.np-editor-split > .np-form-row:first-child {
+    min-height: 0;
+}
+
+/* 拖拽区填满栏高。图片用绝对定位脱离文档流，不参与图片栏自然高度计算，
+   从而断开关「图片撑高 → 栏高变大」的循环；栏高完全由标签栏决定。 */
+.np-editor-split > .np-form-row:first-child .np-dropzone {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    justify-content: flex-end;
+}
+
+/* 图片绝对定位填满拖拽区，整张以 contain 显示（不裁切、留白），
+   层级在 hint/actions 之下。 */
+.np-editor-split > .np-form-row:first-child .np-dropzone .np-dropzone-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: contain;
+    border-radius: 6px;
+    z-index: 0;
+}
+
+/* 提示文字与操作按钮浮在图片之上，保证可点击/可读 */
+.np-editor-split > .np-form-row:first-child .np-dropzone .np-dropzone-hint,
+.np-editor-split > .np-form-row:first-child .np-dropzone .np-dropzone-actions {
+    position: relative;
+    z-index: 1;
+}
+
+/* 更换/移除按钮固定在拖拽框底部（不居中碍事） */
+.np-editor-split > .np-form-row:first-child .np-dropzone .np-dropzone-actions {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
 @media (max-width: 768px) {
     .np-editor-split {
         grid-template-columns: 1fr;
+    }
+    /* 窄屏单列：与宽屏一致——图片绝对定位顶满拖拽区（z 轴在下），
+       更换/移除按钮钉在拖拽区底部（z 轴上方，即图片上方）。仅把图片显示调小。 */
+    .np-editor-split > .np-form-row:first-child .np-dropzone {
+        height: auto;
+        min-height: 200px;
+        justify-content: flex-end;
+    }
+    .np-editor-split > .np-form-row:first-child .np-dropzone .np-dropzone-img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        object-fit: contain;
+    }
+    .np-editor-split > .np-form-row:first-child .np-dropzone .np-dropzone-actions {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 10px;
     }
 }
 
@@ -1013,6 +1081,16 @@
     #np-add-mask .modal {
         width: min(92%, 460px);
     }
+}
+
+/* 通用 .modal-mask 的 z-index 为 50，低于窄屏底部导航栏（.main-nav z-index:100），
+   导致编辑/添加/管理标签弹层的黑幕与弹层被导航栏遮挡。
+   而导出标签弹层用的是 IframeDialog（.iframe-dialog-overlay z-index:1000），所以它能盖住。
+   此处仅提升 nai 三个弹层的 z-index 高于导航栏，让黑幕完整覆盖导航栏（与导出标签一致）。 */
+#np-modal-mask,
+#np-add-mask,
+#np-tag-mask {
+    z-index: 200;
 }
 
 .np-param-row {
