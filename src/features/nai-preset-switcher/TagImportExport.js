@@ -29,7 +29,7 @@ export function handleTagExport(doc) {
 
     const itemsHtml = list.map((p, i) => `
         <label class="np-io-item">
-            <input type="checkbox" class="np-io-cb" value="${i}" checked>
+            <input type="checkbox" class="np-io-cb np-tag-export-cb" value="${i}" checked>
             <span class="np-io-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
             <span class="np-io-tags${p.tags.length ? '' : ' np-io-tags-empty'}">${p.tags.length ? p.tags.map(escapeHtml).join('、') : '（无标签）'}</span>
         </label>
@@ -146,7 +146,7 @@ function showTagImportDialog(doc, imported, onApplied) {
 
     const itemsHtml = imported.map((p, i) => `
         <label class="np-io-item">
-            <input type="checkbox" class="np-io-cb" value="${i}" checked>
+            <input type="checkbox" class="np-io-cb np-tag-imp-cb" value="${i}" checked>
             <span class="np-io-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
             <span class="np-io-tags${p.tags.length ? '' : ' np-io-tags-empty'}">${p.tags.length ? p.tags.map(escapeHtml).join('、') : '（无标签）'}</span>
         </label>
