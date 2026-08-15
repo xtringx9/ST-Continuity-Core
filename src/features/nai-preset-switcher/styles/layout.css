@@ -206,6 +206,57 @@
     font-size: 13px;
 }
 
+/* ============ 收藏（红心） ============ */
+
+/* 红心按钮：放在卡片操作区最前，小巧独立 */
+.np-fav-btn {
+    flex: 0 0 auto;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 6px;
+    background: var(--bg-input, #fff);
+    color: var(--text-muted, #999);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.08s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.np-fav-btn:hover {
+    transform: scale(1.12);
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+/* 已收藏：实心红心，高亮态 */
+.np-fav-btn.np-fav-on {
+    color: #ef4444;
+    border-color: #ef4444;
+    background: color-mix(in srgb, #ef4444 12%, var(--bg-input, #fff));
+}
+
+/* 收藏预设卡片：底部/整体红色强调，明显区别于普通卡片 */
+.np-card-fav {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 1px #ef4444, 0 2px 8px rgba(239, 68, 68, 0.18);
+    background: color-mix(in srgb, #ef4444 5%, var(--bg-card, #fff));
+}
+
+/* 收藏筛选 chip：独立红色调 */
+.np-tag-chip-fav {
+    border-color: color-mix(in srgb, #ef4444 50%, var(--border-color, rgba(128, 128, 128, 0.3)));
+    color: #ef4444;
+}
+
+.np-tag-chip-fav.active {
+    background: #ef4444;
+    color: #fff;
+    border-color: transparent;
+}
+
 /* 编辑弹层（遮罩/容器复用 shell 的 .modal-mask / .modal，此处仅 nai 内容样式） */
 .np-modal-title {
     font-size: 15px;

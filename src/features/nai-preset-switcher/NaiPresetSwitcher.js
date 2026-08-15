@@ -22,7 +22,8 @@ let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
 let tagLib = [];           // 独立标签库（configManager.getNaiTags() 的副本，可无关联预设存在）
 let editorSession = 0;     // 编辑弹层会话标记，防止异步预览回调覆盖后续操作
-let activeTag = 'ALL';     // 当前标签筛选
+let activeTags = [];       // 当前多选标签筛选（空数组 = 全部）
+let favOnly = false;       // 是否仅看收藏（独立维度，不与标签叠加）
 let searchTerm = '';       // 当前搜索词
 // 卡片排序方式：nameAsc/nameDesc/createdDesc/createdAsc/updatedDesc/updatedAsc
 // 持久化到 localStorage，刷新页面后仍记住（keepAlive 抽屉不重建，整页刷新才重建）
@@ -837,6 +838,7 @@ function mergePresetViews() {
             name,
             id: own ? own.id : null,
             tags: own ? (own.tags || []) : [],
+            favorite: own ? !!own.favorite : false,
             createdAt: own ? own.createdAt : null,
             updatedAt: own ? own.updatedAt : null,
         };
@@ -847,14 +849,39 @@ function renderTagBar() {
     const bar = doc.getElementById('np-tag-bar');
     if (!bar) return;
     const tags = collectTags();
-    const chips = ['ALL', ...tags];
+    // 特殊筛选：[全部]、[❤ 收藏]、[各标签]；标签可多选叠加，收藏为独立开关维度
+    const chips = [
+        { key: 'ALL', label: '全部' },
+        { key: '__FAV__', label: '❤ 收藏' },
+        ...tags.map(t => ({ key: t, label: t })),
+    ];
+    const noFilter = activeTags.length === 0 && !favOnly;
     bar.innerHTML = '';
-    chips.forEach(tag => {
+    chips.forEach(({ key, label }) => {
         const chip = doc.createElement('span');
-        chip.className = 'np-tag-chip' + (tag === activeTag ? ' active' : '');
-        chip.textContent = tag === 'ALL' ? '全部' : tag;
+        const isFav = key === '__FAV__';
+        let active = false;
+        if (key === 'ALL') active = noFilter;
+        else if (isFav) active = favOnly;
+        else active = activeTags.includes(key);
+        chip.className = 'np-tag-chip'
+            + (isFav ? ' np-tag-chip-fav' : '')
+            + (active ? ' active' : '');
+        chip.textContent = label;
         chip.addEventListener('click', () => {
-            activeTag = tag;
+            if (key === 'ALL') {
+                activeTags = [];
+                favOnly = false;
+            } else if (isFav) {
+                favOnly = !favOnly;
+            } else {
+                // 标签多选：已选则取消，未选则加入
+                if (activeTags.includes(key)) {
+                    activeTags = activeTags.filter(t => t !== key);
+                } else {
+                    activeTags.push(key);
+                }
+            }
             renderTagBar();
             renderList();
         });
@@ -864,10 +891,12 @@ function renderTagBar() {
 
 function filteredPresets() {
     const items = mergePresetViews().filter(p => {
-        // 标签筛选
-        if (activeTag !== 'ALL') {
+        // 收藏筛选（独立开关维度）
+        if (favOnly && !p.favorite) return false;
+        // 标签多选筛选：需同时包含所有选中标签（AND 语义）
+        if (activeTags.length) {
             const tags = p.tags || [];
-            if (!tags.includes(activeTag)) return false;
+            if (!activeTags.every(t => tags.includes(t))) return false;
         }
         // 搜索（名称 + 标签）
         if (searchTerm) {
@@ -962,6 +991,8 @@ function buildCard(p) {
     const card = doc.createElement('div');
     card.className = 'np-card';
     if (p.name) card.dataset.name = p.name;
+    // 收藏预设：底部特殊样式让它更明显
+    if (p.favorite) card.classList.add('np-card-fav');
 
     // 高亮智绘姬当前选中的预设
     if (p.name && p.name === getChatu8CurrentPresetName()) {
@@ -1009,6 +1040,17 @@ function buildCard(p) {
     actions.className = 'np-card-actions';
 
     const isCurrent = p.name && p.name === getChatu8CurrentPresetName();
+
+    // 红心收藏：可独立筛选；纯智绘姬预设首次收藏即纳入我们配置
+    const favBtn = doc.createElement('button');
+    favBtn.className = 'np-fav-btn' + (p.favorite ? ' np-fav-on' : '');
+    favBtn.textContent = p.favorite ? '♥' : '♡';
+    favBtn.title = p.favorite ? '取消收藏' : '收藏';
+    favBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFavorite(p.id, p.name);
+    });
+    actions.appendChild(favBtn);
 
     const applyBtn = doc.createElement('button');
     applyBtn.className = 'btn-primary np-card-btn';
@@ -1090,6 +1132,18 @@ function buildCurrentSpecialCard(currentName) {
 
     const actions = doc.createElement('div');
     actions.className = 'np-card-actions';
+
+    // 红心收藏：与列表卡一致（纯智绘姬当前预设首次收藏即纳入我们配置）
+    const favOn = !!(own && own.favorite);
+    const favBtn = doc.createElement('button');
+    favBtn.className = 'np-fav-btn' + (favOn ? ' np-fav-on' : '');
+    favBtn.textContent = favOn ? '♥' : '♡';
+    favBtn.title = favOn ? '取消收藏' : '收藏';
+    favBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFavorite(own ? own.id : null, currentName);
+    });
+    actions.appendChild(favBtn);
 
     // 应用：当前预设已是选中态，禁用（保持可见以表明其状态）
     const applyBtn = doc.createElement('button');
@@ -1555,6 +1609,33 @@ function fallbackCopy(text) {
 }
 
 /* ============ 持久化 ============ */
+
+// 切换收藏（红心）：纯智绘姬预设（无本地记录）首次收藏时纳入我们配置
+function toggleFavorite(id, name) {
+    if (!name) return;
+    let target = id ? presets.find(x => x.id === id) : null;
+    if (!target) target = presets.find(x => x.name === name);
+
+    if (!target) {
+        // 纯智绘姬预设：先建一条本地记录再收藏
+        target = {
+            id: `np_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            name,
+            tags: [],
+            favorite: true,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        };
+        presets.push(target);
+    } else {
+        target.favorite = !target.favorite;
+        target.updatedAt = Date.now();
+    }
+
+    persist();
+    // 局部刷新：收藏状态变化会影响「❤ 收藏」筛选与卡片底部样式，无需全量重建
+    renderList();
+}
 
 function persist() {
     configManager.setNaiPresets(presets);

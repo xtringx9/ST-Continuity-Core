@@ -67,6 +67,11 @@ export const NAI_PRESET_TEMPLATE = {
                 default: 0,
                 description: '更新时间（ms 时间戳）'
             },
+            favorite: {
+                type: 'boolean',
+                default: false,
+                description: '是否收藏（红心），可独立筛选'
+            },
             sortOrder: {
                 type: 'number',
                 default: 0,
@@ -173,6 +178,7 @@ export function normalizeNaiPresetConfig(config) {
             tags: Array.isArray(p.tags) ? p.tags.map(t => String(t).trim()).filter(Boolean) : [],
             createdAt: typeof p.createdAt === 'number' ? p.createdAt : now,
             updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : now,
+            favorite: typeof p.favorite === 'boolean' ? p.favorite : false,
             sortOrder: typeof p.sortOrder === 'number' ? p.sortOrder : index,
         }));
     }
