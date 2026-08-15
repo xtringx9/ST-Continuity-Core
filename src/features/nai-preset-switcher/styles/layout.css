@@ -495,6 +495,29 @@
     font-size: 12px;
 }
 
+/* 标签管理弹层：PC 上放宽，能看到更多标签（手机保持通用 .modal 尺寸） */
+#np-tag-mask .modal {
+    width: min(92%, 720px);
+}
+
+#np-tag-mask .np-tag-manage-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    #np-tag-mask .modal {
+        width: min(92%, 460px);
+    }
+    #np-tag-mask .np-tag-manage-list {
+        grid-template-columns: 1fr;
+        max-height: 240px;
+    }
+}
+
 /* 编辑弹层内的标签芯片编辑器 */
 .np-tag-editor {
     display: flex;
