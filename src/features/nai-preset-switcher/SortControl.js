@@ -20,14 +20,22 @@ function labelOf(mode) {
  * 初始化排序控件。
  * @param {Document} doc Iframe 文档
  * @param {{getCurrentMode: () => string, onModeChange: (mode: string) => void}} handlers
+ * @param {Array<{mode:string,label:string}>} [options] 自定义选项（默认用预设管理的 6 档）
+ * @param {string} [btnId] 按钮 id（默认 'np-sort'，图片管理用 'np-img-sort'）
  */
-export function initSortControl(doc, handlers) {
-    const btn = doc.getElementById('np-sort');
+export function initSortControl(doc, handlers, options, btnId) {
+    const btn = doc.getElementById(btnId || 'np-sort');
     if (!btn) return;
+
+    const OPTS = options && options.length ? options : SORT_OPTIONS;
+    const labelOfLocal = (mode) => {
+        const opt = OPTS.find(o => o.mode === mode);
+        return opt ? opt.label : OPTS[0].label;
+    };
 
     const renderBtn = () => {
         const mode = handlers.getCurrentMode();
-        btn.innerHTML = `<span class="np-sort-icon">⇅</span><span class="np-sort-label">${labelOf(mode)}</span>`;
+        btn.innerHTML = `<span class="np-sort-icon">⇅</span><span class="np-sort-label">${labelOfLocal(mode)}</span>`;
     };
     renderBtn();
 
@@ -64,7 +72,7 @@ export function initSortControl(doc, handlers) {
         menu.style.left = `${rect.left}px`;
 
         const current = handlers.getCurrentMode();
-        SORT_OPTIONS.forEach(opt => {
+        OPTS.forEach(opt => {
             const item = doc.createElement('div');
             item.className = 'np-sort-menu-item' + (opt.mode === current ? ' active' : '');
             item.textContent = opt.label;

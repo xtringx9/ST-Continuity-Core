@@ -1437,13 +1437,6 @@
     font-size: 12px;
 }
 
-.np-lb-source {
-    color: var(--accent-color, #4f7cff);
-    font-size: 12px;
-    margin-bottom: 4px;
-    opacity: 0.9;
-}
-
 .np-lightbox-close {
     position: absolute;
     top: 14px;

@@ -13,6 +13,7 @@
 import { extension_settings } from '../../../../../../extensions.js';
 import { getRequestHeaders } from '../../../../../../../script.js';
 import { errorLog } from '../../utils/logger.js';
+import { initSortControl } from './SortControl.js';
 
 const CHATU8 = 'st-chatu8';
 
@@ -462,12 +463,7 @@ function openLightbox(src, title, meta, cat) {
     if (!box || !img) return;
     img.src = src;
     if (info) {
-        let sourceLabel = '';
-        if (cat === 'chat') sourceLabel = '来源：文内生图（jiuguanStorage）';
-        else if (cat === 'character') sourceLabel = '来源：角色预设（configImageStorage）';
-        else if (cat === 'outfit') sourceLabel = '来源：服装预设（configImageStorage）';
         let html = `<div class="np-lb-title">${escapeHtml(title)}</div>`;
-        if (sourceLabel) html += `<div class="np-lb-source">${escapeHtml(sourceLabel)}</div>`;
         if (meta) {
             const rows = [];
             if (meta.yushe) rows.push(`预设：${escapeHtml(meta.yushe)}`);
@@ -540,16 +536,22 @@ function bindControls() {
         });
     }
 
-    // 排序方式
-    const sortSel = doc.getElementById('np-img-sort');
-    if (sortSel) {
-        sortSel.value = sortMode;
-        sortSel.addEventListener('change', () => {
-            sortMode = sortSel.value;
-            try { localStorage.setItem(SORT_KEY, sortMode); } catch (e) { /* ignore */ }
-            reloadFirstPage();
-        });
-    }
+    // 排序方式（与预设管理页同款图标按钮 + 下拉菜单交互）
+    const IMG_SORT_OPTIONS = [
+        { mode: 'dateDesc', label: '日期（新→旧）' },
+        { mode: 'dateAsc', label: '日期（旧→新）' },
+        { mode: 'nameAsc', label: '名称' },
+    ];
+    try {
+        initSortControl(doc, {
+            getCurrentMode: () => sortMode,
+            onModeChange: (m) => {
+                sortMode = m;
+                try { localStorage.setItem(SORT_KEY, sortMode); } catch (e) { /* ignore */ }
+                reloadFirstPage();
+            },
+        }, IMG_SORT_OPTIONS, 'np-img-sort');
+    } catch (e) { /* 降级：排序控件不可用不影响其他 */ }
 
     // 页码容器宽度变化 → 仅重渲页码（不重渲列表），让页码数跟随撑满宽度
     const pagerBox = doc.getElementById('np-img-pager-top');
