@@ -267,12 +267,26 @@ export function renderVariableList(module, container, doc, checkForChanges, allM
         });
 
         item.querySelector('.btn-delete-variable').addEventListener('click', () => {
-            if (confirm(translate('ccore_msg_confirm_delete_var'))) {
-                module.variables.splice(index, 1);
-                renderVariableList(module, container, doc, checkForChanges, allModules, -1, refreshSidebar);
-                checkForChanges();
-                if (refreshSidebar) refreshSidebar();
-            }
+            // 通用弹窗确认（重点色在取消），替代浏览器 confirm
+            const dlg = new IframeDialog(doc);
+            dlg.open({
+                title: '删除变量',
+                content: `<p>${translate('ccore_msg_confirm_delete_var')}</p><p style="opacity:0.7">此操作不可恢复。</p>`,
+                buttons: [
+                    { text: '取消', className: 'btn-primary', onClick: () => dlg.close() },
+                    {
+                        text: '删除',
+                        className: 'btn-secondary',
+                        onClick: (d) => {
+                            d.close();
+                            module.variables.splice(index, 1);
+                            renderVariableList(module, container, doc, checkForChanges, allModules, -1, refreshSidebar);
+                            checkForChanges();
+                            if (refreshSidebar) refreshSidebar();
+                        },
+                    },
+                ],
+            });
         });
 
         const handle = item.querySelector('.drag-handle');

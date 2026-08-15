@@ -209,13 +209,13 @@ async function confirmDeletion(dupList) {
                 title: '删除图片',
                 content: '<p>确定删除这张图片吗？此操作不可恢复。</p>',
                 buttons: [
-                    { text: '取消', className: 'btn-secondary', onClick: () => { dlg.close(); resolve('cancel'); } },
-                    { text: '删除', className: 'btn-primary', onClick: () => { dlg.close(); resolve('self'); } },
+                    { text: '取消', className: 'btn-primary', onClick: () => { dlg.close(); resolve('cancel'); } },
+                    { text: '删除', className: 'btn-secondary', onClick: () => { dlg.close(); resolve('self'); } },
                 ],
             });
         });
     }
-    // 有副本：说明副本在哪一侧
+    // 有副本：说明副本在哪一侧；取消用重点色（primary），两个删除动作均普通色
     const sideText = dupList[0].cat === 'chat' ? '文生图' : '预设';
     const names = [...new Set(dupList.filter(d => d.name).map(d => d.name))].join('、');
     return new Promise(resolve => {
@@ -224,6 +224,7 @@ async function confirmDeletion(dupList) {
             title: '存在相同图片',
             content: `<p>此图在「${sideText}」中还有 <b>${dupList.length}</b> 张相同副本${names ? `（${escapeHtml(names)}）` : ''}。</p><p>是否一起删除？</p>`,
             buttons: [
+                { text: '取消', className: 'btn-primary', onClick: () => { dlg.close(); resolve('cancel'); } },
                 { text: '只删当前', className: 'btn-secondary', onClick: () => { dlg.close(); resolve('self'); } },
                 { text: '一起删除', className: 'btn-danger', onClick: () => { dlg.close(); resolve('both'); } },
             ],
@@ -244,8 +245,12 @@ async function confirmDeletion(dupList) {
  */
 export async function deleteImageItem(item) {
     if (!item || !item.cat) return;
-    // 反向索引未就绪 → 不做副本确认，仅轻量确认后删除当前（避免误删双写另一份时无提示）
-    const dupList = isDeleteReady() && item.hash ? findDuplicates(item) : [];
+    // 反向索引未就绪 → 禁止删除（防误删双写另一份时无提示；调用方应先 ensureFullDupScan）
+    if (!isDeleteReady()) {
+        showToast(doc, '副本识别未完成，请稍候再试', 'error');
+        return;
+    }
+    const dupList = item.hash ? findDuplicates(item) : [];
     const action = await confirmDeletion(dupList);
     if (action === 'cancel') return;
 

@@ -408,7 +408,12 @@ function updateBatchBar() {
     const del = doc.getElementById('np-img-sel-delete');
     if (bar) bar.style.display = manageMode ? 'flex' : 'none';
     if (count) count.textContent = `已选 ${selectedSet.size} 张`;
-    if (del) del.disabled = selectedSet.size === 0;
+    // 反向索引未就绪时删除按钮恒置灰（跑完才能点）
+    const ready = isDeleteReady();
+    if (del) {
+        del.disabled = !ready || selectedSet.size === 0;
+        del.title = ready ? '删除已选图片' : '副本识别中，完成前不可删除';
+    }
     // 勾选框显隐
     doc.querySelectorAll('.np-img-check').forEach(cb => {
         cb.style.display = manageMode ? 'block' : 'none';
@@ -513,6 +518,11 @@ async function deleteLightboxImage() {
     if (!item || !item.path) return;
     // 删除前补全反向索引，确保副本提示准确
     try { await ensureFullDupScan(); } catch (e) { /* 不阻塞 */ }
+    // 索引未就绪不允许删除（与批量删除一致，防误删双写另一份）
+    if (!isDeleteReady()) {
+        showToast(doc, '副本识别未完成，请稍候再试', 'error');
+        return;
+    }
     await deleteImageItem(item);
     // 删除后关闭 lightbox（图已移除，留在原索引会显示错误内容）
     closeLightbox();
@@ -717,19 +727,23 @@ function render() {
     appendGroups(start, end);
     renderPager();
 
-    // 文内视图：后台识别角色/服装副本（先显示，异步补徽标，不阻塞）。
+    // 后台识别角色/服装副本（先显示，异步补徽标，不阻塞）。
+    // 无论当前在哪个分类都要构建索引（删除按钮需依赖就绪态解锁；角色/服装视图同样可删）。
     // 首次进入时 presetRefs 为 null（pendingSet 恒空），必须无条件触发构建，
     // 构建完成后统一 collectPendingAndCheck 重新扫描当前列表，否则徽标永远不会出现。
-    if (currentCat === 'chat') {
-        ensurePresetRefs().then(() => collectPendingAndCheck()).catch(() => { /* 失败不影响浏览 */ });
-    }
+    ensurePresetRefs().then(() => collectPendingAndCheck()).catch(() => { /* 失败不影响浏览 */ });
     syncDupContext();
 }
 
 // 在 presetRefs 已就绪的前提下，重新扫描当前分组的文内图：
 // judgeChatImage 会写入 dupCache（size 不命中记 null）并把 size 疑似命中的收进 pending。
 async function collectPendingAndCheck() {
-    if (currentCat !== 'chat' || !presetRefs || presetRefs.length === 0) return;
+    // 索引就绪后解锁删除按钮（无论当前在哪分类，collectPendingAndCheck 都会被调）
+    const unlock = () => {
+        updateBatchBar();
+        updateLightboxDeleteBtn();
+    };
+    if (currentCat !== 'chat' || !presetRefs || presetRefs.length === 0) { unlock(); return; }
     const pending = new Set();
     for (const g of _allGroups) {
         for (const img of g.images) {
@@ -737,6 +751,7 @@ async function collectPendingAndCheck() {
         }
     }
     if (pending.size > 0) await runDupCheck(pending);
+    unlock();
 }
 
 // 顶部页码导航（第一页/上一页/页码/下一页/最后一页）
@@ -827,7 +842,18 @@ function openLightbox(groupImages, index) {
     box.style.display = 'flex';
     renderLightbox();
     updateLightboxNav();
+    updateLightboxDeleteBtn();
     box.focus(); // 让键盘左右切图/ESC 生效
+}
+
+// lightbox 删除按钮：反向索引未就绪时置灰
+function updateLightboxDeleteBtn() {
+    if (!doc) return;
+    const btn = doc.getElementById('np-lightbox-delete');
+    if (!btn) return;
+    const ready = isDeleteReady();
+    btn.disabled = !ready;
+    btn.title = ready ? '删除这张图片' : '副本识别中，完成前不可删除';
 }
 
 // 渲染当前索引的图片（异步取 src；防止切图竞态：用会话计数器守卫）

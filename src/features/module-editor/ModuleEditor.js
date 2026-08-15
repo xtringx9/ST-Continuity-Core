@@ -669,24 +669,37 @@ function parseNestedModules(inputText) {
 }
 
 /**
- * 删除模块
+ * 删除模块（通用弹窗确认，重点色在取消）
  * @param {number} index 索引
  */
 function deleteModule(index) {
-    if (confirm(translate('ccore_msg_confirm_delete_module'))) {
-        currentModules.splice(index, 1);
-        selectedModuleId = null;
-        // 清空详情页或显示占位符
-        doc.querySelector('.module-detail-panel .detail-content').innerHTML = `
-            <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
-                <p>模块已删除</p>
-            </div>
-        `;
-        renderModuleList();
-        checkForChanges(); // 检查变更
-        // 如果在移动端，返回列表
-        doc.body.classList.remove('mobile-view-detail-module');
-    }
+    const dlg = new IframeDialog(doc);
+    dlg.open({
+        title: '删除模块',
+        content: `<p>${translate('ccore_msg_confirm_delete_module')}</p><p style="opacity:0.7">此操作不可恢复。</p>`,
+        buttons: [
+            { text: '取消', className: 'btn-primary', onClick: () => dlg.close() },
+            {
+                text: '删除',
+                className: 'btn-secondary',
+                onClick: (d) => {
+                    d.close();
+                    currentModules.splice(index, 1);
+                    selectedModuleId = null;
+                    // 清空详情页或显示占位符
+                    doc.querySelector('.module-detail-panel .detail-content').innerHTML = `
+                        <div style="text-align: center; margin-top: 50px; color: var(--text-muted);">
+                            <p>模块已删除</p>
+                        </div>
+                    `;
+                    renderModuleList();
+                    checkForChanges(); // 检查变更
+                    // 如果在移动端，返回列表
+                    doc.body.classList.remove('mobile-view-detail-module');
+                },
+            },
+        ],
+    });
 }
 
 // === 初始化 ===

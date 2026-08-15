@@ -530,48 +530,72 @@ button:disabled,
 }
 
 .iframe-dialog-content {
-    background-color: var(--bg-panel);
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    width: 90%;
-    max-width: 600px;
+    background-color: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+    border-radius: 10px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+    width: min(92%, 520px);
     display: flex;
     flex-direction: column;
     max-height: 80vh;
+    color: var(--text-primary, #111827);
 }
 
 .iframe-dialog-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
+    padding: 14px 18px;
     border-bottom: 1px solid var(--border-color);
 }
 
 .iframe-dialog-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
+    color: var(--text-primary, #111827);
+    margin: 0;
 }
 
 .iframe-dialog-close {
     background: none;
     border: none;
     font-size: 20px;
-    color: var(--text-secondary);
+    line-height: 1;
+    color: var(--text-muted, #9ca3af);
     cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.iframe-dialog-close:hover {
+    color: var(--text-primary, #111827);
+    background: var(--bg-hover, rgba(128, 128, 128, 0.1));
 }
 
 .iframe-dialog-body {
-    padding: 16px;
+    padding: 16px 18px;
     overflow-y: auto;
+    color: var(--text-secondary, #555);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.iframe-dialog-body p {
+    margin: 0 0 8px;
+}
+
+.iframe-dialog-body p:last-child {
+    margin-bottom: 0;
 }
 
 .iframe-dialog-footer {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    padding: 12px 16px;
+    padding: 12px 18px;
     border-top: 1px solid var(--border-color);
+    background: var(--bg-nav, #f9fafb);
+    border-radius: 0 0 10px 10px;
 }
 
 /* === 通用 Toast 通知（Toast.js 依赖，替代 alert 浏览器弹窗）===
