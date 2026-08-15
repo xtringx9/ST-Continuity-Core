@@ -457,6 +457,37 @@ async function uploadPreviewImage(name, payload) {
 }
 
 /**
+ * 在智绘姬侧真正重命名预设：把 yushe[oldName] 整条迁移到 yushe[newName]，
+ * 并同步更新所有模式指针（yusheid_<mode> 指向 oldName 的改为 newName）。
+ * 冲突检测：若 newName 已存在于 yushe（且不是 oldName 自己），返回 { conflict:true }。
+ * 调用方负责在调用前确认本插件配置里的 name 也要相应更新。
+ * @param {string} oldName
+ * @param {string} newName
+ * @returns {{ok:boolean, conflict?:boolean}}
+ */
+function renameChatu8Preset(oldName, newName) {
+    const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+    if (!chatu8 || !chatu8.yushe || !chatu8.yushe[oldName]) {
+        return { ok: false };
+    }
+    if (oldName === newName) return { ok: true };
+    if (chatu8.yushe[newName]) {
+        return { conflict: true };
+    }
+    // 迁移整条预设数据到新 key
+    chatu8.yushe[newName] = chatu8.yushe[oldName];
+    delete chatu8.yushe[oldName];
+    // 同步所有模式指针：yusheid_<mode> === oldName 改为 newName
+    for (const key in chatu8) {
+        if (key.startsWith('yusheid_') && chatu8[key] === oldName) {
+            chatu8[key] = newName;
+        }
+    }
+    try { saveSettings(); } catch (e) { errorLog('[智绘姬NAI预设切换] 重命名后保存失败', e); }
+    return { ok: true };
+}
+
+/**
  * 读取智绘姬某预设的预览图 URL（与 st-chatu8 的 getConfigImage 语义一致）：
  * 1) configImageStorage[id].path 服务器存储路径，可直接作 img src；
  * 2) 服务器存储关闭时智绘姬把图存进 IndexedDB（chatu8_config_images / config_images），同构回退。
@@ -1156,9 +1187,24 @@ function onSave() {
     if (editingId) {
         const p = presets.find(x => x.id === editingId);
         if (p) {
+            // 改名：真正同步到智绘姬侧（重命名 yushe key + 模式指针），避免锚点失联
+            if (name !== p.name) {
+                const res = renameChatu8Preset(p.name, name);
+                if (res.conflict) {
+                    // 目标名在智绘姬已存在，拒绝保存，保留弹层让用户改
+                    fName.focus();
+                    fName.select();
+                    return;
+                }
+                if (!res.ok) {
+                    // 智绘姬侧不存在该预设（纯本地残留），仅更新本配置 name
+                    errorLog(`[智绘姬NAI预设切换] 智绘姬中不存在预设「${p.name}」，仅更新本地名称`);
+                }
+            }
             p.name = name;
             p.tags = tags;
             p.updatedAt = Date.now();
+            editingName = name; // 同步锚点，供预览图操作使用新 key
         }
     } else {
         // 按 name 查找：纯智绘姬预设首次建标签时复用已有配置项，避免重复
