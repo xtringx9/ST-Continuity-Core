@@ -15,9 +15,11 @@
     <header class="app-header">
         <div class="header-title" data-i18n="ccore_nai_preset_title">智绘姬NAI预设切换</div>
         <div class="header-actions">
-            <!-- 与 module-editor header 对齐：导入在左、导出在右，按钮样式一致 -->
-            <button id="np-import-tags" class="btn-secondary" style="padding:6px 12px; font-size:13px;">导入标签</button>
-            <button id="np-export-tags" class="btn-secondary" style="padding:6px 12px; font-size:13px;">导出标签</button>
+            <!-- 顶栏按钮按当前 tab 切换显隐：data-nav 标记所属页面 -->
+            <button id="np-import-tags" class="btn-secondary" data-nav="preset" style="padding:6px 12px; font-size:13px;">导入标签</button>
+            <button id="np-export-tags" class="btn-secondary" data-nav="preset" style="padding:6px 12px; font-size:13px;">导出标签</button>
+            <button id="np-inspect-copy" class="btn-secondary" data-nav="parse" style="padding:6px 12px; font-size:13px;" disabled>复制全部</button>
+            <button id="np-add-from-inspect" class="btn-primary" data-nav="parse" style="padding:6px 12px; font-size:13px;" disabled>添加为预设</button>
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
         </div>
@@ -67,9 +69,24 @@
                 <div class="np-placeholder">氛围功能开发中…</div>
             </div>
 
-            <!-- 视图：解析（占位） -->
+            <!-- 视图：解析 -->
             <div id="view-parse" class="view-section">
-                <div class="np-placeholder">解析功能开发中…</div>
+                <div class="np-inspect-wrap">
+                    <div class="np-inspect-header">
+                        <div class="np-inspect-title form-section-title">图片参数解析</div>
+                        <div class="np-inspect-hint">拖拽图片到下方区域，或点击选择图片，解析其内嵌的生成参数（支持 NovelAI / SD WebUI / 隐写通道）。</div>
+                    </div>
+
+                    <div class="np-inspect-drop" id="np-inspect-drop">
+                        <img class="np-inspect-drop-img" id="np-inspect-drop-img" alt="预览" />
+                        <div class="np-inspect-drop-icon">🖼️</div>
+                        <div class="np-inspect-drop-text">点击或拖拽图片到此处</div>
+                        <div class="np-inspect-drop-sub">支持 PNG / JPEG / WEBP（再次拖拽可重新解析）</div>
+                    </div>
+                    <input type="file" id="np-inspect-file" accept="image/*" style="display:none;" />
+
+                    <div class="np-inspect-result" id="np-inspect-result"></div>
+                </div>
             </div>
 
             <!-- 视图：工具箱 -->
@@ -132,6 +149,37 @@
             <div class="np-modal-actions">
                 <button id="np-cancel" class="btn-secondary">取消</button>
                 <button id="np-save" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 从解析结果添加预设弹层 -->
+    <div class="modal-mask" id="np-add-mask" style="display:none;">
+        <div class="modal">
+            <div class="np-modal-title">从解析结果添加预设</div>
+            <div class="np-form-row">
+                <label>名称</label>
+                <input type="text" id="np-add-name" class="np-input" placeholder="预设名称" />
+            </div>
+            <div class="np-form-row">
+                <label>预览图（默认已放入解析的图片，可重新拖拽）</label>
+                <div id="np-add-dropzone" class="np-dropzone">
+                    <img id="np-add-preview-img" class="np-dropzone-img" alt="" style="display:none;" />
+                    <div id="np-add-dropzone-hint" class="np-dropzone-hint">拖拽图片到此处，或点击选择</div>
+                </div>
+                <input type="file" id="np-add-img-input" accept="image/*" style="display:none;" />
+            </div>
+            <div class="np-form-row">
+                <label>正向提示词</label>
+                <textarea id="np-add-positive" class="np-input np-add-ta" rows="4"></textarea>
+            </div>
+            <div class="np-form-row">
+                <label>负向提示词</label>
+                <textarea id="np-add-negative" class="np-input np-add-ta" rows="3"></textarea>
+            </div>
+            <div class="np-modal-actions">
+                <button id="np-add-cancel" class="btn-secondary">取消</button>
+                <button id="np-add-save" class="btn-primary">添加到智绘姬</button>
             </div>
         </div>
     </div>

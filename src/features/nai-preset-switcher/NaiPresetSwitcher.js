@@ -17,11 +17,16 @@ import { saveSettings, getRequestHeaders } from '../../../../../../../script.js'
 import { handleTagExport, handleTagImport } from './TagImportExport.js';
 import { initSortControl } from './SortControl.js';
 import { showToast } from '../../shared/Toast.js';
+import { initImageInspect } from './ImageInspect.js';
 
 let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
 let tagLib = [];           // 独立标签库（configManager.getNaiTags() 的副本，可无关联预设存在）
 let editorSession = 0;     // 编辑弹层会话标记，防止异步预览回调覆盖后续操作
+let pendingImagePayload = null;  // 待保存的预览图 payload（拖图仅本地预览，点保存才上传）
+let pendingRemoveImage = false;  // 是否要在保存时移除当前预览图
+let lastParsed = null;     // 最近一次解析结果 { positive, negative, thumb, source, file }
+let addPendingPayload = null; // 添加弹层中待上传的预览图 payload（覆盖解析图）
 let activeTags = [];       // 当前多选标签筛选（空数组 = 全部）
 let favOnly = false;       // 是否仅看收藏（独立维度，不与标签叠加）
 let searchTerm = '';       // 当前搜索词
@@ -56,6 +61,8 @@ export function initNaiPresetSwitcher(iframeDocument) {
     bindNavTabs();
     bindStaticControls();
     bindToolbox();
+    initImageInspect(doc, onParsed);
+    bindAddFromInspect();
     renderAll();
 }
 
@@ -142,6 +149,16 @@ function bindThemeToggle() {
 
 /* ============ 左侧导航 tab 切换 ============ */
 
+// 根据当前激活的 view-section 显隐顶栏中带 data-nav 的按钮
+function applyNavVisibility() {
+    const activeSection = doc.querySelector('.content-area .view-section.active');
+    const target = activeSection ? activeSection.id.replace(/^view-/, '') : 'preset';
+    doc.querySelectorAll('.app-header [data-nav]').forEach(b => {
+        const nav = b.getAttribute('data-nav');
+        b.style.display = (nav === target) ? 'inline-block' : 'none';
+    });
+}
+
 function bindNavTabs() {
     const items = doc.querySelectorAll('.main-nav .nav-item');
     const sections = doc.querySelectorAll('.content-area .view-section');
@@ -152,8 +169,11 @@ function bindNavTabs() {
             const target = item.getAttribute('data-target');
             items.forEach(i => i.classList.toggle('active', i === item));
             sections.forEach(s => s.classList.toggle('active', s.id === target));
+            applyNavVisibility();
         });
     });
+    // 初始按默认激活的 tab 显隐顶栏按钮
+    applyNavVisibility();
 }
 
 function bindStaticControls() {
@@ -271,6 +291,161 @@ function bindToolbox() {
     bindEditorDropzone();
 }
 
+/* ============ 解析结果 → 添加为预设 ============ */
+
+// 接收 ImageInspect 解析结果：缓存并启用「添加为预设」按钮
+function onParsed(result) {
+    lastParsed = result || null;
+    const btn = doc.getElementById('np-add-from-inspect');
+    if (btn) btn.disabled = !lastParsed;
+}
+
+// 打开「从解析结果添加预设」弹层，预填解析出的数据
+function openAddFromInspect() {
+    if (!lastParsed) return;
+    const mask = doc.getElementById('np-add-mask');
+    const nameInput = doc.getElementById('np-add-name');
+    const positive = doc.getElementById('np-add-positive');
+    const negative = doc.getElementById('np-add-negative');
+    const previewImg = doc.getElementById('np-add-preview-img');
+    const hint = doc.getElementById('np-add-dropzone-hint');
+    if (!mask || !nameInput) return;
+
+    addPendingPayload = null; // 默认沿用解析图，除非用户在弹层重新拖图
+    nameInput.value = '';
+    positive.value = lastParsed.positive || '';
+    negative.value = lastParsed.negative || '';
+    if (previewImg) {
+        if (lastParsed.thumb) {
+            previewImg.src = lastParsed.thumb;
+            previewImg.style.display = 'block';
+            if (hint) hint.style.display = 'none';
+        } else {
+            previewImg.removeAttribute('src');
+            previewImg.style.display = 'none';
+            if (hint) hint.style.display = '';
+        }
+    }
+    mask.style.display = 'flex';
+    nameInput.focus();
+}
+
+// 压缩图片为上传 payload（复用编辑弹层的 compressImageFile：返回 {data,format}）
+function bindAddFromInspect() {
+    const addBtn = doc.getElementById('np-add-from-inspect');
+    const mask = doc.getElementById('np-add-mask');
+    const cancelBtn = doc.getElementById('np-add-cancel');
+    const saveBtn = doc.getElementById('np-add-save');
+    const zone = doc.getElementById('np-add-dropzone');
+    const input = doc.getElementById('np-add-img-input');
+    const previewImg = doc.getElementById('np-add-preview-img');
+    const hint = doc.getElementById('np-add-dropzone-hint');
+    if (!addBtn || !mask) return;
+
+    addBtn.addEventListener('click', openAddFromInspect);
+
+    // 遮罩关闭：与编辑弹层一致，只有「直接在遮罩空白处按下并释放」才关，
+    // 避免从弹层内拖拽/框选文字到遮罩上释放被误判为点遮罩而关闭弹层。
+    let addDownOnMask = false;
+    mask.addEventListener('mousedown', (e) => { addDownOnMask = (e.target === mask); });
+    mask.addEventListener('click', (e) => {
+        if (addDownOnMask && e.target === mask) mask.style.display = 'none';
+        addDownOnMask = false;
+    });
+    if (cancelBtn) cancelBtn.addEventListener('click', () => { mask.style.display = 'none'; });
+
+    // 预览图拖拽重选（覆盖解析图）
+    if (zone && input) {
+        zone.addEventListener('click', (e) => {
+            if (e.target === previewImg) return;
+            input.click();
+        });
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); });
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer?.files?.[0];
+            if (file && file.type.startsWith('image/')) handleAddImageFile(file);
+        });
+        input.addEventListener('change', () => {
+            const file = input.files?.[0];
+            if (file) handleAddImageFile(file);
+            input.value = '';
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+            const nameInput = doc.getElementById('np-add-name');
+            const positive = doc.getElementById('np-add-positive');
+            const negative = doc.getElementById('np-add-negative');
+            const name = (nameInput?.value || '').trim();
+            if (!name) {
+                showToast('请填写预设名称');
+                nameInput?.focus();
+                return;
+            }
+            try {
+                // 1) 在智绘姬 yushe 创建条目
+                const chatu8 = extension_settings[CHATU8_SETTINGS_KEY] || (extension_settings[CHATU8_SETTINGS_KEY] = {});
+                if (!chatu8.yushe) chatu8.yushe = {};
+                if (!chatu8.yushe[name]) chatu8.yushe[name] = {};
+                const entry = chatu8.yushe[name];
+                entry.fixedPrompt = (positive?.value || '').trim();
+                entry.fixedPrompt_end = '';
+                entry.negativePrompt = (negative?.value || '').trim();
+
+                // 2) 上传预览图（弹层重选优先，否则用解析图 dataURL 转 {data,format}）
+                let payload = addPendingPayload || null;
+                if (!payload && lastParsed?.thumb && lastParsed.thumb.startsWith('data:')) {
+                    const comma = lastParsed.thumb.indexOf(',');
+                    payload = { data: lastParsed.thumb.slice(comma + 1), format: 'jpeg' };
+                }
+                if (payload) {
+                    const res = await uploadPreviewImage(name, payload);
+                    if (res) chatu8.yushe[name].previewImageId = res.id;
+                }
+
+                // 3) 本地预设库增加记录
+                const now = Date.now();
+                presets.push({
+                    id: 'np_' + now + '_' + Math.random().toString(36).slice(2, 8),
+                    name,
+                    tags: [],
+                    createdAt: now,
+                    updatedAt: now,
+                    sortOrder: presets.length
+                });
+                configManager.setNaiPresets(presets);
+                saveSettings();
+                // 刷新智绘姬预设下拉，让新预设即时出现在面板（与更名/应用同逻辑）
+                refreshChatu8PresetSelectors();
+
+                mask.style.display = 'none';
+                renderAll();
+                showToast('已添加到智绘姬：' + name);
+            } catch (e) {
+                errorLog('[NP] 添加为预设失败', e);
+                showToast('添加失败：' + (e?.message || e));
+            }
+        });
+    }
+
+    async function handleAddImageFile(file) {
+        try {
+            const payload = await compressImageFile(file);
+            if (!payload) return;
+            addPendingPayload = payload;
+            if (previewImg) {
+                previewImg.src = 'data:image/jpeg;base64,' + payload.data;
+                previewImg.style.display = 'block';
+                if (hint) hint.style.display = 'none';
+            }
+        } catch (e) {
+            errorLog('[NP] 添加弹层预览图压缩失败', e);
+        }
+    }
+}
+
 /* ============ 编辑弹层·预览图拖拽/选择 ============ */
 
 function bindEditorDropzone() {
@@ -305,12 +480,9 @@ function bindEditorDropzone() {
     });
     if (changeBtn) changeBtn.addEventListener('click', () => input.click());
     if (removeBtn) removeBtn.addEventListener('click', () => {
-        const name = editingName;
-        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
-        if (name && chatu8?.yushe?.[name]) {
-            delete chatu8.yushe[name].previewImageId;
-            try { saveSettings(); } catch (e) { errorLog('保存失败', e); }
-        }
+        // 仅本地清除预览；真正的删除推迟到「保存」时（pendingRemoveImage 标记）
+        pendingImagePayload = null;
+        pendingRemoveImage = true;
         renderEditorDropzone(null);
     });
 }
@@ -355,6 +527,10 @@ async function handleEditorImageFile(file) {
         return;
     }
 
+    // 会话守卫：连续换图时，只有最后一次拖入的异步链允许刷新预览，
+    // 避免较早（较慢）的压缩完成时把较新的图覆盖回去。
+    const mySession = ++editorSession;
+
     // 先本地预览（压缩前用原始 dataURL 即时显示，体验更顺）
     const localUrl = await new Promise(res => {
         const r = new FileReader();
@@ -362,20 +538,19 @@ async function handleEditorImageFile(file) {
         r.onerror = () => res(null);
         r.readAsDataURL(file);
     });
-    if (localUrl) renderEditorDropzone(localUrl);
+    if (localUrl && mySession === editorSession) renderEditorDropzone(localUrl);
 
     const payload = await compressImageFile(file);
     if (!payload) {
         errorLog('[智绘姬NAI预设切换] 图片压缩失败');
         return;
     }
-    const res = await uploadPreviewImage(name, payload);
-    if (res) {
-        try { saveSettings(); } catch (e) { errorLog('保存失败', e); }
-        // 用服务器 path 作为最终预览（与卡片读取同源）。
-        // 此处已是同一编辑会话，直接渲染即可；会话守卫只阻断 openEditor 的初始化回调。
-        renderEditorDropzone(res.path);
-    }
+    // 压缩期间若已切换/重拖，放弃本次后续
+    if (mySession !== editorSession) return;
+    // 仅暂存，不立即上传——真正的上传/同步推迟到用户点「保存」时，
+    // 避免拖图即时改动智绘姬，也彻底消除「拖图2被图1覆盖」的竞态。
+    pendingImagePayload = payload;
+    pendingRemoveImage = false;
 }
 
 // 旧版预设数据源的 extension_settings key（中性标识，不涉及任何插件名）
@@ -1331,6 +1506,8 @@ function buildCurrentSpecialCard(currentName) {
 function openEditor(id, name) {
     editingId = id;
     editingName = name || null;
+    pendingImagePayload = null;
+    pendingRemoveImage = false;
     const mask = doc.getElementById('np-modal-mask');
     const title = doc.getElementById('np-modal-title');
     const fName = doc.getElementById('np-f-name');
@@ -1471,10 +1648,10 @@ function addEditingTag() {
     input.focus();
 }
 
-function onSave() {
+async function onSave() {
     const fName = doc.getElementById('np-f-name');
 
-    const name = fName.value.trim();
+    let name = fName.value.trim();
     if (!name) {
         fName.focus();
         return;
@@ -1538,6 +1715,24 @@ function onSave() {
     }
 
     persist();
+
+    // 预览图同步：拖图/移除仅改本地预览，直到此处（点「保存」）才真正写入智绘姬。
+    // 优先处理「上传新图」，覆盖「移除标记」；两者皆无则不动。
+    try {
+        if (pendingImagePayload) {
+            const res = await uploadPreviewImage(name, pendingImagePayload);
+            if (res) renderEditorDropzone(res.path);
+        } else if (pendingRemoveImage) {
+            const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+            if (chatu8?.yushe?.[name]) delete chatu8.yushe[name].previewImageId;
+        }
+        saveSettings();
+    } catch (e) {
+        errorLog('[智绘姬NAI预设切换] 保存预览图失败:', e);
+    }
+    pendingImagePayload = null;
+    pendingRemoveImage = false;
+
     registerTags(tags); // 同步标签库：编辑弹层里手动新增的标签也纳入独立标签库
     closeEditor();
     renderAll();
@@ -1568,9 +1763,11 @@ async function deletePreset(id, name) {
     if (nextName) {
         // 删除当前预设后手动应用下一个，避免智绘姬当前预设变空（它不会自动跳选）
         await applyPreset({ name: nextName });
-    } else {
-        renderAll();
     }
+    // 无论是否当前预设，都重建本插件列表：列表以 mergePresetViews 为准，
+    // 必须全量重建才能把已从 yushe/presets 移除的项从列表里清掉
+    // （applyPreset 只做局部刷新，不会重建列表）。
+    renderAll();
 }
 
 /**

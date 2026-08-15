@@ -809,3 +809,204 @@
         width: min(92%, 460px);
     }
 }
+
+/* ============ 解析 tab ============ */
+
+.np-inspect-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.np-inspect-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* title 复用通用 .form-section-title（蓝色字 + 底部细线），此处仅补间距 */
+.np-inspect-title {
+    margin-top: 0;
+}
+
+.np-inspect-hint {
+    font-size: 12px;
+    color: var(--text-muted, #999);
+    line-height: 1.5;
+}
+
+.np-inspect-drop {
+    border: 2px dashed var(--border-color, rgba(128, 128, 128, 0.4));
+    border-radius: 12px;
+    padding: 32px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--bg-hover, #f7f8fa);
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.np-inspect-drop:hover,
+.np-inspect-drop.drag {
+    border-color: var(--accent-color, #2563eb);
+    background: color-mix(in srgb, var(--accent-color, #2563eb) 8%, var(--bg-hover, #f7f8fa));
+}
+
+.np-inspect-drop-icon {
+    font-size: 34px;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.np-inspect-drop-text {
+    font-size: 14px;
+    color: var(--text-primary, #222);
+    font-weight: 500;
+}
+
+.np-inspect-drop-sub {
+    font-size: 12px;
+    color: var(--text-muted, #999);
+    margin-top: 4px;
+}
+
+/* 拖拽区内嵌预览图：有图时显示，仍可点击/拖拽重选 */
+.np-inspect-drop-img {
+    max-width: 100%;
+    max-height: 220px;
+    border-radius: 8px;
+    object-fit: contain;
+    display: none;
+    margin: 0 auto 10px;
+}
+
+.np-inspect-drop.has-image .np-inspect-drop-icon,
+.np-inspect-drop.has-image .np-inspect-drop-text,
+.np-inspect-drop.has-image .np-inspect-drop-sub {
+    display: none;
+}
+
+.np-inspect-drop.has-image {
+    padding: 14px 16px;
+    border-style: solid;
+    background: var(--bg-hover, #f7f8fa);
+}
+
+.np-inspect-drop.has-image .np-inspect-drop-img {
+    display: block;
+}
+
+.np-inspect-result {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.np-inspect-loading,
+.np-inspect-error {
+    font-size: 13px;
+    color: var(--text-muted, #999);
+    padding: 12px 0;
+}
+
+.np-inspect-error {
+    color: #d9576a;
+}
+
+.np-inspect-source {
+    font-size: 13px;
+    color: var(--text-secondary, #555);
+}
+
+.np-inspect-source b {
+    color: var(--accent-color, #2563eb);
+}
+
+.np-inspect-thumb {
+    max-width: 240px;
+    max-height: 240px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    object-fit: contain;
+    align-self: flex-start;
+}
+
+.np-field-block,
+.np-param-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.np-field-label {
+    font-size: 12px;
+    color: var(--text-muted, #999);
+    font-weight: 600;
+}
+
+.np-inspect-text,
+.np-inspect-raw {
+    width: 100%;
+    min-height: 72px;
+    padding: 9px 11px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+    border-radius: 8px;
+    background: var(--bg-input, #fff);
+    color: var(--text-primary, #222);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.np-inspect-raw {
+    min-height: 120px;
+}
+
+.np-param-block {
+    border-top: 1px solid var(--border-color, rgba(128, 128, 128, 0.18));
+    padding-top: 12px;
+}
+
+/* 添加为预设弹层：PC 上放宽，与编辑/标签弹层一致（手机保持通用 .modal 尺寸） */
+#np-add-mask .modal {
+    width: min(92%, 640px);
+}
+
+#np-add-mask .np-add-ta {
+    min-height: 88px;
+    line-height: 1.5;
+    font-family: inherit;
+}
+
+@media (max-width: 768px) {
+    #np-add-mask .modal {
+        width: min(92%, 460px);
+    }
+}
+
+.np-param-row {
+    display: flex;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.12));
+    font-size: 12px;
+}
+
+.np-param-key {
+    flex: 0 0 140px;
+    color: var(--text-muted, #777);
+    font-weight: 600;
+    word-break: break-all;
+}
+
+.np-param-val {
+    flex: 1;
+    color: var(--text-primary, #222);
+    word-break: break-all;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
