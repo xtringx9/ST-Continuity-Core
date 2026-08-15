@@ -4,6 +4,7 @@
 // 主题同步：读 localStorage.st_continuity_theme，由 index.html 的 <link> 引入 themes.css
 
 import configManager from '../../singleton/configManager.js';
+import { showToast } from '../../shared/Toast.js';
 import { infoLog, errorLog } from '../../utils/logger.js';
 import { translate } from '../../../../../../i18n.js';
 
@@ -442,7 +443,7 @@ function saveGenerators() {
     });
 
     if (errors.length > 0) {
-        alert(translate('ccore_gen_error_save_failed') + '\n' + errors.join('\n'));
+        showToast(doc, translate('ccore_gen_error_save_failed') + '\n' + errors.join('\n'), 'error');
         return false;
     }
 
@@ -456,7 +457,7 @@ function saveGenerators() {
         return true;
     } catch (err) {
         errorLog('[GeneratorEditor] 保存失败:', err);
-        alert(translate('ccore_gen_error_save_failed') + ': ' + err.message);
+        showToast(doc, translate('ccore_gen_error_save_failed') + ': ' + err.message, 'error');
         return false;
     }
 }

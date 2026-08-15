@@ -1,4 +1,5 @@
 import { IframeDialog } from '../../shared/IframeDialog.js';
+import { showToast } from '../../shared/Toast.js';
 import { translate } from '../../../../../../i18n.js';
 import { normalizeConfig, validateConfig } from '../../config/moduleConfigTemplate.js';
 import { infoLog, errorLog, debugLog } from '../../utils/logger.js';
@@ -168,7 +169,7 @@ export function handleImport(doc) {
                     // 简单验证
                     const validation = validateConfig(json);
                     if (!validation.isValid) {
-                        alert(translate('ccore_msg_validation_failed') + validation.errors.join('\n'));
+                        showToast(doc, translate('ccore_msg_validation_failed') + validation.errors.join('\n'), 'error');
                     }
 
                     // 规范化配置
@@ -186,7 +187,7 @@ export function handleImport(doc) {
                     showImportDialog(doc, importedConfig, resolve, hasSettings);
                 } catch (err) {
                     errorLog("Import failed", err);
-                    alert(translate('ccore_msg_parse_json_failed') + err.message);
+                    showToast(doc, translate('ccore_msg_parse_json_failed') + err.message, 'error');
                     resolve(null);
                 } finally {
                     doc.body.removeChild(input);

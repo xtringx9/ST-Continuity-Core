@@ -6,6 +6,7 @@
 
 import configManager from '../../singleton/configManager.js';
 import { IframeDialog } from '../../shared/IframeDialog.js';
+import { showToast } from '../../shared/Toast.js';
 import { errorLog, debugLog } from '../../utils/logger.js';
 
 const TAG_EXPORT_TYPE = 'ccore-nai-preset-tags';
@@ -21,7 +22,7 @@ const TAG_EXPORT_VERSION = 1;
 export function handleTagExport(doc) {
     const list = (configManager.getNaiPresets() || []).map(p => ({ name: p.name, tags: p.tags || [] }));
     if (list.length === 0) {
-        showResult(doc, '没有可导出的预设（尚未建立任何标签）。', true);
+        showResult(doc, '没有可导出的预设（尚未建立任何标签）。', 'info');
         return;
     }
 
@@ -62,7 +63,7 @@ export function handleTagExport(doc) {
                     const idxs = Array.from(doc.querySelectorAll('.np-tag-export-cb:checked'))
                         .map(cb => Number(cb.value));
                     if (idxs.length === 0) {
-                        showResult(doc, '未选择任何预设，已取消导出。', false);
+                        showResult(doc, '未选择任何预设，已取消导出。', 'info');
                         d.close();
                         return;
                     }
@@ -72,7 +73,7 @@ export function handleTagExport(doc) {
                         version: TAG_EXPORT_VERSION,
                         presets: picked,
                     });
-                    showResult(doc, `已导出 ${picked.length} 个预设的标签。`, false);
+                    showResult(doc, `已导出 ${picked.length} 个预设的标签。`, 'success');
                     debugLog(`[智绘姬NAI预设切换] 导出标签 ${picked.length} 条`);
                     d.close();
                 },
@@ -112,17 +113,17 @@ export function handleTagImport(doc, onApplied) {
             try {
                 parsed = JSON.parse(String(reader.result));
             } catch (e) {
-                showResult(doc, '文件解析失败：不是合法 JSON。', true);
+                showResult(doc, '文件解析失败：不是合法 JSON。', 'error');
                 return;
             }
             const imported = normalizeTagImportData(parsed);
             if (!imported) {
-                showResult(doc, '文件格式不正确（缺少 presets 数组）。', true);
+                showResult(doc, '文件格式不正确（缺少 presets 数组）。', 'error');
                 return;
             }
             showTagImportDialog(doc, imported, onApplied);
         };
-        reader.onerror = () => showResult(doc, '读取文件失败。', true);
+        reader.onerror = () => showResult(doc, '读取文件失败。', 'error');
         reader.readAsText(file);
     });
     fileInput.click();
@@ -184,7 +185,7 @@ function showTagImportDialog(doc, imported, onApplied) {
                         .map(cb => Number(cb.value));
                     const override = !!doc.getElementById('np-tag-imp-override')?.checked;
                     if (idxs.length === 0) {
-                        showResult(doc, '未选择任何预设，已取消导入。', false);
+                        showResult(doc, '未选择任何预设，已取消导入。', 'info');
                         d.close();
                         return;
                     }
@@ -240,7 +241,7 @@ function applyTagImport(doc, picked, override, onApplied) {
     configManager.setNaiPresets(presets);
     if (typeof onApplied === 'function') onApplied();
     const msg = `导入完成：新增 ${added}，更新 ${updated}。`;
-    showResult(doc, msg, false);
+    showResult(doc, msg, 'success');
     debugLog(`[智绘姬NAI预设切换] ${msg}`);
 }
 
@@ -279,10 +280,10 @@ function fallbackCopyToClipboard(doc, text) {
     }
 }
 
-// 结果反馈：按钮在 header（预设页），#np-tools-result 只在工具箱 tab 内不可见，
-// 故统一用 alert（与 module-editor 导入出错报 alert 一致）。
-function showResult(doc, message, isError) {
-    try { window.alert(message); } catch (e) { /* 忽略 */ }
+// 结果反馈：统一用通用 Toast 通知（不再用浏览器 alert），样式见 editor-shell.css。
+// type: 'success' | 'error' | 'info'（中性提示如未选择/无数据用 info）
+function showResult(doc, message, type = 'info') {
+    showToast(doc, message, type);
 }
 
 function genId() {

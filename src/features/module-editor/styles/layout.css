@@ -755,14 +755,7 @@ section.module-detail-panel {
     .header-title small {
         /*display: none; !* 隐藏版本号 *!*/
     }
-
-    .header-actions button {
-        padding: 4px 8px !important;
-        /* 减小按钮内边距 */
-        font-size: 12px !important;
-        white-space: nowrap;
-        /* 防止文字换行 */
-    }
+    /* .header-actions button 缩小规则已抽入 editor-shell.css 手机适配，统一所有 editor */
 }
 
 /* 底部留白（编辑器特有） */

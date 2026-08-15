@@ -550,6 +550,99 @@ button:disabled,
     border-top: 1px solid var(--border-color);
 }
 
+/* === 通用 Toast 通知（Toast.js 依赖，替代 alert 浏览器弹窗）===
+ * 所有 iframe editor 共享；浅色/深色主题自动生效（使用 themes.css 变量）。
+ * 容器固定于视口左上角，多条纵向堆叠；进入/退出均有动画。
+ */
+.cc-toast-container {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: min(420px, calc(100vw - 24px));
+    pointer-events: none;
+}
+
+.cc-toast {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg-card, #fff);
+    color: var(--text-primary, #111827);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-left: 3px solid var(--accent-color, #2563eb);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    font-size: 13px;
+    line-height: 1.45;
+    cursor: pointer;
+    user-select: none;
+    opacity: 0;
+    transform: translateX(-24px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: auto;
+}
+
+.cc-toast.cc-toast-show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.cc-toast-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--bg-app, #fff);
+}
+
+.cc-toast-success {
+    border-left-color: var(--success-color, #22c55e);
+}
+
+.cc-toast-success .cc-toast-icon {
+    background: var(--success-color, #22c55e);
+}
+
+.cc-toast-error {
+    border-left-color: var(--danger-color, #ef4444);
+}
+
+.cc-toast-error .cc-toast-icon {
+    background: var(--danger-color, #ef4444);
+}
+
+.cc-toast-warning {
+    border-left-color: #f59e0b;
+}
+
+.cc-toast-warning .cc-toast-icon {
+    background: #f59e0b;
+}
+
+.cc-toast-info {
+    border-left-color: var(--accent-color, #2563eb);
+}
+
+.cc-toast-info .cc-toast-icon {
+    background: var(--accent-color, #2563eb);
+}
+
+.cc-toast-msg {
+    min-width: 0;
+    word-break: break-word;
+    white-space: pre-line;
+}
+
 /* === 简洁滚动条（通用，所有 editor 滚动区共享） === */
 * {
     scrollbar-width: thin;
@@ -607,6 +700,21 @@ button:disabled,
     .nav-text {
         font-size: 12px;
         line-height: 1;
+    }
+
+    /* 移动端头部通用优化（从 module-editor 抽入共享）：
+       标题允许收缩省略，header-actions 按钮缩小内边距与字号。 */
+    .header-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .header-actions button {
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+        white-space: nowrap;
     }
 
     .form-group {
