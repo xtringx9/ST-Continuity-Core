@@ -89,6 +89,8 @@ export function syncNaiPresetData(iframeDocument) {
         tagLib = configManager.getNaiTags().map(t => ({ ...t }));
         // 打开时把本地预设 name 与智绘姬 yushe key 对齐（自愈失联：智绘姬侧改名导致本地指向旧名）
         reconcilePresetNamesWithChatu8();
+        // 打开时把智绘姬侧存在但本地无记录的预设自动纳入配置（含创建/更新日期）
+        ensureAllChatu8PresetsInConfig();
     } catch (e) {
         errorLog('[智绘姬NAI预设切换] 打开时重读配置失败:', e);
     }
@@ -246,6 +248,9 @@ function bindToolbox() {
 
     const printChatu8Btn = doc.getElementById('np-print-chatu8');
     if (printChatu8Btn) printChatu8Btn.addEventListener('click', printChatu8Presets);
+
+    const backdateBtn = doc.getElementById('np-backdate-defaults');
+    if (backdateBtn) backdateBtn.addEventListener('click', backdateDefaultPresets);
 
     const exportTagsBtn = doc.getElementById('np-export-tags');
     if (exportTagsBtn) exportTagsBtn.addEventListener('click', () => handleTagExport(doc));
@@ -802,6 +807,31 @@ function printChatu8Presets() {
     debugLog(`[智绘姬NAI预设切换] 打印智绘姬预设：${snapshot.presetCount} 条`);
 }
 
+// 临时按钮：把「默认」「小马模型默认」两个预设在我们配置里的创建/更新日期拨早，
+// 使按时间排序时它们稳定排在前面（便于整理）。仅影响本地配置，不动智绘姬。
+function backdateDefaultPresets() {
+    const resultEl = doc.getElementById('np-tools-result');
+    const targets = ['默认', '小马模型默认'];
+    const early = Date.parse('2020-01-01T00:00:00');
+    let changed = 0;
+    for (const name of targets) {
+        const p = presets.find(x => x.name === name);
+        if (p) {
+            p.createdAt = early;
+            p.updatedAt = early;
+            changed++;
+        }
+    }
+    if (changed > 0) {
+        persist();
+        renderAll();
+        showToolsResult(resultEl, `已将 ${changed} 个默认预设的日期拨到 2020-01-01。`, false);
+        debugLog(`[智绘姬NAI预设切换] 回填默认预设日期：${changed} 条`);
+    } else {
+        showToolsResult(resultEl, '未找到「默认」/「小马模型默认」的本地配置记录（可先打开窗口让其自动纳入）。', true);
+    }
+}
+
 function showToolsResult(el, message, isError) {
     if (!el) return;
     el.textContent = message;
@@ -1073,6 +1103,40 @@ function reconcilePresetNamesWithChatu8() {
     }
 }
 
+/**
+ * 打开窗口时，确保智绘姬 yushe 里的每个预设在我们配置中都有对应记录：
+ * 纯智绘姬预设（本地无记录）自动创建一条本地配置（含 createdAt / updatedAt），
+ * 便于排序、收藏、打标签。已有记录的不动。
+ */
+function ensureAllChatu8PresetsInConfig() {
+    try {
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        const yushe = (chatu8 && chatu8.yushe) || {};
+        const ownByName = new Map(presets.map(p => [p.name, p]));
+        const now = Date.now();
+        let added = 0;
+        for (const name of Object.keys(yushe)) {
+            if (ownByName.has(name)) continue;
+            presets.push({
+                id: genId(),
+                name,
+                tags: [],
+                favorite: false,
+                createdAt: now,
+                updatedAt: now,
+                sortOrder: presets.length,
+            });
+            added++;
+        }
+        if (added > 0) {
+            persist();
+            debugLog(`[智绘姬NAI预设切换] 自动纳入 ${added} 条纯智绘姬预设到本地配置`);
+        }
+    } catch (e) {
+        errorLog('[智绘姬NAI预设切换] 自动纳入纯智绘姬预设失败:', e);
+    }
+}
+
 function buildCard(p) {
     const card = doc.createElement('div');
     card.className = 'np-card';
@@ -1179,12 +1243,7 @@ function buildCard(p) {
 // 本卡始终提供编辑/删除（按 name，含纯智绘姬预设）；仅剩一个预设时删除按钮置灰禁用。
 function buildCurrentSpecialCard(currentName) {
     const card = doc.createElement('div');
-    card.className = 'np-card np-card-current-special';
-
-    const badge = doc.createElement('div');
-    badge.className = 'np-card-current-badge';
-    badge.textContent = '当前预设（实时）';
-    card.appendChild(badge);
+    card.className = 'np-card np-card-current-special np-card-pinned';
 
     // 预览图（与 buildCard 同逻辑）
     const imgWrap = doc.createElement('div');
@@ -1209,6 +1268,8 @@ function buildCurrentSpecialCard(currentName) {
 
     // 若当前预设也在我们的库中，显示其标签
     const own = presets.find(p => p.name === currentName);
+    // 当前预设若同时被收藏，叠加红底（与普通卡一致，fav 样式不占边框故可与 pinned 共存）
+    if (own && own.favorite) card.classList.add('np-card-fav');
     if (own && own.tags && own.tags.length) {
         const tagWrap = doc.createElement('div');
         tagWrap.className = 'np-card-tags';

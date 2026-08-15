@@ -110,10 +110,9 @@
     gap: 6px;
 }
 
-/* 智绘姬当前选中的预设：高亮描边 */
+/* 智绘姬当前选中的预设：高亮描边（细） */
 .np-card-active {
-    border-color: var(--accent-color, #2563eb);
-    box-shadow: 0 0 0 2px var(--accent-color, #2563eb);
+    border: 1px solid var(--accent-color, #2563eb);
 }
 
 .np-card-active .np-card-name::after {
@@ -179,23 +178,44 @@
 
 /* 列表最前：当前预设的特殊副本卡片（实时反映智绘姬选中项，不影响其余卡片） */
 .np-card-current-special {
-    border-color: var(--accent-color, #2563eb);
-    background: color-mix(in srgb, var(--accent-color, #2563eb) 8%, var(--bg-card, #fff));
+    /* 仅作为语义标记，不携带任何底色/边框，避免与 pinned / fav 样式冲突 */
 }
 
-.np-card-current-special .np-card-name::before {
+/* 特殊栏位最前的当前预设：蓝色粗边框 + 右上角 pin 图标，底色保持默认（兼容红底叠加） */
+.np-card-pinned {
+    border: 2.5px solid var(--accent-color, #2563eb);
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.15);
+    position: relative;
+    border-radius: 10px;
+}
+
+/* 右上角 pin 图标 */
+.np-card-pinned::after {
+    content: '📌';
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 14px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
+}
+
+/* 顶部微妙高光：极淡的主色渐隐，比实色条更精致，不抢红底 */
+.np-card-pinned::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 8px 8px 0 0;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--accent-color, #2563eb) 35%, transparent), transparent);
+    pointer-events: none;
+}
+
+.np-card-pinned .np-card-name::before {
     content: '● ';
     color: var(--accent-color, #2563eb);
-}
-
-.np-card-current-badge {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--accent-color, #2563eb);
-    background: color-mix(in srgb, var(--accent-color, #2563eb) 14%, transparent);
-    border-radius: 10px;
-    padding: 1px 8px;
-    align-self: flex-start;
 }
 
 .np-empty {
@@ -231,18 +251,23 @@
     border-color: #ef4444;
 }
 
-/* 已收藏：实心红心，高亮态 */
+/* 已收藏：实心红心，高亮态（适度淡化） */
 .np-fav-btn.np-fav-on {
     color: #ef4444;
-    border-color: #ef4444;
-    background: color-mix(in srgb, #ef4444 12%, var(--bg-input, #fff));
+    border-color: color-mix(in srgb, #ef4444 60%, var(--border-color, rgba(128, 128, 128, 0.3)));
+    background: color-mix(in srgb, #ef4444 9%, var(--bg-input, #fff));
 }
 
-/* 收藏预设卡片：底部/整体红色强调，明显区别于普通卡片 */
+/* 收藏预设卡片：仅用淡红底标识，不占用 border / box-shadow，
+   从而能与「当前预设」蓝边样式叠加共存 */
 .np-card-fav {
-    border-color: #ef4444;
-    box-shadow: 0 0 0 1px #ef4444, 0 2px 8px rgba(239, 68, 68, 0.18);
-    background: color-mix(in srgb, #ef4444 5%, var(--bg-card, #fff));
+    position: relative;
+    background: color-mix(in srgb, #ef4444 7%, var(--bg-card, #fff)) !important;
+}
+
+/* 特殊当前卡（pinned）叠加收藏时，红底必须由双 class 规则确保压过基础底色 */
+.np-card-pinned.np-card-fav {
+    background: color-mix(in srgb, #ef4444 7%, var(--bg-card, #fff)) !important;
 }
 
 /* 收藏筛选 chip：独立红色调 */
