@@ -500,11 +500,12 @@ class ConfigManager {
      */
     setNaiPresets(presets) {        if (!ENABLE_DEV_SAVE_GUARD) return;
         const current = this.getNaiPresetSwitcherConfig();
-        // 落盘前经模板归一化，保证字段完整、类型正确（enabled / chatu8Launcher 沿用当前值，避免被重置）
+        // 落盘前经模板归一化，保证字段完整、类型正确（enabled / chatu8Launcher / imageFavorites 沿用当前值，避免被重置）
         const normalized = normalizeNaiPresetConfig({
             enabled: current.enabled,
             chatu8Launcher: current.chatu8Launcher,
             presets: Array.isArray(presets) ? presets : [],
+            imageFavorites: current.imageFavorites,
         });
         this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();
@@ -533,6 +534,7 @@ class ConfigManager {
             chatu8Launcher: current.chatu8Launcher,
             presets: current.presets || [],
             tags: Array.isArray(tags) ? tags : [],
+            imageFavorites: current.imageFavorites,
         });
         this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();
@@ -545,6 +547,35 @@ class ConfigManager {
     setNaiPresetSwitcherConfig(config) {
         if (!ENABLE_DEV_SAVE_GUARD) return;
         this.naiPresetConfig = normalizeNaiPresetConfig(config || {});
+        this.saveNaiPresetConfigNow();
+    }
+
+    /**
+     * 获取图片收藏配置（读路径，走独立顶层键 nai_preset_config.imageFavorites）
+     * @returns {{tags:Array, items:Array}} imageFavorites
+     */
+    getNaiImageFavorites() {
+        if (!this.isNaiPresetConfigLoaded) {
+            this.loadNaiPresetConfig();
+        }
+        return this.naiPresetConfig?.imageFavorites || { tags: [], items: [] };
+    }
+
+    /**
+     * 写入并落盘图片收藏（独立顶层键 nai_preset_config；保留 enabled / presets / tags）
+     * @param {{tags?:Array, items?:Array}} imageFavorites { tags:[{name,createdAt}], items:[{key,cat,path,tags,createdAt,updatedAt}] }
+     */
+    setNaiImageFavorites(imageFavorites) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        const current = this.getNaiPresetSwitcherConfig();
+        const normalized = normalizeNaiPresetConfig({
+            enabled: current.enabled,
+            chatu8Launcher: current.chatu8Launcher,
+            presets: current.presets || [],
+            tags: current.tags || [],
+            imageFavorites: imageFavorites || {},
+        });
+        this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();
     }
 

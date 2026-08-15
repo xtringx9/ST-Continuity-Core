@@ -19,6 +19,7 @@ import { initSortControl } from './SortControl.js';
 import { showToast } from '../../shared/Toast.js';
 import { initImageInspect } from './ImageInspect.js';
 import { initImageManager, renderImageManagerOnDemand } from './ImageManager.js';
+import { initImageFavorites, refreshImageFavorites } from './ImageFavorites.js';
 
 let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
@@ -65,6 +66,12 @@ export function initNaiPresetSwitcher(iframeDocument) {
     initImageInspect(doc, onParsed);
     bindAddFromInspect();
     initImageManager(doc);
+    initImageFavorites(doc);
+    // 跨 tab 联动：图片管理红心切换 → 刷新收藏 tab；收藏 tab 取消 → 刷新图片管理红心
+    window.__refreshImageFavTab = () => refreshImageFavorites(doc);
+    window.__refreshImageManagerFavs = () => {
+        try { renderImageManagerOnDemand(doc); } catch (e) { /* 图片管理未初始化则忽略 */ }
+    };
     renderAll();
 }
 
@@ -180,6 +187,12 @@ function bindNavTabs() {
             if (target === 'view-vibe') {
                 try { renderImageManagerOnDemand(doc); } catch (e) {
                     errorLog('[智绘姬NAI预设切换] 图片管理渲染失败:', e);
+                }
+            }
+            // 切到「图片收藏」tab 时刷新（数据可能已在别处变更）
+            if (target === 'view-fav') {
+                try { refreshImageFavorites(doc); } catch (e) {
+                    errorLog('[智绘姬NAI预设切换] 图片收藏渲染失败:', e);
                 }
             }
         });

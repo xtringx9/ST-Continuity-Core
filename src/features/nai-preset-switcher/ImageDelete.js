@@ -26,13 +26,15 @@ let doc = null;
 let _dupMap = null;       // 文内图 path -> {source,name}|null
 let _reverseMap = null;   // hash -> [{cat,name,path,configId?}]（预设+文内对称）
 let _onChanged = null;    // 删除完成后回调（ImageManager 负责重渲）
+let _onAfterDelete = null; // 删除成功后回调（清理收藏等）
 
-/** ImageManager 注入上下文：映射 + 变更回调 */
+/** ImageManager 注入上下文：映射 + 变更回调 + 删除后回调 */
 export function setDupContext(ctx) {
     if (!ctx) return;
     if (ctx.dupMap instanceof Map) _dupMap = ctx.dupMap;
     if (ctx.reverseMap instanceof Map) _reverseMap = ctx.reverseMap;
     if (typeof ctx.onChanged === 'function') _onChanged = ctx.onChanged;
+    if (typeof ctx.onAfterDelete === 'function') _onAfterDelete = ctx.onAfterDelete;
 }
 
 export function setDeleteDoc(d) { doc = d; }
@@ -255,6 +257,7 @@ export async function deleteImageItem(item) {
     const done = await executeDeletion(item, action, dupList);
     if (!done) return false;
     saveSettings();
+    if (_onAfterDelete) _onAfterDelete(item);
     if (_onChanged) _onChanged();
     showToast(doc, action === 'both' ? '已删除（含副本）' : '已删除', 'success');
     return true;
@@ -295,6 +298,10 @@ export async function deleteImageItems(items) {
             if (done) ok++;
         }
         saveSettings();
+        if (_onAfterDelete) {
+            withDup.forEach(x => _onAfterDelete(x.item));
+            withoutDup.forEach(_onAfterDelete);
+        }
         if (_onChanged) _onChanged();
         showToast(doc, `已删除 ${ok} 张${action === 'both' && totalDupCount ? '（含副本）' : ''}`, 'success');
     } catch (e) {

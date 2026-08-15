@@ -78,7 +78,62 @@ export const NAI_PRESET_TEMPLATE = {
                 description: '排序权重（视图层排序态，暂留）'
             },
         }
-    ]
+    ],
+
+    // 图片收藏（2026-08-15 用户拍板：独立于预设 tags，复用同一顶层键）
+    // 只收藏图片（点红心即时收藏，不弹标签窗）；标签在「图片收藏」tab 内管理。
+    // items 的 key = 图片唯一标识（chat:<uuid|path> / character:<configId> / outfit:<configId>）。
+    // 图片被删后对应收藏项自动清除（失效自愈）。
+    imageFavorites: {
+        tags: [
+            {
+                name: {
+                    type: 'string',
+                    required: true,
+                    description: '图片收藏专属标签名（唯一，与预设 tags 库不混用）'
+                },
+                createdAt: {
+                    type: 'number',
+                    default: 0,
+                    description: '创建时间（ms 时间戳）'
+                },
+            }
+        ],
+        items: [
+            {
+                key: {
+                    type: 'string',
+                    required: true,
+                    description: '图片唯一标识（chat:<uuid|path> / character:<configId> / outfit:<configId>）'
+                },
+                cat: {
+                    type: 'string',
+                    required: true,
+                    description: '来源分类：chat | character | outfit'
+                },
+                path: {
+                    type: 'string',
+                    default: '',
+                    description: '服务端文件路径（渲染/失效检查用）'
+                },
+                tags: {
+                    type: 'array',
+                    default: [],
+                    description: '图片收藏专属标签数组'
+                },
+                createdAt: {
+                    type: 'number',
+                    default: 0,
+                    description: '收藏时间（ms 时间戳）'
+                },
+                updatedAt: {
+                    type: 'number',
+                    default: 0,
+                    description: '更新时间（ms 时间戳）'
+                },
+            }
+        ]
+    }
 };
 
 /**
@@ -97,7 +152,11 @@ export const DEFAULT_NAI_PRESET_CONFIG = {
         source: "ST-Continuity-Core",
     },
     tags: [],
-    presets: []
+    presets: [],
+    imageFavorites: {
+        tags: [],
+        items: [],
+    }
 };
 
 /**
@@ -169,6 +228,10 @@ export function normalizeNaiPresetConfig(config) {
         },
         tags: [],
         presets: [],
+        imageFavorites: {
+            tags: [],
+            items: [],
+        },
     };
 
     if (Array.isArray(config.presets)) {
@@ -182,6 +245,44 @@ export function normalizeNaiPresetConfig(config) {
             sortOrder: typeof p.sortOrder === 'number' ? p.sortOrder : index,
         }));
     }
+
+    // 图片收藏：归一化（独立于预设 tags 库）
+    const favSrc = (config.imageFavorites && typeof config.imageFavorites === 'object') ? config.imageFavorites : {};
+    const favItems = Array.isArray(favSrc.items) ? favSrc.items : [];
+    const normalizedFavItems = favItems
+        .filter(f => f && f.key)
+        .map(f => ({
+            key: String(f.key),
+            cat: ['chat', 'character', 'outfit'].includes(f.cat) ? f.cat : 'chat',
+            path: String(f.path || ''),
+            tags: Array.isArray(f.tags) ? f.tags.map(t => String(t).trim()).filter(Boolean) : [],
+            createdAt: typeof f.createdAt === 'number' ? f.createdAt : now,
+            updatedAt: typeof f.updatedAt === 'number' ? f.updatedAt : now,
+        }));
+    // 去重（key 唯一）
+    const seenKeys = new Set();
+    normalizedFavItems.filter(f => !seenKeys.has(f.key) && seenKeys.add(f.key));
+    // 图片收藏专属标签库
+    const favTagSet = new Map();
+    const favTagsSrc = Array.isArray(favSrc.tags) ? favSrc.tags : [];
+    favTagsSrc.forEach(t => {
+        const name = t && typeof t === 'object' ? String(t.name || '').trim() : String(t || '').trim();
+        if (!name) return;
+        favTagSet.set(name, {
+            name,
+            createdAt: (t && typeof t === 'object' && typeof t.createdAt === 'number') ? t.createdAt : now,
+        });
+    });
+    // 反推补全：收藏项里引用但库没有的标签
+    normalizedFavItems.forEach(f => {
+        (f.tags || []).forEach(tag => {
+            if (!favTagSet.has(tag)) favTagSet.set(tag, { name: tag, createdAt: now });
+        });
+    });
+    normalized.imageFavorites = {
+        tags: Array.from(favTagSet.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh')),
+        items: normalizedFavItems,
+    };
 
     // 独立标签库：优先用显式 tags，否则从预设引用反推补全（兼容旧数据仅含 preset.tags 的情况）
     const tagSet = new Map();

@@ -11,10 +11,12 @@
 // 避免 <img> 直接带 path 因缺 token 鉴权而 403）。
 
 import { extension_settings } from '../../../../../../extensions.js';
-import { getRequestHeaders } from '../../../../../../../script.js';
+import { getRequestHeaders, saveSettings } from '../../../../../../../script.js';
 import { errorLog } from '../../utils/logger.js';
 import { initSortControl } from './SortControl.js';
 import { setDupContext, setDeleteDoc, deleteImageItem, deleteImageItems, isDeleteReady } from './ImageDelete.js';
+import configManager from '../../singleton/configManager.js';
+import { showToast } from '../../shared/Toast.js';
 
 const CHATU8 = 'st-chatu8';
 
@@ -382,6 +384,97 @@ let _allGroups = [];
 let _currentPage = 1;
 let _totalPages = 1;
 
+/* ============ 图片收藏（红心，独立于预设标签） ============ */
+// 内存缓存：key -> {key, cat, path, tags, createdAt, updatedAt}（读 configManager）
+let favMap = new Map();
+
+// 从 configManager 重载收藏缓存
+function reloadFavs() {
+    const favs = configManager.getNaiImageFavorites();
+    favMap = new Map((favs.items || []).map(f => [f.key, f]));
+    return favMap;
+}
+
+// 图片唯一 key（与 imgKey 一致：chat=uuid/path，character/outfit=configId）
+function favKeyFor(img) { return imgKey(img); }
+
+function isFavorited(img) {
+    if (favMap.size === 0) reloadFavs();
+    return favMap.has(favKeyFor(img));
+}
+
+// 切换收藏（只收藏/取消，不弹标签窗；标签在收藏 tab 内管理）
+function toggleFavoriteImage(img) {
+    const key = favKeyFor(img);
+    const existed = favMap.has(key);
+    if (existed) {
+        favMap.delete(key);
+    } else {
+        favMap.set(key, {
+            key,
+            cat: currentCat,
+            path: img.path || '',
+            tags: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        });
+    }
+    persistFavs();
+    showToast(doc, existed ? '已取消收藏' : '已收藏 ♥', existed ? 'info' : 'success');
+    return !existed;
+}
+
+// 批量收藏已选（管理模式「收藏已选」）
+function favoriteSelectedImages() {
+    const items = [];
+    for (const g of _allGroups) {
+        for (const img of g.images) {
+            if (selectedSet.has(imgKey(img)) && !favMap.has(favKeyFor(img))) {
+                favMap.set(favKeyFor(img), {
+                    key: favKeyFor(img),
+                    cat: currentCat,
+                    path: img.path || '',
+                    tags: [],
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                });
+                items.push(img);
+            }
+        }
+    }
+    persistFavs();
+    showToast(doc, items.length ? `已收藏 ${items.length} 张` : '已全部收藏过', items.length ? 'success' : 'info');
+    render();
+}
+
+function persistFavs() {
+    configManager.setNaiImageFavorites({
+        tags: configManager.getNaiImageFavorites().tags || [],
+        items: Array.from(favMap.values()),
+    });
+    try { saveSettings(); } catch (e) { /* 忽略 */ }
+}
+
+// 收藏的红心按钮（缩略图 / lightbox 通用）
+function buildFavBtn(img, isLb) {
+    const btn = doc.createElement('button');
+    btn.className = 'np-img-fav' + (isLb ? ' np-img-fav-lb' : '');
+    const on = isFavorited(img);
+    btn.textContent = on ? '♥' : '♡';
+    btn.classList.toggle('on', on);
+    btn.title = on ? '取消收藏' : '收藏';
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const now = toggleFavoriteImage(img);
+        btn.textContent = now ? '♥' : '♡';
+        btn.classList.toggle('on', now);
+        btn.title = now ? '取消收藏' : '收藏';
+        // 通知收藏 tab 刷新（若激活）
+        if (window.__refreshImageFavTab) window.__refreshImageFavTab();
+    });
+    return btn;
+}
+
 /* ============ 管理模式（勾选 + 批量删除） ============ */
 let manageMode = false;            // 管理模式开关
 const selectedSet = new Set();     // 已选图片唯一 key（见 imgKey）
@@ -406,6 +499,7 @@ function updateBatchBar() {
     const bar = doc.getElementById('np-img-batchbar');
     const count = doc.getElementById('np-img-sel-count');
     const del = doc.getElementById('np-img-sel-delete');
+    const fav = doc.getElementById('np-img-sel-fav');
     if (bar) bar.style.display = manageMode ? 'flex' : 'none';
     if (count) count.textContent = `已选 ${selectedSet.size} 张`;
     // 反向索引未就绪时删除按钮恒置灰（跑完才能点）
@@ -414,7 +508,10 @@ function updateBatchBar() {
         del.disabled = !ready || selectedSet.size === 0;
         del.title = ready ? '删除已选图片' : '副本识别中，完成前不可删除';
     }
-    // 勾选框显隐
+    // 收藏已选：未选中置灰
+    if (fav) fav.disabled = selectedSet.size === 0;
+    // 管理模式：隐藏红心（避免与管理操作混在一起），显示勾选框
+    doc.querySelectorAll('.np-img-fav').forEach(f => { f.style.display = manageMode ? 'none' : 'block'; });
     doc.querySelectorAll('.np-img-check').forEach(cb => {
         cb.style.display = manageMode ? 'block' : 'none';
     });
@@ -507,7 +604,31 @@ function syncDupContext() {
         dupMap: dupCache,
         reverseMap: dupReverse,
         onChanged: () => render(),
+        // 删除成功后清理对应收藏，并刷新收藏 tab
+        onAfterDelete: (item) => {
+            removeFavByDeletedItem(item);
+            if (window.__refreshImageFavTab) window.__refreshImageFavTab();
+        },
     });
+}
+
+// 图片被删除后移除对应收藏（chat 用 entry.path/uuid，预设用 configId）
+function removeFavByDeletedItem(item) {
+    if (!item) return;
+    let key = null;
+    if (item.cat === 'chat') {
+        const uuid = item.entry && item.entry.uuid;
+        const p = item.path;
+        if (uuid) key = 'chat:' + uuid;
+        else if (p) key = 'chat:' + p;
+    } else {
+        key = item.cat + ':' + item.configId;
+    }
+    if (!key) return;
+    if (favMap.has(key)) {
+        favMap.delete(key);
+        persistFavs();
+    }
 }
 
 // 删除 lightbox 当前查看的图片（复用管理模式的删除入口）
@@ -651,7 +772,12 @@ function buildImageCell(img, groupImages) {
     loading.textContent = '加载中…';
     el.appendChild(loading);
 
-    // 管理模式勾选框（覆盖在缩略图左上角；不随 src 异步重建，直接挂在 el 上）
+    // 收藏红心（左上角常显；管理模式时隐藏，避免与管理操作混在一起）
+    const favBtn = buildFavBtn(img, false);
+    favBtn.style.display = manageMode ? 'none' : 'block';
+    el.appendChild(favBtn);
+
+    // 管理模式勾选框（覆盖在缩略图左上角，红心隐藏后占据此位置；不随 src 异步重建）
     const check = doc.createElement('span');
     check.className = 'np-img-check';
     check.style.display = manageMode ? 'block' : 'none';
@@ -890,6 +1016,19 @@ async function renderLightbox() {
     if (!src) { img.alt = '读取失败'; return; }
     img.src = src;
     img.alt = item.title;
+    updateLightboxFav();
+}
+
+// 同步 lightbox 红心状态（当前查看的图是否已收藏）
+function updateLightboxFav() {
+    if (!doc) return;
+    const btn = doc.getElementById('np-lightbox-fav');
+    const item = _lbList[_lbIndex];
+    if (!btn || !item) return;
+    const on = isFavorited(item);
+    btn.textContent = on ? '♥' : '♡';
+    btn.classList.toggle('on', on);
+    btn.title = on ? '取消收藏' : '收藏';
 }
 
 function updateLightboxNav() {
@@ -1085,6 +1224,13 @@ function bindControls() {
     if (dlBtn) dlBtn.addEventListener('click', downloadLightboxImage);
     const lbDelBtn = doc.getElementById('np-lightbox-delete');
     if (lbDelBtn) lbDelBtn.addEventListener('click', deleteLightboxImage);
+    const lbFavBtn = doc.getElementById('np-lightbox-fav');
+    if (lbFavBtn) lbFavBtn.addEventListener('click', () => {
+        const item = _lbList[_lbIndex];
+        if (!item) return;
+        toggleFavoriteImage(item);
+        updateLightboxFav();
+    });
     const box = doc.getElementById('np-lightbox');
     if (box) {
         box.addEventListener('click', (e) => {
@@ -1108,6 +1254,8 @@ function bindControls() {
     if (clearBtn) clearBtn.addEventListener('click', () => { selectedSet.clear(); updateBatchBar(); render(); });
     const selDeleteBtn = doc.getElementById('np-img-sel-delete');
     if (selDeleteBtn) selDeleteBtn.addEventListener('click', deleteSelected);
+    const selFavBtn = doc.getElementById('np-img-sel-fav');
+    if (selFavBtn) selFavBtn.addEventListener('click', favoriteSelectedImages);
 
     // 初始同步一次批量栏状态
     updateBatchBar();
@@ -1137,6 +1285,7 @@ export function renderImageManagerOnDemand(iframeDocument) {
     doc = iframeDocument;
     if (!doc.getElementById('np-img-list')) return;
     try {
+        reloadFavs(); // 每次渲染前同步最新收藏状态（收藏 tab 可能已变更）
         render();
     } catch (e) {
         errorLog('[图片管理] 渲染失败（不影响预设管理）:', e);

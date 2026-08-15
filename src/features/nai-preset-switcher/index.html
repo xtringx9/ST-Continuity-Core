@@ -35,6 +35,9 @@
             <div class="nav-item" data-target="view-vibe">
                 <span class="nav-text" data-i18n="ccore_nai_tab_images">图片管理</span>
             </div>
+            <div class="nav-item" data-target="view-fav">
+                <span class="nav-text" data-i18n="ccore_nai_tab_image_fav">图片收藏</span>
+            </div>
             <div class="nav-item" data-target="view-parse">
                 <span class="nav-text" data-i18n="ccore_nai_tab_parse">解析</span>
             </div>
@@ -88,6 +91,7 @@
                     <span id="np-img-sel-count">已选 0 张</span>
                     <div class="np-img-batch-actions">
                         <button class="btn-secondary" id="np-img-sel-clear">清空</button>
+                        <button class="btn-secondary" id="np-img-sel-fav" disabled>收藏已选</button>
                         <button class="btn-danger" id="np-img-sel-delete" disabled>删除已选</button>
                     </div>
                 </div>
@@ -97,6 +101,22 @@
                     <!-- 分组与图片网格由 JS 生成 -->
                 </div>
                 <div class="np-img-empty" id="np-img-empty" style="display:none;">该分类暂无图片</div>
+            </div>
+
+            <!-- 视图：图片收藏（红心图片聚合，独立标签筛选） -->
+            <div id="view-fav" class="view-section">
+                <div class="np-fav-toolbar">
+                    <span class="np-fav-title">图片收藏</span>
+                    <div class="np-fav-tags" id="np-fav-tags">
+                        <!-- 标签筛选由 JS 生成 -->
+                    </div>
+                    <button class="btn-secondary" id="np-fav-manage-tags" style="padding:6px 12px; font-size:13px;">管理标签</button>
+                    <button class="btn-secondary" id="np-fav-empty" style="padding:6px 12px; font-size:13px;" title="清空全部收藏">清空收藏</button>
+                </div>
+                <div class="np-fav-list" id="np-fav-list">
+                    <!-- 收藏图片网格由 JS 生成 -->
+                </div>
+                <div class="np-fav-empty-tip" id="np-fav-empty-tip" style="display:none;">暂无收藏图片</div>
             </div>
 
             <!-- 视图：解析 -->
@@ -144,6 +164,7 @@
         <div class="np-lightbox-info" id="np-lightbox-info"></div>
         <div class="np-lightbox-actions">
             <button class="np-lightbox-download" id="np-lightbox-download" title="下载原图">⤓ 下载原图</button>
+            <button class="np-lightbox-fav" id="np-lightbox-fav" title="收藏">♡</button>
             <button class="btn-danger np-lightbox-delete" id="np-lightbox-delete" title="删除这张图片">🗑 删除</button>
             <button class="np-lightbox-close" id="np-lightbox-close">✕ 关闭</button>
         </div>
