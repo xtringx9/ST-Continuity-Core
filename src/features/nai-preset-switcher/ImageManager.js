@@ -801,20 +801,17 @@ function appendGroupNode(g, parent, depth) {
 
     const title = doc.createElement('span');
     title.className = 'np-img-group-title';
-    // 叶子组显示数量/日期；嵌套中间节点只显示名字（数量/日期在叶子已体现，避免重复）
-    if (isLeaf) {
-        let dateLabel = '';
-        if (g.date) {
-            try {
-                const d = new Date(g.date);
-                const pad = (n) => String(n).padStart(2, '0');
-                dateLabel = ` · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-            } catch (e) { /* ignore */ }
-        }
-        title.textContent = `${titleInfo.short} (${g.images.length}${dateLabel})`;
-    } else {
-        title.textContent = titleInfo.short;
+    // 每个分组节点都显示数量（中间节点递归统计子树总数）；日期只在叶子组显示
+    let dateLabel = '';
+    if (isLeaf && g.date) {
+        try {
+            const d = new Date(g.date);
+            const pad = (n) => String(n).padStart(2, '0');
+            dateLabel = ` · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        } catch (e) { /* ignore */ }
     }
+    const count = countGroupImages(g);
+    title.textContent = `${titleInfo.short} (${count}${dateLabel})`;
     header.appendChild(title);
 
     // 管理模式：分组级全选 / 全不选（中间节点收集整棵子树图片，叶子收集自身）
@@ -850,9 +847,9 @@ function appendGroupNode(g, parent, depth) {
         let expanded = false;
         expand.addEventListener('click', () => {
             expanded = !expanded;
-            // 展开时显示全名；叶子追加数量，中间节点无数量
-            const countText = isLeaf ? ` (${g.images.length})` : '';
-            title.textContent = `${expanded ? titleInfo.full : titleInfo.short}${countText}`;
+            // 展开时显示全名 + 数量（所有节点统一）
+            const count = countGroupImages(g);
+            title.textContent = `${expanded ? titleInfo.full : titleInfo.short} (${count})`;
             expand.textContent = expanded ? '收回' : '展开';
         });
         header.appendChild(expand);
