@@ -32,7 +32,7 @@
                 <span class="nav-text" data-i18n="ccore_nai_tab_preset">预设管理</span>
             </div>
             <div class="nav-item" data-target="view-vibe">
-                <span class="nav-text" data-i18n="ccore_nai_tab_vibe">氛围管理</span>
+                <span class="nav-text" data-i18n="ccore_nai_tab_images">图片管理</span>
             </div>
             <div class="nav-item" data-target="view-parse">
                 <span class="nav-text" data-i18n="ccore_nai_tab_parse">解析</span>
@@ -64,9 +64,27 @@
                 <button id="np-scroll-top" class="np-scroll-top" title="回到顶部" style="display:none;">↑</button>
             </div>
 
-            <!-- 视图：氛围（占位） -->
+            <!-- 视图：图片管理（三路并列：文内生图 / 角色预设 / 服装预设） -->
             <div id="view-vibe" class="view-section">
-                <div class="np-placeholder">氛围功能开发中…</div>
+                <div class="np-img-toolbar">
+                    <div class="np-img-cats" id="np-img-cats">
+                        <button class="np-img-cat active" data-cat="chat">文内生图</button>
+                        <button class="np-img-cat" data-cat="character">角色预设</button>
+                        <button class="np-img-cat" data-cat="outfit">服装预设</button>
+                    </div>
+                    <div class="np-img-sub" id="np-img-sub">
+                        <!-- 文内生图子分组切换（提示词/预设）由 JS 生成；其余分类默认隐藏 -->
+                        <div class="np-img-sub-group" data-for="chat">
+                            <button class="np-img-sub-btn active" data-group="prompt">按提示词</button>
+                            <button class="np-img-sub-btn" data-group="preset">按预设</button>
+                        </div>
+                    </div>
+                    <input type="text" id="np-img-search" class="np-img-search" placeholder="搜索分组名 / 提示词…" />
+                </div>
+                <div class="np-img-list" id="np-img-list">
+                    <!-- 分组与图片网格由 JS 生成 -->
+                </div>
+                <div class="np-img-empty" id="np-img-empty" style="display:none;">该分类暂无图片</div>
             </div>
 
             <!-- 视图：解析 -->
@@ -106,6 +124,13 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- 图片放大预览层（lightbox） -->
+    <div class="np-lightbox" id="np-lightbox" style="display:none;">
+        <img class="np-lightbox-img" id="np-lightbox-img" alt="预览" />
+        <div class="np-lightbox-info" id="np-lightbox-info"></div>
+        <button class="np-lightbox-close" id="np-lightbox-close">✕</button>
     </div>
 
     <!-- 编辑弹层（通用 shell 弹层 .modal-mask / .modal） -->

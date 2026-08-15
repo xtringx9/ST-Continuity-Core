@@ -18,6 +18,7 @@ import { handleTagExport, handleTagImport } from './TagImportExport.js';
 import { initSortControl } from './SortControl.js';
 import { showToast } from '../../shared/Toast.js';
 import { initImageInspect } from './ImageInspect.js';
+import { initImageManager, renderImageManagerOnDemand } from './ImageManager.js';
 
 let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
@@ -63,6 +64,7 @@ export function initNaiPresetSwitcher(iframeDocument) {
     bindToolbox();
     initImageInspect(doc, onParsed);
     bindAddFromInspect();
+    initImageManager(doc);
     renderAll();
 }
 
@@ -102,6 +104,8 @@ export function syncNaiPresetData(iframeDocument) {
         errorLog('[智绘姬NAI预设切换] 打开时重读配置失败:', e);
     }
     renderAll();
+    // 注意：图片管理 tab 不在打开抽屉时渲染，避免与预设渲染抢资源；
+    // 仅在用户实际切到「图片管理」tab 时才由 nav 切换逻辑触发 render（见 bindNavTabs）。
 }
 
 /* ============ i18n ============ */
@@ -170,6 +174,12 @@ function bindNavTabs() {
             items.forEach(i => i.classList.toggle('active', i === item));
             sections.forEach(s => s.classList.toggle('active', s.id === target));
             applyNavVisibility();
+            // 仅当用户实际切到「图片管理」tab 时才渲染图片（避免影响预设等其他功能）
+            if (target === 'view-vibe') {
+                try { renderImageManagerOnDemand(doc); } catch (e) {
+                    errorLog('[智绘姬NAI预设切换] 图片管理渲染失败:', e);
+                }
+            }
         });
     });
     // 初始按默认激活的 tab 显隐顶栏按钮
