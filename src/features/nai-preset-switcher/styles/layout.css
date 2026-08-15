@@ -1216,7 +1216,7 @@
     border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.18));
     position: sticky;
     top: 0;
-    background: var(--bg-primary, #fff);
+    background: var(--bg-app, #fff);
     z-index: 1;
 }
 
@@ -1239,6 +1239,7 @@
 }
 
 .np-img-thumb {
+    position: relative; /* 副本徽标绝对定位基准 */
     width: 100%;
     aspect-ratio: 1 / 1;
     border-radius: 8px;
@@ -1251,6 +1252,17 @@
     color: var(--text-muted, #888);
     cursor: pointer;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+}
+
+.np-img-dup-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    z-index: 2;
+    font-size: 14px;
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
 }
 
 .np-img-thumb-img {
@@ -1429,6 +1441,14 @@
 .np-lb-title {
     font-weight: 600;
     margin-bottom: 4px;
+}
+
+.np-lb-file {
+    color: #9cd0ff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    margin-bottom: 4px;
+    word-break: break-all;
 }
 
 .np-lb-meta {
