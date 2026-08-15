@@ -306,6 +306,32 @@
     color: var(--text-primary, #111827);
 }
 
+/* 编辑弹层的正/负提示词文本框 */
+.np-f-prompt {
+    min-height: 72px;
+    line-height: 1.5;
+    font-family: inherit;
+    resize: vertical;
+}
+
+/* 编辑弹层：预览图 + 标签 宽屏左右分栏，缩短纵向长度 */
+.np-editor-split {
+    display: grid;
+    grid-template-columns: minmax(0, 300px) 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.np-editor-split > .np-form-row {
+    margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+    .np-editor-split {
+        grid-template-columns: 1fr;
+    }
+}
+
 .np-form-row {
     margin-bottom: 10px;
     display: flex;

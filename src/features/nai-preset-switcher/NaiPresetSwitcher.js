@@ -1533,6 +1533,12 @@ function openEditor(id, name) {
     } else {
         renderEditorDropzone(existingUrl);
     }
+    // 预填正/负提示词（实时读智绘姬 yushe[name]）
+    const fPos = doc.getElementById('np-f-positive');
+    const fNeg = doc.getElementById('np-f-negative');
+    const yusheEntry = (name && extension_settings[CHATU8_SETTINGS_KEY]?.yushe?.[name]) || {};
+    if (fPos) fPos.value = yusheEntry.fixedPrompt || '';
+    if (fNeg) fNeg.value = yusheEntry.negativePrompt || '';
     mask.style.display = 'flex';
     fName.focus();
 }
@@ -1719,6 +1725,20 @@ async function onSave() {
     // 预览图同步：拖图/移除仅改本地预览，直到此处（点「保存」）才真正写入智绘姬。
     // 优先处理「上传新图」，覆盖「移除标记」；两者皆无则不动。
     try {
+        // 正/负提示词写回智绘姬 yushe[name]（与预览图同一次 saveSettings 落盘）
+        const fPos = doc.getElementById('np-f-positive');
+        const fNeg = doc.getElementById('np-f-negative');
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        if (chatu8 && chatu8.yushe) {
+            chatu8.yushe[name] = chatu8.yushe[name] || {};
+            if (fPos) chatu8.yushe[name].fixedPrompt = (fPos.value || '').trim();
+            if (fNeg) chatu8.yushe[name].negativePrompt = (fNeg.value || '').trim();
+            // 若编辑的正是当前应用预设，同步刷新智绘姬面板文本框（change 切指针 + 直接回填文本框）
+            if (name && getChatu8CurrentPresetName() === name) {
+                triggerChatu8PresetChange(name);
+                syncChatu8PromptFields(name);
+            }
+        }
         if (pendingImagePayload) {
             const res = await uploadPreviewImage(name, pendingImagePayload);
             if (res) renderEditorDropzone(res.path);
@@ -1939,6 +1959,53 @@ function randomApplyInRange() {
     showToast(doc, `已随机应用：${pick.name}`, 'success');
 }
 
+// 触发智绘姬预设下拉的 change：这是它内部切换/重载当前预设的唯一入口
+// （智绘姬自己的可视化选择器也是 select.value=name + trigger('change')），
+// 它会从 yushe[name] 重新读取并刷新面板里的提示词文本框。
+// 应用预设、以及编辑保存了当前预设的提示词后，都需要它让面板即时反映最新数据。
+function triggerChatu8PresetChange(name) {
+    try {
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        const mode = (chatu8 && chatu8.mode) || 'comfyui';
+        const selectId = 'yusheid' + (mode === 'sd' ? '' : '_' + mode);
+        const presetSelect = document.getElementById(selectId);
+        if (presetSelect) {
+            presetSelect.value = name;
+            presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    } catch (e) {
+        errorLog('[智绘姬NAI预设切换] 触发智绘姬预设 change 失败:', e);
+    }
+}
+
+// 把 yushe[name] 的提示词直接回填到智绘姬面板文本框（按 mode 拼 id 后缀），
+// 并 dispatch input/change 让智绘姬内部监听（token 计数、unsaved 标记等）感知。
+// 仅当对应面板元素存在时才填——面板未打开时静默跳过（开面板即见，无需回填）。
+function syncChatu8PromptFields(name) {
+    try {
+        const chatu8 = extension_settings[CHATU8_SETTINGS_KEY];
+        const entry = chatu8?.yushe?.[name];
+        if (!entry) return;
+        const mode = chatu8.mode || 'comfyui';
+        const suffix = mode === 'sd' ? '' : '_' + mode; // sd 无后缀，其余加 _<mode>
+        const map = [
+            ['fixedPrompt' + suffix, entry.fixedPrompt || ''],
+            ['fixedPrompt_end' + suffix, entry.fixedPrompt_end || ''],
+            ['negativePrompt' + suffix, entry.negativePrompt || ''],
+        ];
+        map.forEach(([id, val]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (el.value === val) return; // 已一致则不触发事件，避免无谓刷新
+            el.value = val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    } catch (e) {
+        errorLog('[智绘姬NAI预设切换] 回填智绘姬提示词文本框失败:', e);
+    }
+}
+
 async function applyPreset(p) {
     if (!p || !p.name) return;
     const name = p.name;
@@ -1954,15 +2021,11 @@ async function applyPreset(p) {
     const mode = chatu8.mode || 'comfyui';
     chatu8['yusheid_' + mode] = name;
 
-    // 触发智绘姬预设下拉的 change：这是它内部切换当前预设的唯一入口
-    // （智绘姬自己的可视化选择器也是 select.value=name + trigger('change')）。
-    // 只触发下拉、不填三个文本框——文本框面板本就不可见，生图只读数据层。
-    const selectId = 'yusheid' + (mode === 'sd' ? '' : '_' + mode);
-    const presetSelect = document.getElementById(selectId);
-    if (presetSelect) {
-        presetSelect.value = name;
-        presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    // 触发智绘姬预设下拉的 change + 直接回填面板文本框：
+    // change 负责切指针，syncChatu8PromptFields 负责把最新提示词填进文本框，
+    // 两者配合确保面板（若开着）即时显示切到的预设内容。
+    triggerChatu8PresetChange(name);
+    syncChatu8PromptFields(name);
 
     // 4) 持久化（避免刷新后丢失当前预设）
     try { saveSettings(); } catch (e) { errorLog('[智绘姬NAI预设切换] saveSettings 失败', e); }
