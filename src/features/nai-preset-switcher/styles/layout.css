@@ -1149,6 +1149,10 @@
 
 .np-img-sub {
     display: flex;
+    /* 左侧分隔线：把一级分类（文内生图/角色/服装）与二级分组（按提示词/按预设）视觉分隔 */
+    border-left: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    padding-left: 8px;
+    margin-left: 4px;
 }
 
 .np-img-sub-group {
@@ -1181,6 +1185,17 @@
     background: var(--bg-input, #fff);
     color: var(--text-input, #222);
     font-size: 13px;
+}
+
+.np-img-sort {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #222);
+    font-size: 13px;
+    cursor: pointer;
 }
 
 .np-img-list {
@@ -1263,20 +1278,104 @@
     font-size: 14px;
 }
 
-.np-img-loadmore {
-    display: block;
-    margin: 16px auto 8px;
-    padding: 9px 22px;
-    font-size: 13px;
-    border-radius: 8px;
+/* 顶部页码导航（分组分页，置于列表上方） */
+.np-img-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 6px;
+    padding: 8px 14px;
+    flex: 0 0 auto;
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.18));
+}
+
+/* 页码常驻区：撑满剩余宽度，按页面宽度自适应排布 */
+.np-img-pager-pages {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+    flex: 1 1 auto;
+    justify-content: center;
+}
+
+.np-img-page {
+    min-width: 30px;
+    padding: 5px 9px;
+    font-size: 12px;
+    border-radius: 6px;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
     background: var(--bg-input, #fff);
     color: var(--text-input, #222);
     cursor: pointer;
 }
 
-.np-img-loadmore:hover {
+.np-img-page:hover:not(.disabled):not(.active) {
     opacity: 0.9;
+}
+
+.np-img-page.active {
+    background: var(--accent-color, #4f7cff);
+    border-color: var(--accent-color, #4f7cff);
+    color: #fff;
+    cursor: default;
+}
+
+.np-img-page.disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.np-img-page-dot {
+    padding: 0 4px;
+    color: var(--text-muted, #888);
+    font-size: 12px;
+}
+
+.np-img-page-info {
+    padding-left: 10px;
+    font-size: 12px;
+    color: var(--text-muted, #888);
+    white-space: nowrap;
+}
+
+/* 分组头内的「展开 / 复制 / 收回」按钮 */
+.np-img-group-expand {
+    margin-left: 10px;
+    padding: 3px 10px;
+    font-size: 11px;
+    border-radius: 5px;
+    border: 1px dashed var(--border-color, rgba(128, 128, 128, 0.4));
+    background: transparent;
+    color: var(--text-muted, #888);
+    cursor: pointer;
+}
+
+.np-img-group-expand:hover {
+    color: var(--accent-color, #4f7cff);
+    border-color: var(--accent-color, #4f7cff);
+}
+
+.np-img-group-copy {
+    margin-left: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.4));
+    background: transparent;
+    color: var(--text-muted, #888);
+    cursor: pointer;
+}
+
+.np-img-group-copy:hover {
+    color: var(--accent-color, #4f7cff);
+    border-color: var(--accent-color, #4f7cff);
+}
+
+.np-img-group-copy.copied {
+    color: var(--success-color, #3a9d5d);
+    border-color: var(--success-color, #3a9d5d);
 }
 
 .np-img-group-more {
@@ -1336,6 +1435,13 @@
     color: #bbb;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 12px;
+}
+
+.np-lb-source {
+    color: var(--accent-color, #4f7cff);
+    font-size: 12px;
+    margin-bottom: 4px;
+    opacity: 0.9;
 }
 
 .np-lightbox-close {

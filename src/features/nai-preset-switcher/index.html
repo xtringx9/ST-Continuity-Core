@@ -73,14 +73,21 @@
                         <button class="np-img-cat" data-cat="outfit">服装预设</button>
                     </div>
                     <div class="np-img-sub" id="np-img-sub">
-                        <!-- 文内生图子分组切换（提示词/预设）由 JS 生成；其余分类默认隐藏 -->
+                        <!-- 仅文内生图有二级分组（按提示词/按预设）；左侧分隔线视觉区分 -->
                         <div class="np-img-sub-group" data-for="chat">
                             <button class="np-img-sub-btn active" data-group="prompt">按提示词</button>
                             <button class="np-img-sub-btn" data-group="preset">按预设</button>
                         </div>
                     </div>
+                    <select id="np-img-sort" class="np-img-sort" title="排序方式">
+                        <option value="dateDesc">日期（新→旧）</option>
+                        <option value="dateAsc">日期（旧→新）</option>
+                        <option value="nameAsc">名称</option>
+                    </select>
                     <input type="text" id="np-img-search" class="np-img-search" placeholder="搜索分组名 / 提示词…" />
                 </div>
+                <!-- 顶部页码导航（分组分页） -->
+                <div class="np-img-pager" id="np-img-pager-top"></div>
                 <div class="np-img-list" id="np-img-list">
                     <!-- 分组与图片网格由 JS 生成 -->
                 </div>

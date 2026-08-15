@@ -20,6 +20,12 @@ let doc = null;
 let currentCat = 'chat';       // chat | character | outfit
 let chatGroupMode = 'prompt';  // prompt(按提示词) | preset(按预设 yushe)
 let searchTerm = '';
+let sortMode = 'dateDesc';      // dateDesc(新→旧) | dateAsc(旧→新) | nameAsc(名称)
+const SORT_KEY = 'st_continuity_nai_img_sort';
+try {
+    const saved = localStorage.getItem(SORT_KEY);
+    if (saved === 'dateDesc' || saved === 'dateAsc' || saved === 'nameAsc') sortMode = saved;
+} catch (e) { /* ignore */ }
 const blobUrlCache = new Map(); // path -> objectURL，避免重复 fetch
 
 /* ============ 数据读取 ============ */
@@ -155,8 +161,9 @@ function buildChatGroups() {
             gKey = 'prompt:' + md5;
             gLabel = label;
         }
-        if (!groups[gKey]) groups[gKey] = { key: gKey, label: gLabel, images: [] };
+        if (!groups[gKey]) groups[gKey] = { key: gKey, label: gLabel, images: [], date: 0 };
         entry.images.forEach((img, idx) => {
+            if (img.date && img.date > groups[gKey].date) groups[gKey].date = img.date;
             groups[gKey].images.push({
                 entry: img,
                 title: `${label} #${idx + 1}`,
@@ -164,7 +171,7 @@ function buildChatGroups() {
             });
         });
     }
-    return Object.values(groups).sort((a, b) => a.label.localeCompare(b.label, 'zh'));
+    return Object.values(groups);
 }
 
 // 角色/服装预设：遍历预设对象 → photoImageIds
@@ -172,36 +179,64 @@ function buildPresetGroups(presetType) {
     const chatu8 = getChatu8();
     if (!chatu8) return [];
     const map = presetType === 'character' ? chatu8.characterPresets : chatu8.outfitPresets;
+    const storage = chatu8.configImageStorage || {};
     if (!map) return [];
     const groups = [];
     for (const name in map) {
         const preset = map[name];
         const ids = (preset && Array.isArray(preset.photoImageIds)) ? preset.photoImageIds : [];
         if (ids.length === 0) continue;
-        const images = ids.map((id, idx) => ({
-            imageId: id,
-            title: `${name} #${idx + 1}`,
-        }));
-        groups.push({ key: 'preset:' + name, label: name, images });
+        let date = 0;
+        const images = ids.map((id, idx) => {
+            const sd = storage[id] && storage[id].date;
+            if (sd && sd > date) date = sd;
+            return {
+                imageId: id,
+                title: `${name} #${idx + 1}`,
+            };
+        });
+        groups.push({ key: 'preset:' + name, label: name, images, date });
     }
-    return groups.sort((a, b) => a.label.localeCompare(b.label, 'zh'));
+    return groups;
 }
 
-/* ============ 渲染（分组分页，避免一次性渲染几千张卡顿） ============ */
+/* ============ 渲染（分组分页：顶部页码导航） ============ */
 
-const GROUPS_PER_PAGE = 12;       // 每页渲染的分组数
-const IMAGES_PER_GROUP = 60;      // 单组初始渲染的图片数（超出可「展开」）
+const GROUPS_PER_PAGE = 12;       // 每页渲染的分组数（每页分组数 × 单组初始图数 可控）
+const IMAGES_PER_GROUP = 12;      // 单组初始渲染的图片数（超出默认折叠，点「展开剩余」显示）
+const PROMPT_LABEL_MAX = 40;      // 提示词分组名截断长度（超出显示「…」+ 点击展开）
 
 function getGroups() {
-    if (currentCat === 'chat') return buildChatGroups();
-    if (currentCat === 'character') return buildPresetGroups('character');
-    if (currentCat === 'outfit') return buildPresetGroups('outfit');
-    return [];
+    let groups;
+    if (currentCat === 'chat') groups = buildChatGroups();
+    else if (currentCat === 'character') groups = buildPresetGroups('character');
+    else if (currentCat === 'outfit') groups = buildPresetGroups('outfit');
+    else groups = [];
+    // 排序：日期降序/升序/名称
+    if (sortMode === 'nameAsc') {
+        groups.sort((a, b) => a.label.localeCompare(b.label, 'zh'));
+    } else if (sortMode === 'dateAsc') {
+        groups.sort((a, b) => (a.date || 0) - (b.date || 0));
+    } else {
+        groups.sort((a, b) => (b.date || 0) - (a.date || 0));
+    }
+    return groups;
 }
 
-// 全局缓存当前过滤后的分组列表与已渲染分组数（分页用）
+// 全局缓存当前过滤后的分组列表与当前页码（分页用）
 let _allGroups = [];
-let _renderedCount = 0;
+let _currentPage = 1;
+let _totalPages = 1;
+
+// 截断提示词分组名（仅文内生图按提示词分组时 label 可能很长）
+function makeGroupTitle(g) {
+    const full = g.label;
+    if (currentCat === 'chat' && chatGroupMode === 'prompt' && full.length > PROMPT_LABEL_MAX) {
+        const short = full.slice(0, PROMPT_LABEL_MAX) + '…';
+        return { short, full, truncated: true };
+    }
+    return { short: full, full, truncated: false };
+}
 
 function appendGroups(start, end) {
     if (!doc) return;
@@ -215,10 +250,50 @@ function appendGroups(start, end) {
 
         const header = doc.createElement('div');
         header.className = 'np-img-group-header';
+        const titleInfo = makeGroupTitle(g);
+
         const title = doc.createElement('span');
         title.className = 'np-img-group-title';
-        title.textContent = `${g.label} (${g.images.length})`;
+        let dateLabel = '';
+        if (g.date) {
+            try {
+                const d = new Date(g.date);
+                const pad = (n) => String(n).padStart(2, '0');
+                dateLabel = ` · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            } catch (e) { /* ignore */ }
+        }
+        title.textContent = `${titleInfo.short} (${g.images.length}${dateLabel})`;
         header.appendChild(title);
+
+        // 提示词过长：提供「展开」+「复制」按钮；展开后可「收回」
+        if (titleInfo.truncated) {
+            const expand = doc.createElement('button');
+            expand.className = 'np-img-group-expand';
+            expand.textContent = '展开';
+            let expanded = false;
+            expand.addEventListener('click', () => {
+                expanded = !expanded;
+                title.textContent = `${expanded ? titleInfo.full : titleInfo.short} (${g.images.length})`;
+                expand.textContent = expanded ? '收回' : '展开';
+            });
+            header.appendChild(expand);
+
+            const copy = doc.createElement('button');
+            copy.className = 'np-img-group-copy';
+            copy.textContent = '复制';
+            copy.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(titleInfo.full);
+                    copy.textContent = '已复制';
+                    copy.classList.add('copied');
+                    setTimeout(() => { copy.textContent = '复制'; copy.classList.remove('copied'); }, 1500);
+                } catch (e) {
+                    copy.textContent = '复制失败';
+                    setTimeout(() => { copy.textContent = '复制'; }, 1500);
+                }
+            });
+            header.appendChild(copy);
+        }
         groupEl.appendChild(header);
 
         const grid = doc.createElement('div');
@@ -261,7 +336,7 @@ function buildImageCell(img) {
         im.className = 'np-img-thumb-img';
         im.src = src;
         im.alt = img.title;
-        im.addEventListener('click', () => openLightbox(src, img.title, img.meta));
+        im.addEventListener('click', () => openLightbox(src, img.title, img.meta, currentCat));
         el.appendChild(im);
     }).catch(() => { el.textContent = '读取失败'; });
 
@@ -279,7 +354,7 @@ function render() {
     const empty = doc.getElementById('np-img-empty');
     if (!list) return;
     list.innerHTML = '';
-    removeLoadMore();
+    removePager();
 
     _allGroups = getGroups();
 
@@ -294,41 +369,92 @@ function render() {
     }
     if (empty) empty.style.display = 'none';
 
-    _renderedCount = Math.min(GROUPS_PER_PAGE, _allGroups.length);
-    appendGroups(0, _renderedCount);
-    if (_allGroups.length > _renderedCount) addLoadMore();
+    // 总页数：按分组数分页（每页 GROUPS_PER_PAGE 个分组）
+    _totalPages = Math.max(1, Math.ceil(_allGroups.length / GROUPS_PER_PAGE));
+    if (_currentPage > _totalPages) _currentPage = _totalPages;
+    if (_currentPage < 1) _currentPage = 1;
+
+    const start = (_currentPage - 1) * GROUPS_PER_PAGE;
+    const end = Math.min(start + GROUPS_PER_PAGE, _allGroups.length);
+    appendGroups(start, end);
+    renderPager();
 }
 
-function addLoadMore() {
+// 顶部页码导航（第一页/上一页/页码/下一页/最后一页）
+function renderPager() {
     if (!doc) return;
-    const list = doc.getElementById('np-img-list');
-    if (!list) return;
-    const btn = doc.createElement('button');
-    btn.id = 'np-img-loadmore';
-    btn.className = 'np-img-loadmore';
-    btn.textContent = `加载更多分组（已显示 ${_renderedCount}/${_allGroups.length}）`;
-    btn.addEventListener('click', () => {
-        const next = Math.min(_renderedCount + GROUPS_PER_PAGE, _allGroups.length);
-        appendGroups(_renderedCount, next);
-        _renderedCount = next;
-        if (_renderedCount >= _allGroups.length) {
-            btn.remove();
-        } else {
-            btn.textContent = `加载更多分组（已显示 ${_renderedCount}/${_allGroups.length}）`;
+    const pager = doc.getElementById('np-img-pager-top');
+    if (!pager) return;
+    pager.innerHTML = '';
+    if (_totalPages <= 1) return;
+
+    const mk = (label, page, opts = {}) => {
+        const b = doc.createElement('button');
+        b.className = 'np-img-page' + (opts.active ? ' active' : '') + (opts.disabled ? ' disabled' : '');
+        b.textContent = label;
+        if (!opts.disabled && !opts.active) {
+            b.addEventListener('click', () => { _currentPage = page; render(); });
         }
-    });
-    list.appendChild(btn);
+        return b;
+    };
+
+    const pages = doc.createElement('div');
+    pages.className = 'np-img-pager-pages';
+
+    pages.appendChild(mk('«', 1, { disabled: _currentPage === 1 }));
+    pages.appendChild(mk('‹', _currentPage - 1, { disabled: _currentPage === 1 }));
+
+    // 页码窗口：按容器实际宽度动态估算可显示的页码数（撑满整行）
+    const pageW = 44;  // 单页码按钮约 38px + gap 6px
+    const arrowsW = pageW * 4; // « ‹ › » 四个箭头
+    const boxW = pager.getBoundingClientRect ? pager.getBoundingClientRect().width : 0;
+    const usableW = boxW > arrowsW + pageW ? boxW - arrowsW : 320;
+    let win = Math.max(1, Math.floor(usableW / pageW)); // 当前页两侧各显示 win 个
+    win = Math.min(win, Math.ceil(_totalPages / 2));
+    const from = Math.max(1, _currentPage - win);
+    const to = Math.min(_totalPages, _currentPage + win);
+    if (from > 1) {
+        pages.appendChild(mk('1', 1));
+        if (from > 2) {
+            const dot = doc.createElement('span');
+            dot.className = 'np-img-page-dot';
+            dot.textContent = '…';
+            pages.appendChild(dot);
+        }
+    }
+    for (let p = from; p <= to; p++) {
+        pages.appendChild(mk(String(p), p, { active: p === _currentPage }));
+    }
+    if (to < _totalPages) {
+        if (to < _totalPages - 1) {
+            const dot = doc.createElement('span');
+            dot.className = 'np-img-page-dot';
+            dot.textContent = '…';
+            pages.appendChild(dot);
+        }
+        pages.appendChild(mk(String(_totalPages), _totalPages));
+    }
+
+    pages.appendChild(mk('›', _currentPage + 1, { disabled: _currentPage === _totalPages }));
+    pages.appendChild(mk('»', _totalPages, { disabled: _currentPage === _totalPages }));
+
+    pager.appendChild(pages);
+
+    const info = doc.createElement('span');
+    info.className = 'np-img-page-info';
+    info.textContent = `第 ${_currentPage}/${_totalPages} 页 · 共 ${_allGroups.length} 组`;
+    pager.appendChild(info);
 }
 
-function removeLoadMore() {
+function removePager() {
     if (!doc) return;
-    const old = doc.getElementById('np-img-loadmore');
-    if (old) old.remove();
+    const pager = doc.getElementById('np-img-pager-top');
+    if (pager) pager.innerHTML = '';
 }
 
 /* ============ lightbox ============ */
 
-function openLightbox(src, title, meta) {
+function openLightbox(src, title, meta, cat) {
     if (!doc) return;
     const box = doc.getElementById('np-lightbox');
     const img = doc.getElementById('np-lightbox-img');
@@ -336,7 +462,12 @@ function openLightbox(src, title, meta) {
     if (!box || !img) return;
     img.src = src;
     if (info) {
+        let sourceLabel = '';
+        if (cat === 'chat') sourceLabel = '来源：文内生图（jiuguanStorage）';
+        else if (cat === 'character') sourceLabel = '来源：角色预设（configImageStorage）';
+        else if (cat === 'outfit') sourceLabel = '来源：服装预设（configImageStorage）';
         let html = `<div class="np-lb-title">${escapeHtml(title)}</div>`;
+        if (sourceLabel) html += `<div class="np-lb-source">${escapeHtml(sourceLabel)}</div>`;
         if (meta) {
             const rows = [];
             if (meta.yushe) rows.push(`预设：${escapeHtml(meta.yushe)}`);
@@ -367,6 +498,12 @@ function escapeHtml(s) {
 
 /* ============ 事件绑定 ============ */
 
+// 切换分类/子分组/搜索时回到第一页（页码点击的 render 不重置）
+function reloadFirstPage() {
+    _currentPage = 1;
+    render();
+}
+
 function bindControls() {
     if (!doc) return;
     // 大类切换
@@ -375,13 +512,12 @@ function bindControls() {
         btn.addEventListener('click', () => {
             cats.forEach(b => b.classList.toggle('active', b === btn));
             currentCat = btn.getAttribute('data-cat');
-            // 显示/隐藏文内生图的子分组切换
+            // 显示/隐藏文内生图的子分组切换（角色/服装预设无二级分组，连分隔线一起隐藏）
             const sub = doc.getElementById('np-img-sub');
             if (sub) {
-                const chatSub = sub.querySelector('.np-img-sub-group[data-for="chat"]');
-                if (chatSub) chatSub.style.display = (currentCat === 'chat') ? 'flex' : 'none';
+                sub.style.display = (currentCat === 'chat') ? 'flex' : 'none';
             }
-            render();
+            reloadFirstPage();
         });
     });
 
@@ -391,7 +527,7 @@ function bindControls() {
         btn.addEventListener('click', () => {
             subBtns.forEach(b => b.classList.toggle('active', b === btn));
             chatGroupMode = btn.getAttribute('data-group');
-            render();
+            reloadFirstPage();
         });
     });
 
@@ -400,8 +536,29 @@ function bindControls() {
     if (search) {
         search.addEventListener('input', () => {
             searchTerm = search.value.trim().toLowerCase();
-            render();
+            reloadFirstPage();
         });
+    }
+
+    // 排序方式
+    const sortSel = doc.getElementById('np-img-sort');
+    if (sortSel) {
+        sortSel.value = sortMode;
+        sortSel.addEventListener('change', () => {
+            sortMode = sortSel.value;
+            try { localStorage.setItem(SORT_KEY, sortMode); } catch (e) { /* ignore */ }
+            reloadFirstPage();
+        });
+    }
+
+    // 页码容器宽度变化 → 仅重渲页码（不重渲列表），让页码数跟随撑满宽度
+    const pagerBox = doc.getElementById('np-img-pager-top');
+    if (pagerBox && typeof ResizeObserver !== 'undefined' && !pagerBox._npResizeObs) {
+        const ro = new ResizeObserver(() => {
+            if (_allGroups.length > 0 && _totalPages > 1) renderPager();
+        });
+        ro.observe(pagerBox);
+        pagerBox._npResizeObs = ro;
     }
 
     // lightbox 关闭
