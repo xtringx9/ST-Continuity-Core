@@ -60,6 +60,8 @@ export function loadSettingsToUI() {
     $("#continuity_prompt_entry_actions").prop("checked", extensionConfig.stFeatureEnhance?.promptEntryActions?.enabled !== false);
     $("#continuity_nai_preset_switcher").prop("checked", configManager.isNaiPresetSwitcherEnabled());
     $("#continuity_chatu8_launcher").prop("checked", configManager.isChatu8LauncherEnabled());
+    $("#continuity_phone_mode").prop("checked", configManager.isPhoneModeEnabled());
+    $("#continuity_chat_reader").prop("checked", extensionConfig.stFeatureEnhance?.chatReader !== false);
     $("#continuity_include_hidden_messages").prop("checked", extensionConfig.module?.includeHiddenMessages?.enabled !== false);
 
     // 异步模块存储设置
@@ -406,6 +408,25 @@ export function onChatu8LauncherToggle(event) {
     }
 }
 
+export function onPhoneModeToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    configManager.setPhoneModeEnabled(enabled);
+    // 开关即时反映到 Cc 菜单（重建按钮，门控在 EntryButton 内）
+    new EntryButton(extensionFolderPath).init();
+    infoLog(`[手机模式] ${enabled ? '已开启' : '已关闭'}`);
+}
+
+export function onChatReaderToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.stFeatureEnhance ||= {};
+    extensionConfig.stFeatureEnhance.chatReader = enabled;
+    configManager.setExtensionConfig(extensionConfig);
+    // 开关即时反映到 Cc 菜单 / 独立按钮（重建入口，门控在 EntryButton 内）
+    new EntryButton(extensionFolderPath).init();
+    infoLog(`[图文阅读器] ${enabled ? '已开启' : '已关闭'}`);
+}
+
 export function onIncludeHiddenMessagesToggle(event) {
     const enabled = Boolean($(event.target).prop("checked"));
     const extensionConfig = configManager.getExtensionConfig();
@@ -470,8 +491,11 @@ function disableContinuityCore() {
         removeAllAiButtons();
         removeWorldBookFromGlobalSettings(WORLD_BOOK_CONSTANTS.worldBookName, true);
         registerContinuityRegexPattern();
-        // 插件关闭后：若「智绘姬NAI预设切换」独立开启，仍显示其独立按钮（全局工具）
-        if (configManager.isNaiPresetSwitcherEnabled()) {
+        // 插件关闭后：若各「界面增强/独立功能」独立开启，仍显示其独立按钮（不受总开关管控）
+        //   - 智绘姬NAI预设切换 / 图文阅读器
+        //   - ⚠️ 手机模式依赖模块功能，随总开关关闭（isPhoneModeEnabled 已含总开关判定），不在此列
+        if (configManager.isNaiPresetSwitcherEnabled()
+            || configManager.isChatReaderEnabled()) {
             new EntryButton(extensionFolderPath).init();
         }
         infoLog("♥️ Continuity Core has been disabled.");

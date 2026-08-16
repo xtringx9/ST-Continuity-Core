@@ -44,10 +44,14 @@ export class EntryButton {
         const config = configManager.getExtensionConfig();
 
         // 如果插件未启用：通常完全不显示。
-        // 例外：智绘姬NAI预设切换独立开启时，仍在其原位置显示一个独立按钮（全局工具，不依赖插件总开关）。
+        // 例外：各「界面增强/独立功能」独立开启时，仍在其原位置显示独立按钮（不依赖插件总开关）。
+        // ⚠️ 手机模式依赖模块功能，随总开关关闭（isPhoneModeEnabled 已含总开关判定），不在此列。
         if (!config.enabled) {
             if (configManager.isNaiPresetSwitcherEnabled()) {
                 this._createStandaloneNaiPresetButton();
+            }
+            if (configManager.isChatReaderEnabled()) {
+                this._createStandaloneReaderButton();
             }
             return;
         }
@@ -83,6 +87,8 @@ export class EntryButton {
 
         const standaloneNaiBtn = document.getElementById('continuity-nai-preset-standalone');
         if (standaloneNaiBtn) standaloneNaiBtn.remove();
+        const standaloneReaderBtn = document.getElementById('continuity-reader-standalone');
+        if (standaloneReaderBtn) standaloneReaderBtn.remove();
 
         if (this._themeListener) {
             window.removeEventListener('storage', this._themeListener);
@@ -194,17 +200,35 @@ export class EntryButton {
      * 显示在 Cc 原嵌入式位置（#leftSendForm），点击直接打开抽屉，不带 Cc 菜单。
      */
     _createStandaloneNaiPresetButton() {
+        this._createStandaloneButton('continuity-nai-preset-standalone', 'fa-palette', '智绘姬NAI预设切换', () => this._openNaiPresetDrawer());
+    }
+
+    /**
+     * 创建独立「图文阅读器」按钮（插件总开关关闭、但本功能开启时）。
+     */
+    _createStandaloneReaderButton() {
+        this._createStandaloneButton('continuity-reader-standalone', 'fa-book-open', '图文阅读器', () => this._handleMenuAction('reader'));
+    }
+
+    /**
+     * 独立按钮通用工厂（插件总开关关闭时，各功能独立开启仍显示自己的按钮）。
+     * @param {string} id 按钮元素 id
+     * @param {string} iconClass FontAwesome 图标类
+     * @param {string} title 提示文案
+     * @param {Function} onClick 点击回调
+     */
+    _createStandaloneButton(id, iconClass, title, onClick) {
         const targetContainer = document.querySelector('#form_sheld #send_form #nonQRFormItems #leftSendForm');
         if (!targetContainer) {
-            warnLog('[Continuity] 无法找到独立 NAI 预设按钮注入容器 (#leftSendForm)');
+            warnLog(`[Continuity] 无法找到独立按钮注入容器 (#leftSendForm)：${title}`);
             return;
         }
 
         const btn = document.createElement('div');
-        btn.id = 'continuity-nai-preset-standalone';
+        btn.id = id;
         btn.className = 'mes_text_paste';
-        btn.title = '智绘姬NAI预设切换';
-        btn.innerHTML = '<i class="fa-solid fa-palette"></i>';
+        btn.title = title;
+        btn.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
         Object.assign(btn.style, {
             cursor: 'pointer',
             display: 'flex',
@@ -220,7 +244,7 @@ export class EntryButton {
             height: '30px',
             boxSizing: 'border-box'
         });
-        btn.addEventListener('click', () => this._openNaiPresetDrawer());
+        btn.addEventListener('click', onClick);
         targetContainer.appendChild(btn);
     }
 
@@ -367,8 +391,14 @@ export class EntryButton {
         ];
 
         items.forEach(item => {
-            // 智绘姬 NAI 预设切换按钮：功能未开启则不注入菜单（门控在源头）
+            // 各功能未开启则不注入菜单项（门控在源头，与 nai-preset 同构）
             if (item.action === 'nai-preset' && !configManager.isNaiPresetSwitcherEnabled()) {
+                return;
+            }
+            if (item.action === 'reader' && !configManager.isChatReaderEnabled()) {
+                return;
+            }
+            if (item.action === 'mobile' && !configManager.isPhoneModeEnabled()) {
                 return;
             }
             const btn = document.createElement('div');

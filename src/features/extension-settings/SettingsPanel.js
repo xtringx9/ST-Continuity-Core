@@ -16,6 +16,8 @@ import {
     onPromptEntryActionsToggle,
     onNaiPresetSwitcherToggle,
     onChatu8LauncherToggle,
+    onPhoneModeToggle,
+    onChatReaderToggle,
     onIncludeHiddenMessagesToggle,
     onSendHijackToggle,
     onSendHijackSetChange,
@@ -91,6 +93,8 @@ export class SettingsPanel {
         $('#continuity_prompt_entry_actions').on('input', onPromptEntryActionsToggle);
         $('#continuity_nai_preset_switcher').on('input', onNaiPresetSwitcherToggle);
         $('#continuity_chatu8_launcher').on('input', onChatu8LauncherToggle);
+        $('#continuity_phone_mode').on('input', onPhoneModeToggle);
+        $('#continuity_chat_reader').on('input', onChatReaderToggle);
         $('#continuity_include_hidden_messages').on('input', onIncludeHiddenMessagesToggle);
         $('#continuity_send_hijack').on('input', onSendHijackToggle);
         $('#continuity_send_hijack_set').on('change', onSendHijackSetChange);

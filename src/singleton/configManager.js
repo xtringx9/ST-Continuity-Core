@@ -45,6 +45,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
         promptEntryActions: { // 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
             enabled: false,
         },
+        chatReader: false, // 图文阅读器（Cc 菜单入口 / 独立按钮）
     },
     module: { // 前端模块域合集（模块存储 / UI 呈现 / 元数据）
         asyncModule: {
@@ -452,6 +453,14 @@ class ConfigManager {
             this.loadExtensionConfig();
         }
         return this.extensionConfig?.stFeatureEnhance || DEFAULT_EXTENSION_CONFIG.stFeatureEnhance;
+    }
+
+    /**
+     * 判断图文阅读器是否开启（读 stFeatureEnhance.chatReader，默认关闭）
+     * @returns {boolean}
+     */
+    isChatReaderEnabled() {
+        return this.getStFeatureEnhanceConfig()?.chatReader === true;
     }
 
     /**
@@ -1299,6 +1308,27 @@ class ConfigManager {
             this.loadPhoneConfig();
         }
         return this.phoneConfig;
+    }
+
+    /**
+     * 判断手机模式是否开启。
+     * ⚠️ 手机模式高度依赖模块功能，故必须「插件总开关 + phone_config.enabled」同时开启才生效
+     * （2026-08-16 用户明确）：总开关关闭时手机入口/独立按钮一律不显示。
+     * @returns {boolean}
+     */
+    isPhoneModeEnabled() {
+        if (this.getPhoneConfig()?.enabled === false) return false;
+        // 依赖插件总开关：总开关关闭则手机模式不可用
+        return this.isExtensionEnabled() === true;
+    }
+
+    /**
+     * 设置手机模式开关并保存
+     * @param {boolean} enabled
+     */
+    setPhoneModeEnabled(enabled) {
+        const config = this.getPhoneConfig();
+        this.setPhoneConfig({ ...config, enabled: Boolean(enabled) });
     }
 
     /**

@@ -20,7 +20,9 @@ let lastView = 'home';   // 退出时所在界面（'home' 或 appKey），重�
  */
 export function openPhoneModeModal(extensionPath) {
     if (!configManager.isLoaded) return;
-    if (!configManager.isExtensionEnabled()) return;
+    // 门控在源头：isPhoneModeEnabled 已包含「插件总开关 + phone_config.enabled」双重判定，
+    // 任一关闭即不可用（手机模式依赖模块功能）。
+    if (!configManager.isPhoneModeEnabled()) return;
     currentExtensionPath = extensionPath;
 
     // 单实例 + 仅挂一次保存消息监听

@@ -65,6 +65,7 @@ export const DEFAULT_PHONE_CONFIG_VALUES = {
         updatedAt: new Date().toISOString(),
         source: "ST-Continuity-Core",
     },
+    enabled: true, // 手机模式总开关（控制 Cc 菜单「手机模式」入口与功能）
     scenes: [],
     appearance: {},
 };
@@ -143,6 +144,7 @@ export function normalizePhoneConfig(config) {
             updatedAt: config.metadata?.updatedAt || new Date().toISOString(),
             source: config.metadata?.source || DEFAULT_PHONE_CONFIG_VALUES.metadata.source,
         },
+        enabled: config.enabled !== undefined ? Boolean(config.enabled) : DEFAULT_PHONE_CONFIG_VALUES.enabled,
         scenes: [],
         appearance: config.appearance && typeof config.appearance === 'object'
             ? { ...config.appearance }
@@ -175,6 +177,7 @@ export function createEmptyPhoneConfig() {
             updatedAt: new Date().toISOString(),
             source: DEFAULT_PHONE_CONFIG_VALUES.metadata.source,
         },
+        enabled: true,
         scenes: [],
         appearance: {},
     };
