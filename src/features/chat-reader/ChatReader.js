@@ -11,9 +11,12 @@
 //     角色排序支持「默认 / 按最近聊天时间」；顶部「当前聊天」快捷入口。
 //   2) 阅读视图：分页阅读（每页 PAGE_SIZE 条），记忆每个聊天的阅读页（localStorage）。
 //
-// 正则说明：历史聊天渲染时，messageFormatting 内部 depth 用 ST 当前 chat 计算会错位，
-// 导致带 minDepth/maxDepth 的正则被误跳过。用「越界 messageId」使 depth=undefined
-// （正则不受深度限制，全部应用）；当前聊天传真实 index，与酒馆行为一致。
+// 正则说明（2026-08-16 用户拍板方案）：messageFormatting 内部用 ST 当前 chat 数组计算
+// placement / depth。阅读历史聊天时若依赖它，会与阅读数组错位，带 minDepth/maxDepth 的
+// 正则被误跳过。且用户明确「不要替换 chat 数组」（有覆盖原聊天风险）。
+// 方案：历史聊天**不复用 messageFormatting**，而是自己复刻核心渲染管线
+// （自己算 placement/depth → getRegexedString → converter.makeHtml → DOMPurify），
+// 零 ST 全局状态修改。当前聊天（chat 即目标）仍用 messageFormatting，与酒馆一致。
 //
 // 主题：与其它编辑器一致，监听 storage 'st_continuity_theme' 同步 iframe data-theme。
 
@@ -22,11 +25,16 @@ import {
     characters,
     user_avatar,
     messageFormatting,
+    converter,
     getThumbnailUrl,
     getPastCharacterChats,
     getRequestHeaders,
     getCurrentChatDetails,
 } from '../../../../../../../script.js';
+import { getScriptsByType, SCRIPT_TYPES, runRegexScript, regex_placement } from '../../../../../regex/engine.js';
+import { extension_settings } from '../../../../../../extensions.js';
+import { encodeStyleTags, decodeStyleTags } from '../../../../../../chats.js';
+import { DOMPurify } from '../../../../../../../lib.js';
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
 
 const LOG_TAG = '[ChatReader]';
@@ -154,9 +162,10 @@ export function syncChatReaderTheme(iframeDoc) {
     let theme = 'light';
     try { theme = localStorage.getItem('st_continuity_theme') || 'light'; } catch (e) { /* ignore */ }
     iframeDoc.documentElement.setAttribute('data-theme', theme);
-    // 防重复注册
-    if (!iframeDoc._ccReaderThemeBound) {
-        iframeDoc._ccReaderThemeBound = true;
+    // 防重复注册（自定义属性，TS 断言绕过）
+    const themeBound = /** @type {Document & {_ccReaderThemeBound?: boolean}} */ (iframeDoc);
+    if (!themeBound._ccReaderThemeBound) {
+        themeBound._ccReaderThemeBound = true;
         const iframeWin = iframeDoc.defaultView;
         iframeWin?.addEventListener('storage', (e) => {
             if (e.key === 'st_continuity_theme') {
@@ -167,9 +176,10 @@ export function syncChatReaderTheme(iframeDoc) {
         // 标题点击切换主题（复用 module-editor / nai 模式）
         const headerTitle = iframeDoc.querySelector('.header-title');
         if (headerTitle) {
-            headerTitle.style.cursor = 'pointer';
-            headerTitle.title = '点击切换主题';
-            headerTitle.addEventListener('click', () => {
+            const headerTitleEl = /** @type {HTMLElement} */ (headerTitle);
+            headerTitleEl.style.cursor = 'pointer';
+            headerTitleEl.title = '点击切换主题';
+            headerTitleEl.addEventListener('click', () => {
                 const current = iframeDoc.documentElement.getAttribute('data-theme') || 'light';
                 const next = current === 'light' ? 'dark' : 'light';
                 iframeDoc.documentElement.setAttribute('data-theme', next);
@@ -583,7 +593,8 @@ function renderMessage(index) {
     const mes = messages[index];
     if (!mes) return doc.createElement('div');
 
-    const isHistorical = activeChatMessages !== null; // 历史聊天（非当前打开会话）
+    // 历史聊天：activeChatMessages 存在且不是 ST 当前 chat（当前聊天直接渲染，不 splice）
+    const isHistorical = activeChatMessages !== null && activeChatMessages !== chat;
 
     const card = doc.createElement('div');
     card.className = 'reader-message';
@@ -609,24 +620,27 @@ function renderMessage(index) {
     header.append(avatar, name, meta);
     card.appendChild(header);
 
-    // ---- 正文（复用 messageFormatting）----
+    // ---- 正文 ----
+    // 当前聊天：复用 messageFormatting（chat 即目标，与酒馆逐字节一致）。
+    // 历史聊天：自己复刻核心渲染（正确 depth 正则 + markdown + 消毒），不碰 ST 全局 chat。
     const text = doc.createElement('div');
     text.className = 'reader-msg-text';
     const isSystem = !!mes.is_system;
     let rawText = mes.extra?.display_text || mes.mes || '';
     try {
-        // 历史聊天：用「越界 messageId」让 messageFormatting 内部 depth=undefined
-        // （正则不受深度限制，全部应用）；当前聊天：传真实 index，与酒馆一致。
-        const msgId = isHistorical ? chat.length + 500 + index : index;
-        text.innerHTML = messageFormatting(
-            rawText,
-            mes.name,
-            isSystem,
-            !!mes.is_user,
-            msgId,
-            {},
-            false,
-        );
+        if (isHistorical) {
+            text.innerHTML = renderHistoricalText(rawText, mes, index);
+        } else {
+            text.innerHTML = messageFormatting(
+                rawText,
+                mes.name,
+                isSystem,
+                !!mes.is_user,
+                index,
+                {},
+                false,
+            );
+        }
     } catch (e) {
         errorLog(LOG_TAG, `楼层 ${index} 渲染失败:`, e);
         text.textContent = rawText;
@@ -651,6 +665,125 @@ function renderMessage(index) {
     }
 
     return card;
+}
+
+/**
+ * 复刻 messageFormatting 的核心渲染管线（历史聊天专用，避免依赖 ST 全局 chat 的 depth）。
+ * 步骤：自己算 placement/depth → 自己组装并应用正则（全局 + 阅读角色 SCOPED + 当前预设）
+ * → converter.makeHtml（markdown）→ encodeStyleTags/DOMPurify/decodeStyleTags（消毒）。
+ * ⚠️ 零 ST 全局状态修改（不替换 chat）；正则集含「正在阅读的角色」的角色正则，
+ *    而非当前打开角色（getRegexedString 的 getRegexScripts 用 this_chid 会拿错角色）。
+ * @param {string} rawText 原始正文
+ * @param {object} mes 消息对象
+ * @param {number} index 楼层索引
+ * @returns {string} 渲染后的 HTML
+ */
+function renderHistoricalText(rawText, mes, index) {
+    // 1. placement：is_user → USER_INPUT；narrator → SLASH_COMMAND；否则 AI_OUTPUT
+    let placement = regex_placement.AI_OUTPUT;
+    if (mes.is_user) {
+        placement = regex_placement.USER_INPUT;
+    } else if (mes.extra?.type === 'narrator') {
+        placement = regex_placement.SLASH_COMMAND;
+    }
+
+    // 2. depth：基于正在阅读的数组计算（当前页视为最新一层，向上翻页 depth 递增）
+    const messages = activeChatMessages;
+    const usable = Array.isArray(messages)
+        ? messages.map((x, i) => ({ message: x, index: i })).filter(x => !x.message?.is_system)
+        : [];
+    const indexOf = usable.findIndex(x => x.index === index);
+    const depth = indexOf !== -1 ? (usable.length - indexOf - 1) : undefined;
+
+    // 3. 正则（自己组装 + 自己应用，复刻 getRegexedString 的过滤逻辑）
+    let out = applyRegexToText(rawText, mes, placement, depth);
+
+    // 4. markdown（showdown）
+    try {
+        out = converter.makeHtml(out);
+    } catch (e) {
+        debugLog(LOG_TAG, `楼层 ${index} markdown 转换失败，退回原文:`, e);
+        return rawText;
+    }
+
+    // 5. 消毒（与 messageFormatting 一致）
+    const sanitizeConfig = {
+        RETURN_DOM: false,
+        RETURN_DOM_FRAGMENT: false,
+        RETURN_TRUSTED_TYPE: false,
+        MESSAGE_SANITIZE: true,
+        ADD_TAGS: ['custom-style'],
+    };
+    try {
+        out = encodeStyleTags(out);
+        out = DOMPurify.sanitize(out, sanitizeConfig);
+        out = decodeStyleTags(out, { prefix: '.mes_text ' });
+    } catch (e) {
+        debugLog(LOG_TAG, `楼层 ${index} 消毒失败，返回原文:`, e);
+        return rawText;
+    }
+
+    return out;
+}
+
+/**
+ * 对历史聊天文本应用正则（复刻 getRegexedString 的过滤逻辑）。
+ * 正则集 = 全局(extension_settings.regex) + 正在阅读角色的 SCOPED + 当前预设 PRESET。
+ * 不用 getRegexedString 的原因：它内部 getRegexScripts 用 this_chid（当前打开角色）
+ * 且带 allowedOnly 白名单过滤，历史角色/预设会被漏掉。
+ * @param {string} rawText 原始文本
+ * @param {object} mes 消息对象
+ * @param {number} placement regex_placement 值
+ * @param {number|undefined} depth
+ * @returns {string} 应用正则后的文本
+ */
+function applyRegexToText(rawText, mes, placement, depth) {
+    // 组装正则集
+    const scripts = [];
+    // 全局正则（无条件，直读 extension_settings.regex）
+    if (Array.isArray(extension_settings.regex)) scripts.push(...extension_settings.regex);
+    // 正在阅读角色的 SCOPED 正则（阅读角色，而非当前打开角色）
+    const char = activeChar || characters[getCurrentChid()];
+    if (char) {
+        const scoped = char.data?.extensions?.regex_scripts;
+        if (Array.isArray(scoped)) scripts.push(...scoped);
+    }
+    // 当前预设的 PRESET 正则
+    scripts.push(...getScriptsByType(SCRIPT_TYPES.PRESET));
+
+    let out = rawText;
+    const isMarkdown = true;
+    const isPrompt = false;
+
+    for (const script of scripts) {
+        if (!script || script.disabled || !script.findRegex || !out) continue;
+
+        // 类型条件（复刻 getRegexedString）：
+        //   markdownOnly 仅 isMarkdown 应用；promptOnly 仅 isPrompt 应用；
+        //   普通正则需「非 markdown 且非 prompt」才应用（markdown 场景跳过）。
+        const isMarkdownOnly = script.markdownOnly === true;
+        const isPromptOnly = script.promptOnly === true;
+        if (isMarkdownOnly) {
+            if (!isMarkdown) continue;
+        } else if (isPromptOnly) {
+            if (!isPrompt) continue;
+        } else {
+            continue; // 普通正则：isMarkdown=true 场景跳过（与 getRegexedString 一致）
+        }
+
+        // depth 检查
+        if (typeof depth === 'number') {
+            if (!isNaN(script.minDepth) && script.minDepth !== null && script.minDepth >= -1 && depth < script.minDepth) continue;
+            if (!isNaN(script.maxDepth) && script.maxDepth !== null && script.maxDepth >= 0 && depth > script.maxDepth) continue;
+        }
+
+        // placement 检查
+        if (Array.isArray(script.placement) && script.placement.includes(placement)) {
+            out = runRegexScript(script, out, { characterOverride: mes.name });
+        }
+    }
+
+    return out;
 }
 
 /**
@@ -686,7 +819,7 @@ function getAvatarUrl(mes) {
  */
 function getCurrentChid() {
     try {
-        const st = globalThis.SillyTavern;
+        const st = /** @type {any} */ (globalThis).SillyTavern;
         if (st && typeof st.getContext === 'function') {
             const ctx = st.getContext();
             if (ctx && typeof ctx.chid === 'string') return ctx.chid;
