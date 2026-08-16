@@ -220,7 +220,8 @@ body {
 }
 
 .ccore-debug-current-pre {
-    max-height: 200px;
+    max-height: 50vh; /* 内容多时可滚动查看，避免嵌套滚动冲突 */
+    overflow-y: auto;
 }
 
 /* === 简洁滚动条（与 editor-shell 一致，所有滚动区共享） === */

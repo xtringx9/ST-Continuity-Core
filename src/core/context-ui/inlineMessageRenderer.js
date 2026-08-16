@@ -98,8 +98,8 @@ export function renderSingleMessageContext(messages, container, mes) {
                 } else if (!entry.customStyles || typeof entry.customStyles !== 'string' || entry.customStyles.trim() === '') {
                     debugLog('renderSingleMessageContext: entry.customStyles为空或无效，无法替换');
                 } else {
-                    const processedRaw = entry.moduleData.processedRaw;
-                    const rawPattern = new RegExp(processedRaw.replace(REGEX_ESCAPE_PATTERN, '\\$&') + '(?:<br>)*', 'g');
+                    const processedRaw = entry.moduleData.processedRaw || entry.moduleData.raw || '';
+                    const rawPattern = new RegExp(String(processedRaw).replace(REGEX_ESCAPE_PATTERN, '\\$&') + '(?:<br>)*', 'g');
 
                     const matchResults = newHtml.match(rawPattern);
                     if (matchResults && matchResults.length > 0) {

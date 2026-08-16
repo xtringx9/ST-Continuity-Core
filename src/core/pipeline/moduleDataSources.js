@@ -16,6 +16,7 @@ import { extractModulesFromChat } from '../moduleExtractor.js';
 import configManager from '../../singleton/configManager.js';
 import { readFloorModules } from '../floorModuleStore.js';
 import { debugLog } from '../../utils/logger.js';
+import { processTextForMatching } from '../../utils/textConverter.js';
 
 /** 源注册表 */
 const sources = new Map();
@@ -131,6 +132,7 @@ registerModuleDataSource('asyncChat', {
                 if (!matchesFilter(moduleName)) continue;
                 extracted.push({
                     raw: trimmed,
+                    processedRaw: processTextForMatching(trimmed) || trimmed,
                     messageIndex: index,
                     isUserMessage,
                     speakerName,

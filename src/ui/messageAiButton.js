@@ -391,7 +391,8 @@ function createMenuButton(action, icon, title, disabled, triggerButton, mesId) {
             justifyContent: 'center',
             width: '18px',
             height: '18px',
-            padding: '0',
+            padding: '0 !important', // 覆盖 ST .mes_button 的 padding:1px 3px
+            boxSizing: 'border-box', // height 含 padding/border，保证盒内居中
             borderRadius: '4px',
             cursor: disabled ? 'not-allowed' : 'pointer',
             opacity: disabled ? 0.4 : 0.7,
@@ -672,12 +673,13 @@ async function onEditModules(mesId) {
     // - 保存/取消按钮用 ST 原生编辑消息样式（menu_button fa-solid fa-check/fa-times），
     //   与 ST 原生编辑消息按钮视觉一致
     const $editArea = $(`
-        <div class="ccore-edit-area" style="margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
+        <div class="ccore-edit-area" style="position:relative;margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
             <!-- 复用 ST 原生编辑消息的 textarea 样式（.edit_textarea + .mdHotkeys），自动跟随主题 -->
-            <textarea class="edit_textarea mdHotkeys ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:13px;box-sizing:border-box;"></textarea>
-            <div class="ccore-edit-actions" style="margin-top:5px;display:flex;gap:5px;">
-                <div class="ccore-edit-save menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
-                <div class="ccore-edit-cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>
+            <textarea class="edit_textarea mdHotkeys ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:13px;box-sizing:border-box;padding-right:48px;"></textarea>
+            <!-- 按钮悬浮到 textarea 右上角，复用 ST 编辑按钮类（.mes_edit_done/.mes_edit_cancel） -->
+            <div class="mes_edit_buttons ccore-edit-actions" style="position:absolute;top:7px;right:7px;display:flex;gap:4px;opacity:0.5;transition:opacity 0.15s;">
+                <div class="ccore-edit-save mes_edit_done menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
+                <div class="ccore-edit-cancel mes_edit_cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>
             </div>
         </div>
     `);
@@ -758,12 +760,13 @@ async function onEditGeneratedContent(mesId, generatorName) {
 
     // 构建编辑区（样式与 onEditModules 一致）
     const $editArea = $(`
-        <div class="ccore-edit-area" style="margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
+        <div class="ccore-edit-area" style="position:relative;margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
             <!-- 复用 ST 原生编辑消息的 textarea 样式（.edit_textarea + .mdHotkeys），自动跟随主题 -->
-            <textarea class="edit_textarea mdHotkeys ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:13px;box-sizing:border-box;"></textarea>
-            <div class="ccore-edit-actions" style="margin-top:5px;display:flex;gap:5px;">
-                <div class="ccore-edit-save menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
-                <div class="ccore-edit-cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>
+            <textarea class="edit_textarea mdHotkeys ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:13px;box-sizing:border-box;padding-right:48px;"></textarea>
+            <!-- 按钮悬浮到 textarea 右上角，复用 ST 编辑按钮类（.mes_edit_done/.mes_edit_cancel） -->
+            <div class="mes_edit_buttons ccore-edit-actions" style="position:absolute;top:7px;right:7px;display:flex;gap:4px;opacity:0.5;transition:opacity 0.15s;">
+                <div class="ccore-edit-save mes_edit_done menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
+                <div class="ccore-edit-cancel mes_edit_cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>
             </div>
         </div>
     `);

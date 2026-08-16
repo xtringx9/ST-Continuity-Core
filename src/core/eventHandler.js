@@ -272,10 +272,15 @@ export class EventHandler {
         this.registerEvent(event_types.MESSAGE_UPDATED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
         this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, () => moduleCacheManager.updateModuleCacheDebounced(false), true, "Module Cache");
 
-        // F 一期：floor 模块数据变更 → 刷新模块缓存（机制 A，写侧只发事件，收口在此）
+        // F 一期：floor 模块数据变更 → 刷新模块缓存 + 刷新该楼层 UI（机制 A，写侧只发事件，收口在此）
         this.floorModulesUpdatedHandler = (e) => {
+            const mesId = e?.detail?.mesId;
             debugLog('[Module Cache]楼层模块数据变更，刷新缓存:', e?.detail);
             moduleCacheManager.updateModuleCacheDebounced(true);
+            // 同步刷新该楼层的消息底部模块展示区（空保存/编辑走 scheduleMsgBottom 会更新，这里统一收口）
+            if (typeof mesId === 'number') {
+                scheduleMsgBottom('single', mesId);
+            }
         };
         window.addEventListener(FLOOR_MODULES_UPDATED_EVENT, this.floorModulesUpdatedHandler);
         infoLog(`[EVENTS]已监听楼层模块数据变更事件 ${FLOOR_MODULES_UPDATED_EVENT}`);
