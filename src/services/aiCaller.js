@@ -196,6 +196,8 @@ export const aiCaller = {
                 if (Array.isArray(eventData.chat)) {
                     assembledChat = eventData.chat;
                     capture.prompt = eventData.chat.map(m => ({ ...m }));
+                    // 实时推送捕获到的提示词（阶段 2：生成中面板显示「实际发送」）
+                    options.onPrompt?.(capture.prompt);
                 }
             };
             eventSource.once(event_types.CHAT_COMPLETION_PROMPT_READY, promptHandler);
@@ -222,6 +224,8 @@ export const aiCaller = {
                 for await (const chunk of gen) {
                     if (typeof chunk?.text === 'string' && chunk.text) {
                         resultText = chunk.text; // 每次 chunk 是累计文本，取最后
+                        // 流式增量推送（阶段 2：调试面板实时更新）
+                        options.onStream?.(chunk.text);
                     }
                 }
             } else if (responseData && typeof responseData === 'object') {

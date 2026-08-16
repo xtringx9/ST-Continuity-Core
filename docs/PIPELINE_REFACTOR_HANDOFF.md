@@ -159,7 +159,11 @@
 - moduleAiGenerator：start/finish 任务 + 生成中 debugData（setDebugData 供生成中开面板）；`_createSaveCallback` 加聊天归属校验（chatKey 不符拒绝保存 + toast，不破坏 pending）。
 - messageAiButton：`createMenuButton` 重建恢复按钮态（修「菜单收起再展开状态丢失」）；`onRegenerate` 查 running 防重复 + 生成中开面板；小 Cc 加楼层任务数角标（`.ccore-cc-badge`）。
 - EntryButton：大 Cc 加总任务数角标（`.ccore-entry-task-badge`），`_attachTaskBadge` 监听刷新。
-- **流式实时面板（阶段 2）**：aiCaller 流式 chunk 增量推给打开中的调试面板，跨 iframe 通信，未做。
+- **流式实时面板（阶段 2，2026-08-16 已实现）**：
+  - aiCaller 流式 `for await` 每 chunk 调 `options.onStream?.(text)`。
+  - moduleAiGenerator `onStream` 更新 taskRegistry debugData + `updateDebugPanelResponse(taskKey, text)`；生成中 debugData 带 `taskKey`。
+  - generatorDebugPanel：`panelIframes: Map<taskKey, {iframe, responsePre, statusEl}>`；「完整响应」pre 加 `data-ccore-response-pre`；`updateDebugPanelResponse` 用 textContent 实时更新（父窗口直操作 iframe.contentDocument）。
+  - 已知小泄漏：面板关闭后注册不清理（无害）；非流式下面板停「生成中…」可接受。
 - **边界**：退出聊天再保存 → 拒绝 + 提示回原聊天；回原聊天点生成按钮可重新唤出 pending 面板；不做跨聊天自动保存（复杂低价值，以后再说）。
 
 ### F 二期：快照/非全量更新系统（设计量较大，单独出稿）

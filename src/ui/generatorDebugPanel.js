@@ -11,6 +11,98 @@ const PANEL_HTML_URL = new URL('generatorDebugPanel.html', import.meta.url).href
 
 let panelCounter = 0;
 
+/** 已打开的面板 iframe 注册表（taskKey → {iframe, responsePre}，流式实时更新用） */
+const panelIframes = new Map();
+
+/**
+ * 更新指定任务的面板「完整响应」内容（阶段 2：流式实时输出）
+ * @param {string} taskKey - taskRegistry 任务 key
+ * @param {string} text - 最新累计文本
+ */
+export function updateDebugPanelResponse(taskKey, text) {
+    const entry = panelIframes.get(taskKey);
+    if (!entry) return;
+    const { responsePre, statusEl } = entry;
+    if (responsePre) responsePre.textContent = text;
+    if (statusEl) statusEl.textContent = '生成中…（流式）';
+}
+
+/**
+ * 更新指定任务的面板「实际发送」内容（阶段 2：捕获到提示词后实时推送）
+ * @param {string} taskKey
+ * @param {string|Array} prompt - 组装后的完整提示词（chat messages 数组）
+ */
+export function updateDebugPanelPrompt(taskKey, prompt) {
+    const entry = panelIframes.get(taskKey);
+    if (!entry) return;
+    const { doc } = entry;
+    if (!doc) return;
+    // 更新「实际发送」对应的 pre（data-ccore-content="sent" data-ccore-format 两个都要）
+    const pres = doc.querySelectorAll('.ccore-debug-sent .ccore-debug-pre[data-ccore-content="sent"]');
+    let readable = '';
+    if (Array.isArray(prompt) && prompt.length > 0) {
+        readable = prompt.map(m => `[${m.role}${m.name ? ` (${m.name})` : ''}]\n${m.content}`).join('\n\n---\n\n');
+    } else if (typeof prompt === 'string') {
+        readable = prompt;
+    }
+    pres.forEach(p => {
+        if (p.dataset.ccoreFormat === 'readable') p.textContent = readable;
+        if (p.dataset.ccoreFormat === 'json') p.textContent = JSON.stringify(prompt ?? null, null, 2);
+    });
+}
+
+/**
+ * 指定任务的面板是否已打开（生成完成时避免重复弹新面板）
+ * @param {string} taskKey
+ * @returns {boolean}
+ */
+export function isDebugPanelOpen(taskKey) {
+    return panelIframes.has(taskKey);
+}
+
+/**
+ * 生成完成后更新已打开的面板为「完成态」：
+ * 状态标签 → 完成、隐藏中止按钮、刷新「完整响应」/「实际发送」。
+ * @param {string} taskKey
+ * @param {object} debugData - 完成态 debugData（含最终 response / capturedPrompt / apiUsed / statusLabel）
+ */
+export function finishDebugPanel(taskKey, debugData) {
+    const entry = panelIframes.get(taskKey);
+    if (!entry) return;
+    const { doc, responsePre, statusEl } = entry;
+    if (!doc) return;
+
+    // 1. 状态标签 → 完成态
+    if (statusEl) {
+        const label = debugData.statusLabel || '生成调试';
+        const type = debugData.statusType || 'info';
+        const titleBody = debugData.titleBody || '';
+        statusEl.innerHTML = `<span class="ccore-debug-badge ccore-debug-badge-${type}">${_escapeHtml(label)}</span>${_escapeHtml(titleBody)}`;
+    }
+
+    // 2. 隐藏中止按钮
+    const abortBtn = doc.querySelector('.ccore-debug-btn-abort');
+    if (abortBtn) abortBtn.closest('.ccore-debug-action-bar')?.remove();
+
+    // 3. 更新「完整响应」
+    if (responsePre) responsePre.textContent = debugData.response || '(空)';
+
+    // 4. 更新「实际发送」（capturedPrompt）
+    updateDebugPanelPrompt(taskKey, debugData.capturedPrompt);
+
+    // 5. 若成功且有保存按钮（手动流程），补充显示操作按钮区
+    //   （生成中面板没有操作按钮，因为初始 debugData 无 onSave）
+    if (debugData.onSave) {
+        // 重新渲染操作区到 body 末尾
+        const body = doc.querySelector('.ccore-debug-body');
+        if (body && !body.querySelector('.ccore-debug-action-bar')) {
+            const actionHtml = _buildActionSection();
+            body.insertAdjacentHTML('beforeend', actionHtml);
+            _bindActionButtons(doc, debugData, entry.modal || null);
+        }
+    }
+}
+
 /**
  * 显示 debug 弹窗
  * @param {object} data
@@ -24,6 +116,7 @@ let panelCounter = 0;
  * @param {object} data.apiUsed - 使用的 API 信息
  * @param {boolean} [data.hasModules] - 是否有模块数据
  * @param {string} [data.error] - 错误信息
+ * @param {string} [data.taskKey] - taskRegistry 任务 key（流式实时更新时用于定位面板）
  */
 export function showDebugPanel(data) {
     panelCounter++;
@@ -81,6 +174,17 @@ export function showDebugPanel(data) {
                         setTimeout(() => modal.close(), 600);
                     });
                 }
+            }
+
+            // 8. 注册面板 iframe（阶段 2：流式实时更新「完整响应」/「实际发送」）
+            if (data.taskKey) {
+                panelIframes.set(data.taskKey, {
+                    iframe,
+                    doc,
+                    modal,
+                    responsePre: doc.querySelector('[data-ccore-response-pre]'),
+                    statusEl: doc.querySelector('.ccore-debug-badge'),
+                });
             }
         },
     });
@@ -143,8 +247,17 @@ function _buildSectionsHtml(data) {
         sections.push(_buildSentContentSection('发送内容', inputJson, inputReadable, sentJson, sentReadable, 'var(--accent-color)', true));
     }
 
-    // 2. 完整响应
-    sections.push(_buildSection('完整响应', data.response || '(空)', 'var(--success-color)', true));
+    // 2. 完整响应（加 data-ccore-response-pre 标记，供流式实时更新定位）
+    sections.push(`<div class="ccore-debug-section" data-ccore-collapsed="false">
+    <div class="ccore-debug-section-header">
+        <span class="ccore-debug-section-title" style="color:var(--success-color)">完整响应</span>
+        <div class="ccore-debug-btn-group">
+            <button class="ccore-debug-small-btn ccore-debug-copy-btn">复制</button>
+            <button class="ccore-debug-small-btn ccore-debug-toggle-btn">收起</button>
+        </div>
+    </div>
+    <pre class="ccore-debug-pre" data-ccore-response-pre style="display:block">${_escapeHtml(data.response || '(空)')}</pre>
+</div>`);
 
     // 3. 提取结果(新格式:{ modules: string })
     if (data.extracted) {

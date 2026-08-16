@@ -894,14 +894,12 @@ function _updateCcButtonText(button) {
     if (isNaN(mesId)) return;
     const count = taskRegistry.getRunningCountForMes(mesId);
     if (count > 0) {
+        // 有任务：只改文字为数字 + title，保持与普通 Cc 相同的透明度/颜色
         button.text(count > 99 ? '99+' : String(count));
         button.attr('title', `${count} 个任务进行中`);
-        // 有任务时保持半透明但稍亮，便于识别
-        button.css('opacity', 0.85);
     } else {
         button.text('Cc');
         button.attr('title', BUTTON_TITLE);
-        button.css('opacity', 0.5);
     }
 }
 

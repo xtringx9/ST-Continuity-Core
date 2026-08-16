@@ -9,7 +9,7 @@ import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
-import { showDebugPanel } from '../ui/generatorDebugPanel.js';
+import { showDebugPanel, updateDebugPanelResponse, updateDebugPanelPrompt, isDebugPanelOpen, finishDebugPanel } from '../ui/generatorDebugPanel.js';
 import { writeFloorModules } from '../core/floorModuleStore.js';
 import { setGenerationContextEndFloor, clearGenerationContext } from '../core/generationContext.js';
 import { taskRegistry } from '../core/taskRegistry.js';
@@ -355,6 +355,31 @@ export const moduleAiGenerator = {
             for (const k of taskKeys) taskRegistry.setAbort(k, abortFn);
         };
 
+        // 流式增量（阶段 2）：aiCaller 每收到 chunk 就推送，更新 taskRegistry debugData + 已打开面板
+        callOptions.onStream = (text) => {
+            if (taskKeys.length === 0) return;
+            const k = taskKeys[0];
+            // 更新任务 debugData（后续「重新打开面板」显示最终响应）
+            const task = taskRegistry.get(taskChatKey, messages[0]?.mesId, generatorName);
+            if (task?.debugData) {
+                task.debugData.response = text;
+                task.debugData.statusLabel = `${isModule ? '生成调试' : `生成调试 [${generatorName}]`}（生成中）`;
+            }
+            // 实时更新已打开的面板「完整响应」
+            updateDebugPanelResponse(k, text);
+        };
+
+        // 捕获到提示词后实时推送（阶段 2：生成中面板显示「实际发送」而非「未捕获到」）
+        callOptions.onPrompt = (prompt) => {
+            if (taskKeys.length === 0) return;
+            const k = taskKeys[0];
+            const task = taskRegistry.get(taskChatKey, messages[0]?.mesId, generatorName);
+            if (task?.debugData) {
+                task.debugData.capturedPrompt = prompt;
+            }
+            updateDebugPanelPrompt(k, prompt);
+        };
+
         // 生成中 debugData（供「生成中点击按钮打开调试面板」用；完整响应生成后由 finish 更新）
         if (taskKeys.length > 0) {
             const m0 = messages[0];
@@ -376,6 +401,8 @@ export const moduleAiGenerator = {
                 extracted: isModule ? { modules: '' } : null,
                 apiUsed: null,
                 hasModules: false,
+                // taskKey：面板据此注册流式实时更新（阶段 2）
+                taskKey: runningTaskKey,
                 // 中止按钮（生成中打开面板时显示）
                 onAbort: () => taskRegistry.abortTask(runningTaskKey),
             });
@@ -455,6 +482,7 @@ export const moduleAiGenerator = {
                     apiUsed: result.debug.apiUsed,
                     hasModules,
                     storedCount,
+                    taskKey: taskKeys[0] || undefined, // 供「面板是否已打开」判断，避免重复弹
                 };
 
                 // 手动重新生成(skipStorage)且单条成功时,暂存结果供用户在面板中决定保存/抛弃
@@ -476,7 +504,12 @@ export const moduleAiGenerator = {
                     debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
                 }
 
-                showDebugPanel(debugData);
+                // 生成中面板已打开 → 不重复弹新面板，改为更新为完成态
+                if (taskKeys[0] && isDebugPanelOpen(taskKeys[0])) {
+                    finishDebugPanel(taskKeys[0], debugData);
+                } else {
+                    showDebugPanel(debugData);
+                }
             }
 
             if (isPipeline) clearGenerationContext();
