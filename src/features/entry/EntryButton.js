@@ -478,8 +478,9 @@ export class EntryButton {
         this._activeMenu.querySelectorAll('.continuity-entry-menu-item').forEach(btn => {
             const action = btn.dataset.action;
             const title = btn.dataset.title || '';
-            // nai-preset 是全局工具，不受聊天页限制（与 editor/generator-editor 同等待遇）
-            const disabled = !inChat && action !== 'editor' && action !== 'generator-editor' && action !== 'nai-preset';
+            // 全局工具（不受聊天页限制）：editor / generator-editor / nai-preset / reader。
+            // reader 有首页（角色→聊天选择），无需先打开聊天即可浏览任意历史聊天。
+            const disabled = !inChat && action !== 'editor' && action !== 'generator-editor' && action !== 'nai-preset' && action !== 'reader';
             btn.dataset.disabled = disabled ? 'true' : 'false';
             if (disabled) {
                 btn.style.opacity = '0.4';

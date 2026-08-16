@@ -1,7 +1,8 @@
 <!-- src/features/chat-reader/index.html -->
 <!-- 图文阅读器：独立 iframe 页，复用酒馆渲染产物（messageFormatting），
      提供顺畅的翻页/跳楼层体验，不触发酒馆聊天页的完整渲染流水线。
-     JS 由父窗口 EntryButton 通过 initChatReader(doc) 驱动。 -->
+     JS 由父窗口 EntryButton 通过 initChatReader(doc) 驱动。
+     双视图：首页（角色→聊天选择）+ 阅读视图（消息流 + 翻页栏）。 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 
@@ -21,20 +22,37 @@
             <small style="opacity: 0.6; font-weight: normal; margin-left: 6px; font-size: 12px;" id="reader-chat-name"></small>
         </div>
         <div class="header-actions" style="display:flex; align-items:center; gap:6px;">
-            <!-- 楼层跳转 -->
-            <input type="number" id="reader-floor-input" min="0" placeholder="楼层" style="width:56px; padding:4px 6px; font-size:12px; background:var(--bg-input); color:var(--text-input); border:1px solid var(--border-color); border-radius:4px;" />
-            <button id="reader-floor-go" class="btn-secondary" title="跳转到该楼层">跳</button>
-            <span id="reader-floor-info" style="font-size:12px; color:var(--text-muted); white-space:nowrap;"></span>
+            <!-- 阅读视图专属：返回首页 + 楼层跳转 -->
+            <button id="reader-back-home" class="btn-secondary" title="返回首页" style="display:none;">← 首页</button>
+            <input type="number" id="reader-floor-input" min="0" placeholder="楼层" style="width:56px; padding:4px 6px; font-size:12px; background:var(--bg-input); color:var(--text-input); border:1px solid var(--border-color); border-radius:4px; display:none;" />
+            <button id="reader-floor-go" class="btn-secondary" title="跳转到该楼层" style="display:none;">跳</button>
+            <span id="reader-floor-info" style="font-size:12px; color:var(--text-muted); white-space:nowrap; display:none;"></span>
             <button id="close-btn" style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
         </div>
     </header>
 
-    <div class="reader-body" id="reader-body">
+    <!-- ===== 首页：选择角色 → 选择聊天 ===== -->
+    <div class="reader-home" id="reader-home">
+        <div class="reader-home-step" id="reader-step-char">
+            <div class="reader-home-title" id="reader-char-title">选择角色</div>
+            <div class="reader-char-grid" id="reader-char-grid">
+                <!-- 角色卡片由 JS 生成 -->
+            </div>
+        </div>
+        <div class="reader-home-step" id="reader-step-chat" style="display:none;">
+            <div class="reader-home-title" id="reader-chat-title">选择聊天</div>
+            <div class="reader-chat-list" id="reader-chat-list">
+                <!-- 聊天条目由 JS 生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 阅读视图：消息流 + 底部翻页栏 ===== -->
+    <div class="reader-body" id="reader-body" style="display:none;">
         <!-- 消息流：由 JS 懒加载渲染 -->
     </div>
 
-    <!-- 底部翻页栏 -->
-    <footer class="reader-footer">
+    <footer class="reader-footer" id="reader-footer" style="display:none;">
         <button id="reader-prev" class="btn-secondary" title="上一楼 (←)">◀ 上一楼</button>
         <span id="reader-prev-name" class="reader-floor-name"></span>
         <div class="reader-footer-center">

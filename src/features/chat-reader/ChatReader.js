@@ -3,17 +3,26 @@
 //
 // 架构：与 module-editor / nai-preset-switcher 同构——iframe 只承载静态 HTML+CSS，
 // 所有 JS 在本模块（父窗口）运行，EntryButton 打开抽屉后调用 initChatReader(doc)。
-// 因此可直接 import ST 的 chat / messageFormatting / getThumbnailUrl，
-// 渲染产物与酒馆聊天页逐字节一致（同一套 showdown+DOMPurify+正则管线）。
+// 因此可直接 import ST 的 chat / characters / messageFormatting / getThumbnailUrl /
+// getPastCharacterChats / getRequestHeaders，渲染产物与酒馆聊天页逐字节一致。
 //
-// 交互：
-//   1) 懒加载：只渲染「当前楼 ± RENDER_WINDOW」的楼层，滚动到上下边缘时扩展窗口；
-//   2) 翻页：底部上一楼/下一楼 + 顶部楼层输入跳转；当前楼高亮、翻页后 scrollTo；
-//   3) 图片：mes.extra.image 非内嵌图单独展示（可点击放大），内嵌图保留在正文里。
+// 双视图：
+//   1) 首页：角色 → 聊天 两级选择（不依赖当前打开的聊天，可浏览任意历史聊天）；
+//     顶部「当前聊天」快捷入口直接进入当前打开会话的阅读。
+//   2) 阅读视图：消息流 + 懒加载 + 翻页/跳楼 + 图片放大 + 主题切换。
 //
 // 主题：与其它编辑器一致，监听 storage 'st_continuity_theme' 同步 iframe data-theme。
 
-import { chat, characters, user_avatar, chat_metadata, messageFormatting, getThumbnailUrl } from '../../../../../../../script.js';
+import {
+    chat,
+    characters,
+    user_avatar,
+    messageFormatting,
+    getThumbnailUrl,
+    getPastCharacterChats,
+    getRequestHeaders,
+    getCurrentChatDetails,
+} from '../../../../../../../script.js';
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
 
 const LOG_TAG = '[ChatReader]';
@@ -33,6 +42,16 @@ let nextBtn = null;
 let prevNameEl = null;
 let nextNameEl = null;
 let currentNameEl = null;
+let backHomeBtn = null;
+
+// 首页元素
+let homeEl = null;
+let charGridEl = null;
+let chatListEl = null;
+let charTitleEl = null;
+let chatTitleEl = null;
+let stepCharEl = null;
+let stepChatEl = null;
 
 let renderedStart = -1; // 当前已渲染楼层范围 [renderedStart, renderedEnd]
 let renderedEnd = -1;
@@ -40,15 +59,20 @@ let currentFloor = 0; // 当前阅读楼
 let scrollRafPending = false;
 let lightboxEl = null;
 
+// 当前阅读的聊天（非当前打开会话时，缓存已加载的消息）
+let activeChatMessages = null;
+// 当前阅读的角色对象（历史聊天用其头像；当前聊天时从 ST 上下文取）
+let activeChar = null;
+
 /**
  * 初始化阅读器（入口，由 EntryButton 在 iframe 加载后调用，幂等）。
  * @param {Document} iframeDoc
  */
 export function initChatReader(iframeDoc) {
     if (!iframeDoc || iframeDoc === doc) {
-        // 同 doc 重复调用：仅刷新数据（聊天可能已切换）
+        // 同 doc 重复调用：回到首页（keepAlive 重开抽屉时刷新）
         if (iframeDoc && iframeDoc === doc) {
-            refreshData();
+            showHome();
         }
         return;
     }
@@ -63,8 +87,16 @@ export function initChatReader(iframeDoc) {
     prevNameEl = doc.getElementById('reader-prev-name');
     nextNameEl = doc.getElementById('reader-next-name');
     currentNameEl = doc.getElementById('reader-current-name');
+    backHomeBtn = doc.getElementById('reader-back-home');
+    homeEl = doc.getElementById('reader-home');
+    charGridEl = doc.getElementById('reader-char-grid');
+    chatListEl = doc.getElementById('reader-chat-list');
+    charTitleEl = doc.getElementById('reader-char-title');
+    chatTitleEl = doc.getElementById('reader-chat-title');
+    stepCharEl = doc.getElementById('reader-step-char');
+    stepChatEl = doc.getElementById('reader-step-chat');
 
-    if (!bodyEl || !prevBtn || !nextBtn) {
+    if (!bodyEl || !prevBtn || !nextBtn || !homeEl) {
         errorLog(LOG_TAG, '阅读器 DOM 不完整，初始化失败');
         return;
     }
@@ -82,6 +114,11 @@ export function initChatReader(iframeDoc) {
         });
     }
 
+    // 返回首页
+    if (backHomeBtn) {
+        backHomeBtn.addEventListener('click', showHome);
+    }
+
     // 关闭按钮：由父窗口 EntryButton 在 onLoad 绑定（对齐其它编辑器惯例），
     // 此处不重复绑定，避免双重关闭。
 
@@ -94,7 +131,7 @@ export function initChatReader(iframeDoc) {
     // 主题同步（与其它编辑器一致）
     syncChatReaderTheme(doc);
 
-    refreshData();
+    showHome();
     infoLog(LOG_TAG, '阅读器初始化完成');
 }
 
@@ -133,33 +170,258 @@ export function syncChatReaderTheme(iframeDoc) {
     }
 }
 
+/* =====================================================
+ * 首页：角色 → 聊天 选择
+ * ===================================================== */
+
 /**
- * 刷新数据：读取 ST 当前 chat，重建视图。
+ * 显示首页（角色网格）。keepAlive 重开 / 返回首页时调用。
  */
-function refreshData() {
+function showHome() {
     if (!doc) return;
-    // 标题：聊天自定义标题优先，否则用 chatId（文件名）
-    if (chatNameEl) {
-        const name = chat_metadata?.title || getCurrentChatId() || '';
-        chatNameEl.textContent = name ? `· ${name}` : '';
+
+    // 切换视图状态：首页显示，阅读视图隐藏
+    homeEl.style.display = '';
+    bodyEl.style.display = 'none';
+    const footer = doc.getElementById('reader-footer');
+    if (footer) footer.style.display = 'none';
+    if (backHomeBtn) backHomeBtn.style.display = 'none';
+    if (floorInput) floorInput.style.display = 'none';
+    if (floorInfo) floorInfo.style.display = 'none';
+    const goBtn = doc.getElementById('reader-floor-go');
+    if (goBtn) goBtn.style.display = 'none';
+    if (chatNameEl) chatNameEl.textContent = '';
+
+    // 重置阅读上下文，避免历史聊天状态残留
+    activeChatMessages = null;
+    activeChar = null;
+
+    // 重置聊天选择步骤
+    stepChatEl.style.display = 'none';
+    stepCharEl.style.display = '';
+
+    renderCharacterGrid();
+}
+
+/**
+ * 渲染角色网格（含「当前聊天」快捷入口）。
+ */
+function renderCharacterGrid() {
+    if (!charGridEl) return;
+    const frag = doc.createDocumentFragment();
+
+    // 快捷入口：当前打开的聊天
+    const current = getCurrentChatDetails();
+    const hasCurrent = !!current?.characterName && !!current?.sessionName;
+    if (hasCurrent) {
+        const card = doc.createElement('div');
+        card.className = 'reader-char-card reader-char-current';
+        const avatar = doc.createElement('img');
+        avatar.className = 'reader-char-avatar';
+        avatar.alt = '';
+        avatar.src = current.avatarImgURL || '';
+        const name = doc.createElement('div');
+        name.className = 'reader-char-name';
+        name.textContent = `${current.characterName}`;
+        const sub = doc.createElement('div');
+        sub.className = 'reader-char-sub';
+        sub.textContent = `当前聊天：${current.sessionName}`;
+        card.append(avatar, name, sub);
+        card.addEventListener('click', () => openCurrentChat());
+        frag.appendChild(card);
     }
-    const total = Array.isArray(chat) ? chat.length : 0;
-    if (total === 0) {
-        bodyEl.innerHTML = '<div class="reader-empty"><div class="reader-empty-icon">📖</div><div>当前没有可阅读的消息</div></div>';
-        currentFloor = 0;
-        renderedStart = -1;
-        renderedEnd = -1;
-        updateFloorInfo();
-        updatePrevNextButtons();
+
+    // 所有角色
+    const chars = Array.isArray(characters) ? characters : [];
+    chars.forEach((char, idx) => {
+        const card = doc.createElement('div');
+        card.className = 'reader-char-card';
+        const avatar = doc.createElement('img');
+        avatar.className = 'reader-char-avatar';
+        avatar.alt = '';
+        avatar.loading = 'lazy';
+        let avUrl = '';
+        try { avUrl = char.avatar && char.avatar !== 'none' ? getThumbnailUrl('avatar', char.avatar) : ''; } catch (e) { avUrl = ''; }
+        avatar.src = avUrl;
+        const name = doc.createElement('div');
+        name.className = 'reader-char-name';
+        name.textContent = char.name || `角色 ${idx}`;
+        const sub = doc.createElement('div');
+        sub.className = 'reader-char-sub';
+        sub.textContent = char.description ? (char.description.replace(/[#*>\n]/g, '').slice(0, 20) || '') : '';
+        card.append(avatar, name, sub);
+        card.addEventListener('click', () => selectCharacter(idx));
+        frag.appendChild(card);
+    });
+
+    charGridEl.innerHTML = '';
+    charGridEl.appendChild(frag);
+
+    if (charTitleEl) charTitleEl.textContent = hasCurrent ? '选择角色（含当前聊天快捷入口）' : '选择角色';
+}
+
+/**
+ * 选择角色：加载其聊天列表。
+ * @param {number} characterId
+ */
+async function selectCharacter(characterId) {
+    if (!characters[characterId]) return;
+    const char = characters[characterId];
+
+    if (chatTitleEl) chatTitleEl.textContent = `选择聊天（${char.name}）`;
+    if (chatListEl) chatListEl.innerHTML = '<div class="reader-loading">加载聊天列表…</div>';
+
+    stepCharEl.style.display = 'none';
+    stepChatEl.style.display = '';
+
+    try {
+        const chats = await getPastCharacterChats(characterId);
+        renderChatList(chats, characterId);
+    } catch (e) {
+        errorLog(LOG_TAG, '加载角色聊天列表失败:', e);
+        if (chatListEl) chatListEl.innerHTML = '<div class="reader-loading reader-loading-error">加载失败，请重试</div>';
+    }
+}
+
+/**
+ * 渲染聊天列表。
+ * @param {Array} chats getPastCharacterChats 返回的聊天元数据数组
+ * @param {number} characterId
+ */
+function renderChatList(chats, characterId) {
+    if (!chatListEl) return;
+    const char = characters[characterId];
+    const frag = doc.createDocumentFragment();
+
+    if (!Array.isArray(chats) || chats.length === 0) {
+        chatListEl.innerHTML = '<div class="reader-loading">该角色暂无聊天记录</div>';
         return;
     }
-    // 定位当前楼：默认最后一条（最新），保持阅读从最新开始
-    currentFloor = total - 1;
+
+    chats.forEach((chatMeta) => {
+        const item = doc.createElement('div');
+        item.className = 'reader-chat-item interactable';
+        item.title = `file: ${chatMeta.file_name}`;
+
+        const name = doc.createElement('div');
+        name.className = 'reader-chat-name';
+        const fileName = String(chatMeta.file_name || '').replace(/\.jsonl$/i, '');
+        name.textContent = fileName;
+
+        const meta = doc.createElement('div');
+        meta.className = 'reader-chat-meta';
+        meta.textContent = [
+            chatMeta.last_mes ? `最后消息 ${formatChatTime(chatMeta.last_mes)}` : '',
+            chatMeta.file_size ? chatMeta.file_size : '',
+        ].filter(Boolean).join(' · ');
+
+        item.append(name, meta);
+        item.addEventListener('click', () => openChatFromFiles(fileName, char));
+        frag.appendChild(item);
+    });
+
+    chatListEl.innerHTML = '';
+    chatListEl.appendChild(frag);
+}
+
+/**
+ * 打开非当前聊天（从文件加载消息）。
+ * ⚠️ 不能用 ST 的 getChatsFromFiles（它内部写死用当前打开角色 characters[context.characterId]
+ *    请求，加载别的角色聊天会取错数据）；这里直接 fetch /api/chats/get，用目标角色参数。
+ * @param {string} chatName 聊天文件名（不含扩展名）
+ * @param {object} char 角色对象
+ */
+async function openChatFromFiles(chatName, char) {
+    if (!chatName) return;
+    try {
+        const messages = await fetchChatByCharacter(chatName, char);
+        if (!Array.isArray(messages)) {
+            if (chatListEl) chatListEl.innerHTML = '<div class="reader-loading reader-loading-error">加载失败，请重试</div>';
+            return;
+        }
+        activeChatMessages = messages;
+        activeChar = char;
+        enterReadingView(messages, chatName);
+    } catch (e) {
+        errorLog(LOG_TAG, '加载聊天消息失败:', e);
+        if (chatListEl) chatListEl.innerHTML = '<div class="reader-loading reader-loading-error">加载失败，请重试</div>';
+    }
+}
+
+/**
+ * 按目标角色加载指定聊天消息（等价 ST 的 getChatsFromFiles，但指定角色而非当前打开角色）。
+ * @param {string} chatName 聊天文件名（不含扩展名）
+ * @param {object} char 角色对象
+ * @returns {Promise<Array|null>} 消息数组（首条元数据已移除）；失败返回 null
+ */
+async function fetchChatByCharacter(chatName, char) {
+    if (!char) return null;
+    const response = await fetch('/api/chats/get', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({
+            ch_name: char.name,
+            file_name: chatName,
+            avatar_url: char.avatar,
+        }),
+        cache: 'no-cache',
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!Array.isArray(data)) return null;
+    // 移除首条元数据（与 ST getChatsFromFiles 一致）
+    return data.slice(1);
+}
+
+/**
+ * 打开当前打开的聊天（直接用 ST 的 chat live binding）。
+ */
+function openCurrentChat() {
+    if (!Array.isArray(chat) || chat.length === 0) {
+        if (charGridEl) charGridEl.innerHTML = '<div class="reader-loading">当前聊天为空</div>';
+        return;
+    }
+    activeChatMessages = chat;
+    const details = getCurrentChatDetails();
+    activeChar = null; // 当前聊天用 ST 上下文取当前角色
+    enterReadingView(chat, details?.sessionName || '当前聊天');
+}
+
+/* =====================================================
+ * 阅读视图
+ * ===================================================== */
+
+/**
+ * 进入阅读视图。
+ * @param {Array} messages 聊天消息数组
+ * @param {string} title 标题（聊天名）
+ */
+function enterReadingView(messages, title) {
+    if (!doc) return;
+    // 切换视图状态：首页隐藏，阅读视图显示
+    homeEl.style.display = 'none';
+    bodyEl.style.display = '';
+    const footer = doc.getElementById('reader-footer');
+    if (footer) footer.style.display = '';
+    if (backHomeBtn) backHomeBtn.style.display = '';
+    if (floorInput) floorInput.style.display = '';
+    if (floorInfo) floorInfo.style.display = '';
+    const goBtn = doc.getElementById('reader-floor-go');
+    if (goBtn) goBtn.style.display = '';
+    if (chatNameEl) chatNameEl.textContent = title ? `· ${title}` : '';
+
+    currentFloor = messages.length - 1;
     renderedStart = -1;
     renderedEnd = -1;
-    // 清空占位符（若有）
-    bodyEl.querySelectorAll('.reader-placeholder').forEach(el => el.remove());
+    activeChatMessages = messages;
     renderWindow();
+}
+
+/**
+ * 读取当前应渲染的消息源（当前聊天或已加载的历史聊天）。
+ */
+function getMessages() {
+    return activeChatMessages && activeChatMessages.length > 0 ? activeChatMessages : chat;
 }
 
 /**
@@ -167,30 +429,27 @@ function refreshData() {
  * @returns {{start:number, end:number}}
  */
 function computeWindow() {
-    const total = chat.length;
+    const total = getMessages().length;
     const start = Math.max(0, currentFloor - RENDER_WINDOW);
     const end = Math.min(total - 1, currentFloor + RENDER_WINDOW);
     return { start, end };
 }
 
 /**
- * 渲染窗口：把 [renderedStart, renderedEnd] 对齐到目标范围，
- * 多出的移除、缺少的补齐（补齐用「重建整段」保证顺序与结构一致）。
+ * 渲染窗口：把 [renderedStart, renderedEnd] 对齐到目标范围。
  * 懒加载核心：用文本占位符标记尚未渲染的楼层。
  */
 function renderWindow() {
-    if (!doc || !chat || chat.length === 0) return;
+    if (!doc) return;
+    const messages = getMessages();
+    if (!messages || messages.length === 0) return;
     const { start, end } = computeWindow();
 
-    // 简单策略：重建整个 reader-body（因为窗口只有 ~11 楼，重建成本可接受，
-    // 且避免增量拼接的 DOM 顺序/事件复杂度）。
-    // 优化：仅当窗口范围变化时才重建。
     if (start === renderedStart && end === renderedEnd) return;
 
-    const total = chat.length;
+    const total = messages.length;
     const frag = doc.createDocumentFragment();
 
-    // 占位符 + 已渲染楼混合
     for (let i = 0; i < total; i++) {
         if (i < start || i > end) {
             const ph = doc.createElement('div');
@@ -222,7 +481,8 @@ function renderWindow() {
  * @returns {HTMLElement}
  */
 function renderMessage(index) {
-    const mes = chat[index];
+    const messages = getMessages();
+    const mes = messages[index];
     if (!mes) return doc.createElement('div');
 
     const card = doc.createElement('div');
@@ -294,7 +554,6 @@ function renderMessage(index) {
 
 /**
  * 取消息头像 URL。
- * 消息本身带 force_avatar 优先；否则按角色/用户从 ST live binding 取。
  * @param {object} mes
  * @returns {string}
  */
@@ -304,7 +563,11 @@ function getAvatarUrl(mes) {
         if (mes.is_user) {
             return user_avatar ? getThumbnailUrl('persona', user_avatar) : '';
         }
-        // 角色头像：取当前角色（this_chid 语义 → characters[chid]）
+        // 历史聊天：用当前阅读角色 activeChar 的头像；当前聊天：用 ST 当前角色
+        if (activeChar) {
+            if (activeChar.avatar && activeChar.avatar !== 'none') return getThumbnailUrl('avatar', activeChar.avatar);
+            return '';
+        }
         const chid = getCurrentChid();
         if (chid !== undefined && characters[chid]) {
             const av = characters[chid].avatar;
@@ -317,7 +580,7 @@ function getAvatarUrl(mes) {
 }
 
 /**
- * 取当前角色索引（等价 this_chid，ST 的 getContext 与 export 均可）。
+ * 取当前角色索引。
  * @returns {string|undefined}
  */
 function getCurrentChid() {
@@ -332,39 +595,23 @@ function getCurrentChid() {
 }
 
 /**
- * 取当前聊天 ID（用于标题显示）。
- * @returns {string}
- */
-function getCurrentChatId() {
-    try {
-        const st = globalThis.SillyTavern;
-        if (st && typeof st.getContext === 'function') {
-            const ctx = st.getContext();
-            if (typeof ctx.chatId === 'string' && ctx.chatId) return ctx.chatId;
-            if (typeof ctx.getCurrentChatId === 'function') return ctx.getCurrentChatId() || '';
-        }
-    } catch (e) { /* ignore */ }
-    return '';
-}
-
-/**
- * 跳转到指定楼层（夹在 [0, chat.length-1]）。
+ * 跳转到指定楼层（夹在 [0, total-1]）。
  * @param {number} floor
  */
 function goToFloor(floor) {
-    const total = chat?.length || 0;
+    const messages = getMessages();
+    const total = messages?.length || 0;
     if (total === 0) return;
     const clamped = Math.max(0, Math.min(total - 1, floor));
     if (clamped === currentFloor) return;
     currentFloor = clamped;
     renderWindow();
-    // 滚动到该楼
     scrollToFloor(clamped);
     updateCurrentHighlight();
 }
 
 /**
- * 滚动到指定楼层元素（对齐阅读区顶部）。
+ * 滚动到指定楼层元素。
  * @param {number} floor
  */
 function scrollToFloor(floor) {
@@ -373,7 +620,6 @@ function scrollToFloor(floor) {
     if (el) {
         bodyEl.scrollTo({ top: el.offsetTop - 8, behavior: 'smooth' });
     } else {
-        // 尚未渲染：先渲染再滚
         currentFloor = floor;
         renderWindow();
         requestAnimationFrame(() => {
@@ -384,7 +630,7 @@ function scrollToFloor(floor) {
 }
 
 /**
- * 更新当前楼高亮（body 内 .reader-current 唯一）。
+ * 更新当前楼高亮。
  */
 function updateCurrentHighlight() {
     if (!doc) return;
@@ -396,16 +642,17 @@ function updateCurrentHighlight() {
 }
 
 /**
- * 更新楼层信息 + 上一/下一楼名称。
+ * 更新楼层信息 + 上/下一楼名称。
  */
 function updateFloorInfo() {
-    const total = chat?.length || 0;
+    const messages = getMessages();
+    const total = messages?.length || 0;
     if (floorInfo) floorInfo.textContent = total > 0 ? `${currentFloor + 1} / ${total}` : '';
     if (floorInput) floorInput.value = String(currentFloor);
 
-    if (prevNameEl) prevNameEl.textContent = currentFloor > 0 ? `#${currentFloor - 1} ${getName(chat[currentFloor - 1])}` : '';
-    if (nextNameEl) nextNameEl.textContent = currentFloor < total - 1 ? `#${currentFloor + 1} ${getName(chat[currentFloor + 1])}` : '';
-    if (currentNameEl) currentNameEl.textContent = currentFloor >= 0 ? `#${currentFloor} ${getName(chat[currentFloor])}` : '';
+    if (prevNameEl) prevNameEl.textContent = currentFloor > 0 ? `#${currentFloor - 1} ${getName(messages[currentFloor - 1])}` : '';
+    if (nextNameEl) nextNameEl.textContent = currentFloor < total - 1 ? `#${currentFloor + 1} ${getName(messages[currentFloor + 1])}` : '';
+    if (currentNameEl) currentNameEl.textContent = currentFloor >= 0 ? `#${currentFloor} ${getName(messages[currentFloor])}` : '';
 }
 
 function getName(mes) {
@@ -413,7 +660,8 @@ function getName(mes) {
 }
 
 function updatePrevNextButtons() {
-    const total = chat?.length || 0;
+    const messages = getMessages();
+    const total = messages?.length || 0;
     if (prevBtn) prevBtn.disabled = currentFloor <= 0;
     if (nextBtn) nextBtn.disabled = currentFloor >= total - 1;
 }
@@ -441,18 +689,18 @@ function onScroll() {
 }
 
 function handleScrollExpand() {
-    if (!bodyEl || !chat || chat.length === 0) return;
-    const total = chat.length;
+    if (!bodyEl) return;
+    const messages = getMessages();
+    if (!messages || messages.length === 0) return;
+    const total = messages.length;
 
     // 顶部附近：窗口上移（保持阅读位置不变）
     if (renderedStart > 0 && bodyEl.scrollTop < EXPAND_THRESHOLD) {
         const newStart = Math.max(0, renderedStart - RENDER_WINDOW);
         if (newStart !== renderedStart) {
-            // 锚点：原首楼元素在渲染前的 offsetTop（相对 body 内容顶）
             const anchor = bodyEl.querySelector(`.reader-message[data-floor="${renderedStart}"]`);
             const anchorTop = anchor ? anchor.offsetTop : bodyEl.scrollTop;
             renderWindow();
-            // 渲染后该元素上移了 N 个占位符高度，滚动补偿差值
             requestAnimationFrame(() => {
                 const anchor2 = bodyEl.querySelector(`.reader-message[data-floor="${renderedStart}"]`);
                 if (anchor2) {
@@ -504,4 +752,17 @@ function openLightbox(src) {
 
 function closeLightbox() {
     if (lightboxEl) lightboxEl.classList.remove('open');
+}
+
+/**
+ * 格式化聊天最后消息时间（ST timestamp 格式）。
+ * @param {string} ts
+ * @returns {string}
+ */
+function formatChatTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return ts;
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
