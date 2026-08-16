@@ -6,6 +6,7 @@ import { initNaiPresetSwitcher, syncNaiTheme, syncNaiPresetData } from '../nai-p
 import { initChatReader, syncChatReaderTheme } from '../chat-reader/ChatReader.js';
 import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
+import { taskRegistry } from '../../core/taskRegistry.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
 import { eventSource, event_types } from '../../../../../../../script.js';
 
@@ -27,6 +28,41 @@ export class EntryButton {
         this._activeTrigger = null;
         // 菜单展开期间监听 CHAT_CHANGED，进入/离开聊天时实时刷新按钮禁用状态
         this._menuChatChangedListener = null;
+        // 任务计数角标（大 Cc 总任务数）
+        this._taskBadgeListener = null;
+        this._badgeBtn = null;
+    }
+
+    /**
+     * 给主 Cc 按钮挂总任务数角标（大 Cc）
+     * @param {HTMLElement} btn
+     */
+    _attachTaskBadge(btn) {
+        this._badgeBtn = btn;
+        btn.style.position = 'relative';
+        // 移除旧角标
+        btn.querySelector('.ccore-entry-task-badge')?.remove();
+        const badge = document.createElement('span');
+        badge.className = 'ccore-entry-task-badge';
+        badge.style.cssText = 'position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;border-radius:8px;background:var(--SmartThemeQuoteColor,#C9762E);color:#fff;font-size:10px;line-height:16px;text-align:center;font-weight:bold;display:none;pointer-events:none;z-index:10000;padding:0 4px;box-sizing:border-box;';
+        btn.appendChild(badge);
+
+        const update = () => {
+            const count = taskRegistry.getTotalRunningCount();
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : String(count);
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        };
+        update();
+
+        if (this._taskBadgeListener) {
+            window.removeEventListener(taskRegistry.TASK_UPDATE_EVENT, this._taskBadgeListener);
+        }
+        this._taskBadgeListener = update;
+        window.addEventListener(taskRegistry.TASK_UPDATE_EVENT, this._taskBadgeListener);
     }
 
     /**
@@ -95,6 +131,11 @@ export class EntryButton {
             window.removeEventListener('continuity-theme-change', this._themeListener);
             this._themeListener = null;
         }
+        if (this._taskBadgeListener) {
+            window.removeEventListener(taskRegistry.TASK_UPDATE_EVENT, this._taskBadgeListener);
+            this._taskBadgeListener = null;
+        }
+        this._badgeBtn = null;
     }
 
     /**
@@ -140,6 +181,7 @@ export class EntryButton {
         });
 
         targetContainer.appendChild(btn);
+        this._attachTaskBadge(btn);
     }
 
     /**
@@ -165,6 +207,7 @@ export class EntryButton {
         btn.addEventListener('click', () => this._toggleMenu(btn));
 
         document.body.appendChild(btn);
+        this._attachTaskBadge(btn);
     }
 
     /**

@@ -179,6 +179,7 @@
     "ccore_settings_use_independent_api_hint": "Off: use ST main API. On: use the custom API configured below.",
     "ccore_settings_push_user_message_as_last": "Push generation instruction as last user message",
     "ccore_settings_push_user_message_as_last_hint": "On: push the generation instruction into chat as the last user message ({{lastUserMessage}} resolves to it). Off: pass via quietPrompt (system role).",
+    "ccore_settings_fetch_models": "Fetch Models",
     "ccore_settings_show_debug": "Show debug panel after generation",
     "ccore_settings_ai_generate_floor": "AI Generate Floor",
     "ccore_settings_ai_generate_chat": "AI Generate Chat",

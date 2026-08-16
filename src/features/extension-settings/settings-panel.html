@@ -307,7 +307,10 @@
                                 </div>
                                 <div class="continuity-form-row">
                                     <label for="continuity_custom_api_model" class="continuity-form-label">模型:</label>
-                                    <input id="continuity_custom_api_model" type="text" class="continuity-form-input" placeholder="gpt-4o-mini" />
+                                    <div style="display:flex; gap:6px; align-items:center; flex:1;">
+                                        <input id="continuity_custom_api_model" type="text" class="continuity-form-input" placeholder="gpt-4o-mini" style="flex:1; min-width:0;" />
+                                        <button id="continuity_custom_api_fetch_models" type="button" class="menu_button" style="width:auto; white-space:nowrap;" data-i18n="ccore_settings_fetch_models">拉取模型</button>
+                                    </div>
                                 </div>
                                 <div class="continuity-form-row">
                                     <label for="continuity_custom_api_source" class="continuity-form-label">API 类型:</label>

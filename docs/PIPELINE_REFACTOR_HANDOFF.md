@@ -145,11 +145,22 @@
 
 **待后续（F 二期）**：宏 `{{CONTINUITY_MODULE_DATA}}` 按楼层截断（正文给到 X、宏数据给到 X-1）；多楼层生成历史截断细粒度优化。
 
-**开关 + includeHiddenMessages 联动（2026-08-16）**：
-- `configManager.asyncModule.pushUserMessageAsLast`（默认 false）：true=push 生成指令进 chat 作为最后 user 消息（{{lastUserMessage}} 可取，pop 还原）；false=经 quietPrompt（openai.js:1297 定义 `role:'system'`，controlPrompts 末尾）。
-- includeHiddenMessages 联动：is_system 设后/还原后 → `moduleCacheManager.updateModuleCacheImmediate(true)`（**必须 Immediate 同步**，Debounced 会让宏读到旧缓存）。使宏（读缓存）不含 X 之后楼层。
+**第三版方案（dryRun 组装 + 自 send，2026-08-16 已实现）**：
+- `aiCaller._callPipeline` 改 `Generate('quiet', {quiet_prompt}, true)`（dryRun）组装完整提示词 → 捕获 `eventData.chat` → 自行 `sendOpenAIRequest('normal', chat, signal)`。
+- dryRun 不锁发送按钮（script.js:3596-3598 `if(!dryRun)`）、不发请求（4475-4477）。自 send 使 customApi 拦截生效（独立 API 恢复）。
+- `configManager.asyncModule.pushUserMessageAsLast`（默认 false）：true=push 生成指令进 chat 作为最后 user 消息（{{lastUserMessage}} 可取，pop 还原）；false=经 quiet_prompt（system 角色末尾）。
+- **宏按楼层截断**：新建 `src/core/generationContext.js`（set/get/clearGenerationContextEndFloor）。moduleAiGenerator pipeline 模式设 `truncateToMesId - 1`，promptGenerator.generateModuleDataPrompt 读它截断 endIndex。**不依赖 includeHiddenMessages/is_system，宏显式按楼层截断**。
+- **独立 API「拉取模型」**：`#continuity_custom_api_fetch_models` 按钮 + `onFetchModels`（fetch /models，OpenAI/Anthropic 兼容）。
 
 **备注**：CLAUDE.md 287-290 是过期文档（描述旧 generateQuietPrompt 方案，代码当时已是 prepareOpenAIMessages），用户要求暂不修正。
+
+### 任务状态追踪 + 按钮增强（阶段 1，2026-08-16 已实现）
+- **`src/core/taskRegistry.js`（新）**：全局任务状态（key=`${chatKey}::${mesId}::${generatorName}`，running/success/error）。事件 `ccore-task-updated`。running 跨聊天保留（按 chatKey 归属）。
+- moduleAiGenerator：start/finish 任务 + 生成中 debugData（setDebugData 供生成中开面板）；`_createSaveCallback` 加聊天归属校验（chatKey 不符拒绝保存 + toast，不破坏 pending）。
+- messageAiButton：`createMenuButton` 重建恢复按钮态（修「菜单收起再展开状态丢失」）；`onRegenerate` 查 running 防重复 + 生成中开面板；小 Cc 加楼层任务数角标（`.ccore-cc-badge`）。
+- EntryButton：大 Cc 加总任务数角标（`.ccore-entry-task-badge`），`_attachTaskBadge` 监听刷新。
+- **流式实时面板（阶段 2）**：aiCaller 流式 chunk 增量推给打开中的调试面板，跨 iframe 通信，未做。
+- **边界**：退出聊天再保存 → 拒绝 + 提示回原聊天；回原聊天点生成按钮可重新唤出 pending 面板；不做跨聊天自动保存（复杂低价值，以后再说）。
 
 ### F 二期：快照/非全量更新系统（设计量较大，单独出稿）
 - **问题 A（生成上下文截断）**：重新生成 X 时发给 AI 的 moduleData 须截止到 X-1（把 X-1 当最新），`runModulePipeline` 的 range.end=X-1 已支持，改动集中在宏按目标楼层截断。

@@ -30,6 +30,7 @@ import {
     onAsyncRebuildSnapshots,
     onGenerationModeChange,
     onAiConfigChange,
+    onFetchModels,
     onAiGenerateFloor,
     onAiGenerateChat,
     loadSettingsToUI,
@@ -120,6 +121,7 @@ export class SettingsPanel {
         $('#continuity_custom_api_source').on('change', onAiConfigChange);
         $('#continuity_custom_api_temperature').on('input', onAiConfigChange);
         $('#continuity_custom_api_max_tokens').on('input', onAiConfigChange);
+        $('#continuity_custom_api_fetch_models').on('click', onFetchModels);
         $('#continuity_ai_generate_floor').on('click', onAiGenerateFloor);
         $('#continuity_ai_generate_chat').on('click', onAiGenerateChat);
 

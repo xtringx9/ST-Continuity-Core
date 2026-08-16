@@ -803,6 +803,69 @@ export function onAiConfigChange() {
 }
 
 /**
+ * 独立 API：拉取模型列表
+ * 调 /v1/models（OpenAI 兼容），填充模型输入框为下拉选择
+ */
+export async function onFetchModels() {
+    const apiurl = String($('#continuity_custom_api_url').val()?.trim() || '');
+    const key = String($('#continuity_custom_api_key').val()?.trim() || '');
+    const source = String($('#continuity_custom_api_source').val() || 'openai');
+
+    if (!apiurl) {
+        toastr.warning('请先填写 API URL');
+        return;
+    }
+
+    const $btn = $('#continuity_custom_api_fetch_models');
+    const originalText = $btn.text();
+    $btn.text('拉取中…').prop('disabled', true);
+
+    try {
+        const base = apiurl.replace(/\/+$/, '');
+        const headers = { 'Content-Type': 'application/json' };
+        if (key) headers['Authorization'] = `Bearer ${key}`;
+        if (source === 'claude') {
+            // Anthropic 模型端点不同
+            headers['x-api-key'] = key;
+            headers['anthropic-version'] = '2023-06-01';
+        }
+
+        const response = await fetch(`${base}/models`, { headers });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        let modelList = [];
+        if (Array.isArray(data.data)) {
+            // OpenAI 兼容：data: [{id: '...'}]
+            modelList = data.data.map(m => m.id).filter(Boolean);
+        } else if (Array.isArray(data.models)) {
+            // 部分兼容：models: [{name/id: '...'}]
+            modelList = data.models.map(m => m.id || m.name).filter(Boolean);
+        }
+
+        if (modelList.length === 0) {
+            throw new Error('响应中未找到模型列表');
+        }
+
+        // 填充模型输入框为下拉选择
+        const $model = $('#continuity_custom_api_model');
+        const currentVal = $model.val()?.trim() || '';
+        const options = modelList.map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join('');
+        $model.replaceWith(`<select id="continuity_custom_api_model" class="continuity-form-input" style="flex:1; min-width:0;">${options}</select>`);
+        // 恢复当前值
+        $('#continuity_custom_api_model').val(currentVal);
+        toastr.success(`拉取到 ${modelList.length} 个模型`);
+    } catch (err) {
+        errorLog('拉取模型列表失败:', err);
+        toastr.error(`拉取模型失败: ${err.message}`);
+    } finally {
+        $btn.text(originalText).prop('disabled', false);
+    }
+}
+
+/**
  * AI 生成指定楼层
  */
 export async function onAiGenerateFloor() {

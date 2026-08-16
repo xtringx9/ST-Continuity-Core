@@ -11,6 +11,8 @@ import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { showDebugPanel } from '../ui/generatorDebugPanel.js';
 import { writeFloorModules } from '../core/floorModuleStore.js';
+import { setGenerationContextEndFloor, clearGenerationContext } from '../core/generationContext.js';
+import { taskRegistry } from '../core/taskRegistry.js';
 
 const LOG_TAG = 'ModuleAiGenerator';
 
@@ -72,7 +74,15 @@ function _savePendingToStorage() {
  */
 function _createSaveCallback(ctx) {
     return async () => {
-        const { mesId, swipeId, generatorName, isModule, extracted, text } = ctx;
+        const { mesId, swipeId, generatorName, isModule, extracted, text, chatKey } = ctx;
+
+        // 聊天归属校验：生成时的聊天 ≠ 当前聊天 → 拒绝保存（避免写错聊天文件），不破坏 pending 可稍后重试
+        if (chatKey && chatKey !== _getChatKey()) {
+            warnLog(LOG_TAG, `保存被拒绝：生成时聊天 ${chatKey} ≠ 当前聊天 ${_getChatKey()}`);
+            toastr.warning('聊天已切换，无法保存。请回到原聊天后，在该楼层的生成按钮处重新打开调试面板再保存。');
+            return;
+        }
+
         if (isModule) {
             // 模块数据存 floor（F 一期：正文后模块），写入触发楼层模块变更事件
             writeFloorModules(mesId, swipeId, extracted?.modules || '');
@@ -82,6 +92,8 @@ function _createSaveCallback(ctx) {
             await perMessageStorage.writeMessage(mesId, swipeId, swipesData);
             generatedContentCache.set(mesId, generatorName, text);
         }
+        // 移除 taskRegistry 任务 + 清 pending
+        taskRegistry.remove(`${_getChatKey()}::${mesId}::${generatorName}`);
         clearPendingResult(generatorName, mesId);
         infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认）`);
     };
@@ -92,6 +104,7 @@ function _createSaveCallback(ctx) {
  */
 function _createDiscardCallback(generatorName, mesId) {
     return () => {
+        taskRegistry.remove(`${_getChatKey()}::${mesId}::${generatorName}`);
         clearPendingResult(generatorName, mesId);
         infoLog(LOG_TAG, `用户抛弃了 楼层${mesId} ${generatorName} 的生成结果`);
     };
@@ -322,6 +335,43 @@ export const moduleAiGenerator = {
             sentInfo = { type: 'pipeline', quietPrompt, truncateToMesId, pushAsLastUser };
         }
 
+        // 生成期上下文：宏 {{CONTINUITY_MODULE_DATA}} 只读到目标层前一楼（目标层模块正要生成）
+        const isPipeline = mode === 'pipeline';
+        if (isPipeline) {
+            setGenerationContextEndFloor(truncateToMesId - 1);
+            debugLog(LOG_TAG, `设置生成上下文截止楼层 ${truncateToMesId - 1}（宏 moduleData 截断）`);
+        }
+
+        // 全局任务注册：记录生成所属聊天（保存校验用）+ running 状态（按钮计数/防重）
+        const taskChatKey = _getChatKey();
+        const taskKeys = [];
+        for (const m of messages) {
+            taskKeys.push(taskRegistry.start({ chatKey: taskChatKey, mesId: m.mesId, generatorName }));
+        }
+
+        // 生成中 debugData（供「生成中点击按钮打开调试面板」用；完整响应生成后由 finish 更新）
+        if (taskKeys.length > 0) {
+            const m0 = messages[0];
+            const scope = isSingle ? `#${m0.mesId}` : `#${ids[0]}-${ids[ids.length - 1]}`;
+            const details = getCurrentChatDetails();
+            const titleBody = `${scope} - ${details?.characterName || ''} / ${details?.sessionName || ''}`;
+            const titleLabel = isModule ? '生成调试' : `生成调试 [${generatorName}]`;
+            taskRegistry.setDebugData(taskKeys[0], {
+                title: `${titleLabel} ${titleBody}`,
+                statusLabel: `${titleLabel}（生成中）`,
+                statusType: 'info',
+                titleBody,
+                mesIds: ids,
+                mode,
+                sentInfo,
+                capturedPrompt: '',
+                response: '生成中…',
+                extracted: isModule ? { modules: '' } : null,
+                apiUsed: null,
+                hasModules: false,
+            });
+        }
+
         try {
             const result = await aiCaller.call(callOptions);
 
@@ -408,6 +458,7 @@ export const moduleAiGenerator = {
                         isModule,
                         extracted,
                         text: result.text,
+                        chatKey: taskChatKey, // 生成归属聊天，保存校验用
                     };
                     pendingResults.set(_pendingKey(generatorName, mesId), { context, debugData });
                     _savePendingToStorage();
@@ -419,6 +470,13 @@ export const moduleAiGenerator = {
                 showDebugPanel(debugData);
             }
 
+            if (isPipeline) clearGenerationContext();
+            // 成功：完整 debugData 写入任务（供后续「重新打开面板」显示真实结果）
+            const successDebug = typeof debugData === 'object' ? debugData : null;
+            for (const k of taskKeys) {
+                taskRegistry.finish(k, 'success', successDebug);
+                if (successDebug) taskRegistry.setDebugData(k, successDebug);
+            }
             return {
                 success: !!result.text,
                 text: result.text,
@@ -428,6 +486,8 @@ export const moduleAiGenerator = {
                 storedCount,
             };
         } catch (err) {
+            if (isPipeline) clearGenerationContext();
+            for (const k of taskKeys) taskRegistry.finish(k, 'error', { mesId: messages[0]?.mesId, generatorName, success: false, error: err.message });
             errorLog(LOG_TAG, `AI 生成失败:`, err);
 
             if (shouldShowDebug) {

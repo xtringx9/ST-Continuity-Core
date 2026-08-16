@@ -10,6 +10,8 @@ import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../core/contextBottomUI.js';
 import perMessageStorage from '../services/perMessageStorage.js';
 import { readFloorModules, writeFloorModules } from '../core/floorModuleStore.js';
+import { taskRegistry } from '../core/taskRegistry.js';
+import { showDebugPanel } from './generatorDebugPanel.js';
 import { CONTEXT_MSG_CONTAINER_ID } from '../core/context-ui/containerManager.js';
 
 const LOG_TAG = '[MessageAiButton]';
@@ -109,6 +111,34 @@ export function addAiButtonToMessage(messageId) {
             function () { $(this).css('opacity', 1); },
             function () { $(this).css('opacity', 0.5); }
         );
+
+        // 楼层任务数角标（该楼层 running 任务数）
+        const badge = $('<span>')
+            .addClass('ccore-cc-badge')
+            .attr('data-mesid', messageId)
+            .css({
+                position: 'absolute',
+                top: '-6px',
+                right: '-6px',
+                minWidth: '14px',
+                height: '14px',
+                borderRadius: '7px',
+                background: 'var(--SmartThemeQuoteColor, #C9762E)',
+                color: '#fff',
+                fontSize: '9px',
+                lineHeight: '14px',
+                textAlign: 'center',
+                fontWeight: 'bold',
+                display: 'none',
+                pointerEvents: 'none',
+                zIndex: 10000,
+                padding: '0 3px',
+                boxSizing: 'border-box',
+            });
+        // 按钮需相对定位承载角标
+        button.css('position', 'relative');
+        button.append(badge);
+        _updateCcBadge(badge);
 
         floatWrap.append(button);
         messageBlock.append(floatWrap);
@@ -409,6 +439,25 @@ function createMenuButton(action, icon, title, disabled, triggerButton, mesId) {
         });
     }
 
+    // 菜单重建后按 taskRegistry 恢复生成按钮状态（修复：收起菜单再展开，生成中/结果态丢失）
+    if (generatorName && !disabled) {
+        let task = null;
+        taskRegistry.forEach(t => {
+            if (t.mesId === mesId && t.generatorName === generatorName) task = t;
+        });
+        if (task) {
+            if (task.status === 'running') {
+                setRegenButtonState(btn, STATE.LOADING, generatorName, mesId);
+            } else if (task.status === 'success') {
+                setRegenButtonState(btn, STATE.SUCCESS, generatorName, mesId);
+            } else if (task.status === 'error') {
+                setRegenButtonState(btn, STATE.ERROR, generatorName, mesId);
+            } else {
+                setRegenButtonState(btn, STATE.IDLE, generatorName, mesId);
+            }
+        }
+    }
+
     return btn;
 }
 
@@ -483,8 +532,20 @@ async function onMenuAction(action, triggerButton, mesId, clickedBtn) {
  * @param {string} [generatorName='modules'] - 'modules' 或 generator.name
  */
 async function onRegenerate(button, mesId, generatorName = 'modules') {
-    // 正在生成中（按钮显示 spinner）则不重复触发
-    if (button && button.find('i.fa-spinner').length) return;
+    // 正在生成中（taskRegistry 有 running 任务）→ 不重复生成；若已捕获 prompt 可打开生成中面板
+    let runningTask = null;
+    taskRegistry.forEach(t => {
+        if (t.status === 'running' && t.mesId === mesId && t.generatorName === generatorName) runningTask = t;
+    });
+    if (runningTask) {
+        // 生成中：已捕获到 prompt 则打开生成中调试面板（不重复发起生成）
+        if (runningTask.debugData) {
+            showDebugPanel(runningTask.debugData);
+        } else {
+            toastr.info('该楼层此内容正在生成中…');
+        }
+        return;
+    }
 
     // 有该 generator + 楼层的未处理结果时，重新打开调试面板而非发起新生成
     if (hasPendingResult(generatorName, mesId)) {
@@ -803,6 +864,11 @@ export function initMessageAiButton() {
         }
     });
 
+    // 任务状态变化 → 刷新所有小 Cc 角标（楼层任务数）
+    window.addEventListener(taskRegistry.TASK_UPDATE_EVENT, () => {
+        _refreshAllCcBadges();
+    });
+
     // 为当前已加载的消息添加按钮
     addAiButtonsToAllMessages();
 
@@ -840,6 +906,29 @@ function setupChatObserver() {
     // 只监听 #chat 直接子元素（.mes）的添加/删除/替换
     // 不监听 subtree，避免流式生成时频繁触发
     chatObserver.observe(chatEl, { childList: true });
+}
+
+/**
+ * 更新单个 Cc 角标（该楼层 running 任务数）
+ */
+function _updateCcBadge(badge) {
+    const mesId = Number(badge.attr('data-mesid'));
+    if (isNaN(mesId)) { badge.hide(); return; }
+    const count = taskRegistry.getRunningCountForMes(mesId);
+    if (count > 0) {
+        badge.text(count > 99 ? '99+' : String(count)).show();
+    } else {
+        badge.hide();
+    }
+}
+
+/**
+ * 刷新所有小 Cc 角标（任务状态变化时调用）
+ */
+function _refreshAllCcBadges() {
+    $('.ccore-cc-badge').each(function () {
+        _updateCcBadge($(this));
+    });
 }
 
 /**

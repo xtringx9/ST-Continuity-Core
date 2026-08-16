@@ -5,6 +5,7 @@ import configManager, { extensionName } from "../singleton/configManager.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { extension_settings } from "../../../../../extensions.js";
 import { replaceVariables } from "../utils/variableReplacer.js";
+import { getGenerationContextEndFloor } from "../core/generationContext.js";
 
 // 默认插入设置
 const DEFAULT_INSERTION_SETTINGS = {
@@ -703,7 +704,13 @@ export function generateModuleDataPrompt() {
         if (!chat || chat.length < 1) return `<${promptTag}>\n</${promptTag}>`;
         // infoLog("Chat:", chat);
         const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
-        const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
+        let endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
+        // 生成期上下文截断：重新生成模块时，宏只读到「目标层前一楼」的数据（目标层模块正要生成）
+        const genEndFloor = getGenerationContextEndFloor();
+        if (typeof genEndFloor === 'number' && genEndFloor >= 0 && genEndFloor < endIndex) {
+            endIndex = genEndFloor;
+            debugLog(`[生成上下文] moduleData 宏截断到楼层 ${endIndex}`);
+        }
         // 提取全部聊天记录的所有模块数据（一次性获取）
         const extractParams = {
             startIndex: 0,

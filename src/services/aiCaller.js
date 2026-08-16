@@ -7,12 +7,13 @@
 
 import {
     generateRaw,
-    generateQuietPrompt,
+    Generate,
     eventSource,
     event_types,
     chat,
     name1,
 } from '../../../../../../script.js';
+import { sendOpenAIRequest } from '../../../../../openai.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 
 const LOG_TAG = 'AiCaller';
@@ -145,15 +146,17 @@ export const aiCaller = {
     },
 
     /**
-     * Pipeline 模式：走 ST 完整管线（generateQuietPrompt）
+     * Pipeline 模式：dryRun 组装 ST 完整提示词 + 自行发送
      * 1. 临时隐藏 truncateToMesId 之后的楼层（is_system 标记，不保存，生成完还原）
      *    → 让 AI 只看到 0..truncateToMesId 的正文上下文
      * 2. 生成指令两种模式（开关 pushAsLastUser 控制）：
      *    - true：push 进 chat 作为「第 X+1 层 user 消息」（临时，生成完 pop）
-     *      → chatHistory 最后一条是 user 生成指令，{{lastUserMessage}} 可取到它；quietPrompt 传空
-     *    - false：经 quietPrompt 传入（system 角色，控制提示词末尾），不碰 chat
-     * 3. generateQuietPrompt 组装完整提示词并生成（ST 原生 coreChat：正则/文件/宏/世界书/预设全保留）
-     * 4. 捕获组装后的提示词（CHAT_COMPLETION_PROMPT_READY）
+     *      → chatHistory 最后一条是 user 生成指令，{{lastUserMessage}} 可取到它；quiet_prompt 传空
+     *    - false：经 quiet_prompt 传入（system 角色，控制提示词末尾），不碰 chat
+     * 3. Generate('quiet', opts, true) dryRun 组装完整提示词（ST 原生 coreChat：正则/文件/宏/世界书/预设全保留），
+     *    捕获 CHAT_COMPLETION_PROMPT_READY 的 eventData.chat
+     *    → dryRun 不锁发送按钮（可边聊边生成），不发请求
+     * 4. 自行 sendOpenAIRequest 发送（customApi 拦截在内部生效 → 独立 API 可用）
      */
     async _callPipeline(options, capture) {
         const { quietPrompt, responseLength, truncateToMesId, pushAsLastUser } = options;
@@ -180,23 +183,57 @@ export const aiCaller = {
         }
 
         try {
-            // 捕获组装后的完整提示词
+            // dryRun 组装完整提示词：Generate('quiet', opts, true) 只组装不发请求、不锁发送按钮
+            // → 走 ST 原生 coreChat（正则/文件/宏/世界书/预设全保留）
+            // → push 模式：生成指令已 push 进 chat（历史最后 user），quiet_prompt 传空
+            // → quietPrompt 模式：生成指令经 quiet_prompt（system 角色末尾）
+            const effectiveQuietPrompt = shouldPush ? '' : (quietPrompt || '');
+            infoLog(LOG_TAG, `dryRun 组装提示词，模式: ${shouldPush ? 'push-user' : 'quietPrompt'}，指令长度: ${quietPrompt?.length ?? 0}`);
+
+            let assembledChat = null;
             const promptHandler = (eventData) => {
                 if (Array.isArray(eventData.chat)) {
+                    assembledChat = eventData.chat;
                     capture.prompt = eventData.chat.map(m => ({ ...m }));
                 }
             };
             eventSource.once(event_types.CHAT_COMPLETION_PROMPT_READY, promptHandler);
 
-            // push 模式：quietPrompt 传空（生成指令已 push 进 chat，避免 system 重复）
-            // quietPrompt 模式：原样传入（system 角色，末尾）
-            const effectiveQuietPrompt = shouldPush ? '' : (quietPrompt || '');
-            infoLog(LOG_TAG, `调用 generateQuietPrompt，模式: ${shouldPush ? 'push-user' : 'quietPrompt'}，指令长度: ${quietPrompt?.length ?? 0}`);
-            const result = await generateQuietPrompt({
-                quietPrompt: effectiveQuietPrompt,
-                responseLength: responseLength || null,
-            });
-            return result || '';
+            await Generate('quiet', { quiet_prompt: effectiveQuietPrompt, force_name2: true }, true);
+
+            // 组装失败兜底
+            if (!Array.isArray(assembledChat) || assembledChat.length === 0) {
+                throw new Error('提示词组装失败（未捕获到组装结果）');
+            }
+
+            // 自己发送（customApi 拦截在 sendOpenAIRequest 内部生效；不锁 ST 发送按钮）
+            infoLog(LOG_TAG, `自行 sendOpenAIRequest，消息数: ${assembledChat.length}`);
+            const abortController = new AbortController();
+            const responseData = await sendOpenAIRequest('normal', assembledChat, abortController.signal);
+
+            // 解析响应：流式（async generator）与非流式（对象/字符串）
+            let resultText = '';
+            // 流式：sendOpenAIRequest 返回 async function*，调用得 generator，需 for await 累积 text
+            if (typeof responseData === 'function' || (responseData && typeof responseData[Symbol.asyncIterator] === 'function')) {
+                const gen = typeof responseData === 'function' ? responseData() : responseData;
+                for await (const chunk of gen) {
+                    if (typeof chunk?.text === 'string' && chunk.text) {
+                        resultText = chunk.text; // 每次 chunk 是累计文本，取最后
+                    }
+                }
+            } else if (responseData && typeof responseData === 'object') {
+                if (typeof responseData.content === 'string') {
+                    resultText = responseData.content;
+                } else if (responseData.choices?.[0]?.message?.content) {
+                    resultText = responseData.choices[0].message.content;
+                } else if (responseData.choices?.[0]?.text) {
+                    resultText = responseData.choices[0].text;
+                }
+            } else if (typeof responseData === 'string') {
+                resultText = responseData;
+            }
+            infoLog(LOG_TAG, `sendOpenAIRequest 返回，文本长度: ${resultText.length}`);
+            return resultText;
         } finally {
             // 弹出临时 push 的 user 消息
             if (pushedUserMessage && Array.isArray(chat) && chat[chat.length - 1] === pushedUserMessage) {
