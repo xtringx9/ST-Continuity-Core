@@ -31,7 +31,16 @@ import {
     getRequestHeaders,
     getCurrentChatDetails,
 } from '../../../../../../../script.js';
-import { getScriptsByType, SCRIPT_TYPES, runRegexScript, regex_placement } from '../../../../../regex/engine.js';
+import {
+    getScriptsByType,
+    SCRIPT_TYPES,
+    runRegexScript,
+    regex_placement,
+    isScopedScriptsAllowed,
+    isPresetScriptsAllowed,
+    getCurrentPresetAPI,
+    getCurrentPresetName,
+} from '../../../../../regex/engine.js';
 import { extension_settings } from '../../../../../../extensions.js';
 import { encodeStyleTags, decodeStyleTags } from '../../../../../../chats.js';
 import { DOMPurify } from '../../../../../../../lib.js';
@@ -743,13 +752,21 @@ function applyRegexToText(rawText, mes, placement, depth) {
     // 全局正则（无条件，直读 extension_settings.regex）
     if (Array.isArray(extension_settings.regex)) scripts.push(...extension_settings.regex);
     // 正在阅读角色的 SCOPED 正则（阅读角色，而非当前打开角色）
+    // ⚠️ 判断用户是否允许该角色正则（character_allowed_regex 白名单）：
+    //    用户关掉则与 ST 原生行为一致不应用。
     const char = activeChar || characters[getCurrentChid()];
     if (char) {
         const scoped = char.data?.extensions?.regex_scripts;
-        if (Array.isArray(scoped)) scripts.push(...scoped);
+        if (Array.isArray(scoped) && isScopedScriptsAllowed(char)) {
+            scripts.push(...scoped);
+        }
     }
-    // 当前预设的 PRESET 正则
-    scripts.push(...getScriptsByType(SCRIPT_TYPES.PRESET));
+    // 当前预设的 PRESET 正则（同样判断用户是否允许该预设正则）
+    const apiId = getCurrentPresetAPI();
+    const presetName = getCurrentPresetName();
+    if (isPresetScriptsAllowed(apiId, presetName)) {
+        scripts.push(...getScriptsByType(SCRIPT_TYPES.PRESET));
+    }
 
     let out = rawText;
     const isMarkdown = true;
