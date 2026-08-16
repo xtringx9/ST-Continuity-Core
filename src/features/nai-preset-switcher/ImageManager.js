@@ -567,6 +567,9 @@ let _totalPages = 1;
 let nodePageMap = new Map();
 // 折叠态持久化：pathKey -> true/false（翻页重建内容区后保留折叠；全部折叠/展开基于真实树）
 let collapseMap = new Map();
+// 叶子组默认折叠：当叶子组数量多（分组层级深/数量大）时，未手动操作过的叶子组默认收起
+let _defaultCollapseLeaf = false;
+const LEAF_COLLAPSE_THRESHOLD = 12; // 总叶子组数 ≥ 此值 → 默认折叠叶子组
 
 // 统计组内叶子组数量（递归；叶子组=真正装图片的组）
 function countLeafGroups(g) {
@@ -961,9 +964,16 @@ function appendGroupNode(g, parent, depth, pathKey) {
 
     // 折叠/展开按钮（每个分组节点都有；折叠隐藏内容区）。
     // 折叠态持久化到 collapseMap（翻页重建内容区后保留；全部折叠/展开基于真实树）。
+    // 叶子组默认折叠：用户未手动操作过（collapseMap 无记录）且叶子组多时默认收起。
     const applyCollapsed = () => {
-        groupEl.classList.toggle('collapsed', collapseMap.get(myPath) === true);
-        collapse.textContent = collapseMap.get(myPath) === true ? '▸' : '▾';
+        let collapsed;
+        if (collapseMap.has(myPath)) {
+            collapsed = collapseMap.get(myPath) === true;
+        } else {
+            collapsed = isLeaf && _defaultCollapseLeaf;
+        }
+        groupEl.classList.toggle('collapsed', collapsed);
+        collapse.textContent = collapsed ? '▸' : '▾';
     };
     const collapse = doc.createElement('button');
     collapse.className = 'np-img-group-collapse';
@@ -1284,6 +1294,11 @@ function render() {
     if (searchTerm) {
         _allGroups = _allGroups.filter(g => g.label.toLowerCase().includes(searchTerm));
     }
+
+    // 叶子组默认折叠判定：总叶子组数多时（层级深/数量大）未手动操作的叶子组默认收起
+    let totalLeaf = 0;
+    _allGroups.forEach(g => { totalLeaf += countLeafGroups(g); });
+    _defaultCollapseLeaf = totalLeaf >= LEAF_COLLAPSE_THRESHOLD;
 
     if (_allGroups.length === 0) {
         if (empty) empty.style.display = 'block';
