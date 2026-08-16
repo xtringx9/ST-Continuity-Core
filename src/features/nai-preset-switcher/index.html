@@ -73,9 +73,9 @@
             <div id="view-vibe" class="view-section">
                 <div class="np-img-toolbar">
                     <div class="np-img-cats" id="np-img-cats">
-                        <button class="np-img-cat active" data-cat="chat">文生图</button>
-                        <button class="np-img-cat" data-cat="character">角色图</button>
-                        <button class="np-img-cat" data-cat="outfit">服装图</button>
+                        <button class="np-img-cat-btn" id="np-img-cat-btn" title="切换图片来源">
+                            <span id="np-img-cat-label">文生图</span><span class="np-img-cat-caret">▾</span>
+                        </button>
                     </div>
                     <div class="np-img-sub" id="np-img-sub">
                         <!-- 文内生图：按提示词/按预设/按角色可叠加 toggle（空=全部按排序铺开） -->
@@ -92,8 +92,8 @@
                         </div>
                     </div>
                     <button id="np-img-sort" class="btn-sort" title="排序方式"></button>
-                    <button class="np-img-all-collapse" id="np-img-all-collapse" title="全部折叠（所有分组）">⯅ 全部折叠</button>
-                    <button class="np-img-all-expand" id="np-img-all-expand" title="全部展开（所有分组）">⯆ 全部展开</button>
+                    <button class="np-img-all-collapse" id="np-img-all-collapse" title="全部折叠（所有分组）">⯅</button>
+                    <button class="np-img-all-expand" id="np-img-all-expand" title="全部展开（所有分组）">⯆</button>
                     <input type="text" id="np-img-search" class="np-img-search" placeholder="搜索分组名 / 提示词…" />
                 </div>
                 <!-- 批量操作栏（管理模式显示） -->

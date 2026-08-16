@@ -1758,8 +1758,14 @@ function renderKeepPage() {
 
 function bindControls() {
     if (!doc) return;
-    // 大类切换
-    const cats = doc.querySelectorAll('#np-img-cats .np-img-cat');
+    // 大类切换（下拉按钮：文生图/角色图/服装图 合并为一个入口，省顶栏空间）
+    const CATS = [
+        { cat: 'chat', label: '文生图' },
+        { cat: 'character', label: '角色图' },
+        { cat: 'outfit', label: '服装图' },
+    ];
+    const catBtn = doc.getElementById('np-img-cat-btn');
+    const catLabel = doc.getElementById('np-img-cat-label');
     const syncSubVisibility = () => {
         const sub = doc.getElementById('np-img-sub');
         if (!sub) return;
@@ -1772,14 +1778,70 @@ function bindControls() {
         const onlyCur = doc.getElementById('np-img-only-current');
         if (onlyCur && typeof onlyCur._npSync === 'function') onlyCur._npSync();
     };
-    cats.forEach(btn => {
-        btn.addEventListener('click', () => {
-            cats.forEach(b => b.classList.toggle('active', b === btn));
-            currentCat = btn.getAttribute('data-cat');
-            syncSubVisibility();
-            reloadFirstPage();
+    const syncCatLabel = () => {
+        const cur = CATS.find(c => c.cat === currentCat);
+        if (catLabel) catLabel.textContent = cur ? cur.label : '文生图';
+    };
+    let catMenu = null;
+    const closeCatMenu = () => {
+        if (catMenu && catMenu.parentNode) catMenu.parentNode.removeChild(catMenu);
+        catMenu = null;
+        doc.removeEventListener('click', onCatDocClick, true);
+    };
+    const onCatDocClick = (e) => {
+        if (catMenu && !catMenu.contains(e.target) && e.target !== catBtn && !catBtn.contains(e.target)) closeCatMenu();
+    };
+    if (catBtn) {
+        catBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (catMenu) { closeCatMenu(); return; }
+            const rect = catBtn.getBoundingClientRect();
+            catMenu = doc.createElement('div');
+            catMenu.className = 'np-img-cat-menu';
+            catMenu.style.position = 'absolute';
+            catMenu.style.zIndex = '60';
+            catMenu.style.minWidth = '120px';
+            catMenu.style.background = 'var(--bg-card, #fff)';
+            catMenu.style.border = '1px solid var(--border-color, rgba(128,128,128,0.25))';
+            catMenu.style.borderRadius = '6px';
+            catMenu.style.boxShadow = '0 8px 24px rgba(0,0,0,0.18)';
+            catMenu.style.padding = '4px';
+            catMenu.style.top = `${rect.bottom + 4}px`;
+            catMenu.style.left = `${rect.left}px`;
+            CATS.forEach(c => {
+                const item = doc.createElement('div');
+                item.className = 'np-img-cat-menu-item' + (c.cat === currentCat ? ' active' : '');
+                item.textContent = c.label;
+                item.style.padding = '7px 12px';
+                item.style.cursor = 'pointer';
+                item.style.borderRadius = '4px';
+                item.style.fontSize = '13px';
+                item.style.color = 'var(--text-primary, #222)';
+                if (c.cat === currentCat) {
+                    item.style.background = 'var(--accent-color, #2563eb)';
+                    item.style.color = '#fff';
+                }
+                item.addEventListener('mouseenter', () => {
+                    if (c.cat !== currentCat) item.style.background = 'var(--bg-hover, #f3f4f6)';
+                });
+                item.addEventListener('mouseleave', () => {
+                    if (c.cat !== currentCat) item.style.background = 'transparent';
+                });
+                item.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    currentCat = c.cat;
+                    syncCatLabel();
+                    syncSubVisibility();
+                    closeCatMenu();
+                    reloadFirstPage();
+                });
+                catMenu.appendChild(item);
+            });
+            doc.body.appendChild(catMenu);
+            setTimeout(() => doc.addEventListener('click', onCatDocClick, true), 0);
         });
-    });
+    }
+    syncCatLabel();
 
     // 文内生图子分组：按提示词/按预设/按角色 全部可叠加 toggle（localStorage 持久化）
     // 排除「只看当前选中」开关（无 data-group，不属于维度叠加）
