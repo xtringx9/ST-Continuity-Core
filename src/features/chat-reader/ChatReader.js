@@ -8,8 +8,12 @@
 //
 // 双视图：
 //   1) 首页：角色 → 聊天 两级选择（不依赖当前打开的聊天，可浏览任意历史聊天）；
-//     顶部「当前聊天」快捷入口直接进入当前打开会话的阅读。
-//   2) 阅读视图：消息流 + 懒加载 + 翻页/跳楼 + 图片放大 + 主题切换。
+//     角色排序支持「默认 / 按最近聊天时间」；顶部「当前聊天」快捷入口。
+//   2) 阅读视图：分页阅读（每页 PAGE_SIZE 条），记忆每个聊天的阅读页（localStorage）。
+//
+// 正则说明：历史聊天渲染时，messageFormatting 内部 depth 用 ST 当前 chat 计算会错位，
+// 导致带 minDepth/maxDepth 的正则被误跳过。用「越界 messageId」使 depth=undefined
+// （正则不受深度限制，全部应用）；当前聊天传真实 index，与酒馆行为一致。
 //
 // 主题：与其它编辑器一致，监听 storage 'st_continuity_theme' 同步 iframe data-theme。
 
@@ -27,21 +31,19 @@ import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
 
 const LOG_TAG = '[ChatReader]';
 
-// 懒加载窗口：当前楼前后各渲染的楼层数
-const RENDER_WINDOW = 5;
-// 距上下边缘多少 px 时扩展窗口
-const EXPAND_THRESHOLD = 600;
+// 分页大小：每页消息条数
+const PAGE_SIZE = 2;
+// 阅读位置记忆 key（localStorage）：{ [chatKey]: page(0-based) }
+const POS_STORAGE_KEY = 'ccore_reader_pos';
 
 let doc = null;
 let bodyEl = null;
 let chatNameEl = null;
-let floorInput = null;
-let floorInfo = null;
-let prevBtn = null;
-let nextBtn = null;
-let prevNameEl = null;
-let nextNameEl = null;
-let currentNameEl = null;
+let pageInfoEl = null;
+let pageInput = null;
+let prevPageBtn = null;
+let nextPageBtn = null;
+let pageIndicatorEl = null;
 let backHomeBtn = null;
 
 // 首页元素
@@ -52,17 +54,25 @@ let charTitleEl = null;
 let chatTitleEl = null;
 let stepCharEl = null;
 let stepChatEl = null;
+let sortDefaultBtn = null;
+let sortRecentBtn = null;
 
-let renderedStart = -1; // 当前已渲染楼层范围 [renderedStart, renderedEnd]
-let renderedEnd = -1;
-let currentFloor = 0; // 当前阅读楼
-let scrollRafPending = false;
+let currentPage = 0; // 当前页（0-based）
 let lightboxEl = null;
 
 // 当前阅读的聊天（非当前打开会话时，缓存已加载的消息）
 let activeChatMessages = null;
 // 当前阅读的角色对象（历史聊天用其头像；当前聊天时从 ST 上下文取）
 let activeChar = null;
+// 当前聊天标识（用于记忆阅读位置）：历史聊天=文件名，当前聊天=sessionName
+let activeChatKey = '';
+
+// 角色排序模式
+let charSortMode = 'default'; // 'default' | 'recent'
+// 角色最近聊天时间缓存：{ [charIndex]: timestamp }
+const charRecentCache = new Map();
+// 角色最近聊天时间加载中标记（避免并发重复请求）
+let charRecentLoading = false;
 
 /**
  * 初始化阅读器（入口，由 EntryButton 在 iframe 加载后调用，幂等）。
@@ -80,13 +90,11 @@ export function initChatReader(iframeDoc) {
 
     bodyEl = doc.getElementById('reader-body');
     chatNameEl = doc.getElementById('reader-chat-name');
-    floorInput = doc.getElementById('reader-floor-input');
-    floorInfo = doc.getElementById('reader-floor-info');
-    prevBtn = doc.getElementById('reader-prev');
-    nextBtn = doc.getElementById('reader-next');
-    prevNameEl = doc.getElementById('reader-prev-name');
-    nextNameEl = doc.getElementById('reader-next-name');
-    currentNameEl = doc.getElementById('reader-current-name');
+    pageInfoEl = doc.getElementById('reader-page-info');
+    pageInput = doc.getElementById('reader-page-input');
+    prevPageBtn = doc.getElementById('reader-prev-page');
+    nextPageBtn = doc.getElementById('reader-next-page');
+    pageIndicatorEl = doc.getElementById('reader-page-current');
     backHomeBtn = doc.getElementById('reader-back-home');
     homeEl = doc.getElementById('reader-home');
     charGridEl = doc.getElementById('reader-char-grid');
@@ -95,22 +103,24 @@ export function initChatReader(iframeDoc) {
     chatTitleEl = doc.getElementById('reader-chat-title');
     stepCharEl = doc.getElementById('reader-step-char');
     stepChatEl = doc.getElementById('reader-step-chat');
+    sortDefaultBtn = doc.getElementById('reader-sort-default');
+    sortRecentBtn = doc.getElementById('reader-sort-recent');
 
-    if (!bodyEl || !prevBtn || !nextBtn || !homeEl) {
+    if (!bodyEl || !prevPageBtn || !nextPageBtn || !homeEl) {
         errorLog(LOG_TAG, '阅读器 DOM 不完整，初始化失败');
         return;
     }
 
-    // 底部翻页
-    prevBtn.addEventListener('click', () => goToFloor(currentFloor - 1));
-    nextBtn.addEventListener('click', () => goToFloor(currentFloor + 1));
+    // 翻页
+    prevPageBtn.addEventListener('click', () => gotoPage(currentPage - 1));
+    nextPageBtn.addEventListener('click', () => gotoPage(currentPage + 1));
 
-    // 顶部楼层跳转
-    const goBtn = doc.getElementById('reader-floor-go');
-    if (goBtn) {
-        goBtn.addEventListener('click', onFloorJump);
-        floorInput?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') onFloorJump();
+    // 页码跳转
+    const pageGoBtn = doc.getElementById('reader-page-go');
+    if (pageGoBtn) {
+        pageGoBtn.addEventListener('click', onPageJump);
+        pageInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') onPageJump();
         });
     }
 
@@ -119,11 +129,11 @@ export function initChatReader(iframeDoc) {
         backHomeBtn.addEventListener('click', showHome);
     }
 
-    // 关闭按钮：由父窗口 EntryButton 在 onLoad 绑定（对齐其它编辑器惯例），
-    // 此处不重复绑定，避免双重关闭。
+    // 角色排序切换
+    sortDefaultBtn?.addEventListener('click', () => setCharSortMode('default'));
+    sortRecentBtn?.addEventListener('click', () => setCharSortMode('recent'));
 
-    // 懒加载：滚动到边缘扩展窗口
-    bodyEl.addEventListener('scroll', onScroll, { passive: true });
+    // 关闭按钮：由父窗口 EntryButton 在 onLoad 绑定（对齐其它编辑器惯例）。
 
     // 图片放大
     bodyEl.addEventListener('click', onBodyClick);
@@ -186,15 +196,16 @@ function showHome() {
     const footer = doc.getElementById('reader-footer');
     if (footer) footer.style.display = 'none';
     if (backHomeBtn) backHomeBtn.style.display = 'none';
-    if (floorInput) floorInput.style.display = 'none';
-    if (floorInfo) floorInfo.style.display = 'none';
-    const goBtn = doc.getElementById('reader-floor-go');
-    if (goBtn) goBtn.style.display = 'none';
+    if (pageInfoEl) pageInfoEl.style.display = 'none';
+    if (pageInput) pageInput.style.display = 'none';
+    const pageGoBtn = doc.getElementById('reader-page-go');
+    if (pageGoBtn) pageGoBtn.style.display = 'none';
     if (chatNameEl) chatNameEl.textContent = '';
 
     // 重置阅读上下文，避免历史聊天状态残留
     activeChatMessages = null;
     activeChar = null;
+    activeChatKey = '';
 
     // 重置聊天选择步骤
     stepChatEl.style.display = 'none';
@@ -204,7 +215,52 @@ function showHome() {
 }
 
 /**
- * 渲染角色网格（含「当前聊天」快捷入口）。
+ * 设置角色排序模式。
+ * @param {'default'|'recent'} mode
+ */
+async function setCharSortMode(mode) {
+    charSortMode = mode;
+    if (sortDefaultBtn) sortDefaultBtn.classList.toggle('active', mode === 'default');
+    if (sortRecentBtn) sortRecentBtn.classList.toggle('active', mode === 'recent');
+    if (mode === 'recent') {
+        await ensureCharRecentTimes();
+    }
+    renderCharacterGrid();
+}
+
+/**
+ * 批量获取各角色最近聊天时间并缓存。
+ * 用 getPastCharacterChats 取每个角色聊天列表，取 last_mes 最大值。
+ */
+async function ensureCharRecentTimes() {
+    if (charRecentLoading) return;
+    charRecentLoading = true;
+    try {
+        const chars = Array.isArray(characters) ? characters : [];
+        const jobs = chars.map(async (char, idx) => {
+            if (charRecentCache.has(idx)) return;
+            try {
+                const chats = await getPastCharacterChats(idx);
+                let lastTs = 0;
+                if (Array.isArray(chats)) {
+                    for (const c of chats) {
+                        const t = new Date(c.last_mes || 0).getTime();
+                        if (!isNaN(t) && t > lastTs) lastTs = t;
+                    }
+                }
+                charRecentCache.set(idx, lastTs);
+            } catch (e) {
+                charRecentCache.set(idx, 0);
+            }
+        });
+        await Promise.all(jobs);
+    } finally {
+        charRecentLoading = false;
+    }
+}
+
+/**
+ * 渲染角色网格（含「当前聊天」快捷入口），按当前排序模式排列。
  */
 function renderCharacterGrid() {
     if (!charGridEl) return;
@@ -231,9 +287,19 @@ function renderCharacterGrid() {
         frag.appendChild(card);
     }
 
-    // 所有角色
+    // 所有角色（按排序模式）
     const chars = Array.isArray(characters) ? characters : [];
-    chars.forEach((char, idx) => {
+    const indices = chars.map((_, idx) => idx);
+    if (charSortMode === 'recent') {
+        indices.sort((a, b) => {
+            const ta = charRecentCache.get(a) || 0;
+            const tb = charRecentCache.get(b) || 0;
+            return tb - ta; // 最近时间在前
+        });
+    }
+
+    indices.forEach((idx) => {
+        const char = chars[idx];
         const card = doc.createElement('div');
         card.className = 'reader-char-card';
         const avatar = doc.createElement('img');
@@ -248,7 +314,13 @@ function renderCharacterGrid() {
         name.textContent = char.name || `角色 ${idx}`;
         const sub = doc.createElement('div');
         sub.className = 'reader-char-sub';
-        sub.textContent = char.description ? (char.description.replace(/[#*>\n]/g, '').slice(0, 20) || '') : '';
+        // 最近时间排序时显示最近聊天时间
+        if (charSortMode === 'recent') {
+            const ts = charRecentCache.get(idx) || 0;
+            sub.textContent = ts > 0 ? `最近聊天 ${formatChatTime(new Date(ts).toISOString())}` : '暂无聊天';
+        } else {
+            sub.textContent = char.description ? (char.description.replace(/[#*>\n]/g, '').slice(0, 20) || '') : '';
+        }
         card.append(avatar, name, sub);
         card.addEventListener('click', () => selectCharacter(idx));
         frag.appendChild(card);
@@ -341,6 +413,7 @@ async function openChatFromFiles(chatName, char) {
         }
         activeChatMessages = messages;
         activeChar = char;
+        activeChatKey = `file:${chatName}`;
         enterReadingView(messages, chatName);
     } catch (e) {
         errorLog(LOG_TAG, '加载聊天消息失败:', e);
@@ -382,13 +455,14 @@ function openCurrentChat() {
         return;
     }
     activeChatMessages = chat;
-    const details = getCurrentChatDetails();
     activeChar = null; // 当前聊天用 ST 上下文取当前角色
+    const details = getCurrentChatDetails();
+    activeChatKey = `current:${details?.sessionName || ''}`;
     enterReadingView(chat, details?.sessionName || '当前聊天');
 }
 
 /* =====================================================
- * 阅读视图
+ * 阅读视图（分页）
  * ===================================================== */
 
 /**
@@ -404,17 +478,15 @@ function enterReadingView(messages, title) {
     const footer = doc.getElementById('reader-footer');
     if (footer) footer.style.display = '';
     if (backHomeBtn) backHomeBtn.style.display = '';
-    if (floorInput) floorInput.style.display = '';
-    if (floorInfo) floorInfo.style.display = '';
-    const goBtn = doc.getElementById('reader-floor-go');
-    if (goBtn) goBtn.style.display = '';
+    if (pageInfoEl) pageInfoEl.style.display = '';
+    if (pageInput) pageInput.style.display = '';
+    const pageGoBtn = doc.getElementById('reader-page-go');
+    if (pageGoBtn) pageGoBtn.style.display = '';
     if (chatNameEl) chatNameEl.textContent = title ? `· ${title}` : '';
 
-    currentFloor = messages.length - 1;
-    renderedStart = -1;
-    renderedEnd = -1;
-    activeChatMessages = messages;
-    renderWindow();
+    // 恢复阅读位置（记忆页；无记录则第一页）
+    currentPage = getSavedPage(activeChatKey, messages.length);
+    renderPage();
 }
 
 /**
@@ -425,54 +497,80 @@ function getMessages() {
 }
 
 /**
- * 计算应渲染的窗口范围（围绕 currentFloor，上下各 RENDER_WINDOW 楼）。
- * @returns {{start:number, end:number}}
+ * 渲染当前页（PAGE_SIZE 条消息）。
  */
-function computeWindow() {
-    const total = getMessages().length;
-    const start = Math.max(0, currentFloor - RENDER_WINDOW);
-    const end = Math.min(total - 1, currentFloor + RENDER_WINDOW);
-    return { start, end };
-}
-
-/**
- * 渲染窗口：把 [renderedStart, renderedEnd] 对齐到目标范围。
- * 懒加载核心：用文本占位符标记尚未渲染的楼层。
- */
-function renderWindow() {
+function renderPage() {
     if (!doc) return;
     const messages = getMessages();
-    if (!messages || messages.length === 0) return;
-    const { start, end } = computeWindow();
-
-    if (start === renderedStart && end === renderedEnd) return;
-
-    const total = messages.length;
-    const frag = doc.createDocumentFragment();
-
-    for (let i = 0; i < total; i++) {
-        if (i < start || i > end) {
-            const ph = doc.createElement('div');
-            ph.className = 'reader-placeholder';
-            ph.dataset.floor = String(i);
-            ph.textContent = `楼层 ${i}（点击跳转）`;
-            ph.addEventListener('click', () => goToFloor(i));
-            frag.appendChild(ph);
-        } else {
-            frag.appendChild(renderMessage(i));
-        }
+    if (!messages || messages.length === 0) {
+        bodyEl.innerHTML = '<div class="reader-empty"><div class="reader-empty-icon">📖</div><div>当前聊天没有消息</div></div>';
+        updatePageControls();
+        return;
     }
 
+    const total = messages.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    // 夹取页码
+    if (currentPage < 0) currentPage = 0;
+    if (currentPage > totalPages - 1) currentPage = totalPages - 1;
+
+    const start = currentPage * PAGE_SIZE;
+    const end = Math.min(total, start + PAGE_SIZE);
+
+    const frag = doc.createDocumentFragment();
+    for (let i = start; i < end; i++) {
+        frag.appendChild(renderMessage(i));
+    }
     bodyEl.innerHTML = '';
     bodyEl.appendChild(frag);
 
-    renderedStart = start;
-    renderedEnd = end;
+    updatePageControls();
+    debugLog(LOG_TAG, `渲染第 ${currentPage + 1} 页（楼层 ${start}-${end - 1}）`);
+}
 
-    updateCurrentHighlight();
-    updateFloorInfo();
-    updatePrevNextButtons();
-    debugLog(LOG_TAG, `渲染窗口 [${start}, ${end}] / ${total}`);
+/**
+ * 更新页码控件。
+ */
+function updatePageControls() {
+    const messages = getMessages();
+    const total = messages?.length || 0;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+    if (pageInfoEl) pageInfoEl.textContent = `第 ${currentPage + 1} / ${totalPages} 页`;
+    if (pageIndicatorEl) pageIndicatorEl.textContent = `第 ${currentPage + 1} / ${totalPages} 页`;
+    if (pageInput) pageInput.value = String(currentPage + 1);
+
+    if (prevPageBtn) prevPageBtn.disabled = currentPage <= 0;
+    if (nextPageBtn) nextPageBtn.disabled = currentPage >= totalPages - 1;
+}
+
+/**
+ * 跳转到指定页（0-based，自动夹取）。
+ * @param {number} page
+ */
+function gotoPage(page) {
+    const messages = getMessages();
+    const total = messages?.length || 0;
+    if (total === 0) return;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const clamped = Math.max(0, Math.min(totalPages - 1, page));
+    if (clamped === currentPage) return;
+    currentPage = clamped;
+    renderPage();
+    // 记忆阅读位置
+    saveCurrentPage();
+    // 回到顶部
+    if (bodyEl) bodyEl.scrollTop = 0;
+}
+
+/**
+ * 页码跳转（顶部输入）。
+ */
+function onPageJump() {
+    if (!pageInput) return;
+    const val = parseInt(pageInput.value, 10);
+    if (isNaN(val)) return;
+    gotoPage(val - 1);
 }
 
 /**
@@ -485,10 +583,10 @@ function renderMessage(index) {
     const mes = messages[index];
     if (!mes) return doc.createElement('div');
 
+    const isHistorical = activeChatMessages !== null; // 历史聊天（非当前打开会话）
+
     const card = doc.createElement('div');
     card.className = 'reader-message';
-    card.dataset.floor = String(index);
-    if (index === currentFloor) card.classList.add('reader-current');
 
     // ---- 头部：头像 + 名字 + 时间 ----
     const header = doc.createElement('div');
@@ -517,12 +615,15 @@ function renderMessage(index) {
     const isSystem = !!mes.is_system;
     let rawText = mes.extra?.display_text || mes.mes || '';
     try {
+        // 历史聊天：用「越界 messageId」让 messageFormatting 内部 depth=undefined
+        // （正则不受深度限制，全部应用）；当前聊天：传真实 index，与酒馆一致。
+        const msgId = isHistorical ? chat.length + 500 + index : index;
         text.innerHTML = messageFormatting(
             rawText,
             mes.name,
             isSystem,
             !!mes.is_user,
-            index,
+            msgId,
             {},
             false,
         );
@@ -595,135 +696,6 @@ function getCurrentChid() {
 }
 
 /**
- * 跳转到指定楼层（夹在 [0, total-1]）。
- * @param {number} floor
- */
-function goToFloor(floor) {
-    const messages = getMessages();
-    const total = messages?.length || 0;
-    if (total === 0) return;
-    const clamped = Math.max(0, Math.min(total - 1, floor));
-    if (clamped === currentFloor) return;
-    currentFloor = clamped;
-    renderWindow();
-    scrollToFloor(clamped);
-    updateCurrentHighlight();
-}
-
-/**
- * 滚动到指定楼层元素。
- * @param {number} floor
- */
-function scrollToFloor(floor) {
-    if (!bodyEl) return;
-    const el = bodyEl.querySelector(`.reader-message[data-floor="${floor}"]`);
-    if (el) {
-        bodyEl.scrollTo({ top: el.offsetTop - 8, behavior: 'smooth' });
-    } else {
-        currentFloor = floor;
-        renderWindow();
-        requestAnimationFrame(() => {
-            const el2 = bodyEl.querySelector(`.reader-message[data-floor="${floor}"]`);
-            if (el2) bodyEl.scrollTo({ top: el2.offsetTop - 8 });
-        });
-    }
-}
-
-/**
- * 更新当前楼高亮。
- */
-function updateCurrentHighlight() {
-    if (!doc) return;
-    doc.querySelectorAll('.reader-message.reader-current').forEach(el => {
-        if (Number(el.dataset.floor) !== currentFloor) el.classList.remove('reader-current');
-    });
-    const cur = doc.querySelector(`.reader-message[data-floor="${currentFloor}"]`);
-    if (cur) cur.classList.add('reader-current');
-}
-
-/**
- * 更新楼层信息 + 上/下一楼名称。
- */
-function updateFloorInfo() {
-    const messages = getMessages();
-    const total = messages?.length || 0;
-    if (floorInfo) floorInfo.textContent = total > 0 ? `${currentFloor + 1} / ${total}` : '';
-    if (floorInput) floorInput.value = String(currentFloor);
-
-    if (prevNameEl) prevNameEl.textContent = currentFloor > 0 ? `#${currentFloor - 1} ${getName(messages[currentFloor - 1])}` : '';
-    if (nextNameEl) nextNameEl.textContent = currentFloor < total - 1 ? `#${currentFloor + 1} ${getName(messages[currentFloor + 1])}` : '';
-    if (currentNameEl) currentNameEl.textContent = currentFloor >= 0 ? `#${currentFloor} ${getName(messages[currentFloor])}` : '';
-}
-
-function getName(mes) {
-    return mes?.name || (mes?.is_user ? 'User' : 'Assistant');
-}
-
-function updatePrevNextButtons() {
-    const messages = getMessages();
-    const total = messages?.length || 0;
-    if (prevBtn) prevBtn.disabled = currentFloor <= 0;
-    if (nextBtn) nextBtn.disabled = currentFloor >= total - 1;
-}
-
-/**
- * 顶部楼层跳转。
- */
-function onFloorJump() {
-    if (!floorInput) return;
-    const val = parseInt(floorInput.value, 10);
-    if (isNaN(val)) return;
-    goToFloor(val);
-}
-
-/**
- * 滚动监听：接近上下边缘时扩展渲染窗口。
- */
-function onScroll() {
-    if (scrollRafPending) return;
-    scrollRafPending = true;
-    requestAnimationFrame(() => {
-        scrollRafPending = false;
-        handleScrollExpand();
-    });
-}
-
-function handleScrollExpand() {
-    if (!bodyEl) return;
-    const messages = getMessages();
-    if (!messages || messages.length === 0) return;
-    const total = messages.length;
-
-    // 顶部附近：窗口上移（保持阅读位置不变）
-    if (renderedStart > 0 && bodyEl.scrollTop < EXPAND_THRESHOLD) {
-        const newStart = Math.max(0, renderedStart - RENDER_WINDOW);
-        if (newStart !== renderedStart) {
-            const anchor = bodyEl.querySelector(`.reader-message[data-floor="${renderedStart}"]`);
-            const anchorTop = anchor ? anchor.offsetTop : bodyEl.scrollTop;
-            renderWindow();
-            requestAnimationFrame(() => {
-                const anchor2 = bodyEl.querySelector(`.reader-message[data-floor="${renderedStart}"]`);
-                if (anchor2) {
-                    const diff = anchor2.offsetTop - anchorTop;
-                    bodyEl.scrollBy({ top: diff });
-                }
-            });
-            return;
-        }
-    }
-    // 底部附近：窗口下移
-    if (renderedEnd < total - 1) {
-        const maxScroll = bodyEl.scrollHeight - bodyEl.clientHeight;
-        if (bodyEl.scrollTop > maxScroll - EXPAND_THRESHOLD) {
-            const newEnd = Math.min(total - 1, renderedEnd + RENDER_WINDOW);
-            if (newEnd !== renderedEnd) {
-                renderWindow();
-            }
-        }
-    }
-}
-
-/**
  * 点击 body：图片放大 / 放大后点击关闭。
  */
 function onBodyClick(e) {
@@ -755,7 +727,7 @@ function closeLightbox() {
 }
 
 /**
- * 格式化聊天最后消息时间（ST timestamp 格式）。
+ * 格式化聊天最后消息时间。
  * @param {string} ts
  * @returns {string}
  */
@@ -765,4 +737,41 @@ function formatChatTime(ts) {
     if (isNaN(d.getTime())) return ts;
     const pad = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/* =====================================================
+ * 阅读位置记忆（localStorage）
+ * ===================================================== */
+
+/**
+ * 读取某聊天的记忆页（0-based；无记录返回 0，越界夹取）。
+ * @param {string} chatKey 聊天标识
+ * @param {number} totalMessages 消息总数（用于夹取页码）
+ * @returns {number}
+ */
+function getSavedPage(chatKey, totalMessages) {
+    if (!chatKey) return 0;
+    try {
+        const raw = localStorage.getItem(POS_STORAGE_KEY);
+        const posMap = raw ? JSON.parse(raw) : {};
+        const page = Number(posMap[chatKey]);
+        if (!isNaN(page) && page >= 0) {
+            const totalPages = Math.max(1, Math.ceil(totalMessages / PAGE_SIZE));
+            return Math.min(page, totalPages - 1);
+        }
+    } catch (e) { /* ignore */ }
+    return 0;
+}
+
+/**
+ * 记忆当前页（0-based）。
+ */
+function saveCurrentPage() {
+    if (!activeChatKey) return;
+    try {
+        const raw = localStorage.getItem(POS_STORAGE_KEY);
+        const posMap = raw ? JSON.parse(raw) : {};
+        posMap[activeChatKey] = currentPage;
+        localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(posMap));
+    } catch (e) { /* ignore */ }
 }

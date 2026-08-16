@@ -25,6 +25,49 @@
     border-bottom: 1px solid var(--border-light, #f3f4f6);
 }
 
+/* 首页工具栏（标题 + 排序切换） */
+.reader-home-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.reader-home-toolbar .reader-home-title {
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+    flex: 1;
+}
+
+.reader-sort-group {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.reader-sort-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    background: var(--bg-input, #fff);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    color: var(--text-secondary, #4b5563);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.reader-sort-btn:hover {
+    border-color: var(--accent-color, #2563eb);
+    color: var(--accent-color, #2563eb);
+}
+
+.reader-sort-btn.active {
+    background: var(--accent-color, #2563eb);
+    border-color: var(--accent-color, #2563eb);
+    color: var(--bg-app, #fff);
+}
+
 /* 角色卡片网格 */
 .reader-char-grid {
     display: grid;
@@ -255,19 +298,12 @@
     border-radius: 4px;
 }
 
-/* 楼层加载占位（懒加载时尚未渲染的楼层） */
-.reader-placeholder {
-    max-width: 900px;
-    margin: 0 auto 12px;
-    height: 80px;
-    border-radius: 8px;
-    background: var(--bg-panel, #f9fafb);
-    border: 1px dashed var(--border-color, rgba(128, 128, 128, 0.3));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted, #9ca3af);
-    font-size: 12px;
+/* 页码指示器（底部翻页栏中央） */
+.reader-page-indicator {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-color, #2563eb);
+    white-space: nowrap;
 }
 
 /* === 底部翻页栏 === */
@@ -286,21 +322,6 @@
     text-align: center;
     min-width: 0;
     overflow: hidden;
-}
-
-.reader-floor-name {
-    font-size: 12px;
-    color: var(--text-muted, #9ca3af);
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.reader-floor-current {
-    color: var(--accent-color, #2563eb);
-    font-weight: 600;
-    font-size: 13px;
 }
 
 /* 空状态 */
@@ -346,9 +367,5 @@
     .reader-footer .btn-secondary {
         padding: 4px 6px;
         font-size: 11px;
-    }
-
-    .reader-floor-name {
-        display: none;
     }
 }
