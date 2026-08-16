@@ -344,10 +344,16 @@ export const moduleAiGenerator = {
 
         // 全局任务注册：记录生成所属聊天（保存校验用）+ running 状态（按钮计数/防重）
         const taskChatKey = _getChatKey();
+        taskRegistry.setCurrentChatKey(taskChatKey);
         const taskKeys = [];
         for (const m of messages) {
             taskKeys.push(taskRegistry.start({ chatKey: taskChatKey, mesId: m.mesId, generatorName }));
         }
+
+        // 中止能力：aiCaller 暴露 abort 后注入对应任务（调试面板「中止」按钮用）
+        callOptions.onAbort = (abortFn) => {
+            for (const k of taskKeys) taskRegistry.setAbort(k, abortFn);
+        };
 
         // 生成中 debugData（供「生成中点击按钮打开调试面板」用；完整响应生成后由 finish 更新）
         if (taskKeys.length > 0) {
@@ -356,7 +362,8 @@ export const moduleAiGenerator = {
             const details = getCurrentChatDetails();
             const titleBody = `${scope} - ${details?.characterName || ''} / ${details?.sessionName || ''}`;
             const titleLabel = isModule ? '生成调试' : `生成调试 [${generatorName}]`;
-            taskRegistry.setDebugData(taskKeys[0], {
+            const runningTaskKey = taskKeys[0];
+            taskRegistry.setDebugData(runningTaskKey, {
                 title: `${titleLabel} ${titleBody}`,
                 statusLabel: `${titleLabel}（生成中）`,
                 statusType: 'info',
@@ -369,6 +376,8 @@ export const moduleAiGenerator = {
                 extracted: isModule ? { modules: '' } : null,
                 apiUsed: null,
                 hasModules: false,
+                // 中止按钮（生成中打开面板时显示）
+                onAbort: () => taskRegistry.abortTask(runningTaskKey),
             });
         }
 

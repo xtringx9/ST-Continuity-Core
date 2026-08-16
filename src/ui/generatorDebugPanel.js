@@ -68,6 +68,20 @@ export function showDebugPanel(data) {
             if (data.onSave) {
                 _bindActionButtons(doc, data, modal);
             }
+
+            // 7. 绑定中止按钮（仅生成中）
+            if (data.onAbort) {
+                const abortBtn = doc.querySelector('.ccore-debug-btn-abort');
+                if (abortBtn) {
+                    abortBtn.addEventListener('click', () => {
+                        try { data.onAbort(); } catch (e) {}
+                        abortBtn.disabled = true;
+                        abortBtn.textContent = '已中止';
+                        // 中止后关闭面板（生成流程已在 aiCaller 抛错返回）
+                        setTimeout(() => modal.close(), 600);
+                    });
+                }
+            }
         },
     });
 }
@@ -148,7 +162,21 @@ function _buildSectionsHtml(data) {
         sections.push(_buildActionSection());
     }
 
+    // 6. 中止按钮（仅生成中显示）
+    if (data.onAbort) {
+        sections.push(_buildAbortSection());
+    }
+
     return sections.join('');
+}
+
+/**
+ * 构建中止按钮区域 HTML（仅生成中）
+ */
+function _buildAbortSection() {
+    return `<div class="ccore-debug-action-bar">
+        <button class="ccore-debug-btn ccore-debug-btn-abort">中止生成</button>
+    </div>`;
 }
 
 /**

@@ -4,11 +4,22 @@ import { updateCurrentCharWorldBookCache, checkAndInitializeWorldBook, getCurren
 import configManager from "../singleton/configManager.js";
 import moduleCacheManager from "../singleton/moduleCacheManager.js";
 import generatedContentCache from "../singleton/generatedContentCache.js";
-import { eventSource, event_types } from "../../../../../../script.js";
+import { eventSource, event_types, getCurrentChatDetails } from "../../../../../../script.js";
 import { checkUItoContextBottom, scheduleMsgBottom, checkRenderCurrentMessageContext } from "./contextBottomUI.js"
 import { addAiButtonToMessage, addAiButtonsToAllMessages } from "../ui/messageAiButton.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
+import { taskRegistry } from "./taskRegistry.js";
+
+/** 构造 taskRegistry 的 chatKey（与 moduleAiGenerator._getChatKey 一致：角色名::聊天文件名） */
+function _taskChatKey() {
+    try {
+        const d = getCurrentChatDetails();
+        return `${d?.characterName || ''}::${d?.sessionName || ''}`;
+    } catch {
+        return 'unknown';
+    }
+}
 /**
  * 事件处理器类
  */
@@ -65,7 +76,11 @@ export class EventHandler {
             // 消息底部 UI：Q1+Q2 调度器（合并 burst + 精准/后缀刷新）
             // 带 mesid 的事件只刷单条；编辑走后缀刷新（X..末条，覆盖 messageIndexHistory 向后延续）；
             // 切聊天/分页走全量；CHAT_COMPLETION_PROMPT_READY 暂不注册（生成前触发、无 mesid，易致无效全量提取）
-            this.registerEvent(event_types.CHAT_CHANGED, () => scheduleMsgBottom('full'));
+            this.registerEvent(event_types.CHAT_CHANGED, () => {
+                // 切聊天时更新 taskRegistry 当前聊天 key（小 Cc 楼层计数/按钮态据此过滤）
+                taskRegistry.setCurrentChatKey(_taskChatKey());
+                scheduleMsgBottom('full');
+            });
             this.registerEvent(event_types.MESSAGE_UPDATED, (mesid) => scheduleMsgBottom('suffix', mesid));// 从EDITED改成UPDATED
             this.registerEvent(event_types.MESSAGE_SWIPED, (mesid) => scheduleMsgBottom('single', mesid));
             this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, (mesid) => scheduleMsgBottom('single', mesid));

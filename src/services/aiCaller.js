@@ -160,6 +160,7 @@ export const aiCaller = {
      */
     async _callPipeline(options, capture) {
         const { quietPrompt, responseLength, truncateToMesId, pushAsLastUser } = options;
+        options.onAbort ||= null;
 
         // 记录需要临时隐藏的楼层及原 is_system 值
         const hiddenBackup = [];
@@ -209,6 +210,8 @@ export const aiCaller = {
             // 自己发送（customApi 拦截在 sendOpenAIRequest 内部生效；不锁 ST 发送按钮）
             infoLog(LOG_TAG, `自行 sendOpenAIRequest，消息数: ${assembledChat.length}`);
             const abortController = new AbortController();
+            // 暴露中止能力（调试面板「中止」按钮用）
+            options.onAbort?.(() => abortController.abort());
             const responseData = await sendOpenAIRequest('normal', assembledChat, abortController.signal);
 
             // 解析响应：流式（async generator）与非流式（对象/字符串）

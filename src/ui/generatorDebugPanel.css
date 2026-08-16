@@ -191,6 +191,16 @@ body {
     color: #fff;
 }
 
+.ccore-debug-btn-abort {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+.ccore-debug-btn-abort:hover {
+    background: var(--danger-color);
+    color: #fff;
+}
+
 /* === 当前内容对比区 === */
 .ccore-debug-current-content {
     border: 1px solid var(--border-color);

@@ -14,8 +14,11 @@
 
 const TASK_UPDATE_EVENT = 'ccore-task-updated';
 
-/** @type {Map<string, {status:'running'|'success'|'error', chatKey:string, mesId:number, generatorName:string, startedAt:number, debugData?:object}>} */
+/** @type {Map<string, {status:'running'|'success'|'error', chatKey:string, mesId:number, generatorName:string, startedAt:number, debugData?:object, abort?:Function}>} */
 const tasks = new Map();
+
+/** 当前活跃聊天 key（由外部在 CHAT_CHANGED / 生成时设置，格式与 moduleAiGenerator._getChatKey 一致） */
+let currentChatKey = '';
 
 function _key(chatKey, mesId, generatorName) {
     return `${chatKey}::${mesId}::${generatorName}`;
@@ -24,17 +27,6 @@ function _key(chatKey, mesId, generatorName) {
 /** 通知 UI 刷新（计数/按钮态） */
 function _emit() {
     window.dispatchEvent(new CustomEvent(TASK_UPDATE_EVENT));
-}
-
-/** 当前聊天归属（与 moduleAiGenerator._getChatKey 一致的语义：角色名::聊天文件名） */
-function _currentChatKey() {
-    try {
-        // 惰性 require，避免循环依赖（taskRegistry 不 import moduleAiGenerator）
-        const details = window.SillyTavern?.getContext?.()?.chatId ?? '';
-        return details;
-    } catch {
-        return 'unknown';
-    }
 }
 
 export const taskRegistry = {
@@ -76,6 +68,28 @@ export const taskRegistry = {
     },
 
     /**
+     * 注入任务的中止函数（生成请求发出后由 aiCaller 提供）。
+     */
+    setAbort(key, abortFn) {
+        const task = tasks.get(key);
+        if (!task) return;
+        task.abort = abortFn;
+    },
+
+    /**
+     * 中止指定任务（调 abortController.abort）。
+     * @returns {boolean} 是否找到并触发了中止
+     */
+    abortTask(key) {
+        const task = tasks.get(key);
+        if (!task || typeof task.abort !== 'function') return false;
+        try { task.abort(); } catch (e) { /* 忽略中止异常 */ }
+        task.status = 'error';
+        _emit();
+        return true;
+    },
+
+    /**
      * 取指定聊天+楼层+generator 的任务（含 running 及短暂保留的 success/error）。
      * @returns {object|null}
      */
@@ -84,12 +98,21 @@ export const taskRegistry = {
     },
 
     /**
+     * 设置当前活跃聊天 key（格式与 moduleAiGenerator._getChatKey 一致）。
+     * 由外部在 CHAT_CHANGED / 生成时调用；小 Cc 楼层计数/按钮态恢复据此过滤，避免跨聊天串。
+     * @param {string} chatKey
+     */
+    setCurrentChatKey(chatKey) {
+        currentChatKey = chatKey;
+    },
+
+    /**
      * 该楼层 running 任务数（当前聊天归属）。
      */
-    getRunningCountForMes(mesId, chatKey = _currentChatKey()) {
+    getRunningCountForMes(mesId) {
         let count = 0;
         for (const t of tasks.values()) {
-            if (t.status === 'running' && t.mesId === mesId && t.chatKey === chatKey) count++;
+            if (t.status === 'running' && t.mesId === mesId && t.chatKey === currentChatKey) count++;
         }
         return count;
     },

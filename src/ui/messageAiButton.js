@@ -112,33 +112,9 @@ export function addAiButtonToMessage(messageId) {
             function () { $(this).css('opacity', 0.5); }
         );
 
-        // 楼层任务数角标（该楼层 running 任务数）
-        const badge = $('<span>')
-            .addClass('ccore-cc-badge')
-            .attr('data-mesid', messageId)
-            .css({
-                position: 'absolute',
-                top: '-6px',
-                right: '-6px',
-                minWidth: '14px',
-                height: '14px',
-                borderRadius: '7px',
-                background: 'var(--SmartThemeQuoteColor, #C9762E)',
-                color: '#fff',
-                fontSize: '9px',
-                lineHeight: '14px',
-                textAlign: 'center',
-                fontWeight: 'bold',
-                display: 'none',
-                pointerEvents: 'none',
-                zIndex: 10000,
-                padding: '0 3px',
-                boxSizing: 'border-box',
-            });
-        // 按钮需相对定位承载角标
-        button.css('position', 'relative');
-        button.append(badge);
-        _updateCcBadge(badge);
+        // 楼层任务数显示（混合方案：有任务时按钮文字显示数字，无任务恢复 Cc）
+        button.attr('data-mesid', messageId);
+        _updateCcButtonText(button);
 
         floatWrap.append(button);
         messageBlock.append(floatWrap);
@@ -471,8 +447,9 @@ function closeInlineMenu() {
     }
     currentMenuMesId = null;
     if (currentTrigger) {
-        // 恢复 Cc 默认样式
-        setButtonState(currentTrigger, STATE.IDLE);
+        // 恢复 Cc 默认样式（按任务数决定显示数字或 Cc，避免覆盖任务计数）
+        _updateCcButtonText(currentTrigger);
+        currentTrigger.css({ backgroundColor: '', borderColor: '', color: '' });
     }
     currentTrigger = null;
     $(document).off('.ccore-menu');
@@ -864,9 +841,9 @@ export function initMessageAiButton() {
         }
     });
 
-    // 任务状态变化 → 刷新所有小 Cc 角标（楼层任务数）
+    // 任务状态变化 → 刷新所有小 Cc 按钮文字（楼层任务数）
     window.addEventListener(taskRegistry.TASK_UPDATE_EVENT, () => {
-        _refreshAllCcBadges();
+        _refreshAllCcButtons();
     });
 
     // 为当前已加载的消息添加按钮
@@ -909,25 +886,31 @@ function setupChatObserver() {
 }
 
 /**
- * 更新单个 Cc 角标（该楼层 running 任务数）
+ * 更新单个小 Cc 按钮文字（混合方案：有任务显示数字，无任务恢复 Cc）
+ * @param {jQuery} button - Cc 触发器
  */
-function _updateCcBadge(badge) {
-    const mesId = Number(badge.attr('data-mesid'));
-    if (isNaN(mesId)) { badge.hide(); return; }
+function _updateCcButtonText(button) {
+    const mesId = Number(button.attr('data-mesid'));
+    if (isNaN(mesId)) return;
     const count = taskRegistry.getRunningCountForMes(mesId);
     if (count > 0) {
-        badge.text(count > 99 ? '99+' : String(count)).show();
+        button.text(count > 99 ? '99+' : String(count));
+        button.attr('title', `${count} 个任务进行中`);
+        // 有任务时保持半透明但稍亮，便于识别
+        button.css('opacity', 0.85);
     } else {
-        badge.hide();
+        button.text('Cc');
+        button.attr('title', BUTTON_TITLE);
+        button.css('opacity', 0.5);
     }
 }
 
 /**
- * 刷新所有小 Cc 角标（任务状态变化时调用）
+ * 刷新所有小 Cc 按钮文字（任务状态变化时调用）
  */
-function _refreshAllCcBadges() {
-    $('.ccore-cc-badge').each(function () {
-        _updateCcBadge($(this));
+function _refreshAllCcButtons() {
+    $('.mes_ai_generate[data-mesid]').each(function () {
+        _updateCcButtonText($(this));
     });
 }
 
