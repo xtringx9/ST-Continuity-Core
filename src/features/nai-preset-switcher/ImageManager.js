@@ -1732,6 +1732,23 @@ function reloadFirstPage() {
     render();
 }
 
+// 全局「全部折叠/全部展开」：递归收集 _allGroups 所有叶子组 pathKey 并设置折叠态。
+// 单层分组时顶层即叶子（同样生效）；多层时覆盖所有层叶子。
+function toggleAllCollapse(collapseValue) {
+    const collect = (nodes, path) => {
+        (nodes || []).forEach(n => {
+            const p = path ? `${path}::${n.key || n.label || 'node'}` : (n.key || n.label || 'node');
+            if (n.children && n.children.length) {
+                collect(n.children, p);
+            } else {
+                collapseMap.set(p, collapseValue);
+            }
+        });
+    };
+    collect(_allGroups, '');
+    render();
+}
+
 // 叠加维度 toggle 时保持当前页（不清页码；组内分页/折叠状态因结构变化失效）
 function renderKeepPage() {
     nodePageMap.clear();
@@ -1855,6 +1872,12 @@ function bindControls() {
             },
         }, IMG_SORT_OPTIONS, 'np-img-sort');
     } catch (e) { /* 降级：排序控件不可用不影响其他 */ }
+
+    // 全局「全部折叠 / 全部展开」（单层分组时顶层即叶子，同样生效）
+    const allCollapseBtn = doc.getElementById('np-img-all-collapse');
+    if (allCollapseBtn) allCollapseBtn.addEventListener('click', () => toggleAllCollapse(true));
+    const allExpandBtn = doc.getElementById('np-img-all-expand');
+    if (allExpandBtn) allExpandBtn.addEventListener('click', () => toggleAllCollapse(false));
 
     // 页码容器宽度变化 → 仅重渲页码（不重渲列表），让页码数跟随撑满宽度
     const pagerBox = doc.getElementById('np-img-pager-top');

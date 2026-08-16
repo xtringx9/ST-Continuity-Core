@@ -1210,6 +1210,26 @@
     font-size: 13px;
 }
 
+/* 全局「全部折叠 / 全部展开」按钮 */
+.np-img-all-collapse,
+.np-img-all-expand {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    background: var(--bg-input, #fff);
+    color: var(--text-muted, #888);
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.np-img-all-collapse:hover,
+.np-img-all-expand:hover {
+    color: var(--accent-color, #4f7cff);
+    border-color: var(--accent-color, #4f7cff);
+}
+
 .np-img-sort {
     flex: 0 0 auto;
     padding: 7px 10px;
