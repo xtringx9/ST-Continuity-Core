@@ -24,11 +24,12 @@ let readState = {
     chatId: '',
     mode: 'stream',      // 'stream' 连续流 | 'floor' 按楼层分组
     onlyCurrent: false,  // 只看当前选中图
+    floorOrder: 'asc',   // 楼层顺序：'asc' 升序 | 'desc' 倒序
     page: 1,             // 当前页（按楼层数分页）
 };
 const READ_FLOORS_PER_PAGE = 3;  // 每页楼层数（用户拍板：10 太多）
 const READ_STATE_KEY = 'st_continuity_nai_read_mode';
-// 持久化到 localStorage：mode / onlyCurrent / characterName / chatId（页码不存，会话性）
+// 持久化到 localStorage：mode / onlyCurrent / characterName / chatId / floorOrder（页码不存，会话性）
 function loadReadPrefs() {
     try {
         const saved = JSON.parse(localStorage.getItem(READ_STATE_KEY) || '{}');
@@ -36,6 +37,7 @@ function loadReadPrefs() {
         if (typeof saved.onlyCurrent === 'boolean') readState.onlyCurrent = saved.onlyCurrent;
         if (typeof saved.characterName === 'string') readState.characterName = saved.characterName;
         if (typeof saved.chatId === 'string') readState.chatId = saved.chatId;
+        if (saved.floorOrder === 'asc' || saved.floorOrder === 'desc') readState.floorOrder = saved.floorOrder;
     } catch (e) { /* 忽略 */ }
 }
 function persistReadPrefs() {
@@ -45,6 +47,7 @@ function persistReadPrefs() {
             onlyCurrent: readState.onlyCurrent,
             characterName: readState.characterName,
             chatId: readState.chatId,
+            floorOrder: readState.floorOrder,
         }));
     } catch (e) { /* 忽略 */ }
 }
@@ -92,7 +95,7 @@ function buildReadItems(scanRecord) {
     const chatu8 = getChatu8();
     const storage = (chatu8 && chatu8.jiuguanStorage) || {};
     const map = scanRecord && Array.isArray(scanRecord.map) ? scanRecord.map : [];
-    // floor -> [{md5, storageKey, prompt}]（保留 map 顺序）
+    // floor -> [{md5, storageKey, prompt, pos}]（pos = 该提示词在楼层正文中的位置，同楼层排序用）
     const floorMap = new Map();
     map.forEach(m => {
         if (!m || !m.storageKey) return;
@@ -100,18 +103,22 @@ function buildReadItems(scanRecord) {
         if (!entry || !Array.isArray(entry.images) || entry.images.length === 0) return;
         const prompt = entry.change || '(未命名提示词)';
         (Array.isArray(m.floors) ? m.floors : []).forEach(f => {
-            const floor = Number(f);
-            if (isNaN(floor)) return;
+            // 兼容数字数组与 [{floor,pos}] 对象数组
+            const floor = (f && typeof f === 'object') ? f.floor : Number(f);
+            const pos = (f && typeof f === 'object' && typeof f.pos === 'number') ? f.pos : 0;
+            if (typeof floor !== 'number' || isNaN(floor)) return;
             if (!floorMap.has(floor)) floorMap.set(floor, []);
-            floorMap.get(floor).push({ md5: m.storageKey, storageKey: m.storageKey, prompt });
+            floorMap.get(floor).push({ md5: m.storageKey, storageKey: m.storageKey, prompt, pos });
         });
     });
-    // 按楼层升序
-    const floors = [...floorMap.keys()].sort((a, b) => a - b);
+    // 按楼层排序（floorOrder: asc 升序 | desc 倒序）
+    const floors = [...floorMap.keys()].sort((a, b) => readState.floorOrder === 'desc' ? b - a : a - b);
     const items = [];
     floors.forEach(floor => {
         const list = floorMap.get(floor);
-        // 同楼按提示词分组（map 顺序）；每 prompt 一组图
+        // 同楼按 pos（正文出现顺序）排序，还原提示词先后
+        list.sort((a, b) => (a.pos || 0) - (b.pos || 0));
+        // 同楼按提示词分组（按 pos 排序后的顺序）；每 prompt 一组图
         const prompts = [];
         const seen = new Map(); // prompt -> prompts 索引
         list.forEach(p => {
@@ -336,6 +343,7 @@ function buildReadCell(img, groupImages, idx, dense) {
                 title: g._prompt || '图片',
                 path: g.path || '',
                 entry: g,
+                isCurrent: g._isCurrent === true, // lightbox「设为当前」按钮据此隐藏当前图
                 chatMeta: { md5: g._md5 || '', change: g._prompt || '' },
             })), idx, { noDelete: true });
         });
@@ -401,12 +409,25 @@ function renderCharDropdown() {
             });
             item.addEventListener('click', () => {
                 readState.characterName = name;
-                readState.chatId = ''; // 切角色后重置聊天
+                // 切角色后：若该角色有聊天且无持久化聊天记录，自动选第一个聊天
+                const recs = getAllChatScans();
+                const roleChats = recs.filter(r => r.characterName === name);
+                if (roleChats.length > 0) {
+                    const stillValid = readState.chatId && roleChats.some(r => r.chatId === readState.chatId);
+                    if (!stillValid) {
+                        readState.chatId = roleChats[0].chatId; // 自动选第一个
+                    }
+                } else {
+                    readState.chatId = '';
+                }
                 readState.page = 1;
                 persistReadPrefs();
                 if (label) label.textContent = name;
                 const chatLabel = doc.getElementById('np-read-chat-label');
-                if (chatLabel) chatLabel.textContent = '选择聊天';
+                if (chatLabel) {
+                    const curRec = roleChats.find(r => r.chatId === readState.chatId);
+                    chatLabel.textContent = curRec ? (curRec.name || readState.chatId) : '选择聊天';
+                }
                 closeMenus();
                 renderRead();
             });
@@ -548,12 +569,28 @@ export function initReadMode(iframeDocument) {
         });
     }
 
+    // 楼层排序（asc/desc 切换；持久化）
+    const sortBtn = doc.getElementById('np-read-sort');
+    const syncSortLabel = () => {
+        if (sortBtn) sortBtn.textContent = readState.floorOrder === 'desc' ? '↓ 楼层倒序' : '↑ 楼层正序';
+    };
+    if (sortBtn) {
+        sortBtn.addEventListener('click', () => {
+            readState.floorOrder = readState.floorOrder === 'desc' ? 'asc' : 'desc';
+            readState.page = 1;
+            persistReadPrefs();
+            syncSortLabel();
+            renderRead();
+        });
+    }
+
     // 初始按持久化偏好同步按钮激活态
     const streamBtn = doc.getElementById('np-read-mode-stream');
     const floorBtn = doc.getElementById('np-read-mode-floor');
     if (readState.mode === 'floor' && floorBtn) floorBtn.classList.add('active');
     else if (streamBtn) streamBtn.classList.add('active');
     if (onlyBtn) onlyBtn.classList.toggle('active', readState.onlyCurrent);
+    syncSortLabel();
 }
 
 // 每次进入阅读 tab 时刷新（数据可能已更新；恢复持久化的角色/聊天标签）

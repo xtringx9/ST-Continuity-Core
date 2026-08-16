@@ -66,7 +66,11 @@ function reloadChatScan() {
         const characterName = scan.characterName || '未知角色';
         (scan.map || []).forEach(m => {
             if (!m.storageKey) return;
-            const floors = Array.isArray(m.floors) ? m.floors.map(Number).filter(n => !isNaN(n)) : [];
+            // floors 兼容数字数组与 [{floor,pos}] 对象数组 → 取 floor 数字
+            const floors = Array.isArray(m.floors)
+                ? m.floors.map(f => (f && typeof f === 'object' && typeof f.floor === 'number') ? f.floor : Number(f))
+                    .filter(n => !isNaN(n))
+                : [];
             if (!chatScanByKey.has(m.storageKey)) chatScanByKey.set(m.storageKey, []);
             chatScanByKey.get(m.storageKey).push({
                 chatId,
@@ -1341,6 +1345,18 @@ function setCurrentImage(md5, img) {
         try { saveSettings(); } catch (e) { /* 忽略 */ }
         showToast(doc, '已设为当前选中', 'success');
         render(); // 重渲更新底框高亮
+        // 同步 lightbox 内 _lbList 各 item 的 isCurrent（当前图按钮即时隐藏/出现）
+        if (_lbList && _lbList.length > 0) {
+            const curUuid = sorted[idx].im.uuid;
+            _lbList.forEach(item => {
+                if (item.chatMeta && item.chatMeta.md5 === md5) {
+                    item.isCurrent = !!(item.entry && item.entry.uuid === curUuid);
+                }
+            });
+            updateLightboxSetCurBtn();
+        }
+        // 阅读模式若打开，同步刷新（lightbox 设当前后阅读模式高亮也要更新）
+        if (window.__refreshReadMode) window.__refreshReadMode();
     } catch (e) {
         errorLog('[图片管理] 设为当前选中失败:', e);
         showToast(doc, '设置失败', 'error');

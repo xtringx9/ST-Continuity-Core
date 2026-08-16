@@ -20,6 +20,7 @@ import { showToast } from '../../shared/Toast.js';
 import { initImageInspect } from './ImageInspect.js';
 import { initImageManager, renderImageManagerOnDemand } from './ImageManager.js';
 import { initImageFavorites, refreshImageFavorites } from './ImageFavorites.js';
+import { initReadMode, refreshReadMode } from './ReadMode.js';
 
 let doc = null;
 let presets = [];          // 当前预设列表（configManager.getNaiPresets() 的副本）
@@ -67,11 +68,14 @@ export function initNaiPresetSwitcher(iframeDocument) {
     bindAddFromInspect();
     initImageManager(doc);
     initImageFavorites(doc);
+    initReadMode(doc);
     // 跨 tab 联动：图片管理红心切换 → 刷新收藏 tab；收藏 tab 取消 → 刷新图片管理红心
     window.__refreshImageFavTab = () => refreshImageFavorites(doc);
     window.__refreshImageManagerFavs = () => {
         try { renderImageManagerOnDemand(doc); } catch (e) { /* 图片管理未初始化则忽略 */ }
     };
+    // 阅读模式刷新（lightbox「设为当前」后需重渲高亮）
+    window.__refreshReadMode = () => { try { refreshReadMode(); } catch (e) { /* 忽略 */ } };
     renderAll();
 }
 
@@ -193,6 +197,12 @@ function bindNavTabs() {
             if (target === 'view-fav') {
                 try { refreshImageFavorites(doc); } catch (e) {
                     errorLog('[智绘姬NAI预设切换] 图片收藏渲染失败:', e);
+                }
+            }
+            // 切到「阅读」tab 时刷新
+            if (target === 'view-read') {
+                try { refreshReadMode(); } catch (e) {
+                    errorLog('[智绘姬NAI预设切换] 阅读模式渲染失败:', e);
                 }
             }
         });

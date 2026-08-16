@@ -254,6 +254,26 @@ export function normalizeChatScan(chatScan) {
         };
     };
 
+    // 归一化 floors：兼容数字数组 [3,7] 与对象数组 [{floor,pos}] → 统一为 [{floor,pos}]（升序）
+    const normalizeFloors = (floors) => {
+        if (!Array.isArray(floors)) return [];
+        const list = floors
+            .map(f => {
+                if (typeof f === 'number') return { floor: f, pos: 0 };
+                if (f && typeof f === 'object' && typeof f.floor === 'number') return { floor: f.floor, pos: typeof f.pos === 'number' ? f.pos : 0 };
+                return null;
+            })
+            .filter(Boolean);
+        // 同楼层保留最早 pos
+        const byFloor = new Map();
+        list.forEach(item => {
+            if (!byFloor.has(item.floor) || item.pos < byFloor.get(item.floor)) byFloor.set(item.floor, item.pos);
+        });
+        return [...byFloor.entries()]
+            .sort((a, b) => a[0] - b[0])
+            .map(([floor, pos]) => ({ floor, pos }));
+    };
+
     // 最旧格式（单聊天，含 {floor, characterName} 嵌套）：{ chatId, scannedAt, map }
     const isOldestFormat = !Array.isArray(src.chats) && !src.characters && (src.chatId || Array.isArray(src.map));
     if (isOldestFormat) {
@@ -265,9 +285,7 @@ export function normalizeChatScan(chatScan) {
             if (!byChar.has(characterName)) byChar.set(characterName, []);
             byChar.get(characterName).push({
                 storageKey: String(m.storageKey || ''),
-                floors: Array.isArray(m.floors)
-                    ? m.floors.filter(f => f && typeof f.floor === 'number').map(f => f.floor)
-                    : [],
+                floors: normalizeFloors(m.floors),
             });
         });
         if (String(src.chatId || '')) {
@@ -287,7 +305,7 @@ export function normalizeChatScan(chatScan) {
                 if (!byChar.has(characterName)) byChar.set(characterName, []);
                 byChar.get(characterName).push({
                     storageKey: String(m.storageKey),
-                    floors: Array.isArray(m.floors) ? m.floors.filter(f => typeof f === 'number').map(f => f) : [],
+                    floors: normalizeFloors(m.floors),
                 });
             });
             for (const [characterName, map] of byChar) {
@@ -308,7 +326,7 @@ export function normalizeChatScan(chatScan) {
                     .filter(m => m && m.storageKey)
                     .map(m => ({
                         storageKey: String(m.storageKey),
-                        floors: Array.isArray(m.floors) ? m.floors.filter(f => typeof f === 'number').map(f => f) : [],
+                        floors: normalizeFloors(m.floors),
                     })) : [];
                 putChat(characterName, chatId, c.name, c.scannedAt, map);
             }

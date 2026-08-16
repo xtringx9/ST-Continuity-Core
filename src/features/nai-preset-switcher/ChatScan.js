@@ -164,9 +164,10 @@ function getImageTags() {
 }
 
 // 从一段正文里提取所有图片提示词（去包裹后）。
-// 返回数组，元素为 { raw, tag }：
+// 返回数组，元素为 { raw, tag, pos }：
 //   raw = 去包裹后的原文（保留内部空白，供 md5 精确定位 jiuguanStorage）
 //   tag = 折叠空白后的归一化文本（供分组 label / 去重）
+//   pos = 该提示词在正文中的起始位置（<image> 块位置；同 tag 重复时保留最早 pos）
 function extractTagsFromBody(body) {
     const { startTag, endTag } = getImageTags();
     const tags = [];
@@ -176,11 +177,18 @@ function extractTagsFromBody(body) {
     const escapedEnd = endTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const pureTagRegex = new RegExp(`${escapedStart}([\\s\\S]*?)${escapedEnd}`);
 
-    const push = (raw) => {
+    const push = (raw, pos) => {
         const r = String(raw || '').trim();
         if (!r) return;
         const t = normalizeTag(r);
-        if (t && !tags.some(x => x.tag === t)) tags.push({ raw: r, tag: t });
+        if (!t) return;
+        const existing = tags.find(x => x.tag === t);
+        if (existing) {
+            // 同 tag 重复：保留最早 pos（只记首次出现位置）
+            if (pos < existing.pos) existing.pos = pos;
+            return;
+        }
+        tags.push({ raw: r, tag: t, pos });
     };
 
     // 1) <image>...</image> 块：优先取内部的 startTag...endTag，否则取整块
@@ -192,9 +200,9 @@ function extractTagsFromBody(body) {
         const inner = blockMatch[1];
         const innerMatch = inner.match(pureTagRegex);
         if (innerMatch && innerMatch[1] && innerMatch[1].trim()) {
-            push(innerMatch[1]);
+            push(innerMatch[1], blockMatch.index);
         } else if (inner.trim()) {
-            push(inner);
+            push(inner, blockMatch.index);
         }
     }
 
@@ -203,7 +211,7 @@ function extractTagsFromBody(body) {
         const bareRegex = new RegExp(`${escapedStart}([\\s\\S]*?)${escapedEnd}`, 'g');
         let m;
         while ((m = bareRegex.exec(body)) !== null) {
-            push(m[1]);
+            push(m[1], m.index);
         }
     }
     return tags;
@@ -290,8 +298,10 @@ export async function scanCurrentChat(ctx) {
     const chatu8 = extension_settings[CHATU8] || {};
     const storage = chatu8.jiuguanStorage || {};
 
-    // 遍历消息，从正文提取提示词 → floors + 角色
-    const mapByTag = new Map(); // 纯 tag -> { tag, storageKey, floors:Set, characters:Set }
+    // 遍历消息，从正文提取提示词 → floors + 角色。
+    // floors 记录 [{floor, pos}]：pos = 提示词在该楼层正文中的位置（同楼层多次出现取最早 pos），
+    // 用于还原「同一楼层内多个提示词的先后顺序」。
+    const mapByTag = new Map(); // 纯 tag -> { tag, storageKey, floorPos: Map<floor,pos>, characters:Set }
     let mesWithImages = 0;
     let totalTags = 0;
     for (let i = 0; i < chat.length; i++) {
@@ -303,7 +313,7 @@ export async function scanCurrentChat(ctx) {
         const tags = extractTagsFromBody(body);
         if (tags.length === 0) continue;
         mesWithImages++;
-        for (const { raw, tag } of tags) {
+        for (const { raw, tag, pos } of tags) {
             if (!tag) continue;
             totalTags++;
             if (!mapByTag.has(tag)) {
@@ -312,12 +322,13 @@ export async function scanCurrentChat(ctx) {
                     tag,
                     raw,
                     storageKey,
-                    floors: new Set(),
+                    floorPos: new Map(),
                     characters: new Set(),
                 });
             }
             const m = mapByTag.get(tag);
-            m.floors.add(i);
+            // 同楼层取最早 pos（首次出现位置）
+            if (!m.floorPos.has(i) || pos < m.floorPos.get(i)) m.floorPos.set(i, pos);
             if (characterName) m.characters.add(characterName);
         }
     }
@@ -330,7 +341,10 @@ export async function scanCurrentChat(ctx) {
     for (const m of mapByTag.values()) {
         if (!m.storageKey) continue; // 命中失败不落盘（垃圾 key）
         const chars = m.characters.size > 0 ? [...m.characters] : ['未知角色'];
-        const floors = [...m.floors].sort((a, b) => a - b);
+        // floors: [{floor, pos}] 按楼层升序（同楼层 pos 已是最早）
+        const floors = [...m.floorPos.entries()]
+            .sort((a, b) => a[0] - b[0])
+            .map(([floor, pos]) => ({ floor, pos }));
         for (const characterName of chars) {
             if (!byCharacter.has(characterName)) byCharacter.set(characterName, []);
             byCharacter.get(characterName).push({ storageKey: m.storageKey, floors });

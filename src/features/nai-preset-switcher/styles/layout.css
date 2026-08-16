@@ -1644,8 +1644,9 @@
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
 }
 
-/* 当前选中图（智绘姬 entry.index 指向）：accent 高亮边框 */
-.np-img-thumb.np-img-current {
+/* 当前选中图（智绘姬 entry.index 指向）：accent 高亮边框（图片管理 + 阅读模式共用） */
+.np-img-thumb.np-img-current,
+.np-read-thumb.np-img-current {
     border: 2px solid var(--accent-color, #4f7cff);
     box-shadow: 0 0 0 1px var(--accent-color, #4f7cff);
 }
@@ -2136,6 +2137,22 @@
     background: var(--accent-color, #4f7cff);
     border-color: var(--accent-color, #4f7cff);
     color: #fff;
+}
+
+/* 楼层排序按钮 */
+.np-read-sort {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    background: var(--bg-input, #fff);
+    color: var(--text-muted, #888);
+    cursor: pointer;
+}
+
+.np-read-sort:hover {
+    color: var(--accent-color, #4f7cff);
+    border-color: var(--accent-color, #4f7cff);
 }
 
 /* 按楼层分组：每层标题 + 网格 */
