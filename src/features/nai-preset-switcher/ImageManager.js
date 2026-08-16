@@ -260,11 +260,12 @@ function buildChatGroups(pendingSet) {
     }
     if (allImages.length === 0) return [];
     // 激活维度（全可叠加）。空=全部按排序铺开（单组，不按任何维度分组）。
-    // 顺序固定：角色 → 聊天 → 楼层 → 预设 → 提示词（用户拍板：按角色时列出聊天）
+    // 维度顺序跟随点击选择顺序（与角色/服装一致）；character 是复合层，展开为 角色→聊天→楼层。
     const dims = [];
-    if (chatGroupDims.has('character')) dims.push({ key: 'character' }, { key: 'chat' }, { key: 'floor' });
-    if (chatGroupDims.has('preset')) dims.push({ key: 'preset' });
-    if (chatGroupDims.has('prompt')) dims.push({ key: 'prompt' });
+    for (const d of chatGroupDims) {
+        if (d === 'character') dims.push({ key: 'character' }, { key: 'chat' }, { key: 'floor' });
+        else dims.push({ key: d });
+    }
     // 无激活维度 → 铺开：单组「全部图片」叶子（含全部图，标题显示总数+最新日期）
     if (dims.length === 0) {
         let maxDate = 0;
