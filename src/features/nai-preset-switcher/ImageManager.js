@@ -500,8 +500,11 @@ function buildNestedGroupTree(items, dims) {
 function getDimLabel(dim, img) {
     const meta = img.meta;
     if (dim.key === 'prompt') {
-        // 优先用 chatMeta.change（提示词原文）；无则回退标题
-        return (img.chatMeta && img.chatMeta.change) || (meta && meta.resolvedPrompt) || img.title.split(' #')[0] || '(未命名提示词)';
+        // 文内图：chatMeta.change；角色/服装图：meta.change（chatMetaByHash 反查的提示词原文，兼容 resolvedPrompt）
+        return (img.chatMeta && img.chatMeta.change)
+            || (meta && (meta.change || meta.resolvedPrompt))
+            || img.title.split(' #')[0]
+            || '(未命名提示词)';
     }
     if (dim.key === 'preset') {
         return (meta && meta.yushe) || (img.chatMeta && img.chatMeta.yushe) || '未关联预设';
