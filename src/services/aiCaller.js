@@ -7,22 +7,15 @@
 
 import {
     generateRaw,
-    setExtensionPrompt,
+    generateQuietPrompt,
     eventSource,
     event_types,
     chat,
-    name2,
-    characters,
-    this_chid,
+    name1,
 } from '../../../../../../script.js';
-import { getContext } from '../../../../../extensions.js';
-import { prepareOpenAIMessages, sendOpenAIRequest } from '../../../../../openai.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../utils/logger.js';
 
 const LOG_TAG = 'AiCaller';
-
-// 临时注入 extension_prompt 的 key
-const CCORE_PIPELINE_INJECT_KEY = 'continuity_core_ai_generator_inject';
 
 /**
  * AI 调用器
@@ -152,87 +145,66 @@ export const aiCaller = {
     },
 
     /**
-     * Pipeline 模式：走 ST 完整管线
-     * 1. setExtensionPrompt 注入指令
-     * 2. prepareOpenAIMessages 组装完整提示词
-     * 3. sendOpenAIRequest 发送请求
+     * Pipeline 模式：走 ST 完整管线（generateQuietPrompt）
+     * 1. 临时隐藏 truncateToMesId 之后的楼层（is_system 标记，不保存，生成完还原）
+     *    → 让 AI 只看到 0..truncateToMesId 的正文上下文
+     * 2. 生成指令 push 进 chat 作为「第 X+1 层 user 消息」（临时，生成完 pop）
+     *    → chatHistory 最后一条是 user 生成指令，{{lastUserMessage}} 可取到它
+     * 3. generateQuietPrompt 组装完整提示词并生成
+     *    → 走 ST 原生 coreChat 组装（正则/文件/宏/世界书/预设全保留）
+     *    → quietPrompt 传空（避免 system 角色重复注入；生成指令已由 push 的 user 消息承担）
+     * 4. 捕获组装后的提示词（CHAT_COMPLETION_PROMPT_READY）
      */
     async _callPipeline(options, capture) {
-        const { quietPrompt, injectPrompt, responseLength } = options;
+        const { quietPrompt, responseLength, truncateToMesId } = options;
 
-        // 注入指令到 extension_prompts
-        if (injectPrompt) {
-            setExtensionPrompt(
-                CCORE_PIPELINE_INJECT_KEY,
-                injectPrompt,
-                0,   // position: IN_PROMPT (after system prompt)
-                0,   // depth (only for IN_CHAT)
-                true, // allow world info scan
-                0,   // role: SYSTEM
-            );
-            infoLog(LOG_TAG, '已注入 pipeline 指令到 extension_prompts');
+        // 记录需要临时隐藏的楼层及原 is_system 值
+        const hiddenBackup = [];
+        if (typeof truncateToMesId === 'number' && truncateToMesId >= 0 && Array.isArray(chat)) {
+            for (let i = truncateToMesId + 1; i < chat.length; i++) {
+                if (!chat[i]) continue;
+                hiddenBackup.push({ index: i, wasSystem: !!chat[i].is_system });
+                chat[i].is_system = true;
+            }
+            if (hiddenBackup.length > 0) {
+                infoLog(LOG_TAG, `临时隐藏 ${hiddenBackup.length} 条楼层（${truncateToMesId + 1}..${chat.length - 1}）`);
+            }
+        }
+
+        // 生成指令 push 进 chat 作为最后一条 user 消息（临时，生成完 pop）
+        const pushedUserMessage = (quietPrompt && typeof quietPrompt === 'string' && quietPrompt.trim()) ? { is_user: true, mes: quietPrompt, name: name1 } : null;
+        if (pushedUserMessage && Array.isArray(chat)) {
+            chat.push(pushedUserMessage);
+            infoLog(LOG_TAG, `已临时 push 生成指令 user 消息（第 ${chat.length - 1} 层）`);
         }
 
         try {
-            // 构建消息数据
-            const character = characters?.[this_chid];
-            const context = getContext();
-
-            const messageData = {
-                name2,
-                charDescription: character?.description || '',
-                charPersonality: character?.personality || '',
-                Scenario: character?.scenario || '',
-                worldInfoBefore: '',
-                worldInfoAfter: '',
-                extensionPrompts: context?.extensionPrompts || {},
-                bias: '',
-                type: 'normal',
-                quietPrompt: quietPrompt || '',
-                quietImage: null,
-                cyclePrompt: '',
-                systemPromptOverride: character?.data?.system_prompt || '',
-                jailbreakPromptOverride: character?.data?.jailbreak_prompt || '',
-                personaDescription: '',
-                messages: [],
-                messageExamples: [],
-            };
-
-            infoLog(LOG_TAG, `调用 prepareOpenAIMessages，quietPrompt 长度: ${quietPrompt?.length ?? 0}`);
-
-            // prepareOpenAIMessages 组装完整提示词
-            const [prompt] = await prepareOpenAIMessages(messageData, false);
-
-            // 捕获组装后的提示词
-            if (Array.isArray(prompt)) {
-                capture.prompt = prompt.map(m => ({ ...m }));
-            }
-
-            infoLog(LOG_TAG, `提示词组装完成，消息数: ${prompt?.length ?? 0}`);
-
-            // 发送请求
-            const abortController = new AbortController();
-            const responseData = await sendOpenAIRequest('normal', prompt, abortController.signal);
-
-            // 解析响应
-            let resultText = '';
-            if (responseData) {
-                if (typeof responseData === 'string') {
-                    resultText = responseData;
-                } else if (responseData.choices?.[0]?.message?.content) {
-                    resultText = responseData.choices[0].message.content;
-                } else if (responseData.choices?.[0]?.text) {
-                    resultText = responseData.choices[0].text;
+            // 捕获组装后的完整提示词
+            const promptHandler = (eventData) => {
+                if (Array.isArray(eventData.chat)) {
+                    capture.prompt = eventData.chat.map(m => ({ ...m }));
                 }
-            }
+            };
+            eventSource.once(event_types.CHAT_COMPLETION_PROMPT_READY, promptHandler);
 
-            infoLog(LOG_TAG, `sendOpenAIRequest 返回，类型: ${typeof responseData}，文本长度: ${resultText.length}`);
-            return resultText;
+            infoLog(LOG_TAG, `调用 generateQuietPrompt，生成指令长度: ${quietPrompt?.length ?? 0}（已 push 为 user 消息）`);
+            const result = await generateQuietPrompt({
+                quietPrompt: '',  // 生成指令已 push 进 chat，quietPrompt 传空避免 system 重复
+                responseLength: responseLength || null,
+            });
+            return result || '';
         } finally {
-            // 清理：移除注入的 extension_prompt
-            if (injectPrompt) {
-                setExtensionPrompt(CCORE_PIPELINE_INJECT_KEY, '', 0, 0, false, 0);
-                infoLog(LOG_TAG, '已移除 pipeline 注入的 extension_prompt');
+            // 弹出临时 push 的 user 消息
+            if (pushedUserMessage && Array.isArray(chat) && chat[chat.length - 1] === pushedUserMessage) {
+                chat.pop();
+                infoLog(LOG_TAG, '已弹出临时 push 的生成指令 user 消息');
+            }
+            // 还原临时隐藏的楼层
+            for (const { index, wasSystem } of hiddenBackup) {
+                if (chat[index]) chat[index].is_system = wasSystem;
+            }
+            if (hiddenBackup.length > 0) {
+                infoLog(LOG_TAG, `已还原 ${hiddenBackup.length} 条临时隐藏的楼层`);
             }
         }
     },

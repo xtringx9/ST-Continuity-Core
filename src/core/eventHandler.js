@@ -8,6 +8,7 @@ import { eventSource, event_types } from "../../../../../../script.js";
 import { checkUItoContextBottom, scheduleMsgBottom, checkRenderCurrentMessageContext } from "./contextBottomUI.js"
 import { addAiButtonToMessage, addAiButtonsToAllMessages } from "../ui/messageAiButton.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
+import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
 /**
  * 事件处理器类
  */
@@ -166,6 +167,12 @@ export class EventHandler {
                 this.eventHandlers.clear();
             }
 
+            // F 一期：移除 floor 模块变更监听
+            if (this.floorModulesUpdatedHandler) {
+                window.removeEventListener(FLOOR_MODULES_UPDATED_EVENT, this.floorModulesUpdatedHandler);
+                this.floorModulesUpdatedHandler = null;
+            }
+
             this.isInitialized = false;
             infoLog('[EVENTS]事件处理器已销毁，所有事件监听器已移除');
         } catch (error) {
@@ -249,6 +256,14 @@ export class EventHandler {
         this.registerEvent(event_types.MESSAGE_SWIPE_DELETED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
         this.registerEvent(event_types.MESSAGE_UPDATED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
         this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, () => moduleCacheManager.updateModuleCacheDebounced(false), true, "Module Cache");
+
+        // F 一期：floor 模块数据变更 → 刷新模块缓存（机制 A，写侧只发事件，收口在此）
+        this.floorModulesUpdatedHandler = (e) => {
+            debugLog('[Module Cache]楼层模块数据变更，刷新缓存:', e?.detail);
+            moduleCacheManager.updateModuleCacheDebounced(true);
+        };
+        window.addEventListener(FLOOR_MODULES_UPDATED_EVENT, this.floorModulesUpdatedHandler);
+        infoLog(`[EVENTS]已监听楼层模块数据变更事件 ${FLOOR_MODULES_UPDATED_EVENT}`);
     }
 }
 

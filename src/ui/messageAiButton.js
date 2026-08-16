@@ -7,8 +7,9 @@ import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
-import { isInChatPage, openContextBottomAsModal } from '../core/contextBottomUI.js';
+import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../core/contextBottomUI.js';
 import perMessageStorage from '../services/perMessageStorage.js';
+import { readFloorModules, writeFloorModules } from '../core/floorModuleStore.js';
 import { CONTEXT_MSG_CONTAINER_ID } from '../core/context-ui/containerManager.js';
 
 const LOG_TAG = '[MessageAiButton]';
@@ -623,14 +624,16 @@ async function onEditModules(mesId) {
     const $iframe = $container.find('iframe');
     $iframe.hide();
 
-    // 读取 perMessageStorage 数据(新格式:swipe 数据是 { modules: string, ... })
+    // 读取模块数据：优先 floor（F 一期新格式），无则回退 perMessageStorage（旧数据兼容）
     const swipeId = chat[mesId]?.swipe_id ?? 0;
     let rawText = '';
-    let existingData = null;
     try {
-        existingData = await perMessageStorage.getMessage(mesId, swipeId);
-        if (existingData?.modules) {
-            rawText = existingData.modules;
+        rawText = readFloorModules(mesId, swipeId);
+        if (!rawText) {
+            const existingData = await perMessageStorage.getMessage(mesId, swipeId);
+            if (existingData?.modules) {
+                rawText = existingData.modules;
+            }
         }
     } catch (err) {
         errorLog(LOG_TAG, `读取消息 ${mesId} 模块数据失败:`, err);
@@ -660,14 +663,13 @@ async function onEditModules(mesId) {
         $btn.addClass('disabled').css('opacity', 0.5);
         const text = String($editArea.find('.ccore-edit-textarea').val() || '');
         try {
-            // 新格式:只更新 modules key,保留其他 generator key
-            await perMessageStorage.updateMessage(mesId, swipeId, {
-                modules: text,
-            });
+            // F 一期：模块数据写回 floor（按 swipe），触发楼层模块变更事件
+            writeFloorModules(mesId, swipeId, text);
             infoLog(LOG_TAG, `消息 ${mesId} 模块数据已保存（${text.length} 字符）`);
             $editArea.remove();
             $iframe.show();
-            // TODO: 重新渲染该消息的模块展示区（需 updateUItoMsgBottom 接入异步数据源后实现）
+            // 刷新该消息的模块展示区（异步数据源已接入，直接按单条刷新）
+            scheduleMsgBottom('single', mesId);
         } catch (err) {
             errorLog(LOG_TAG, `保存消息 ${mesId} 模块数据失败:`, err);
             $btn.removeClass('disabled').css('opacity', '');

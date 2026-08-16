@@ -10,6 +10,7 @@ import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { showDebugPanel } from '../ui/generatorDebugPanel.js';
+import { writeFloorModules } from '../core/floorModuleStore.js';
 
 const LOG_TAG = 'ModuleAiGenerator';
 
@@ -72,10 +73,13 @@ function _savePendingToStorage() {
 function _createSaveCallback(ctx) {
     return async () => {
         const { mesId, swipeId, generatorName, isModule, extracted, text } = ctx;
-        const swipeData = isModule ? extracted : { [generatorName]: text };
-        const swipesData = { [swipeId]: swipeData };
-        await perMessageStorage.writeMessage(mesId, swipeId, swipesData);
-        if (!isModule) {
+        if (isModule) {
+            // 模块数据存 floor（F 一期：正文后模块），写入触发楼层模块变更事件
+            writeFloorModules(mesId, swipeId, extracted?.modules || '');
+        } else {
+            const swipeData = { [generatorName]: text };
+            const swipesData = { [swipeId]: swipeData };
+            await perMessageStorage.writeMessage(mesId, swipeId, swipesData);
             generatedContentCache.set(mesId, generatorName, text);
         }
         clearPendingResult(generatorName, mesId);
@@ -213,6 +217,12 @@ export const moduleAiGenerator = {
         const isSingle = messages.length === 1;
         debugLog(LOG_TAG, `开始生成 ${generatorName}，${messages.length} 条消息，模式: ${mode}`);
 
+        // F 重构：重新生成第 X 层时，让 AI 只看到 0..X 的正文上下文。
+        // aiCaller 通过 truncateToMesId 临时隐藏 X 之后的楼层（is_system 标记，生成完还原）。
+        // 正文给到 X 层（含目标层正文自然涵盖），生成指令作为 X+1 层 user 消息（quietPrompt）。
+        const truncateToMesId = Math.max(...messages.map(m => m.mesId));
+        debugLog(LOG_TAG, `生成上下文截断到楼层 ${truncateToMesId}`);
+
         // 根据 generatorName 决定提示词来源
         let effectivePipelineModifier = pipelineModifier;
         let effectiveRawSystemPrompt = rawSystemPrompt;
@@ -286,28 +296,26 @@ export const moduleAiGenerator = {
             sentInfo = { type: 'raw', prompt: callOptions.prompt };
 
         } else {
-            // Pipeline 模式：injectPrompt 完全来自用户配置或 generator_config
+            // Pipeline 模式：走 ST 完整管线（generateQuietPrompt）。
+            // - quietPrompt = 生成指令（作为「第 X+1 层的 user 消息」，即用户在该层正文后发送的指令）
+            // - truncateToMesId = 临时隐藏 X 之后楼层，让 AI 只看 0..X 正文
             if (!effectivePipelineModifier) {
                 warnLog(LOG_TAG, 'pipeline 模式未配置追加指令，请在设置中填写');
                 return { success: false, text: '', debug: null, storedCount: 0 };
             }
 
-            const injectPrompt = effectivePipelineModifier;
-
-            // quietPrompt 放所有消息内容
-            const quietPrompt = messages.map(m =>
-                `--- 楼层 ${m.mesId} (${m.is_user ? '用户' : m.name}) ---\n${m.text}`
-            ).join('\n\n');
+            // 生成指令作为最后一条 user 消息
+            const quietPrompt = effectivePipelineModifier;
 
             callOptions = {
                 mode: 'pipeline',
                 quietPrompt,
-                injectPrompt,
+                truncateToMesId,
                 customApi,
                 responseLength,
             };
 
-            sentInfo = { type: 'pipeline', quietPrompt, injectPrompt };
+            sentInfo = { type: 'pipeline', quietPrompt, truncateToMesId };
         }
 
         try {
@@ -329,24 +337,25 @@ export const moduleAiGenerator = {
 
                 // 存储到每条消息
                 if (hasModules) {
-                    // 构造 swipe 数据:模块用 extracted,其他用 { [generatorName]: result.text }
-                    const swipeData = isModule ? extracted : { [generatorName]: result.text };
-
-                    // 非模块生成内容写入内存缓存（供 promptInjector 注入时同步读取）
-                    if (!isModule) {
+                    if (isModule) {
+                        // 模块数据存 floor（F 一期：正文后模块），写入触发楼层模块变更事件
+                        if (isSingle) {
+                            const msg = messages[0];
+                            writeFloorModules(msg.mesId, msg.activeSwipeId, extracted?.modules || '');
+                            storedCount = 1;
+                            infoLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor）`);
+                        } else {
+                            for (const msg of messages) {
+                                writeFloorModules(msg.mesId, msg.activeSwipeId, extracted?.modules || '');
+                                storedCount++;
+                            }
+                            infoLog(LOG_TAG, `${messages.length} 条消息 ${generatorName} 数据已存储（floor）`);
+                        }
+                    } else {
+                        // 非模块生成内容：仍走 perMessageStorage + 内存缓存
+                        const swipeData = { [generatorName]: result.text };
                         for (const msg of messages) {
                             generatedContentCache.set(msg.mesId, generatorName, result.text);
-                        }
-                    }
-
-                    if (isSingle) {
-                        const msg = messages[0];
-                        const swipesData = { [msg.activeSwipeId]: swipeData };
-                        await perMessageStorage.writeMessage(msg.mesId, msg.activeSwipeId, swipesData);
-                        storedCount = 1;
-                        infoLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储`);
-                    } else {
-                        for (const msg of messages) {
                             const swipesData = { [msg.activeSwipeId]: swipeData };
                             await perMessageStorage.writeMessage(msg.mesId, msg.activeSwipeId, swipesData);
                             storedCount++;

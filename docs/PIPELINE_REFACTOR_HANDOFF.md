@@ -106,6 +106,73 @@
 
 ---
 
+## 4.1 F：异步 floor 存储（分期设计，2026-08-16 讨论收敛）
+
+### 背景与决策
+- 异步输出走单独消息：复用 `messageAiButton`「重新生成」→ `onRegenerate` → `moduleAiGenerator.generate(mesId, options)`（已带 mesId、pipeline/raw 独立发收、现 skipStorage=true）。
+- 自动/手动可配置：自动=主回复生成完成后另起独立发收；手动=用户点 messageAiButton 按钮。
+- 数据源只走「存聊天内容」（floorBridge），不做服务器 fetch 源（服务器逻辑未做且不确定继续做）。
+- floor 落点：`chat[floor].extra.ccore`（floorBridge 已封装，FLOOR_NS='ccore' 与 chat_metadata.ccore 同体系）。**不存 `chat[floor].ccore` 顶层**（ST 规范：扩展数据放 extra，避免污染消息对象/撞字段）。
+- 存储 key：`modulesBySwipe = { [swipeId]: raw模块文本块 }`（每 swipe 各自一份）。
+- 缓存通知：机制 A（自定义事件 `ccore-floor-modules-updated`，detail `{mesId}`），eventHandler 统一监听 → `updateModuleCacheDebounced(true)`。写侧收口工具函数 `notifyFloorModulesUpdated(mesId)`，将来换机制只改此函数。
+
+### F 一期（已实现，2026-08-16）
+1. **`src/core/floorModuleStore.js`（新）**：写侧唯一入口。`modulesBySwipe = {[swipeId]: raw}` 落 `chat[floor].extra.ccore`（floorBridge）；`writeFloorModules/readFloorModules/deleteFloorModules/notifyFloorModulesUpdated`。事件 `ccore-floor-modules-updated`。
+2. **`asyncChatSource` 注册到 moduleDataSources**：读 floor raw 按 \n 拆块、附 messageIndex，**支持 filters 过滤模块名**（与 chatText 语义对齐）。
+3. **多源合并**：`moduleDataSources` 新增 `getActiveSources()`（同步=[chatText]，异步=[chatText, asyncChat]）；`runModulePipeline` 合并多源 raw，交给 normalize 的 dedup 去重。
+4. **写盘切 floor**：`moduleAiGenerator` 的 `_createSaveCallback` 和主流程 `isModule` 分支改 `writeFloorModules`（非模块 generator 仍走 perMessageStorage + generatedContentCache）。
+5. **`onEditModules` 切 floor**：读优先 floor、回退 perMessageStorage（旧数据兼容）；保存写回 floor + `scheduleMsgBottom('single', mesId)` 刷新 UI。修正了「编辑按 swipe 存」此前遗漏。
+6. **缓存失效接线（机制 A）**：eventHandler `initializeModuleCache` 里 `window.addEventListener(FLOOR_MODULES_UPDATED_EVENT)` → `updateModuleCacheDebounced(true)`；destroy 时移除。
+
+**已知限制（F 一期接受，F 二期治理）**：
+- **双源同内容**：正文与 floor 同模块名+同变量值会由 `deduplicateModules`（deduplicate.js:48 按模块名+全变量值合并）**自然去重**，不产生两份输出。原则：**不动正文原有内容**。F 二期的「position 裁剪」指异步模式下提示词层面不再要求 AI 输出 after_body 模块（生成规则变化），非剥正文。
+- `asyncChatSource` 产出的 nestedInfo 是空结构（floor 模块按非嵌套处理），与 chatText 的 parseNestedModules 不一致但 normalize 可接受。
+- 异步时宏 `{{CONTINUITY_MODULE_DATA}}` 等仍走 runModulePipeline → 已自动读到 floor 数据（混合源生效），无需额外接线。
+- 极端：正文与 floor 同模块但**不同版本**时，dedup 按模块名+变量值保留最后出现版本，不输出两份矛盾数据。
+
+### 重新生成模块·提示词上下文重构（第二版，2026-08-16，未 commit）
+**目标**：在「第 X 层点重新生成」时，发给 AI 的提示词 = 标准 ST 组装（预设/世界书/宏全保留），且：
+- **正文历史**：`chat[0..X]`（含目标层正文，作为历史最后一条）
+- **quietPrompt（最后 user 消息）**：生成指令（`pipelineModifier` 等 config），语义=「第 X+1 层的 user 消息」
+
+**方案（generateQuietPrompt + is_system 临时隐藏）**：
+- `aiCaller._callPipeline` 改为 `generateQuietPrompt({quietPrompt, responseLength})`（script.js:2390，走 Generate('quiet') 完整 ST 管线 → 正则/文件/宏/世界书/预设全保留）。
+- **临时隐藏**：`truncateToMesId` 时把 `chat[i].is_system = true`（i>truncateToMesId），coreChat 组装 `chat.filter(!is_system)`（script.js:3665）自动跳过；生成完 finally 还原。**不保存、不动 chat.length、不 push 消息 → 聊天记录零风险**。
+- `moduleAiGenerator.generate`：`truncateToMesId = max(messages.mesId)` 传给 aiCaller；`quietPrompt` = `effectivePipelineModifier`。
+- raw 模式保持现状（用户自配 prompt，不走 ST 管线）。
+
+**第一版方案已废弃（自实现历史喂 messageData.messages）**：历史倒序（setOpenAIMessages 内部倒序+populateChatHistory 反转不匹配）、没过 ST 正则/文件、quietPrompt 不在 chat 数组 → `{{lastUserMessage}}` 取不到。
+
+**待后续（F 二期）**：宏 `{{CONTINUITY_MODULE_DATA}}` 按楼层截断（正文给到 X、宏数据给到 X-1）；多楼层生成历史截断细粒度优化。
+
+**备注**：CLAUDE.md 287-290 是过期文档（描述旧 generateQuietPrompt 方案，代码当时已是 prepareOpenAIMessages），用户要求暂不修正。
+
+### F 二期：快照/非全量更新系统（设计量较大，单独出稿）
+- **问题 A（生成上下文截断）**：重新生成 X 时发给 AI 的 moduleData 须截止到 X-1（把 X-1 当最新），`runModulePipeline` 的 range.end=X-1 已支持，改动集中在宏按目标楼层截断。
+- **问题 B（链式后缀重算）**：X 的 raw 更新 → 从 X 到末尾重算 merged。**关键：必须依赖「每层累积中间态快照」才能不全量**——`mergeModulesByOrder` 不是简单可组合函数（有 cumulativeVariables/lastTimeData 等跨 item 中间态），不能 `merge(merge(a,b),c)` 拼接。
+  - **快照=内存级累积中间态缓存**（ModuleStore / moduleCacheManager 扩展），**不持久化到 floor**（floor 只存 raw 事实；快照是派生数据，持久化会引入级联一致性维护成本，冷启动一次性全量重建便宜）。
+  - 「从 X 重算」= 取 X-1 的中间态快照起步 → 用 X 新 raw 更新 occurrences[X] → 重跑 X..末尾 merge → 更新 X..末尾快照缓存。
+  - 冷启动：无缓存时从 0 算到 X-1 一次（一次性 O(X)），后续编辑只花 O(受影响段)。
+- **结论**：快照=内存级累积中间态，floor 只存 raw。
+
+### 待讨论（已定稿项）
+1. **异步提示词裁剪 + 混合数据源（已确认）**：
+   - **position 编码了异步语义**：`body` 系=正文内生成（异步不需要提示词、不存 floor）；`after_body`=正文后生成（异步独立生成、存 floor，数据大头）；`embedded`=**正文内部分留正文、正文后部分异步**（异步生成发送全部正文→正文内部分本就在上下文；即使重生成正文后部分，模块处理层 dedup 按模块名+变量值合并剔除重复，双源共存靠 dedup 兜底）。
+   - **数据源天然「混合」**：异步模式 = `chatTextSource`（正文内模块+世界书）+ `asyncChatSource`（floor 正文后模块），`runModulePipeline` 合并多源 raw 数组。
+   - **不需要专门 key 存正文内模块**（正文里已有，chatTextSource 免费提取；专门 key 引入剥除/双份一致性成本）。
+   - **源互斥硬约束**：异步模式下正文不能残留 after_body 模块（否则双算）——由异步提示词裁剪保证，position 天然表达。
+   - 异步裁剪**靠 position 推导**（替代 asyncMode 配置项提案）。
+2. configManager 的 asyncModule `storageLocation` 开关：**已定先不做**，异步默认存聊天文件（floorBridge）。
+
+### 快照缓存：冷启动语义（2026-08-16 已确认）
+- `snapshots: Map<floor, cumulativeState>`（每层每 identifier 组，内存）。**只向前失效，从不向后**——编辑 Y 只影响 Y 及之后的中间态，0..Y-1 永远有效。
+- 冷启动（目标 X）：算 0..X-1 落缓存（O(X)）。
+- **改选更前楼层 Y<X**：`snapshots[Y-1]` 已在缓存（冷启动覆盖了 0..X-1⊇0..Y-1），O(1) 取 → 更新 occurrences[Y] → 重算 Y..end。**不重新冷启动**。
+- 边界：首次操作就选很前楼层（无缓存）→ 0..Y-1 算一次（O(Y)），一次性，之后增量。
+- 诚实提醒：编辑很前楼层时 O(end-Y) 仍接近全量——累积链模型固有（下游依赖上游），Tier 3 只能省前缀。长聊天+频繁改老楼层可后续上「checkpoint 稀疏化」（每 N 层存 checkpoint），后续优化。
+
+---
+
 ## 5. 关键文件索引
 
 | 模块 | 文件 |

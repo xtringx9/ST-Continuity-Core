@@ -18,7 +18,7 @@ import {
 } from './output.js';
 import { insertCombinedStylesToDetails } from '../../modules/styleCombiner.js';
 import { groupProcessResultByMessageIndex } from './groupByMessage.js';
-import { getActiveSource } from './moduleDataSources.js';
+import { getActiveSources } from './moduleDataSources.js';
 import { readCache, writeCache } from './cacheLayer.js';
 
 /**
@@ -113,12 +113,19 @@ export function runModulePipeline(opts = {}) {
             }
         }
 
-        // ---- 提取（数据源路由）----
-        const source = getActiveSource();
-        if (!source) {
+        // ---- 提取（数据源路由，F 一期支持多源合并）----
+        // 同步模式=[chatText]；异步模式=[chatText, asyncChat]（正文内 + 正文后）。
+        // 各源产出同构 raw 数组，合并后交给 normalize 的 dedup 去重（同模块名+同变量值合并）。
+        const sources = getActiveSources();
+        if (!sources || sources.length === 0) {
             throw new Error('无可用模块数据源');
         }
-        const rawModules = source.getRawModules({ start, end, filters: effectiveFilters });
+        const rawModules = [];
+        for (const { impl } of sources) {
+            const part = impl.getRawModules({ start, end, filters: effectiveFilters });
+            if (Array.isArray(part)) rawModules.push(...part);
+        }
+        debugLog(`[runModulePipeline] 多源合并 raw 模块：${rawModules.length} 个（源：${sources.map(s => s.name).join(',')}）`);
 
         // ---- 处理 ----
         let resultContent = '';
