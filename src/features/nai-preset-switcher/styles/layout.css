@@ -1540,8 +1540,7 @@
 }
 
 /* 折叠状态：隐藏内容区（网格或子分组），仅保留分组头 */
-.np-img-group.collapsed > .np-img-grid,
-.np-img-group.collapsed > .np-img-subgroups {
+.np-img-group.collapsed > .np-img-group-content {
     display: none;
 }
 
@@ -1793,19 +1792,52 @@
     border-color: var(--success-color, #3a9d5d);
 }
 
-.np-img-group-more {
-    grid-column: 1 / -1;
-    margin: 6px auto;
-    padding: 6px 16px;
+/* 节点内分页（叶子=图片页，中间=子组页） */
+.np-img-node-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px 0 4px;
+}
+
+.np-img-node-page {
+    min-width: 28px;
+    height: 26px;
+    padding: 0 6px;
     font-size: 12px;
-    border-radius: 6px;
-    border: 1px dashed var(--border-color, rgba(128, 128, 128, 0.4));
-    background: transparent;
-    color: var(--text-muted, #888);
+    border-radius: 5px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.4));
+    background: var(--bg-input, transparent);
+    color: var(--text-primary, #222);
     cursor: pointer;
 }
 
-.np-img-group-more:hover {
+.np-img-node-page:hover:not(:disabled) {
+    color: var(--accent-color, #4f7cff);
+    border-color: var(--accent-color, #4f7cff);
+}
+
+.np-img-node-page:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.np-img-node-page-info {
+    font-size: 12px;
+    color: var(--text-muted, #888);
+    min-width: 32px;
+    text-align: center;
+}
+
+/* 「展开全部 / 收起分页」按钮（弱化，虚线边） */
+.np-img-node-expandall {
+    border-style: dashed;
+    color: var(--text-muted, #888);
+    margin-left: 6px;
+}
+
+.np-img-node-expandall:hover:not(:disabled) {
     color: var(--accent-color, #4f7cff);
     border-color: var(--accent-color, #4f7cff);
 }

@@ -524,8 +524,9 @@ function getDimLabel(dim, img) {
 
 /* ============ 渲染（分组分页：顶部页码导航） ============ */
 
-const GROUPS_PER_PAGE = 12;       // 每页渲染的分组数（每页分组数 × 单组初始图数 可控）
-const IMAGES_PER_GROUP = 12;      // 单组初始渲染的图片数（超出默认折叠，点「展开剩余」显示）
+const MAX_IMAGES_PER_PAGE = 144;  // 每页累计图片数上限（按图量分页；不切断顶层节点，单个超限节点独占一页）
+const NODE_IMAGES_PER_PAGE = 12;  // 叶子组内每页图片数（组内分页替代「展开剩余」）
+const NODE_CHILDREN_PER_PAGE = 5; // 中间节点每页子组数（角色/聊天等内部翻页）
 const PROMPT_LABEL_MAX = 40;      // 提示词分组名截断长度（超出显示「…」+ 点击展开）
 
 function getGroups(pendingSet) {
@@ -559,8 +560,34 @@ function sortGroupNodes(nodes) {
 
 // 全局缓存当前过滤后的分组列表与当前页码（分页用）
 let _allGroups = [];
+let _pages = [];      // 方案 D 页划分：[{start,end}]（_allGroups 顶层索引区间）
 let _currentPage = 1;
 let _totalPages = 1;
+// 节点内分页状态：pathKey -> 页码（叶子=图片页，中间=子组页）；整体 render 时清空重建
+let nodePageMap = new Map();
+
+// 方案 D：按图量分页，不切断顶层节点。
+// 遍历 _allGroups 顶层节点，贪心累计各节点图片数（含子树递归），
+// 超过 MAX_IMAGES_PER_PAGE 即翻页；单个超限节点独占一页（顶层语义完整）。
+// 返回页数组 [{ start, end }]（start/end 为 _allGroups 的顶层索引区间，含头不含尾）。
+function computePages() {
+    const pages = [];
+    if (!_allGroups.length) return pages;
+    let start = 0;
+    let acc = 0;
+    for (let i = 0; i < _allGroups.length; i++) {
+        const count = countGroupImages(_allGroups[i]);
+        // 当前页非空且加入会超限 → 封页开新页
+        if (acc > 0 && acc + count > MAX_IMAGES_PER_PAGE) {
+            pages.push({ start, end: i });
+            start = i;
+            acc = 0;
+        }
+        acc += count;
+    }
+    if (start < _allGroups.length) pages.push({ start, end: _allGroups.length });
+    return pages;
+}
 
 /* ============ 图片收藏（红心，独立于预设标签） ============ */
 // 内存缓存：key -> {key, cat, path, tags, createdAt, updatedAt}（读 configManager）
@@ -905,10 +932,13 @@ function appendGroups(start, end) {
     }
 }
 
-// 通用递归渲染分组节点：叶子组渲染图片网格；父组渲染子分组头 + 递归 children。
+// 通用递归渲染分组节点：叶子组渲染图片网格（组内分页）；父组渲染子分组头 + 递归 children（组内分页）。
 // depth 用于缩进嵌套层级的样式（CSS 类 np-img-group-depth-{depth}）。
-function appendGroupNode(g, parent, depth) {
+// pathKey 用于节点内分页状态定位（父路径 + 自身 key，保证多层级唯一）。
+function appendGroupNode(g, parent, depth, pathKey) {
     if (!g) return;
+    const key = g.key || g.label || 'node';
+    const myPath = pathKey ? `${pathKey}::${key}` : key;
     const groupEl = doc.createElement('div');
     groupEl.className = 'np-img-group np-img-group-depth-' + Math.min(depth, 3);
     const isLeaf = !(g.children && g.children.length);
@@ -998,31 +1028,120 @@ function appendGroupNode(g, parent, depth) {
     }
     groupEl.appendChild(header);
 
-    if (isLeaf) {
-        const grid = doc.createElement('div');
-        grid.className = 'np-img-grid';
-        const visible = g.images.slice(0, IMAGES_PER_GROUP);
-        visible.forEach(img => grid.appendChild(buildImageCell(img, g.images)));
-        // 单组图片超过阈值：提供「展开全部」
-        if (g.images.length > IMAGES_PER_GROUP) {
-            const more = doc.createElement('button');
-            more.className = 'np-img-group-more';
-            more.textContent = `展开剩余 ${g.images.length - IMAGES_PER_GROUP} 张`;
-            more.addEventListener('click', () => {
-                g.images.slice(IMAGES_PER_GROUP).forEach(img => grid.appendChild(buildImageCell(img, g.images)));
-                more.remove();
-            });
-            grid.appendChild(more);
+    // 内容区（叶子=图片网格；中间=子分组）。分页只重建内容区，保留折叠态。
+    const content = doc.createElement('div');
+    content.className = 'np-img-group-content';
+
+    const renderContent = () => {
+        content.innerHTML = '';
+        if (isLeaf) {
+            // 叶子：组内分页（按图数）
+            const total = g.images.length;
+            const pages = Math.max(1, Math.ceil(total / NODE_IMAGES_PER_PAGE));
+            // nodePageMap 存 0 表示「展开全部」；否则为页码（默认 1）
+            // ⚠️ 必须用 has 判断而非 `|| 1`：0 是 falsy，`|| 1` 会把展开态吞掉导致永远无效
+            let page = nodePageMap.has(myPath) ? nodePageMap.get(myPath) : 1;
+            const expandedAll = page === 0;
+            if (!expandedAll) {
+                if (page > pages) page = pages;
+                if (page < 1) page = 1;
+            }
+            const grid = doc.createElement('div');
+            grid.className = 'np-img-grid';
+            if (expandedAll) {
+                // 展开全部：一次性渲染所有图
+                g.images.forEach(img => grid.appendChild(buildImageCell(img, g.images)));
+                content.appendChild(grid);
+                const bar = buildNodePager(myPath, page, pages, renderContent, true);
+                content.appendChild(bar);
+            } else {
+                const start = (page - 1) * NODE_IMAGES_PER_PAGE;
+                const slice = g.images.slice(start, start + NODE_IMAGES_PER_PAGE);
+                slice.forEach(img => grid.appendChild(buildImageCell(img, g.images)));
+                content.appendChild(grid);
+                if (pages > 1) {
+                    content.appendChild(buildNodePager(myPath, page, pages, renderContent, false));
+                }
+            }
+        } else {
+            // 中间节点：组内分页（按子组数）
+            const total = g.children.length;
+            const pages = Math.max(1, Math.ceil(total / NODE_CHILDREN_PER_PAGE));
+            let page = nodePageMap.get(myPath) || 1;
+            if (page > pages) page = pages;
+            if (page < 1) page = 1;
+            const start = (page - 1) * NODE_CHILDREN_PER_PAGE;
+            const slice = g.children.slice(start, start + NODE_CHILDREN_PER_PAGE);
+            const sub = doc.createElement('div');
+            sub.className = 'np-img-subgroups';
+            slice.forEach(child => appendGroupNode(child, sub, depth + 1, myPath));
+            content.appendChild(sub);
+            if (pages > 1) {
+                content.appendChild(buildNodePager(myPath, page, pages, renderContent));
+            }
         }
-        groupEl.appendChild(grid);
-    } else {
-        // 递归渲染子分组
-        const sub = doc.createElement('div');
-        sub.className = 'np-img-subgroups';
-        g.children.forEach(child => appendGroupNode(child, sub, depth + 1));
-        groupEl.appendChild(sub);
-    }
+    };
+
+    renderContent();
+    groupEl.appendChild(content);
     parent.appendChild(groupEl);
+}
+
+// 节点内分页控件（组内翻页：‹ 1/3 ›）
+// expandedAll=true 时显示「收起分页」（回到分页态）；否则图超一页时显示「展开全部」。
+function buildNodePager(pathKey, page, pages, onPage, expandedAll) {
+    const wrap = doc.createElement('div');
+    wrap.className = 'np-img-node-pager';
+
+    if (expandedAll) {
+        // 展开全部态：只提供「收起分页」
+        const collapse = doc.createElement('button');
+        collapse.className = 'np-img-node-page np-img-node-expandall';
+        collapse.textContent = '收起分页';
+        collapse.addEventListener('click', () => {
+            nodePageMap.set(pathKey, 1); // 回到第一页
+            onPage();
+        });
+        wrap.appendChild(collapse);
+        return wrap;
+    }
+
+    const prev = doc.createElement('button');
+    prev.className = 'np-img-node-page';
+    prev.textContent = '‹';
+    prev.disabled = page <= 1;
+    prev.addEventListener('click', () => {
+        nodePageMap.set(pathKey, Math.max(1, page - 1));
+        onPage();
+    });
+    wrap.appendChild(prev);
+
+    const label = doc.createElement('span');
+    label.className = 'np-img-node-page-info';
+    label.textContent = `${page}/${pages}`;
+    wrap.appendChild(label);
+
+    const next = doc.createElement('button');
+    next.className = 'np-img-node-page';
+    next.textContent = '›';
+    next.disabled = page >= pages;
+    next.addEventListener('click', () => {
+        nodePageMap.set(pathKey, Math.min(pages, page + 1));
+        onPage();
+    });
+    wrap.appendChild(next);
+
+    // 图超一页时提供「展开全部」
+    const expandBtn = doc.createElement('button');
+    expandBtn.className = 'np-img-node-page np-img-node-expandall';
+    expandBtn.textContent = '展开全部';
+    expandBtn.addEventListener('click', () => {
+        nodePageMap.set(pathKey, 0); // 0 = 展开全部
+        onPage();
+    });
+    wrap.appendChild(expandBtn);
+
+    return wrap;
 }
 
 // 统计组内图片总数（含子组递归）
@@ -1124,14 +1243,14 @@ function render() {
     }
     if (empty) empty.style.display = 'none';
 
-    // 总页数：按分组数分页（每页 GROUPS_PER_PAGE 个分组）
-    _totalPages = Math.max(1, Math.ceil(_allGroups.length / GROUPS_PER_PAGE));
+    // 方案 D 分页：按累计图片数切页（不切断顶层节点）
+    _pages = computePages();
+    _totalPages = Math.max(1, _pages.length);
     if (_currentPage > _totalPages) _currentPage = _totalPages;
     if (_currentPage < 1) _currentPage = 1;
 
-    const start = (_currentPage - 1) * GROUPS_PER_PAGE;
-    const end = Math.min(start + GROUPS_PER_PAGE, _allGroups.length);
-    appendGroups(start, end);
+    const page = _pages[_currentPage - 1] || { start: 0, end: _allGroups.length };
+    appendGroups(page.start, page.end);
     renderPager();
 
     // 后台识别角色/服装副本（先显示，异步补徽标，不阻塞）。
@@ -1228,7 +1347,10 @@ function renderPager() {
 
     const info = doc.createElement('span');
     info.className = 'np-img-page-info';
-    info.textContent = `第 ${_currentPage}/${_totalPages} 页 · 共 ${_allGroups.length} 组`;
+    // 统计总图片数（递归所有顶层节点）
+    let totalImgs = 0;
+    _allGroups.forEach(g => { totalImgs += countGroupImages(g); });
+    info.textContent = `第 ${_currentPage}/${_totalPages} 页 · 共 ${totalImgs} 图`;
     pager.appendChild(info);
 }
 
@@ -1461,6 +1583,13 @@ function fallbackCopy(text) {
 // 切换分类/子分组/搜索时回到第一页（页码点击的 render 不重置）
 function reloadFirstPage() {
     _currentPage = 1;
+    nodePageMap.clear(); // 分组结构变化 → 组内分页状态失效
+    render();
+}
+
+// 叠加维度 toggle 时保持当前页（不清页码；组内分页状态因结构变化失效）
+function renderKeepPage() {
+    nodePageMap.clear();
     render();
 }
 
@@ -1498,7 +1627,7 @@ function bindControls() {
             else chatGroupDims.add(dim);
             persistChatGroupDims();
             syncChatToggle();
-            reloadFirstPage();
+            renderKeepPage(); // 叠加 toggle 保持当前页（不跳回第一页）
         });
     });
     syncChatToggle();
@@ -1515,7 +1644,7 @@ function bindControls() {
             else presetGroupDims.add(dim);
             persistPresetGroupDims();
             syncPresetToggle();
-            reloadFirstPage();
+            renderKeepPage(); // 叠加 toggle 保持当前页（不跳回第一页）
             // 开启维度时重置全量扫描标记，确保 chatMetaByHash 补齐（旧的 meta 可能缺失）
             if (presetGroupDims.size > 0) _fullScanned = false;
         });
