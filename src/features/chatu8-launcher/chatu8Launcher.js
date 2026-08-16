@@ -122,8 +122,16 @@ function bindModalBackdropClose() {
             if (!panelOpenedByUs) return;
             const modal = document.getElementById(MODAL_ID);
             if (!modal || modal.style.display === 'none') return;
-            // 点击落在内容区内部（或其子元素）不关；点击内容区之外（backdrop/header 空白）才关
-            if (e.target.closest && e.target.closest('.st-chatu8-modal-content')) return;
+            // 点击落在智绘姬任何 UI 内部都不关：
+            //   .st-chatu8-modal-content      主设置面板内容区
+            //   .st-chatu8-confirm-backdrop   确认/提示弹窗层（可能挂 #st-chatu8-settings 或 document.body）
+            //   .st-chatu8-entry-edit-modal-backdrop  条目编辑弹窗层（挂 document.body）
+            //   .st-chatu8-popup-modal        弹窗内容盒（兜底）
+            // 避免点击智绘姬内部弹窗按钮时误关整个面板。
+            if (e.target.closest && e.target.closest(
+                '.st-chatu8-modal-content, .st-chatu8-confirm-backdrop, .st-chatu8-entry-edit-modal-backdrop, .st-chatu8-popup-modal'
+            )) return;
+            // 点击落在上述所有智绘姬 UI 之外（真正的页面空白）才关闭面板
             closeChatu8Panel();
         };
         document.addEventListener('click', docBackdropHandler);
