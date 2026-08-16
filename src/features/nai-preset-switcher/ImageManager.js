@@ -37,6 +37,16 @@ function persistChatGroupDims() {
     try { localStorage.setItem(CHAT_DIMS_KEY, JSON.stringify([...chatGroupDims])); } catch (e) { /* 忽略 */ }
 }
 loadChatGroupDims();
+// 「只看当前选中」：仅文生图+按提示词维度激活时有意义；localStorage 持久化
+let chatOnlyCurrent = false;
+const ONLY_CURRENT_KEY = 'st_continuity_nai_only_current';
+function loadChatOnlyCurrent() {
+    try { chatOnlyCurrent = localStorage.getItem(ONLY_CURRENT_KEY) === '1'; } catch (e) { chatOnlyCurrent = false; }
+}
+function persistChatOnlyCurrent() {
+    try { localStorage.setItem(ONLY_CURRENT_KEY, chatOnlyCurrent ? '1' : '0'); } catch (e) { /* 忽略 */ }
+}
+loadChatOnlyCurrent();
 // 聊天扫描结果缓存（全部已扫描聊天，聊天外可见）：
 //   storageKey(=md5) → [{ chatId, chatName, characterName, floors:[] }]
 // 同一提示词可能出现在多个聊天/角色（同一 md5 跨聊天），聚合为数组，图片按数组逐份归属。
@@ -234,6 +244,16 @@ function buildChatGroups(pendingSet) {
         const change = entry.change || '';
         const label = change || '(未命名提示词)';
         const yushe0 = (entry.images[0] && entry.images[0].genParams && entry.images[0].genParams.yushe) || '';
+        // 当前选中图：智绘姬 entry.index 是「按 date 排序后」的索引。复刻排序定位 uuid。
+        // 仅 server 侧（jiuguanStorage）视图内定位；db 侧图不在遍历范围（常见场景 db 为空）。
+        const currentUuid = (() => {
+            if (typeof entry.index !== 'number' || entry.index < 0 || entry.images.length === 0) return '';
+            const sorted = entry.images
+                .map((im, i) => ({ im, i, d: im.date || 0 }))
+                .sort((a, b) => a.d - b.d);
+            const cur = sorted[Math.min(entry.index, sorted.length - 1)];
+            return (cur && cur.im && cur.im.uuid) || '';
+        })();
         // 扫描归属（全部已扫描聊天聚合）：storageKey → [{chatId, chatName, characterName, floors}]
         const scanRecords = needScan ? (chatScanByKey.get(md5) || null) : null;
         entry.images.forEach((img, idx) => {
@@ -246,6 +266,7 @@ function buildChatGroups(pendingSet) {
                 path: img.path || '', // 文件路径（lightbox 显示）
                 dup: judgeChatImage(img, pendingSet), // 角色/服装副本标记（可为 null）
                 chatMeta: { md5, change, yushe, uuid: img.uuid || '' }, // 供 chatMetaByHash 填充 / 二级分组 / 对侧 key
+                isCurrent: !!(currentUuid && img.uuid && img.uuid === currentUuid), // 智绘姬当前选中图
             };
             // 「按角色」且该提示词有扫描归属：每张图按扫描记录展开（同一提示词跨聊天/角色时在各组都出现）
             if (needScan && scanRecords && scanRecords.length > 0) {
@@ -257,6 +278,12 @@ function buildChatGroups(pendingSet) {
                 allImages.push({ ...base, scanInfo: needScan ? null : undefined });
             }
         });
+    }
+    // 「只看当前选中」：仅文生图 + 按提示词维度激活时有意义。过滤掉非当前选中图。
+    if (chatOnlyCurrent && chatGroupDims.has('prompt')) {
+        for (let i = allImages.length - 1; i >= 0; i--) {
+            if (!allImages[i].isCurrent) allImages.splice(i, 1);
+        }
     }
     if (allImages.length === 0) return [];
     // 激活维度（全可叠加）。空=全部按排序铺开（单组，不按任何维度分组）。
@@ -1228,7 +1255,8 @@ function buildImageCell(img, groupImages) {
     const cell = doc.createElement('div');
     cell.className = 'np-img-cell';
     const el = doc.createElement('div');
-    el.className = 'np-img-thumb';
+    el.className = 'np-img-thumb' + (img.isCurrent ? ' np-img-current' : '');
+    el.title = img.isCurrent ? '当前选中图（智绘姬显示此图）' : '悬停可设为当前选中';
     const loading = doc.createElement('span');
     loading.textContent = '加载中…';
     el.appendChild(loading);
@@ -1250,6 +1278,20 @@ function buildImageCell(img, groupImages) {
     });
     check.classList.toggle('checked', isSelected(img));
     el.appendChild(check);
+
+    // 「设为当前选中」hover 快捷按钮（仅文生图有 md5 概念；非管理模式显示）
+    const md5 = (img.chatMeta && img.chatMeta.md5) || '';
+    if (currentCat === 'chat' && md5 && !manageMode) {
+        const curBtn = doc.createElement('span');
+        curBtn.className = 'np-img-setcurrent';
+        curBtn.textContent = '✓当前';
+        curBtn.title = '设为当前选中（智绘姬将显示此图）';
+        curBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setCurrentImage(md5, img);
+        });
+        el.appendChild(curBtn);
+    }
 
     const srcPromise = currentCat === 'chat'
         ? resolveImageSrc(img.entry)
@@ -1280,6 +1322,29 @@ function buildImageCell(img, groupImages) {
     cap.textContent = img.title;
     cell.appendChild(cap);
     return cell;
+}
+
+// 将某张文内图设为智绘姬「当前选中」：写回 jiuguanStorage[md5].index（按 date 排序后索引）。
+// 复刻智绘姬 syncIndexToStorage 的定位：index 指向 date 升序数组的位置。
+function setCurrentImage(md5, img) {
+    try {
+        const chatu8 = getChatu8();
+        const storage = (chatu8 && chatu8.jiuguanStorage) || {};
+        const entry = storage[md5];
+        if (!entry || !Array.isArray(entry.images) || entry.images.length === 0) return;
+        const sorted = entry.images
+            .map((im, i) => ({ im, i, d: im.date || 0 }))
+            .sort((a, b) => a.d - b.d);
+        const idx = sorted.findIndex(x => x.im.uuid === img.entry.uuid);
+        if (idx === -1) return;
+        entry.index = idx;
+        try { saveSettings(); } catch (e) { /* 忽略 */ }
+        showToast(doc, '已设为当前选中', 'success');
+        render(); // 重渲更新底框高亮
+    } catch (e) {
+        errorLog('[图片管理] 设为当前选中失败:', e);
+        showToast(doc, '设置失败', 'error');
+    }
 }
 
 function render() {
@@ -1444,6 +1509,7 @@ function openLightbox(groupImages, index) {
     renderLightbox();
     updateLightboxNav();
     updateLightboxDeleteBtn();
+    updateLightboxSetCurBtn();
     // 恢复删除/下载按钮显示（收藏 tab 打开时可能隐藏过）
     const delBtn = doc.getElementById('np-lightbox-delete');
     const dlBtn = doc.getElementById('np-lightbox-download');
@@ -1460,6 +1526,16 @@ function updateLightboxDeleteBtn() {
     const ready = isDeleteReady();
     btn.disabled = !ready;
     btn.title = ready ? '删除这张图片' : '副本识别中，完成前不可删除';
+}
+
+// lightbox「设为当前选中」按钮：仅文内图（有 md5）显示；角色/服装/收藏 tab 隐藏
+function updateLightboxSetCurBtn() {
+    if (!doc) return;
+    const btn = doc.getElementById('np-lightbox-setcurrent');
+    if (!btn) return;
+    const item = _lbList[_lbIndex];
+    const md5 = (item && item.chatMeta && item.chatMeta.md5) || '';
+    btn.style.display = md5 ? '' : 'none';
 }
 
 // 渲染当前索引的图片（异步取 src；防止切图竞态：用会话计数器守卫）
@@ -1513,6 +1589,7 @@ async function renderLightbox() {
     img.src = src;
     img.alt = item.title;
     updateLightboxFav();
+    updateLightboxSetCurBtn();
 }
 
 // 同步 lightbox 红心状态（当前查看的图是否已收藏）
@@ -1674,6 +1751,9 @@ function bindControls() {
         const presetGroup = sub.querySelector('.np-img-sub-group[data-for="presetcat"]');
         if (chatGroup) chatGroup.style.display = (currentCat === 'chat') ? 'inline-flex' : 'none';
         if (presetGroup) presetGroup.style.display = (currentCat === 'character' || currentCat === 'outfit') ? 'inline-flex' : 'none';
+        // 「只看当前选中」开关显隐跟随（仅 chat + 按提示词激活）
+        const onlyCur = doc.getElementById('np-img-only-current');
+        if (onlyCur && typeof onlyCur._npSync === 'function') onlyCur._npSync();
     };
     cats.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1685,7 +1765,8 @@ function bindControls() {
     });
 
     // 文内生图子分组：按提示词/按预设/按角色 全部可叠加 toggle（localStorage 持久化）
-    const chatSubBtns = doc.querySelectorAll('.np-img-sub-group[data-for="chat"] .np-img-sub-btn');
+    // 排除「只看当前选中」开关（无 data-group，不属于维度叠加）
+    const chatSubBtns = doc.querySelectorAll('.np-img-sub-group[data-for="chat"] .np-img-sub-btn[data-group]');
     const syncChatToggle = () => {
         chatSubBtns.forEach(b => b.classList.toggle('active', chatGroupDims.has(b.getAttribute('data-group'))));
     };
@@ -1696,10 +1777,32 @@ function bindControls() {
             else chatGroupDims.add(dim);
             persistChatGroupDims();
             syncChatToggle();
+            // 维度变化影响「只看当前选中」开关显隐
+            const onlyCur = doc.getElementById('np-img-only-current');
+            if (onlyCur && typeof onlyCur._npSync === 'function') onlyCur._npSync();
             renderKeepPage(); // 叠加 toggle 保持当前页（不跳回第一页）
         });
     });
     syncChatToggle();
+
+    // 「只看当前选中」开关：仅文生图 + 按提示词维度激活时显示/生效
+    const onlyCurrentBtn = doc.getElementById('np-img-only-current');
+    if (onlyCurrentBtn) {
+        const syncOnlyCurrent = () => {
+            const visible = currentCat === 'chat' && chatGroupDims.has('prompt');
+            onlyCurrentBtn.style.display = visible ? '' : 'none';
+            onlyCurrentBtn.classList.toggle('active', visible && chatOnlyCurrent);
+            onlyCurrentBtn.disabled = !visible;
+        };
+        onlyCurrentBtn.addEventListener('click', () => {
+            chatOnlyCurrent = !chatOnlyCurrent;
+            persistChatOnlyCurrent();
+            syncOnlyCurrent();
+            renderKeepPage();
+        });
+        onlyCurrentBtn._npSync = syncOnlyCurrent;
+        syncOnlyCurrent();
+    }
 
     // 角色/服装子分组（按提示词/按预设，可叠加 toggle，localStorage 持久化）
     const presetSubBtns = doc.querySelectorAll('.np-img-sub-group[data-for="presetcat"] .np-img-sub-btn');
@@ -1782,6 +1885,14 @@ function bindControls() {
         updateLightboxFav();
         // 通知收藏 tab 刷新（lightbox 里收藏/取消也要同步列表）
         if (window.__refreshImageFavTab) window.__refreshImageFavTab();
+    });
+    const lbSetCurBtn = doc.getElementById('np-lightbox-setcurrent');
+    if (lbSetCurBtn) lbSetCurBtn.addEventListener('click', () => {
+        const item = _lbList[_lbIndex];
+        if (!item) return;
+        const md5 = (item.chatMeta && item.chatMeta.md5) || '';
+        if (!md5) { showToast(doc, '此图无法设为当前选中', 'info'); return; }
+        setCurrentImage(md5, item);
     });
     const box = doc.getElementById('np-lightbox');
     if (box) {
