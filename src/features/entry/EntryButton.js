@@ -377,7 +377,9 @@ export class EntryButton {
                 height: '26px',
                 // 无边框：由父容器统一边框
                 borderRadius: '4px',
-                color: 'var(--smart-text-color, #fff)',
+                // ⚠️ 不设 color：让图标继承父容器（#leftSendForm）文本色，与 Cc 触发器 / messageAiButton 图标一致。
+                // 之前用 var(--smart-text-color, #fff) 是 ST 非标准变量，部分主题未定义 → fallback #fff，
+                // 浅色主题下图标变白不可见，导致"不同主题颜色不一致"。
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
