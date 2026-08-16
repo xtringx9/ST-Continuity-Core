@@ -13,7 +13,7 @@ import {
     chat,
     name1,
 } from '../../../../../../script.js';
-import { debugLog, infoLog, warnLog, errorLog } from '../utils/logger.js';
+import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 
 const LOG_TAG = 'AiCaller';
 
@@ -148,15 +148,15 @@ export const aiCaller = {
      * Pipeline 模式：走 ST 完整管线（generateQuietPrompt）
      * 1. 临时隐藏 truncateToMesId 之后的楼层（is_system 标记，不保存，生成完还原）
      *    → 让 AI 只看到 0..truncateToMesId 的正文上下文
-     * 2. 生成指令 push 进 chat 作为「第 X+1 层 user 消息」（临时，生成完 pop）
-     *    → chatHistory 最后一条是 user 生成指令，{{lastUserMessage}} 可取到它
-     * 3. generateQuietPrompt 组装完整提示词并生成
-     *    → 走 ST 原生 coreChat 组装（正则/文件/宏/世界书/预设全保留）
-     *    → quietPrompt 传空（避免 system 角色重复注入；生成指令已由 push 的 user 消息承担）
+     * 2. 生成指令两种模式（开关 pushAsLastUser 控制）：
+     *    - true：push 进 chat 作为「第 X+1 层 user 消息」（临时，生成完 pop）
+     *      → chatHistory 最后一条是 user 生成指令，{{lastUserMessage}} 可取到它；quietPrompt 传空
+     *    - false：经 quietPrompt 传入（system 角色，控制提示词末尾），不碰 chat
+     * 3. generateQuietPrompt 组装完整提示词并生成（ST 原生 coreChat：正则/文件/宏/世界书/预设全保留）
      * 4. 捕获组装后的提示词（CHAT_COMPLETION_PROMPT_READY）
      */
     async _callPipeline(options, capture) {
-        const { quietPrompt, responseLength, truncateToMesId } = options;
+        const { quietPrompt, responseLength, truncateToMesId, pushAsLastUser } = options;
 
         // 记录需要临时隐藏的楼层及原 is_system 值
         const hiddenBackup = [];
@@ -171,8 +171,9 @@ export const aiCaller = {
             }
         }
 
-        // 生成指令 push 进 chat 作为最后一条 user 消息（临时，生成完 pop）
-        const pushedUserMessage = (quietPrompt && typeof quietPrompt === 'string' && quietPrompt.trim()) ? { is_user: true, mes: quietPrompt, name: name1 } : null;
+        // push 模式：生成指令作为最后一条 user 消息（临时，生成完 pop）
+        const shouldPush = pushAsLastUser && quietPrompt && typeof quietPrompt === 'string' && quietPrompt.trim();
+        const pushedUserMessage = shouldPush ? { is_user: true, mes: quietPrompt, name: name1 } : null;
         if (pushedUserMessage && Array.isArray(chat)) {
             chat.push(pushedUserMessage);
             infoLog(LOG_TAG, `已临时 push 生成指令 user 消息（第 ${chat.length - 1} 层）`);
@@ -187,9 +188,12 @@ export const aiCaller = {
             };
             eventSource.once(event_types.CHAT_COMPLETION_PROMPT_READY, promptHandler);
 
-            infoLog(LOG_TAG, `调用 generateQuietPrompt，生成指令长度: ${quietPrompt?.length ?? 0}（已 push 为 user 消息）`);
+            // push 模式：quietPrompt 传空（生成指令已 push 进 chat，避免 system 重复）
+            // quietPrompt 模式：原样传入（system 角色，末尾）
+            const effectiveQuietPrompt = shouldPush ? '' : (quietPrompt || '');
+            infoLog(LOG_TAG, `调用 generateQuietPrompt，模式: ${shouldPush ? 'push-user' : 'quietPrompt'}，指令长度: ${quietPrompt?.length ?? 0}`);
             const result = await generateQuietPrompt({
-                quietPrompt: '',  // 生成指令已 push 进 chat，quietPrompt 传空避免 system 重复
+                quietPrompt: effectiveQuietPrompt,
                 responseLength: responseLength || null,
             });
             return result || '';

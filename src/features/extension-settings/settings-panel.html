@@ -283,6 +283,16 @@
                             </div>
                         </div>
 
+                        <div class="continuity-setting-card">
+                            <div class="setting-main">
+                                <input id="continuity_push_user_message_as_last" type="checkbox" />
+                                <div class="setting-text">
+                                    <label for="continuity_push_user_message_as_last" data-i18n="ccore_settings_push_user_message_as_last">生成指令作为最后 user 消息</label>
+                                    <span class="setting-hint" data-i18n="ccore_settings_push_user_message_as_last_hint">开启时生成指令 push 进聊天作为最后一条 user 消息（{{lastUserMessage}} 可取到）；关闭时经 quietPrompt 传入（system 角色）。</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <details style="margin-top: 8px;">
                             <summary style="cursor:pointer; color: var(--SmartThemeQuoteColor);" data-i18n="ccore_settings_custom_api_summary">独立 API 配置</summary>
                             <div style="margin-top: 6px;">

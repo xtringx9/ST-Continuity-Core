@@ -65,11 +65,12 @@ export const DEFAULT_EXTENSION_CONFIG = {
             rawUserPromptTemplate: '--- 楼层 {{mesId}} ({{senderType}}) ---\n{{messageText}}', // raw 模式的用户提示词模板
             pipelineModifier: '请根据以上对话内容，生成模块数据。使用 [模块名|键:值|键:值] 格式输出，每个模块占一行。只输出模块数据，不要输出其他内容。', // pipeline 模式追加的指令
             showDebug: true, // 生成后是否显示调试面板
+            pushUserMessageAsLast: false, // 重新生成时：true=生成指令 push 进 chat 作为最后 user 消息({{lastUserMessage}}可取)；false=经 quietPrompt 传入(system 角色,末尾)
         },
         buttonType: "embedded", // 按钮类型，默认嵌入按钮
         autoInject: false, // 自动注入开关，默认关闭
-        includeHiddenMessages: { // 提取模块时是否包含隐藏楼层（is_system），默认开启
-            enabled: true,
+        includeHiddenMessages: { // 提取模块时是否包含隐藏楼层（is_system），默认关闭
+            enabled: false,
         },
         config: { // 导出配置时的元数据（非功能开关）
             author: "", // 模块配置作者，默认空字符串

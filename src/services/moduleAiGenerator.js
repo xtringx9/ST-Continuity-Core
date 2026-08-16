@@ -307,15 +307,19 @@ export const moduleAiGenerator = {
             // 生成指令作为最后一条 user 消息
             const quietPrompt = effectivePipelineModifier;
 
+            // 开关：true=push 进 chat 作为最后 user 消息（{{lastUserMessage}} 可取）；false=经 quietPrompt（system 角色末尾）
+            const pushAsLastUser = !!configManager.getModuleDomainConfig().asyncModule?.pushUserMessageAsLast;
+
             callOptions = {
                 mode: 'pipeline',
                 quietPrompt,
                 truncateToMesId,
+                pushAsLastUser,
                 customApi,
                 responseLength,
             };
 
-            sentInfo = { type: 'pipeline', quietPrompt, truncateToMesId };
+            sentInfo = { type: 'pipeline', quietPrompt, truncateToMesId, pushAsLastUser };
         }
 
         try {

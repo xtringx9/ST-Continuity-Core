@@ -145,6 +145,10 @@
 
 **待后续（F 二期）**：宏 `{{CONTINUITY_MODULE_DATA}}` 按楼层截断（正文给到 X、宏数据给到 X-1）；多楼层生成历史截断细粒度优化。
 
+**开关 + includeHiddenMessages 联动（2026-08-16）**：
+- `configManager.asyncModule.pushUserMessageAsLast`（默认 false）：true=push 生成指令进 chat 作为最后 user 消息（{{lastUserMessage}} 可取，pop 还原）；false=经 quietPrompt（openai.js:1297 定义 `role:'system'`，controlPrompts 末尾）。
+- includeHiddenMessages 联动：is_system 设后/还原后 → `moduleCacheManager.updateModuleCacheImmediate(true)`（**必须 Immediate 同步**，Debounced 会让宏读到旧缓存）。使宏（读缓存）不含 X 之后楼层。
+
 **备注**：CLAUDE.md 287-290 是过期文档（描述旧 generateQuietPrompt 方案，代码当时已是 prepareOpenAIMessages），用户要求暂不修正。
 
 ### F 二期：快照/非全量更新系统（设计量较大，单独出稿）

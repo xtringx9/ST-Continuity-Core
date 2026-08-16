@@ -76,6 +76,7 @@ export function loadSettingsToUI() {
     $("#continuity_raw_user_prompt").val(asyncModule.rawUserPromptTemplate || '');
     $("#continuity_pipeline_modifier").val(asyncModule.pipelineModifier || '');
     $("#continuity_show_debug").prop("checked", asyncModule.showDebug !== false);
+    $("#continuity_push_user_message_as_last").prop("checked", asyncModule.pushUserMessageAsLast === true);
 
     // 独立 API 设置
     const customApi = asyncModule.customApi || {};
@@ -771,6 +772,7 @@ function _saveAiGenerationConfig() {
     extensionConfig.module.asyncModule.rawUserPromptTemplate = $('#continuity_raw_user_prompt').val()?.trim() || '';
     extensionConfig.module.asyncModule.pipelineModifier = $('#continuity_pipeline_modifier').val()?.trim() || '';
     extensionConfig.module.asyncModule.showDebug = $('#continuity_show_debug').prop('checked');
+    extensionConfig.module.asyncModule.pushUserMessageAsLast = $('#continuity_push_user_message_as_last').prop('checked');
 
     extensionConfig.module.asyncModule.customApi = {
         apiurl: $('#continuity_custom_api_url').val()?.trim() || '',

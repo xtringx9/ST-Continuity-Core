@@ -177,6 +177,8 @@
     "ccore_settings_custom_api_hint": "配置独立 API 参数。开启上方开关后生成时使用此 API，不影响主对话。",
     "ccore_settings_use_independent_api": "使用独立 API",
     "ccore_settings_use_independent_api_hint": "关闭时使用 ST 主 API；开启时使用下方独立 API 配置。",
+    "ccore_settings_push_user_message_as_last": "生成指令作为最后 user 消息",
+    "ccore_settings_push_user_message_as_last_hint": "开启时生成指令 push 进聊天作为最后一条 user 消息（{{lastUserMessage}} 可取到）；关闭时经 quietPrompt 传入（system 角色）。",
     "ccore_settings_show_debug": "生成后显示调试面板",
     "ccore_settings_ai_generate_floor": "AI 生成指定楼层",
     "ccore_settings_ai_generate_chat": "AI 生成当前聊天",
