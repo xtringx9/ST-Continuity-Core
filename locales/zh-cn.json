@@ -166,7 +166,7 @@
     "ccore_settings_async_rebuild_snapshots": "重建快照",
     "ccore_settings_async_rebuild_snapshots_hint": "从脏标记层开始重建累积状态快照。",
     "ccore_settings_ai_generation_title": "AI 生成模块",
-    "ccore_settings_generation_mode": "生成模式:",
+    "ccore_settings_generation_mode": "生成方式:",
     "ccore_option_pipeline": "走 ST 管线",
     "ccore_option_raw": "自定义提示词",
     "ccore_settings_generation_mode_hint": "管线模式使用 ST 的角色卡/世界书/预设；自定义模式完全自定义提示词。",

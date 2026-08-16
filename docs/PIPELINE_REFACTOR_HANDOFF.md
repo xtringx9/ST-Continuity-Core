@@ -166,6 +166,28 @@
   - 已知小泄漏：面板关闭后注册不清理（无害）；非流式下面板停「生成中…」可接受。
 - **边界**：退出聊天再保存 → 拒绝 + 提示回原聊天；回原聊天点生成按钮可重新唤出 pending 面板；不做跨聊天自动保存（复杂低价值，以后再说）。
 
+### 阶段 2 补丁 + 调试面板完善（2026-08-16，commit fb2604a）
+- **API 信息实时显示**：aiCaller 拦截器总是注册（有 customApi 覆盖独立 API；无则捕获主 API source/model），捕获后 `options.onApiUsed` 推送 → `updateDebugPanelApi` 动态追加/更新面板 API section（可读格式：独立/主 API + 模型 + source + URL）。
+- **section 展开修复（既有 bug）**：`_updatePreVisibility` 里普通 section 的 pre 无 `data-ccore-format` → `undefined===format` 恒 false → 折叠后无法展开。修复：`!p.dataset.ccoreFormat ||` 视为匹配。
+- **完成态标题去重**：`finishDebugPanel` 原来把 titleBody 塞进 badge span 内部 + 外面又有一个 → 聊天名显示两遍。改更新整个 `.ccore-debug-title`。
+- **中止不自动关面板**：中止后保留现场（失败原因/已流式内容），按钮禁用+「已中止」，用户点 × 手动关。
+- **中止后不弹新面板**：catch 分支 showDebugPanel 加 `isDebugPanelOpen` 判断 → 已打开则 finishDebugPanel 更新失败态。
+- **独立 API 开关绑定**：SettingsPanel 缺 `$('#continuity_use_independent_api').on('input', ...)` → 勾选不保存、回填旧值 →「去不掉」。已补。
+- **立即还原隐藏楼层**：`_callPipeline` 组装完成拿到 assembledChat 后立即还原 is_system（发送阶段 chat 已是原状），finally 兜底。原值精确恢复，不误设已隐藏楼层。
+
+### 设置面板 async tab 清理 + 重排（2026-08-16）
+- 注释旧控件：快照间隔、提取当前聊天、提取指定楼层、重建快照、AI 生成楼层/聊天按钮（perMessageStorage 旧方案，待 F 二期）。
+- 保留：异步存储开关（移到底部，标注「高级」）、生成模式、独立 API 配置（含拉取模型）、独立 API 开关、生成指令作为最后 user 消息、生成后显示调试面板。
+- 独立 API 配置 details 移到「使用独立 API」开关正下方（原来与开关分离）。
+- `#continuity_async_actions` 去掉 display:none + `updateAsyncActionsVisibility` 不再隐藏生成区（手动生成不依赖异步开关）。
+- tab 名：`异步存储`（用户决定不改名；曾短暂试过「模块生成」已回退）。
+
+### 上线前 P0/P1 建议（2026-08-16，用户确认后实施）
+- **P0**：保存链路兜底——`writeFloorModules` + `perMessageStorage.writeMessage` 写失败时 toast（现模块 floor 写失败可能静默）。
+- **P0**：确认生成结果确实落盘（floor 有数据 + UI 显示，已实测应通）。
+- **P1**：编辑一致性命中——`onEditGeneratedContent`（非模块 generator）与 floor 模块编辑的边界确认。
+- **P1**：异步提示词裁剪——决定 `{{CONTINUITY_PROMPT}}/{{CONTINUITY_ORDER}}` 在异步模式是否照发（需用户拍板行为）。
+
 ### F 二期：快照/非全量更新系统（设计量较大，单独出稿）
 - **问题 A（生成上下文截断）**：重新生成 X 时发给 AI 的 moduleData 须截止到 X-1（把 X-1 当最新），`runModulePipeline` 的 range.end=X-1 已支持，改动集中在宏按目标楼层截断。
 - **问题 B（链式后缀重算）**：X 的 raw 更新 → 从 X 到末尾重算 merged。**关键：必须依赖「每层累积中间态快照」才能不全量**——`mergeModulesByOrder` 不是简单可组合函数（有 cumulativeVariables/lastTimeData 等跨 item 中间态），不能 `merge(merge(a,b),c)` 拼接。

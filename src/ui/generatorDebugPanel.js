@@ -378,7 +378,12 @@ function _bindActionButtons(doc, data, modal) {
             } catch (err) {
                 saveBtn.disabled = false;
                 saveBtn.textContent = translate('ccore_debug_save');
-                alert(translate('ccore_debug_save_failed') + ': ' + err.message);
+                // 用父窗口 ST 原生 toastr 提示（不用 alert）
+                try {
+                    window.parent.toastr?.error(translate('ccore_debug_save_failed') + ': ' + err.message);
+                } catch {
+                    alert(translate('ccore_debug_save_failed') + ': ' + err.message);
+                }
             }
         });
     }

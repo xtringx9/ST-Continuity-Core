@@ -166,7 +166,7 @@
     "ccore_settings_async_rebuild_snapshots": "Rebuild Snapshots",
     "ccore_settings_async_rebuild_snapshots_hint": "Rebuild accumulated state snapshots from the dirty-marked floor.",
     "ccore_settings_ai_generation_title": "AI Module Generation",
-    "ccore_settings_generation_mode": "Generation Mode:",
+    "ccore_settings_generation_mode": "Generation Method:",
     "ccore_option_pipeline": "ST Pipeline",
     "ccore_option_raw": "Custom Prompt",
     "ccore_settings_generation_mode_hint": "Pipeline mode uses ST's character card/world info/preset; Custom mode allows fully custom prompts.",

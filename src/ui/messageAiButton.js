@@ -637,12 +637,8 @@ function setRegenButtonState(button, state, generatorName = 'modules', mesId) {
  * 仅在异步存储开启时可用，编辑 modules key 的文本
  */
 async function onEditModules(mesId) {
-    const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
-    if (!asyncModule.enabled) {
-        infoLog(LOG_TAG, '编辑模块数据仅在异步存储开启时可用');
-        return;
-    }
-
+    // 数据在 floor（chat[floor].extra.ccore.modulesBySwipe），与异步开关解耦：
+    // 编辑/查看已存模块数据不要求 asyncModule.enabled（便于 debug 查看保存内容）
     const $message = $(`.mes[mesid="${mesId}"]`);
     if (!$message.length) {
         errorLog(LOG_TAG, `找不到消息 ${mesId}`);
@@ -667,12 +663,6 @@ async function onEditModules(mesId) {
     let rawText = '';
     try {
         rawText = readFloorModules(mesId, swipeId);
-        if (!rawText) {
-            const existingData = await perMessageStorage.getMessage(mesId, swipeId);
-            if (existingData?.modules) {
-                rawText = existingData.modules;
-            }
-        }
     } catch (err) {
         errorLog(LOG_TAG, `读取消息 ${mesId} 模块数据失败:`, err);
     }
@@ -683,7 +673,8 @@ async function onEditModules(mesId) {
     //   与 ST 原生编辑消息按钮视觉一致
     const $editArea = $(`
         <div class="ccore-edit-area" style="margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
-            <textarea class="ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;background:var(--smart-background,#202123);color:var(--smart-text-color,#fff);border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:3px;padding:5px;font-family:monospace;font-size:13px;box-sizing:border-box;"></textarea>
+            <!-- 复用 ST 原生编辑消息的 textarea 样式（.edit_textarea + .mdHotkeys），自动跟随主题 -->
+            <textarea class="edit_textarea mdHotkeys ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:13px;box-sizing:border-box;"></textarea>
             <div class="ccore-edit-actions" style="margin-top:5px;display:flex;gap:5px;">
                 <div class="ccore-edit-save menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
                 <div class="ccore-edit-cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>
@@ -768,7 +759,8 @@ async function onEditGeneratedContent(mesId, generatorName) {
     // 构建编辑区（样式与 onEditModules 一致）
     const $editArea = $(`
         <div class="ccore-edit-area" style="margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
-            <textarea class="ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;background:var(--smart-background,#202123);color:var(--smart-text-color,#fff);border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:3px;padding:5px;font-family:monospace;font-size:13px;box-sizing:border-box;"></textarea>
+            <!-- 复用 ST 原生编辑消息的 textarea 样式（.edit_textarea + .mdHotkeys），自动跟随主题 -->
+            <textarea class="edit_textarea mdHotkeys ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:13px;box-sizing:border-box;"></textarea>
             <div class="ccore-edit-actions" style="margin-top:5px;display:flex;gap:5px;">
                 <div class="ccore-edit-save menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
                 <div class="ccore-edit-cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>

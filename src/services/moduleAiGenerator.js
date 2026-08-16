@@ -10,7 +10,7 @@ import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { showDebugPanel, updateDebugPanelResponse, updateDebugPanelPrompt, updateDebugPanelApi, isDebugPanelOpen, finishDebugPanel } from '../ui/generatorDebugPanel.js';
-import { writeFloorModules } from '../core/floorModuleStore.js';
+import { writeFloorModules, readFloorModules } from '../core/floorModuleStore.js';
 import { setGenerationContextEndFloor, clearGenerationContext } from '../core/generationContext.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 
@@ -84,8 +84,13 @@ function _createSaveCallback(ctx) {
         }
 
         if (isModule) {
-            // 模块数据存 floor（F 一期：正文后模块），写入触发楼层模块变更事件
-            writeFloorModules(mesId, swipeId, extracted?.modules || '');
+            // 模块数据存 floor（F 一期：正文后模块）——存整个原始结果文本（不解析，编辑时手动改）
+            const rawText = text || extracted?.modules || '';
+            infoLog(LOG_TAG, `保存模块到 floor：mesId=${mesId}, swipeId=${swipeId}, chat.length=${chat?.length}, raw长度=${rawText.length}, 楼层对象存在=${!!chat?.[mesId]}`);
+            writeFloorModules(mesId, swipeId, rawText);
+            // 立即读回验证
+            const back = readFloorModules(mesId, swipeId);
+            infoLog(LOG_TAG, `保存后读回：长度=${back.length}`, back.slice(0, 200));
         } else {
             const swipeData = { [generatorName]: text };
             const swipesData = { [swipeId]: swipeData };
@@ -116,9 +121,13 @@ function _createDiscardCallback(generatorName, mesId) {
 function _createLoadCurrentCallback(ctx) {
     return async () => {
         const { mesId, swipeId, generatorName, isModule } = ctx;
+        if (isModule) {
+            // 模块数据在 floor（chat[floor].extra.ccore.modulesBySwipe），读当前 swipe
+            return readFloorModules(mesId, swipeId) || '';
+        }
         const msgData = await perMessageStorage.getMessage(mesId, swipeId);
         if (!msgData) return '';
-        return isModule ? (msgData.modules || '') : (msgData[generatorName] || '');
+        return msgData[generatorName] || '';
     };
 }
 

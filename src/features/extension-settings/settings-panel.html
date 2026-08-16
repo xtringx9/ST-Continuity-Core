@@ -197,54 +197,21 @@
                         </div>
                     </div>
 
-                    <div class="continuity-setting-card">
-                        <div class="setting-main">
-                            <div class="setting-text">
-                                <label for="continuity_snapshot_interval" data-i18n="ccore_settings_snapshot_interval">快照间隔</label>
-                                <div class="continuity-form-row" style="margin-top: 3px;">
-                                    <input id="continuity_snapshot_interval" type="number" min="1" max="100" class="continuity-form-input" style="width:80px;" />
-                                </div>
-                                <span class="setting-hint" data-i18n="ccore_settings_snapshot_interval_hint">每隔多少层生成一次累积状态快照，默认5。</span>
-                            </div>
-                        </div>
-                    </div>
-                    <hr id="continuity_async_actions_divider" style="display:none; border-color: var(--SmartThemeEmColor); margin: 10px 0;">
-                    <div id="continuity_async_actions" style="display:none;">
+                    <hr style="border-color: var(--SmartThemeEmColor); margin: 10px 0;">
+                    <h4 style="margin: 0 0 6px 0; color: var(--SmartThemeQuoteColor);" data-i18n="ccore_settings_ai_generation_title">AI 生成模块</h4>
+                    <div id="continuity_async_actions">
+                        <!-- 旧控件暂注释（待 F 二期快照系统/旧 perMessageStorage 方案恢复时取消注释）：
+                             快照间隔 #continuity_snapshot_interval
+                             提取当前聊天 #continuity_async_extract_chat
+                             提取指定楼层 #continuity_async_extract_floor
+                             重建快照 #continuity_async_rebuild_snapshots
+                             AI 生成楼层/聊天 #continuity_ai_generate_floor / #continuity_ai_generate_chat
+                        -->
                         <div class="continuity-setting-card">
                             <div class="setting-main">
                                 <div class="setting-text">
-                                    <button id="continuity_async_extract_chat" type="button" class="menu_button"
-                                        style="width:auto;" data-i18n="ccore_settings_async_extract_chat">提取当前聊天</button>
-                                    <span class="setting-hint" data-i18n="ccore_settings_async_extract_chat_hint">遍历当前聊天所有楼层，将模块数据写入存储（不修改聊天内容）。</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="continuity-setting-card">
-                            <div class="setting-main">
-                                <div class="setting-text">
-                                    <button id="continuity_async_extract_floor" type="button" class="menu_button"
-                                        style="width:auto;" data-i18n="ccore_settings_async_extract_floor">提取指定楼层</button>
-                                    <span class="setting-hint" data-i18n="ccore_settings_async_extract_floor_hint">提取单个楼层或楼层范围的模块数据。</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="continuity-setting-card">
-                            <div class="setting-main">
-                                <div class="setting-text">
-                                    <button id="continuity_async_rebuild_snapshots" type="button" class="menu_button"
-                                        style="width:auto;" data-i18n="ccore_settings_async_rebuild_snapshots">重建快照</button>
-                                    <span class="setting-hint" data-i18n="ccore_settings_async_rebuild_snapshots_hint">从脏标记层开始重建累积状态快照。</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <hr style="border-color: var(--SmartThemeEmColor); margin: 10px 0;">
-                        <h4 style="margin: 0 0 6px 0; color: var(--SmartThemeQuoteColor);" data-i18n="ccore_settings_ai_generation_title">AI 生成模块</h4>
-                        <div class="continuity-setting-card">
-                            <div class="setting-main">
-                                <div class="setting-text">
-                                    <label for="continuity_generation_mode" data-i18n="ccore_settings_generation_mode">生成模式</label>
-                                    <div class="continuity-form-row" style="margin-top: 3px;">
+                                    <div class="setting-inline">
+                                        <label for="continuity_generation_mode" data-i18n="ccore_settings_generation_mode">生成方式</label>
                                         <select id="continuity_generation_mode" class="continuity-form-input">
                                             <option value="pipeline" data-i18n="ccore_option_pipeline">走 ST 管线</option>
                                             <option value="raw" data-i18n="ccore_option_raw">自定义提示词</option>
@@ -279,16 +246,6 @@
                                 <div class="setting-text">
                                     <label for="continuity_use_independent_api" data-i18n="ccore_settings_use_independent_api">使用独立 API</label>
                                     <span class="setting-hint" data-i18n="ccore_settings_use_independent_api_hint">关闭时使用 ST 主 API；开启时使用下方独立 API 配置。</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="continuity-setting-card">
-                            <div class="setting-main">
-                                <input id="continuity_push_user_message_as_last" type="checkbox" />
-                                <div class="setting-text">
-                                    <label for="continuity_push_user_message_as_last" data-i18n="ccore_settings_push_user_message_as_last">生成指令作为最后 user 消息</label>
-                                    <span class="setting-hint" data-i18n="ccore_settings_push_user_message_as_last_hint">开启时生成指令 push 进聊天作为最后一条 user 消息（{{lastUserMessage}} 可取到）；关闭时经 quietPrompt 传入（system 角色）。</span>
                                 </div>
                             </div>
                         </div>
@@ -333,6 +290,16 @@
 
                         <div class="continuity-setting-card">
                             <div class="setting-main">
+                                <input id="continuity_push_user_message_as_last" type="checkbox" />
+                                <div class="setting-text">
+                                    <label for="continuity_push_user_message_as_last" data-i18n="ccore_settings_push_user_message_as_last">生成指令作为最后 user 消息</label>
+                                    <span class="setting-hint" data-i18n="ccore_settings_push_user_message_as_last_hint">开启时生成指令 push 进聊天作为最后一条 user 消息（{{lastUserMessage}} 可取到）；关闭时经 quietPrompt 传入（system 角色）。</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="continuity-setting-card">
+                            <div class="setting-main">
                                 <input id="continuity_show_debug" type="checkbox" checked />
                                 <div class="setting-text">
                                     <label for="continuity_show_debug" data-i18n="ccore_settings_show_debug">生成后显示调试面板</label>
@@ -340,6 +307,7 @@
                             </div>
                         </div>
 
+                        <!-- 旧入口暂注释：AI 生成楼层/聊天（与 Cc 菜单重新生成重复）
                         <div class="continuity-setting-card">
                             <div class="setting-main">
                                 <div class="setting-text">
@@ -351,6 +319,7 @@
                                 </div>
                             </div>
                         </div>
+                        -->
                     </div>
                 </div>
                 

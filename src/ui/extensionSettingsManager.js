@@ -516,8 +516,9 @@ function updateExtensionUIState(enabled) {
 }
 
 function updateAsyncActionsVisibility(visible) {
+    // 旧异步专用控件已注释；AI 生成模块区始终显示（手动生成不依赖异步开关），此处仅保留兼容
     $('#continuity_async_actions_divider').toggle(visible);
-    $('#continuity_async_actions').toggle(visible);
+    $('#continuity_async_actions').show();
 }
 
 /**
