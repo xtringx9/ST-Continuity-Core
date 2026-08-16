@@ -3,6 +3,7 @@ import configManager from '../../singleton/configManager.js';
 import { initModuleEditor, syncModuleTheme } from '../module-editor/ModuleEditor.js';
 import { initGeneratorEditor, syncGeneratorTheme } from '../generator-editor/GeneratorEditor.js';
 import { initNaiPresetSwitcher, syncNaiTheme, syncNaiPresetData } from '../nai-preset-switcher/NaiPresetSwitcher.js';
+import { initChatReader, syncChatReaderTheme } from '../chat-reader/ChatReader.js';
 import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
@@ -20,6 +21,7 @@ export class EntryButton {
         this.editorModal = new IframeModal();
         this.generatorModal = new IframeModal();
         this.naiPresetModal = new IframeModal();
+        this.readerModal = new IframeModal();
         this._themeListener = null;
         this._activeMenu = null;
         this._activeTrigger = null;
@@ -71,6 +73,7 @@ export class EntryButton {
         this.editorModal?.destroy();
         this.generatorModal?.destroy();
         this.naiPresetModal?.destroy();
+        this.readerModal?.destroy();
 
         const embeddedBtn = document.getElementById(this.embeddedId);
         if (embeddedBtn) embeddedBtn.remove();
@@ -357,6 +360,7 @@ export class EntryButton {
         const items = [
             { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },
             { action: 'generator-editor', icon: 'fa-wand-magic-sparkles', title: '生成内容配置' },
+            { action: 'reader', icon: 'fa-book-open', title: '图文阅读器' },
             { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
             { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式' },
             { action: 'nai-preset', icon: 'fa-palette', title: '智绘姬NAI预设切换' },
@@ -510,6 +514,28 @@ export class EntryButton {
                 syncGeneratorTheme(this.generatorIframe?.contentDocument);
                 break;
             }
+            case 'reader': {
+                this._ensureOnlyOneModal('reader');
+                const pageUrl = `${this.extensionPath}/src/features/chat-reader/index.html`;
+                this.readerModal.open(pageUrl, '图文阅读器', {
+                    variant: 'drawer-left',
+                    keepAlive: true,
+                    onLoad: (iframe) => {
+                        this.readerIframe = iframe;
+                        const doc = iframe.contentDocument;
+                        if (doc) {
+                            initChatReader(doc);
+                            const closeBtn = doc.getElementById('close-btn');
+                            if (closeBtn) {
+                                closeBtn.addEventListener('click', () => this.readerModal.close());
+                            }
+                        }
+                    }
+                });
+                // keepAlive 重开不重新 onLoad，补取一次主题
+                syncChatReaderTheme(this.readerIframe?.contentDocument);
+                break;
+            }
             case 'summary':
                 openContextBottomAsModal();
                 break;
@@ -531,6 +557,7 @@ export class EntryButton {
         if (target !== 'editor') this.editorModal.close();
         if (target !== 'generator') this.generatorModal.close();
         if (target !== 'nai-preset') this.naiPresetModal.close();
+        if (target !== 'reader') this.readerModal.close();
     }
 
     /**

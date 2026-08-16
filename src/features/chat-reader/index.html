@@ -1,0 +1,49 @@
+<!-- src/features/chat-reader/index.html -->
+<!-- 图文阅读器：独立 iframe 页，复用酒馆渲染产物（messageFormatting），
+     提供顺畅的翻页/跳楼层体验，不触发酒馆聊天页的完整渲染流水线。
+     JS 由父窗口 EntryButton 通过 initChatReader(doc) 驱动。 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图文阅读器</title>
+    <link rel="stylesheet" href="../../shared/styles/themes.css">
+    <link rel="stylesheet" href="../../shared/styles/editor-shell.css">
+    <link rel="stylesheet" href="styles/layout.css">
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="header-title" title="点击切换主题">
+            <span>图文阅读器</span>
+            <small style="opacity: 0.6; font-weight: normal; margin-left: 6px; font-size: 12px;" id="reader-chat-name"></small>
+        </div>
+        <div class="header-actions" style="display:flex; align-items:center; gap:6px;">
+            <!-- 楼层跳转 -->
+            <input type="number" id="reader-floor-input" min="0" placeholder="楼层" style="width:56px; padding:4px 6px; font-size:12px; background:var(--bg-input); color:var(--text-input); border:1px solid var(--border-color); border-radius:4px;" />
+            <button id="reader-floor-go" class="btn-secondary" title="跳转到该楼层">跳</button>
+            <span id="reader-floor-info" style="font-size:12px; color:var(--text-muted); white-space:nowrap;"></span>
+            <button id="close-btn" style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
+        </div>
+    </header>
+
+    <div class="reader-body" id="reader-body">
+        <!-- 消息流：由 JS 懒加载渲染 -->
+    </div>
+
+    <!-- 底部翻页栏 -->
+    <footer class="reader-footer">
+        <button id="reader-prev" class="btn-secondary" title="上一楼 (←)">◀ 上一楼</button>
+        <span id="reader-prev-name" class="reader-floor-name"></span>
+        <div class="reader-footer-center">
+            <span id="reader-current-name" class="reader-floor-name reader-floor-current"></span>
+        </div>
+        <span id="reader-next-name" class="reader-floor-name"></span>
+        <button id="reader-next" class="btn-secondary" title="下一楼 (→)">下一楼 ▶</button>
+    </footer>
+
+</body>
+
+</html>

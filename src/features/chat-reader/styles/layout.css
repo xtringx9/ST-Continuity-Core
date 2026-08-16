@@ -1,0 +1,207 @@
+/* src/features/chat-reader/styles/layout.css
+ * 图文阅读器私有样式：主体消息流 + 底部翻页栏。
+ * 依赖 themes.css / editor-shell.css（先于本文件引入）。
+ */
+
+/* === 主体消息流 === */
+.reader-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px clamp(8px, 3vw, 24px);
+    scroll-behavior: smooth;
+    background: var(--bg-app, #fff);
+}
+
+/* 单条消息卡片 */
+.reader-message {
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 0 auto 12px;
+    max-width: 900px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    transition: opacity 0.2s;
+}
+
+/* 当前阅读楼：强调边框 */
+.reader-message.reader-current {
+    border-color: var(--accent-color, #2563eb);
+    box-shadow: 0 0 0 1px var(--accent-color, #2563eb), 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* 消息头：头像 + 名字 + 时间 + 楼层 */
+.reader-message-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.reader-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    background: var(--bg-panel, #f9fafb);
+}
+
+.reader-msg-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary, #111827);
+}
+
+.reader-msg-meta {
+    font-size: 11px;
+    color: var(--text-muted, #9ca3af);
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+/* 消息正文：复用酒馆 messageFormatting 产物 */
+.reader-msg-text {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary, #111827);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.reader-msg-text p {
+    margin: 0 0 8px;
+}
+
+.reader-msg-text p:last-child {
+    margin-bottom: 0;
+}
+
+.reader-msg-text img {
+    max-width: 100%;
+    border-radius: 6px;
+}
+
+/* 消息图片（extra.image 非内嵌图时单独展示） */
+.reader-msg-image {
+    margin: 10px 0 0;
+    text-align: center;
+}
+
+.reader-msg-image img {
+    max-width: 100%;
+    max-height: 480px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    cursor: zoom-in;
+}
+
+/* 图片放大预览（lightbox） */
+.reader-lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    cursor: zoom-out;
+}
+
+.reader-lightbox.open {
+    display: flex;
+}
+
+.reader-lightbox img {
+    max-width: 95vw;
+    max-height: 95vh;
+    border-radius: 4px;
+}
+
+/* 楼层加载占位（懒加载时尚未渲染的楼层） */
+.reader-placeholder {
+    max-width: 900px;
+    margin: 0 auto 12px;
+    height: 80px;
+    border-radius: 8px;
+    background: var(--bg-panel, #f9fafb);
+    border: 1px dashed var(--border-color, rgba(128, 128, 128, 0.3));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted, #9ca3af);
+    font-size: 12px;
+}
+
+/* === 底部翻页栏 === */
+.reader-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    background: var(--bg-panel, #f9fafb);
+    flex-shrink: 0;
+}
+
+.reader-footer-center {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.reader-floor-name {
+    font-size: 12px;
+    color: var(--text-muted, #9ca3af);
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reader-floor-current {
+    color: var(--accent-color, #2563eb);
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* 空状态 */
+.reader-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-muted, #9ca3af);
+    font-size: 14px;
+}
+
+.reader-empty-icon {
+    font-size: 36px;
+    opacity: 0.4;
+}
+
+/* 手机适配 */
+@media (max-width: 768px) {
+    .reader-message {
+        padding: 10px 12px;
+        margin-bottom: 10px;
+    }
+
+    .reader-footer {
+        gap: 4px;
+        padding: 6px 8px;
+    }
+
+    .reader-footer .btn-secondary {
+        padding: 4px 6px;
+        font-size: 11px;
+    }
+
+    .reader-floor-name {
+        display: none;
+    }
+}
