@@ -524,7 +524,7 @@ function getDimLabel(dim, img) {
 
 /* ============ 渲染（分组分页：顶部页码导航） ============ */
 
-const MAX_IMAGES_PER_PAGE = 144;  // 每页累计图片数上限（按图量分页；不切断顶层节点，单个超限节点独占一页）
+const LEAF_GROUPS_PER_PAGE = 12;  // 方案 A：每页叶子组数上限（按叶子组数量分页，不切断顶层节点）
 const NODE_IMAGES_PER_PAGE = 12;  // 叶子组内每页图片数（组内分页替代「展开剩余」）
 const NODE_CHILDREN_PER_PAGE = 5; // 中间节点每页子组数（角色/聊天等内部翻页）
 const PROMPT_LABEL_MAX = 40;      // 提示词分组名截断长度（超出显示「…」+ 点击展开）
@@ -565,10 +565,22 @@ let _currentPage = 1;
 let _totalPages = 1;
 // 节点内分页状态：pathKey -> 页码（叶子=图片页，中间=子组页）；整体 render 时清空重建
 let nodePageMap = new Map();
+// 折叠态持久化：pathKey -> true/false（翻页重建内容区后保留折叠；全部折叠/展开基于真实树）
+let collapseMap = new Map();
 
-// 方案 D：按图量分页，不切断顶层节点。
-// 遍历 _allGroups 顶层节点，贪心累计各节点图片数（含子树递归），
-// 超过 MAX_IMAGES_PER_PAGE 即翻页；单个超限节点独占一页（顶层语义完整）。
+// 统计组内叶子组数量（递归；叶子组=真正装图片的组）
+function countLeafGroups(g) {
+    if (!g) return 0;
+    if (g.children && g.children.length) {
+        return g.children.reduce((n, c) => n + countLeafGroups(c), 0);
+    }
+    return 1; // 叶子组本身
+}
+
+// 方案 A：按叶子组数量分页，不切断顶层节点。
+// 遍历 _allGroups 顶层节点，贪心累计各节点的叶子组数，
+// 超过 LEAF_GROUPS_PER_PAGE 即翻页；单个超限节点独占一页（顶层语义完整）。
+// 单层分组时叶子组=顶层节点，天然适用（「最大节点=最小节点」）。
 // 返回页数组 [{ start, end }]（start/end 为 _allGroups 的顶层索引区间，含头不含尾）。
 function computePages() {
     const pages = [];
@@ -576,9 +588,9 @@ function computePages() {
     let start = 0;
     let acc = 0;
     for (let i = 0; i < _allGroups.length; i++) {
-        const count = countGroupImages(_allGroups[i]);
+        const count = countLeafGroups(_allGroups[i]);
         // 当前页非空且加入会超限 → 封页开新页
-        if (acc > 0 && acc + count > MAX_IMAGES_PER_PAGE) {
+        if (acc > 0 && acc + count > LEAF_GROUPS_PER_PAGE) {
             pages.push({ start, end: i });
             start = i;
             acc = 0;
@@ -947,16 +959,23 @@ function appendGroupNode(g, parent, depth, pathKey) {
     header.className = 'np-img-group-header';
     const titleInfo = makeGroupTitle(g);
 
-    // 折叠/展开按钮（每个分组节点都有；折叠隐藏内容区）
+    // 折叠/展开按钮（每个分组节点都有；折叠隐藏内容区）。
+    // 折叠态持久化到 collapseMap（翻页重建内容区后保留；全部折叠/展开基于真实树）。
+    const applyCollapsed = () => {
+        groupEl.classList.toggle('collapsed', collapseMap.get(myPath) === true);
+        collapse.textContent = collapseMap.get(myPath) === true ? '▸' : '▾';
+    };
     const collapse = doc.createElement('button');
     collapse.className = 'np-img-group-collapse';
     collapse.textContent = '▾';
     collapse.title = '折叠/展开';
     collapse.addEventListener('click', () => {
-        groupEl.classList.toggle('collapsed');
-        collapse.textContent = groupEl.classList.contains('collapsed') ? '▸' : '▾';
+        const next = collapseMap.get(myPath) === true ? false : true;
+        collapseMap.set(myPath, next);
+        applyCollapsed();
     });
     header.appendChild(collapse);
+    applyCollapsed();
 
     const title = doc.createElement('span');
     title.className = 'np-img-group-title';
@@ -972,6 +991,35 @@ function appendGroupNode(g, parent, depth, pathKey) {
     const count = countGroupImages(g);
     title.textContent = `${titleInfo.short} (${count}${dateLabel})`;
     header.appendChild(title);
+
+    // 中间节点：一键「全部折叠 / 全部展开」整棵子树（基于真实树，不受组内分页影响）
+    if (!isLeaf) {
+        const allWrap = doc.createElement('span');
+        allWrap.className = 'np-img-group-alltoggle';
+        const mkAll = (label, collapseValue) => {
+            const b = doc.createElement('button');
+            b.className = 'np-img-node-page np-img-node-alltoggle';
+            b.textContent = label;
+            b.addEventListener('click', () => {
+                const subtree = [];
+                const collect = (n, path) => {
+                    if (!n) return;
+                    const p = path ? `${path}::${n.key || n.label || 'node'}` : (n.key || n.label || 'node');
+                    if (n.children && n.children.length) {
+                        n.children.forEach(c => collect(c, p));
+                    }
+                    subtree.push(p);
+                };
+                g.children.forEach(c => collect(c, myPath));
+                subtree.forEach(p => collapseMap.set(p, collapseValue));
+                render();
+            });
+            return b;
+        };
+        allWrap.appendChild(mkAll('全部折叠', true));
+        allWrap.appendChild(mkAll('全部展开', false));
+        header.appendChild(allWrap);
+    }
 
     // 管理模式：分组级全选 / 全不选（中间节点收集整棵子树图片，叶子收集自身）
     if (manageMode) {
@@ -1347,10 +1395,10 @@ function renderPager() {
 
     const info = doc.createElement('span');
     info.className = 'np-img-page-info';
-    // 统计总图片数（递归所有顶层节点）
-    let totalImgs = 0;
-    _allGroups.forEach(g => { totalImgs += countGroupImages(g); });
-    info.textContent = `第 ${_currentPage}/${_totalPages} 页 · 共 ${totalImgs} 图`;
+    // 方案 A：统计总叶子组数（递归所有顶层节点）
+    let totalLeaf = 0;
+    _allGroups.forEach(g => { totalLeaf += countLeafGroups(g); });
+    info.textContent = `第 ${_currentPage}/${_totalPages} 页 · 共 ${totalLeaf} 组`;
     pager.appendChild(info);
 }
 
@@ -1584,12 +1632,14 @@ function fallbackCopy(text) {
 function reloadFirstPage() {
     _currentPage = 1;
     nodePageMap.clear(); // 分组结构变化 → 组内分页状态失效
+    collapseMap.clear(); // 折叠态同样失效
     render();
 }
 
-// 叠加维度 toggle 时保持当前页（不清页码；组内分页状态因结构变化失效）
+// 叠加维度 toggle 时保持当前页（不清页码；组内分页/折叠状态因结构变化失效）
 function renderKeepPage() {
     nodePageMap.clear();
+    collapseMap.clear();
     render();
 }
 
