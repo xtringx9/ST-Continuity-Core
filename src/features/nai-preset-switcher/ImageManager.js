@@ -17,7 +17,7 @@ import { initSortControl } from './SortControl.js';
 import { setDupContext, setDeleteDoc, deleteImageItem, deleteImageItems, isDeleteReady } from './ImageDelete.js';
 import configManager from '../../singleton/configManager.js';
 import { showToast } from '../../shared/Toast.js';
-import { scanCurrentChat, getChatScanForCurrentChat, setChatScanDoc } from './ChatScan.js';
+import { scanCurrentChat, getChatScanForCurrentChat, getAllChatScans, setChatScanDoc } from './ChatScan.js';
 
 const CHATU8 = 'st-chatu8';
 
@@ -37,21 +37,32 @@ function persistChatGroupDims() {
     try { localStorage.setItem(CHAT_DIMS_KEY, JSON.stringify([...chatGroupDims])); } catch (e) { /* 忽略 */ }
 }
 loadChatGroupDims();
-// 聊天扫描结果缓存（当前聊天）：storageKey(=md5) → { characterName, floors:[] }
+// 聊天扫描结果缓存（全部已扫描聊天，聊天外可见）：
+//   storageKey(=md5) → [{ chatId, chatName, characterName, floors:[] }]
+// 同一提示词可能出现在多个聊天/角色（同一 md5 跨聊天），聚合为数组，图片按数组逐份归属。
 let chatScanByKey = new Map();
 let chatScanChatId = '';
+let chatScanChatsCount = 0;
 function reloadChatScan() {
-    const scan = getChatScanForCurrentChat();
+    const currentScan = getChatScanForCurrentChat();
+    chatScanChatId = currentScan.chatId || '';
+    const allScans = getAllChatScans();
+    chatScanChatsCount = allScans.length;
     chatScanByKey = new Map();
-    chatScanChatId = scan.chatId || '';
-    (scan.map || []).forEach(m => {
-        if (m.storageKey) {
-            const firstFloor = (m.floors && m.floors[0]) || {};
-            chatScanByKey.set(m.storageKey, {
-                characterName: firstFloor.characterName || '未知角色',
-                floors: (m.floors || []).map(f => f.floor),
+    allScans.forEach(scan => {
+        const chatId = scan.chatId || '';
+        const chatName = scan.name || chatId;
+        (scan.map || []).forEach(m => {
+            if (!m.storageKey) return;
+            const floors = Array.isArray(m.floors) ? m.floors.map(Number).filter(n => !isNaN(n)) : [];
+            if (!chatScanByKey.has(m.storageKey)) chatScanByKey.set(m.storageKey, []);
+            chatScanByKey.get(m.storageKey).push({
+                chatId,
+                chatName,
+                characterName: m.characterName || '未知角色',
+                floors,
             });
-        }
+        });
     });
 }
 let searchTerm = '';
@@ -212,7 +223,7 @@ function arrayBufferToBase64(buffer) {
 function buildChatGroups(pendingSet) {
     const chatu8 = getChatu8();
     const storage = (chatu8 && chatu8.jiuguanStorage) || {};
-    const scanValid = chatGroupDims.has('character') && chatScanChatId;
+    const needScan = chatGroupDims.has('character'); // 「按角色」激活才展开扫描归属
     // 收集所有图（带维度信息）
     const allImages = [];
     for (const md5 in storage) {
@@ -221,11 +232,11 @@ function buildChatGroups(pendingSet) {
         const change = entry.change || '';
         const label = change || '(未命名提示词)';
         const yushe0 = (entry.images[0] && entry.images[0].genParams && entry.images[0].genParams.yushe) || '';
-        // 扫描结果（角色/楼层）——仅当「按角色」维度激活且有扫描数据
-        const scanInfo = scanValid ? chatScanByKey.get(md5) || null : null;
+        // 扫描归属（全部已扫描聊天聚合）：storageKey → [{chatId, chatName, characterName, floors}]
+        const scanRecords = needScan ? (chatScanByKey.get(md5) || null) : null;
         entry.images.forEach((img, idx) => {
             const yushe = (img.genParams && img.genParams.yushe) || yushe0;
-            allImages.push({
+            const base = {
                 entry: img,
                 title: `${label} #${idx + 1}`,
                 meta: img.genParams || null,
@@ -233,15 +244,24 @@ function buildChatGroups(pendingSet) {
                 path: img.path || '', // 文件路径（lightbox 显示）
                 dup: judgeChatImage(img, pendingSet), // 角色/服装副本标记（可为 null）
                 chatMeta: { md5, change, yushe, uuid: img.uuid || '' }, // 供 chatMetaByHash 填充 / 二级分组 / 对侧 key
-                scanInfo, // 聊天扫描归属（角色/楼层），「按角色」分组用
-            });
+            };
+            // 「按角色」且该提示词有扫描归属：每张图按扫描记录展开（同一提示词跨聊天/角色时在各组都出现）
+            if (needScan && scanRecords && scanRecords.length > 0) {
+                scanRecords.forEach(rec => {
+                    allImages.push({ ...base, scanInfo: rec });
+                });
+            } else {
+                // 无扫描归属（未扫描）或未按角色：scanInfo=null → 「未扫描」组
+                allImages.push({ ...base, scanInfo: needScan ? null : undefined });
+            }
         });
     }
     if (allImages.length === 0) return [];
     // 激活维度（全可叠加）。空=全部按排序铺开（单组，不按任何维度分组）。
+    // 顺序固定：角色 → 聊天 → 楼层 → 预设 → 提示词（用户拍板：按角色时列出聊天）
     const dims = [];
+    if (chatGroupDims.has('character')) dims.push({ key: 'character' }, { key: 'chat' }, { key: 'floor' });
     if (chatGroupDims.has('preset')) dims.push({ key: 'preset' });
-    if (chatGroupDims.has('character')) dims.push({ key: 'character' }, { key: 'floor' });
     if (chatGroupDims.has('prompt')) dims.push({ key: 'prompt' });
     // 无激活维度 → 铺开：单组「全部图片」叶子（含全部图，标题显示总数+最新日期）
     if (dims.length === 0) {
@@ -487,6 +507,10 @@ function getDimLabel(dim, img) {
     if (dim.key === 'character') {
         // 聊天扫描的角色归属
         return (img.scanInfo && img.scanInfo.characterName) || '未扫描';
+    }
+    if (dim.key === 'chat') {
+        // 聊天扫描的聊天名（多聊天聚合，聊天外可见）
+        return (img.scanInfo && img.scanInfo.chatName) || '未知聊天';
     }
     if (dim.key === 'floor') {
         // 聊天扫描的楼层（取第一个；单图多楼层时显示最早楼层）

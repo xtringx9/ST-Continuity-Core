@@ -1,6 +1,12 @@
 // src/features/nai-preset-switcher/ChatScan.js
-// 聊天扫描：扫描当前聊天，确定「提示词 ↔ 楼层/角色」对应关系。
-// 结果持久化到 nai_preset_config.chatScan，供文生图按 角色→楼层→提示词 分组。
+// 聊天扫描：扫描聊天正文，确定「提示词 ↔ 楼层/角色」对应关系。
+// 结果按聊天多份保留到 nai_preset_config.chatScan（聊天外可见），供文生图按 角色→聊天→楼层→提示词 分组。
+//
+// 存储结构（2026-08-16 用户拍板：多聊天保留 + 聊天外可见 + 去 tag 冗余）：
+//   chatScan = { chats: [ { chatId, name, scannedAt, map: [{ storageKey, characterName, floors:[数字] }] } ] }
+//   - chats 按 chatId 索引，每个聊天一份，多聊天互不覆盖。
+//   - map[].storageKey = jiuguanStorage 的 md5 key（定位图）；不存提示词原文（体积，靠 md5 反查 change）。
+//   - map[].characterName = 该提示词归属角色；floors = 消息索引数字数组。
 //
 // 数据来源（⚠️ 2026-08-15 更正：不再依赖 extra.images）：
 //  1. 提示词从【聊天正文 chat[i].mes】提取。智绘姬会把提示词写进正文：
@@ -317,33 +323,52 @@ export async function scanCurrentChat(ctx) {
     }
     debugLog(`[聊天扫描] 探测：${chat.length} 条消息，${mesWithImages} 条正文含图片提示词，共 ${totalTags} 个提示词实例`);
 
-    // 序列化 map（floors 转数组，角色取出现最多/首个）
+    // 序列化 map（floors 转数字数组；角色取出现最多/首个；storageKey 未命中则跳过——无图可关联）
     const map = [];
     for (const m of mapByTag.values()) {
+        if (!m.storageKey) continue; // 命中失败不落盘（垃圾 key）
         const characterName = m.characters.size > 0 ? [...m.characters][0] : '';
         map.push({
-            tag: m.tag,
             storageKey: m.storageKey,
-            floors: [...m.floors].sort((a, b) => a - b).map(floor => ({
-                floor,
-                characterName,
-            })),
+            characterName,
+            floors: [...m.floors].sort((a, b) => a - b),
         });
     }
 
-    // 落盘
-    configManager.setNaiChatScan({ chatId, scannedAt: Date.now(), map });
+    // 聊天名：chat_metadata.title 优先（自定义标题），否则用 chatId（文件名无扩展名）
+    let chatName = '';
+    try {
+        const md = context.chatMetadata;
+        if (md && typeof md === 'object' && typeof md.title === 'string' && md.title.trim()) chatName = md.title.trim();
+    } catch (e) { /* 忽略 */ }
+    if (!chatName) chatName = chatId;
+
+    // 落盘（合并写入该 chatId，不影响其他聊天）
+    configManager.setNaiChatScan({ chatId, name: chatName, scannedAt: Date.now(), map });
     try { saveSettings(); } catch (e) { /* 忽略 */ }
 
     debugLog(`[聊天扫描] 扫描完成：${map.length} 个提示词，${map.reduce((n, x) => n + x.floors.length, 0)} 个楼层`);
     showToast(doc, `扫描完成：识别到 ${map.length} 个提示词`, 'success');
-    return { chatId, scannedAt: Date.now(), map };
+    return { chatId, name: chatName, scannedAt: Date.now(), map };
 }
 
-// 读取当前聊天的扫描结果（chatId 不匹配则返回空 map）
+// 读取当前聊天的扫描结果（无则返回空记录）
 export function getChatScanForCurrentChat() {
     const chatId = getChatId(getStContext());
+    const record = getChatScanRecord(chatId);
+    return record || { chatId, name: chatId, scannedAt: 0, map: [] };
+}
+
+// 按 chatId 读单个聊天的扫描记录
+export function getChatScanRecord(chatId) {
+    if (!chatId) return null;
     const scan = configManager.getNaiChatScan();
-    if (!scan || scan.chatId !== chatId) return { chatId, scannedAt: 0, map: [] };
-    return scan;
+    const chats = (scan && scan.chats) || [];
+    return chats.find(c => c && c.chatId === chatId) || null;
+}
+
+// 读取全部已扫描聊天记录（聊天外可见：图片管理聚合所有聊天）
+export function getAllChatScans() {
+    const scan = configManager.getNaiChatScan();
+    return (scan && scan.chats) || [];
 }

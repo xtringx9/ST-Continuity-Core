@@ -84,43 +84,46 @@ export const NAI_PRESET_TEMPLATE = {
     // 只收藏图片（点红心即时收藏，不弹标签窗）；标签在「图片收藏」tab 内管理。
     // items 的 key = 图片唯一标识（chat:<uuid|path> / character:<configId> / outfit:<configId>）。
     // 图片被删后对应收藏项自动清除（失效自愈）。
-    // 聊天扫描（2026-08-15 用户拍板：持久化存 nai_preset_config）
-    // 扫描当前聊天，确定「提示词 ↔ 楼层/角色」对应关系，供文生图按 角色→楼层→提示词 分组。
-    // 按 chatId 区分（切聊天不串）；map[].storageKey = jiuguanStorage 的 md5 key（定位图）。
+    // 聊天扫描（2026-08-16 用户拍板：按聊天多份保留，聊天外可见）
+    // 扫描各聊天正文，确定「提示词 ↔ 楼层/角色」对应关系，供文生图按 角色→聊天→楼层→提示词 分组。
+    // 结构：{ chats: { [chatId]: { name, scannedAt, map:[{storageKey, characterName, floors:[数字]}] } } }
+    //  - chats 按 chatId（聊天文件名无扩展名）索引，每个聊天一份，多聊天互不覆盖。
+    //  - map[].storageKey = jiuguanStorage 的 md5 key（定位图）；不存提示词原文（体积，靠 md5 反查 change）。
+    //  - map[].characterName = 该提示词归属角色；floors = 消息索引数字数组。
     chatScan: {
-        chatId: {
-            type: 'string',
-            default: '',
-            description: '扫描的聊天标识（getCurrentChatId()）'
-        },
-        scannedAt: {
-            type: 'number',
-            default: 0,
-            description: '扫描时间（ms 时间戳）'
-        },
-        map: [
+        chats: [
             {
-                tag: {
+                chatId: {
+                    type: 'string',
+                    required: true,
+                    description: '聊天标识（= 文件名无扩展名，context.chatId）'
+                },
+                name: {
                     type: 'string',
                     default: '',
-                    description: '提示词原文（jiuguanStorage[md5].change）'
+                    description: '聊天名（chat_metadata.title 优先，否则 chatId）'
                 },
-                storageKey: {
-                    type: 'string',
-                    default: '',
-                    description: 'jiuguanStorage 的 md5 key（关联图）'
+                scannedAt: {
+                    type: 'number',
+                    default: 0,
+                    description: '扫描时间（ms 时间戳）'
                 },
-                floors: [
+                map: [
                     {
-                        floor: {
-                            type: 'number',
-                            default: 0,
-                            description: '消息索引'
+                        storageKey: {
+                            type: 'string',
+                            default: '',
+                            description: 'jiuguanStorage 的 md5 key（关联图）'
                         },
                         characterName: {
                             type: 'string',
                             default: '',
-                            description: '该消息归属（角色名，用户消息为空/特殊）'
+                            description: '该提示词归属角色名'
+                        },
+                        floors: {
+                            type: 'array',
+                            default: [],
+                            description: '消息索引数字数组（楼层）'
                         },
                     }
                 ],
@@ -203,9 +206,7 @@ export const DEFAULT_NAI_PRESET_CONFIG = {
     tags: [],
     presets: [],
     chatScan: {
-        chatId: '',
-        scannedAt: 0,
-        map: [],
+        chats: [],
     },
     imageFavorites: {
         tags: [],
@@ -223,6 +224,65 @@ export function normalizeChatu8Launcher(config) {
     return {
         enabled: typeof src.enabled === 'boolean' ? src.enabled : DEFAULT_NAI_PRESET_CONFIG.chatu8Launcher.enabled,
     };
+}
+
+/**
+ * 归一化聊天扫描配置。
+ * 新格式：{ chats: [{ chatId, name, scannedAt, map:[{storageKey, characterName, floors:[数字]}] }] }
+ * 兼容旧格式：{ chatId, scannedAt, map:[{tag, storageKey, floors:[{floor, characterName}]}] } → 迁移进 chats[0]。
+ * @param {Object} chatScan
+ * @returns {{chats: Array}}
+ */
+export function normalizeChatScan(chatScan) {
+    const src = chatScan && typeof chatScan === 'object' ? chatScan : {};
+    const now = Date.now();
+    const chats = [];
+
+    // 旧格式迁移（单聊天）：{ chatId, scannedAt, map } 且无 chats
+    const isOldFormat = !Array.isArray(src.chats) && (src.chatId || Array.isArray(src.map));
+    if (isOldFormat) {
+        const oldMap = Array.isArray(src.map) ? src.map : [];
+        const mapped = oldMap
+            .filter(m => m && (m.tag || m.storageKey))
+            .map(m => ({
+                storageKey: String(m.storageKey || ''),
+                characterName: String((Array.isArray(m.floors) && m.floors[0] && m.floors[0].characterName) || ''),
+                floors: Array.isArray(m.floors)
+                    ? m.floors.filter(f => f && typeof f.floor === 'number').map(f => f.floor)
+                    : [],
+            }));
+        if (String(src.chatId || '')) {
+            chats.push({
+                chatId: String(src.chatId),
+                name: String(src.name || ''),
+                scannedAt: typeof src.scannedAt === 'number' ? src.scannedAt : now,
+                map: mapped,
+            });
+        }
+    } else if (Array.isArray(src.chats)) {
+        const seenChatIds = new Set();
+        src.chats.forEach(c => {
+            if (!c || !c.chatId || seenChatIds.has(c.chatId)) return;
+            seenChatIds.add(c.chatId);
+            const map = Array.isArray(c.map) ? c.map
+                .filter(m => m && m.storageKey)
+                .map(m => ({
+                    storageKey: String(m.storageKey || ''),
+                    characterName: String(m.characterName || ''),
+                    floors: Array.isArray(m.floors)
+                        ? m.floors.filter(f => typeof f === 'number').map(f => f)
+                        : [],
+                })) : [];
+            chats.push({
+                chatId: String(c.chatId),
+                name: String(c.name || ''),
+                scannedAt: typeof c.scannedAt === 'number' ? c.scannedAt : now,
+                map,
+            });
+        });
+    }
+
+    return { chats };
 }
 
 /**
@@ -282,19 +342,7 @@ export function normalizeNaiPresetConfig(config) {
         },
         tags: [],
         presets: [],
-        chatScan: {
-            chatId: String((config.chatScan && config.chatScan.chatId) || ''),
-            scannedAt: typeof (config.chatScan && config.chatScan.scannedAt) === 'number' ? config.chatScan.scannedAt : 0,
-            map: Array.isArray(config.chatScan && config.chatScan.map) ? config.chatScan.map
-                .filter(m => m && (m.tag || m.storageKey))
-                .map(m => ({
-                    tag: String(m.tag || ''),
-                    storageKey: String(m.storageKey || ''),
-                    floors: Array.isArray(m.floors) ? m.floors
-                        .filter(f => f && typeof f.floor === 'number')
-                        .map(f => ({ floor: f.floor, characterName: String(f.characterName || '') })) : [],
-                })) : [],
-        },
+        chatScan: normalizeChatScan(config.chatScan),
         imageFavorites: {
             tags: [],
             items: [],

@@ -583,30 +583,67 @@ class ConfigManager {
     }
 
     /**
-     * 获取聊天扫描结果（读路径，走独立顶层键 nai_preset_config.chatScan）
-     * @returns {{chatId:string, scannedAt:number, map:Array}} chatScan
+     * 获取全部聊天扫描结果（读路径，走独立顶层键 nai_preset_config.chatScan）
+     * @returns {{chats: Array<{chatId:string, name:string, scannedAt:number, map:Array}>}} chatScan
      */
     getNaiChatScan() {
         if (!this.isNaiPresetConfigLoaded) {
             this.loadNaiPresetConfig();
         }
-        return this.naiPresetConfig?.chatScan || { chatId: '', scannedAt: 0, map: [] };
+        return this.naiPresetConfig?.chatScan || { chats: [] };
     }
 
     /**
-     * 写入并落盘聊天扫描结果（独立顶层键 nai_preset_config.chatScan；保留其他字段）
-     * @param {{chatId?:string, scannedAt?:number, map?:Array}} chatScan
+     * 合并写入单个聊天的扫描结果（独立顶层键 nai_preset_config.chatScan；保留其他字段与其他聊天）。
+     * chatScan 为单聊天记录：{chatId, name?, scannedAt, map}——同 chatId 覆盖，否则追加。
+     * @param {{chatId:string, name?:string, scannedAt:number, map:Array}} chatScan
      */
     setNaiChatScan(chatScan) {
         if (!ENABLE_DEV_SAVE_GUARD) return;
         const current = this.getNaiPresetSwitcherConfig();
+        const existing = this.getNaiChatScan();
+        const chats = Array.isArray(existing.chats) ? existing.chats : [];
+        const idx = chats.findIndex(c => c && c.chatId === chatScan.chatId);
+        const record = {
+            chatId: String(chatScan.chatId || ''),
+            name: String(chatScan.name || ''),
+            scannedAt: typeof chatScan.scannedAt === 'number' ? chatScan.scannedAt : Date.now(),
+            map: Array.isArray(chatScan.map) ? chatScan.map : [],
+        };
+        if (idx >= 0) {
+            chats[idx] = record;
+        } else {
+            chats.push(record);
+        }
         const normalized = normalizeNaiPresetConfig({
             enabled: current.enabled,
             chatu8Launcher: current.chatu8Launcher,
             presets: current.presets || [],
             tags: current.tags || [],
             imageFavorites: current.imageFavorites,
-            chatScan: chatScan || {},
+            chatScan: { chats },
+        });
+        this.naiPresetConfig = normalized;
+        this.saveNaiPresetConfigNow();
+    }
+
+    /**
+     * 删除单个聊天的扫描结果（聊天被删/手动清理用）。
+     * @param {string} chatId
+     */
+    deleteNaiChatScan(chatId) {
+        if (!ENABLE_DEV_SAVE_GUARD) return;
+        if (!chatId) return;
+        const current = this.getNaiPresetSwitcherConfig();
+        const existing = this.getNaiChatScan();
+        const chats = (Array.isArray(existing.chats) ? existing.chats : []).filter(c => c && c.chatId !== chatId);
+        const normalized = normalizeNaiPresetConfig({
+            enabled: current.enabled,
+            chatu8Launcher: current.chatu8Launcher,
+            presets: current.presets || [],
+            tags: current.tags || [],
+            imageFavorites: current.imageFavorites,
+            chatScan: { chats },
         });
         this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();
