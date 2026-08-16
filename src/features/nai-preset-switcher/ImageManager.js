@@ -1279,9 +1279,9 @@ function buildImageCell(img, groupImages) {
     check.classList.toggle('checked', isSelected(img));
     el.appendChild(check);
 
-    // 「设为当前选中」hover 快捷按钮（仅文生图有 md5 概念；非管理模式显示）
+    // 「设为当前选中」hover 快捷按钮（仅文生图有 md5 概念；非管理模式显示；当前选中图不显示）
     const md5 = (img.chatMeta && img.chatMeta.md5) || '';
-    if (currentCat === 'chat' && md5 && !manageMode) {
+    if (currentCat === 'chat' && md5 && !manageMode && !img.isCurrent) {
         const curBtn = doc.createElement('span');
         curBtn.className = 'np-img-setcurrent';
         curBtn.textContent = '✓当前';
@@ -1416,80 +1416,92 @@ async function collectPendingAndCheck() {
     unlock();
 }
 
-// 顶部页码导航（第一页/上一页/页码/下一页/最后一页）
+// 顶部页码导航（一直存在：第一页/上一页/页码/下一页/最后一页）
 function renderPager() {
     if (!doc) return;
-    const pager = doc.getElementById('np-img-pager-top');
-    if (!pager) return;
-    pager.innerHTML = '';
+    const top = doc.getElementById('np-img-pager-top');
+    if (!top) return;
+    top.innerHTML = '';
     if (_totalPages <= 1) return;
 
     const mk = (label, page, opts = {}) => {
         const b = doc.createElement('button');
         b.className = 'np-img-page' + (opts.active ? ' active' : '') + (opts.disabled ? ' disabled' : '');
         b.textContent = label;
-        if (!opts.disabled && !opts.active) {
-            b.addEventListener('click', () => { _currentPage = page; render(); });
-        }
+        b.dataset.page = String(page); // 事件统一在容器级绑定
         return b;
     };
 
-    const pages = doc.createElement('div');
-    pages.className = 'np-img-pager-pages';
+    const buildPager = () => {
+        const pages = doc.createElement('div');
+        pages.className = 'np-img-pager-pages';
 
-    pages.appendChild(mk('«', 1, { disabled: _currentPage === 1 }));
-    pages.appendChild(mk('‹', _currentPage - 1, { disabled: _currentPage === 1 }));
+        pages.appendChild(mk('«', 1, { disabled: _currentPage === 1 }));
+        pages.appendChild(mk('‹', _currentPage - 1, { disabled: _currentPage === 1 }));
 
-    // 页码窗口：按容器实际宽度动态估算可显示的页码数（撑满整行；info 固定右侧）
-    const pageW = 36;  // 紧凑按钮约 30px + gap 4px
-    const arrowsW = pageW * 4; // « ‹ › » 四个箭头
-    const infoW = 140; // 右侧 info「第 x/y 页 · 共 z 组」预留
-    const boxW = pager.getBoundingClientRect ? pager.getBoundingClientRect().width : 0;
-    const usableW = boxW > arrowsW + pageW + infoW ? boxW - arrowsW - infoW : 260;
-    let win = Math.max(1, Math.floor(usableW / pageW)); // 当前页两侧各显示 win 个
-    win = Math.min(win, Math.ceil(_totalPages / 2));
-    const from = Math.max(1, _currentPage - win);
-    const to = Math.min(_totalPages, _currentPage + win);
-    if (from > 1) {
-        pages.appendChild(mk('1', 1));
-        if (from > 2) {
-            const dot = doc.createElement('span');
-            dot.className = 'np-img-page-dot';
-            dot.textContent = '…';
-            pages.appendChild(dot);
+        // 页码窗口：按容器实际宽度动态估算可显示的页码数（撑满整行；info 固定右侧）
+        const pageW = 36;  // 紧凑按钮约 30px + gap 4px
+        const arrowsW = pageW * 4; // « ‹ › » 四个箭头
+        const infoW = 140; // 右侧 info「第 x/y 页 · 共 z 组」预留
+        const boxW = top.getBoundingClientRect ? top.getBoundingClientRect().width : 0;
+        const usableW = boxW > arrowsW + pageW + infoW ? boxW - arrowsW - infoW : 260;
+        let win = Math.max(1, Math.floor(usableW / pageW)); // 当前页两侧各显示 win 个
+        win = Math.min(win, Math.ceil(_totalPages / 2));
+        const from = Math.max(1, _currentPage - win);
+        const to = Math.min(_totalPages, _currentPage + win);
+        if (from > 1) {
+            pages.appendChild(mk('1', 1));
+            if (from > 2) {
+                const dot = doc.createElement('span');
+                dot.className = 'np-img-page-dot';
+                dot.textContent = '…';
+                pages.appendChild(dot);
+            }
         }
-    }
-    for (let p = from; p <= to; p++) {
-        pages.appendChild(mk(String(p), p, { active: p === _currentPage }));
-    }
-    if (to < _totalPages) {
-        if (to < _totalPages - 1) {
-            const dot = doc.createElement('span');
-            dot.className = 'np-img-page-dot';
-            dot.textContent = '…';
-            pages.appendChild(dot);
+        for (let p = from; p <= to; p++) {
+            pages.appendChild(mk(String(p), p, { active: p === _currentPage }));
         }
-        pages.appendChild(mk(String(_totalPages), _totalPages));
-    }
+        if (to < _totalPages) {
+            if (to < _totalPages - 1) {
+                const dot = doc.createElement('span');
+                dot.className = 'np-img-page-dot';
+                dot.textContent = '…';
+                pages.appendChild(dot);
+            }
+            pages.appendChild(mk(String(_totalPages), _totalPages));
+        }
 
-    pages.appendChild(mk('›', _currentPage + 1, { disabled: _currentPage === _totalPages }));
-    pages.appendChild(mk('»', _totalPages, { disabled: _currentPage === _totalPages }));
+        pages.appendChild(mk('›', _currentPage + 1, { disabled: _currentPage === _totalPages }));
+        pages.appendChild(mk('»', _totalPages, { disabled: _currentPage === _totalPages }));
 
-    pager.appendChild(pages);
+        // 容器级事件委托：点击页码翻页
+        pages.addEventListener('click', (e) => {
+            const btn = e.target.closest('.np-img-page');
+            if (!btn || btn.classList.contains('disabled') || btn.classList.contains('active')) return;
+            const p = Number(btn.dataset.page);
+            if (!isNaN(p)) { _currentPage = p; render(); }
+        });
 
-    const info = doc.createElement('span');
-    info.className = 'np-img-page-info';
+        return pages;
+    };
+
     // 方案 A：统计总叶子组数（递归所有顶层节点）
     let totalLeaf = 0;
     _allGroups.forEach(g => { totalLeaf += countLeafGroups(g); });
+
+    top.appendChild(buildPager());
+    const info = doc.createElement('span');
+    info.className = 'np-img-page-info';
     info.textContent = `第 ${_currentPage}/${_totalPages} 页 · 共 ${totalLeaf} 组`;
-    pager.appendChild(info);
+    top.appendChild(info);
 }
 
 function removePager() {
     if (!doc) return;
-    const pager = doc.getElementById('np-img-pager-top');
-    if (pager) pager.innerHTML = '';
+    const top = doc.getElementById('np-img-pager-top');
+    const bottom = doc.getElementById('np-img-pager-bottom');
+    if (top) top.innerHTML = '';
+    if (bottom) bottom.innerHTML = '';
 }
 
 /* ============ lightbox（组内左右切图 + 下载原图） ============ */
@@ -1528,14 +1540,14 @@ function updateLightboxDeleteBtn() {
     btn.title = ready ? '删除这张图片' : '副本识别中，完成前不可删除';
 }
 
-// lightbox「设为当前选中」按钮：仅文内图（有 md5）显示；角色/服装/收藏 tab 隐藏
+// lightbox「设为当前选中」按钮：仅文内图（有 md5）且非当前选中图时显示；角色/服装/收藏 tab 隐藏
 function updateLightboxSetCurBtn() {
     if (!doc) return;
     const btn = doc.getElementById('np-lightbox-setcurrent');
     if (!btn) return;
     const item = _lbList[_lbIndex];
     const md5 = (item && item.chatMeta && item.chatMeta.md5) || '';
-    btn.style.display = md5 ? '' : 'none';
+    btn.style.display = (md5 && !item.isCurrent) ? '' : 'none';
 }
 
 // 渲染当前索引的图片（异步取 src；防止切图竞态：用会话计数器守卫）

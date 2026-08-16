@@ -2075,3 +2075,217 @@
         flex: 1 1 100%;
     }
 }
+
+/* ============ 阅读模式（view-read） ============ */
+.np-read-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: var(--bg-panel, #f7f7f8);
+    border-radius: 8px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.15));
+}
+
+.np-read-dropdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #222);
+    cursor: pointer;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.np-read-dropdown:hover {
+    color: var(--accent-color, #4f7cff);
+    border-color: var(--accent-color, #4f7cff);
+}
+
+.np-read-caret {
+    font-size: 10px;
+    color: var(--text-muted, #888);
+    flex-shrink: 0;
+}
+
+.np-read-mode-group {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 4px;
+}
+
+.np-read-mode {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px dashed var(--border-color, rgba(128, 128, 128, 0.3));
+    background: transparent;
+    color: var(--text-muted, #888);
+    cursor: pointer;
+}
+
+.np-read-mode.active {
+    background: var(--accent-color, #4f7cff);
+    border-color: var(--accent-color, #4f7cff);
+    color: #fff;
+}
+
+/* 按楼层分组：每层标题 + 网格 */
+.np-read-floor {
+    margin-bottom: 16px;
+}
+
+.np-read-floor-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #222);
+    padding: 4px 0 8px;
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.15));
+    margin-bottom: 8px;
+}
+
+.np-read-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+/* 密集网格（按楼层+只看当前）：更小缩略图、无 meta 行、无边框分组 */
+.np-read-grid-dense {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 6px;
+}
+
+.np-read-cell-dense {
+    border: none;
+    background: transparent;
+}
+
+.np-read-cell-dense .np-read-thumb {
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    border-radius: 6px;
+    min-height: 60px;
+}
+
+/* 连续流：图垂直堆叠 */
+.np-read-stream {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* 连续流：每层内按提示词分组 */
+.np-read-stream-prompt {
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.15));
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.np-read-stream-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    background: var(--bg-panel, #f7f7f8);
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.1));
+}
+
+/* 按楼层分组：楼层内提示词标题 */
+.np-read-prompt-group {
+    margin-bottom: 10px;
+}
+
+.np-read-prompt-title {
+    font-size: 12px;
+    color: var(--text-secondary, #555);
+    padding: 4px 0 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 阅读模式分页容器（复用图片管理的 .np-img-pager 样式，固定于顶部） */
+#np-read-pager-top {
+    flex: 0 0 auto;
+}
+
+.np-read-cell {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.15));
+    background: var(--bg-panel, #f7f7f8);
+}
+
+.np-read-thumb {
+    width: 100%;
+    background: var(--bg-input, #f2f2f2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    position: relative;
+    cursor: pointer;
+}
+
+.np-read-img {
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    display: block;
+}
+
+.np-read-loading {
+    font-size: 12px;
+    color: var(--text-muted, #888);
+    padding: 20px;
+}
+
+.np-read-floor-tag {
+    flex-shrink: 0;
+    color: var(--accent-color, #4f7cff);
+    font-weight: 600;
+}
+
+.np-read-prompt {
+    color: var(--text-secondary, #555);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.np-read-empty-inline {
+    padding: 30px;
+    text-align: center;
+    color: var(--text-muted, #888);
+    font-size: 13px;
+}
+
+.np-read-empty-tip {
+    padding: 30px;
+    text-align: center;
+    color: var(--text-muted, #888);
+    font-size: 13px;
+}
+
+/* 阅读模式主体：flex 撑满 + 内部滚动（view-section 是 overflow:hidden，滚动须在子元素） */
+.np-read-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 0 14px 16px;
+    min-height: 0;
+}
+
+/* 下拉菜单（角色/聊天） */
+.np-read-menu-item.active {
+    background: var(--accent-color, #2563eb) !important;
+    color: #fff !important;
+}
