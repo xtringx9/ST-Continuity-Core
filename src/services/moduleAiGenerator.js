@@ -9,7 +9,7 @@ import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
-import { showDebugPanel, updateDebugPanelResponse, updateDebugPanelPrompt, isDebugPanelOpen, finishDebugPanel } from '../ui/generatorDebugPanel.js';
+import { showDebugPanel, updateDebugPanelResponse, updateDebugPanelPrompt, updateDebugPanelApi, isDebugPanelOpen, finishDebugPanel } from '../ui/generatorDebugPanel.js';
 import { writeFloorModules } from '../core/floorModuleStore.js';
 import { setGenerationContextEndFloor, clearGenerationContext } from '../core/generationContext.js';
 import { taskRegistry } from '../core/taskRegistry.js';
@@ -380,6 +380,17 @@ export const moduleAiGenerator = {
             updateDebugPanelPrompt(k, prompt);
         };
 
+        // 捕获到 API 信息后实时推送（阶段 2：生成中面板显示「API 信息」）
+        callOptions.onApiUsed = (apiUsed) => {
+            if (taskKeys.length === 0) return;
+            const k = taskKeys[0];
+            const task = taskRegistry.get(taskChatKey, messages[0]?.mesId, generatorName);
+            if (task?.debugData) {
+                task.debugData.apiUsed = apiUsed;
+            }
+            updateDebugPanelApi(k, apiUsed);
+        };
+
         // 生成中 debugData（供「生成中点击按钮打开调试面板」用；完整响应生成后由 finish 更新）
         if (taskKeys.length > 0) {
             const m0 = messages[0];
@@ -545,7 +556,7 @@ export const moduleAiGenerator = {
                 // 从 err.debugInfo 读取 aiCaller 已捕获的提示词(API 失败时仍有值)
                 const errDebug = err.debugInfo || {};
 
-                showDebugPanel({
+                const failDebugData = {
                     title: `${titleLabel} ${titleBody}`,
                     statusLabel: titleLabel,
                     statusType: 'fail',
@@ -559,7 +570,14 @@ export const moduleAiGenerator = {
                     apiUsed: errDebug.apiUsed || {},
                     hasModules: false,
                     error: err.message,
-                });
+                    taskKey: taskKeys[0] || undefined,
+                };
+                // 生成中面板已打开（如点中止）→ 更新为失败态，不弹新面板
+                if (taskKeys[0] && isDebugPanelOpen(taskKeys[0])) {
+                    finishDebugPanel(taskKeys[0], failDebugData);
+                } else {
+                    showDebugPanel(failDebugData);
+                }
             }
 
             return { success: false, text: '', debug: err.debugInfo || null, error: err.message, hasModules: false, storedCount: 0 };

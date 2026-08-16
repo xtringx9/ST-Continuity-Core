@@ -49,24 +49,32 @@ export const aiCaller = {
         const capture = { prompt: '' };
         let apiUsed = {};
 
-        // 注册独立 API 拦截器
+        // 注册 API 拦截器（总是监听，用于捕获实际使用的 API 信息）
+        // - 有 customApi：覆盖成独立 API（覆盖 source/model/url/key）
+        // - 无 customApi：只捕获主 API 的 source/model（调试面板显示用）
         let settingsCleanup = null;
-        if (customApi && customApi.apiurl) {
+        {
             const handler = (data) => {
-                data.reverse_proxy = customApi.apiurl;
-                data.chat_completion_source = customApi.source || 'openai';
-                data.proxy_password = customApi.key || '';
-                if (customApi.model) data.model = customApi.model;
-                if (customApi.temperature !== undefined) data.temperature = customApi.temperature;
-                if (customApi.max_tokens > 0) data.max_tokens = customApi.max_tokens;
+                const isCustom = !!(customApi && customApi.apiurl);
+                if (isCustom) {
+                    data.reverse_proxy = customApi.apiurl;
+                    data.chat_completion_source = customApi.source || 'openai';
+                    data.proxy_password = customApi.key || '';
+                    if (customApi.model) data.model = customApi.model;
+                    if (customApi.temperature !== undefined) data.temperature = customApi.temperature;
+                    if (customApi.max_tokens > 0) data.max_tokens = customApi.max_tokens;
+                }
                 apiUsed = {
-                    apiurl: customApi.apiurl,
-                    model: customApi.model || data.model,
-                    source: customApi.source || 'openai',
-                    temperature: customApi.temperature ?? data.temperature,
-                    max_tokens: customApi.max_tokens ?? data.max_tokens,
+                    apiurl: isCustom ? customApi.apiurl : (data.reverse_proxy || ''),
+                    model: isCustom ? (customApi.model || data.model) : (data.model || ''),
+                    source: isCustom ? (customApi.source || 'openai') : (data.chat_completion_source || ''),
+                    temperature: isCustom ? (customApi.temperature ?? data.temperature) : (data.temperature),
+                    max_tokens: isCustom ? (customApi.max_tokens ?? data.max_tokens) : (data.max_tokens),
+                    custom: isCustom, // 标记是否为独立 API
                 };
-                debugLog(LOG_TAG, '独立 API 拦截已生效', apiUsed);
+                // 实时推送 API 信息（阶段 2：生成中面板显示「API 信息」）
+                options.onApiUsed?.(apiUsed);
+                debugLog(LOG_TAG, isCustom ? '独立 API 拦截已生效' : '主 API 信息已捕获', apiUsed);
             };
             eventSource.once(event_types.CHAT_COMPLETION_SETTINGS_READY, handler);
             settingsCleanup = () => eventSource.removeListener(event_types.CHAT_COMPLETION_SETTINGS_READY, handler);
@@ -207,6 +215,15 @@ export const aiCaller = {
             // 组装失败兜底
             if (!Array.isArray(assembledChat) || assembledChat.length === 0) {
                 throw new Error('提示词组装失败（未捕获到组装结果）');
+            }
+
+            // 组装完成 → 立即还原临时隐藏的楼层（发送阶段 chat 已是原状，避免其他代码读到隐藏态）
+            // 原 is_system 值精确恢复（原来就隐藏的楼层保持隐藏）
+            for (const { index, wasSystem } of hiddenBackup) {
+                if (chat[index]) chat[index].is_system = wasSystem;
+            }
+            if (hiddenBackup.length > 0) {
+                infoLog(LOG_TAG, `组装完成已还原 ${hiddenBackup.length} 条临时隐藏楼层`);
             }
 
             // 自己发送（customApi 拦截在 sendOpenAIRequest 内部生效；不锁 ST 发送按钮）

@@ -22,9 +22,9 @@ const panelIframes = new Map();
 export function updateDebugPanelResponse(taskKey, text) {
     const entry = panelIframes.get(taskKey);
     if (!entry) return;
-    const { responsePre, statusEl } = entry;
+    const { responsePre } = entry;
     if (responsePre) responsePre.textContent = text;
-    if (statusEl) statusEl.textContent = '生成中…（流式）';
+    // 标题 badge 已显示「生成调试（生成中）」，无需在流式更新时改动
 }
 
 /**
@@ -61,6 +61,47 @@ export function isDebugPanelOpen(taskKey) {
 }
 
 /**
+ * 更新指定任务的面板「API 信息」（阶段 2：捕获到 API 后实时显示）
+ * @param {string} taskKey
+ * @param {object} apiUsed
+ */
+export function updateDebugPanelApi(taskKey, apiUsed) {
+    const entry = panelIframes.get(taskKey);
+    if (!entry || !entry.doc) return;
+    const doc = entry.doc;
+    // 已有 API section → 更新其 pre 内容；没有 → 追加到 body 末尾
+    let section = doc.querySelector('.ccore-debug-section[data-ccore-api]');
+    const lines = [];
+    lines.push(`类型: ${apiUsed.custom ? '独立 API' : 'ST 主 API'}`);
+    if (apiUsed.model) lines.push(`模型: ${apiUsed.model}`);
+    if (apiUsed.source) lines.push(`来源: ${apiUsed.source}`);
+    if (apiUsed.apiurl) lines.push(`URL: ${apiUsed.apiurl}`);
+    if (apiUsed.temperature !== undefined) lines.push(`温度: ${apiUsed.temperature}`);
+    if (apiUsed.max_tokens) lines.push(`Max Tokens: ${apiUsed.max_tokens}`);
+    const content = lines.join('\n');
+
+    if (section) {
+        const pre = section.querySelector('.ccore-debug-pre');
+        if (pre) pre.textContent = content;
+    } else {
+        const body = doc.querySelector('.ccore-debug-body');
+        if (!body) return;
+        const html = `<div class="ccore-debug-section" data-ccore-api data-ccore-collapsed="false">
+    <div class="ccore-debug-section-header">
+        <span class="ccore-debug-section-title" style="color:var(--text-muted)">API 信息</span>
+        <div class="ccore-debug-btn-group">
+            <button class="ccore-debug-small-btn ccore-debug-copy-btn">复制</button>
+            <button class="ccore-debug-small-btn ccore-debug-toggle-btn">收起</button>
+        </div>
+    </div>
+    <pre class="ccore-debug-pre" style="display:block">${_escapeHtml(content)}</pre>
+</div>`;
+        body.insertAdjacentHTML('beforeend', html);
+        _bindSectionEvents(doc);
+    }
+}
+
+/**
  * 生成完成后更新已打开的面板为「完成态」：
  * 状态标签 → 完成、隐藏中止按钮、刷新「完整响应」/「实际发送」。
  * @param {string} taskKey
@@ -72,12 +113,13 @@ export function finishDebugPanel(taskKey, debugData) {
     const { doc, responsePre, statusEl } = entry;
     if (!doc) return;
 
-    // 1. 状态标签 → 完成态
-    if (statusEl) {
+    // 1. 状态标签 → 完成态（更新整个标题：badge + titleBody，避免 titleBody 重复）
+    const titleEl = doc.querySelector('.ccore-debug-title');
+    if (titleEl) {
         const label = debugData.statusLabel || '生成调试';
         const type = debugData.statusType || 'info';
         const titleBody = debugData.titleBody || '';
-        statusEl.innerHTML = `<span class="ccore-debug-badge ccore-debug-badge-${type}">${_escapeHtml(label)}</span>${_escapeHtml(titleBody)}`;
+        titleEl.innerHTML = `<span class="ccore-debug-badge ccore-debug-badge-${type}">${_escapeHtml(label)}</span>${_escapeHtml(titleBody)}`;
     }
 
     // 2. 隐藏中止按钮
@@ -168,10 +210,9 @@ export function showDebugPanel(data) {
                 if (abortBtn) {
                     abortBtn.addEventListener('click', () => {
                         try { data.onAbort(); } catch (e) {}
+                        // 中止后不自动关闭面板：保留现场（失败原因/已流式内容），用户点「×」手动关
                         abortBtn.disabled = true;
                         abortBtn.textContent = '已中止';
-                        // 中止后关闭面板（生成流程已在 aiCaller 抛错返回）
-                        setTimeout(() => modal.close(), 600);
                     });
                 }
             }
@@ -265,9 +306,17 @@ function _buildSectionsHtml(data) {
         sections.push(_buildSection('提取结果', modulesText, 'var(--accent-color)', false));
     }
 
-    // 4. API 信息
+    // 4. API 信息（可读格式：独立/主 API + 模型）
     if (data.apiUsed && Object.keys(data.apiUsed).length > 0) {
-        sections.push(_buildSection('API 信息', JSON.stringify(data.apiUsed, null, 2), 'var(--text-muted)', false));
+        const api = data.apiUsed;
+        const lines = [];
+        lines.push(`类型: ${api.custom ? '独立 API' : 'ST 主 API'}`);
+        if (api.model) lines.push(`模型: ${api.model}`);
+        if (api.source) lines.push(`来源: ${api.source}`);
+        if (api.apiurl) lines.push(`URL: ${api.apiurl}`);
+        if (api.temperature !== undefined) lines.push(`温度: ${api.temperature}`);
+        if (api.max_tokens) lines.push(`Max Tokens: ${api.max_tokens}`);
+        sections.push(_buildSection('API 信息', lines.join('\n'), 'var(--text-muted)', false));
     }
 
     // 5. 操作按钮（保存/抛弃/查看当前内容，仅手动重新生成流程）
@@ -445,7 +494,8 @@ function _updatePreVisibility(section) {
     const content = section.dataset.ccoreContent;
     const collapsed = section.dataset.ccoreCollapsed === 'true';
     section.querySelectorAll('.ccore-debug-pre').forEach(p => {
-        const matchFormat = p.dataset.ccoreFormat === format;
+        // 无 data-ccore-format 的 pre（普通 section）总是匹配；有 format 的按当前格式匹配
+        const matchFormat = !p.dataset.ccoreFormat || p.dataset.ccoreFormat === format;
         const pContent = p.dataset.ccoreContent;
         // 无 content 属性的 pre(普通/dual section)总是匹配;有 content 属性的需匹配
         const matchContent = !content || !pContent || pContent === content;
