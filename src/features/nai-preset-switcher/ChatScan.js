@@ -323,16 +323,18 @@ export async function scanCurrentChat(ctx) {
     }
     debugLog(`[聊天扫描] 探测：${chat.length} 条消息，${mesWithImages} 条正文含图片提示词，共 ${totalTags} 个提示词实例`);
 
-    // 序列化 map（floors 转数字数组；角色取出现最多/首个；storageKey 未命中则跳过——无图可关联）
-    const map = [];
+    // 序列化：按角色分组。mapByTag 里每个提示词记录了出现的角色集合，
+    // 该提示词归入每个出现的角色下（同一提示词同聊天跨角色时各角色都记）。
+    // 角色名作为顶层 key（天然层级：角色 → 聊天 → 提示词），map 内不再重复记角色名。
+    const byCharacter = new Map(); // characterName -> [{storageKey, floors}]
     for (const m of mapByTag.values()) {
         if (!m.storageKey) continue; // 命中失败不落盘（垃圾 key）
-        const characterName = m.characters.size > 0 ? [...m.characters][0] : '';
-        map.push({
-            storageKey: m.storageKey,
-            characterName,
-            floors: [...m.floors].sort((a, b) => a - b),
-        });
+        const chars = m.characters.size > 0 ? [...m.characters] : ['未知角色'];
+        const floors = [...m.floors].sort((a, b) => a - b);
+        for (const characterName of chars) {
+            if (!byCharacter.has(characterName)) byCharacter.set(characterName, []);
+            byCharacter.get(characterName).push({ storageKey: m.storageKey, floors });
+        }
     }
 
     // 聊天名：chat_metadata.title 优先（自定义标题），否则用 chatId（文件名无扩展名）
@@ -343,32 +345,73 @@ export async function scanCurrentChat(ctx) {
     } catch (e) { /* 忽略 */ }
     if (!chatName) chatName = chatId;
 
-    // 落盘（合并写入该 chatId，不影响其他聊天）
-    configManager.setNaiChatScan({ chatId, name: chatName, scannedAt: Date.now(), map });
+    // 落盘（按 角色→chatId 双层合并写入，不影响其他角色/聊天）
+    let totalMapEntries = 0;
+    for (const [characterName, map] of byCharacter) {
+        configManager.setNaiChatScan({ characterName, chatId, name: chatName, scannedAt: Date.now(), map });
+        totalMapEntries += map.length;
+    }
+
     try { saveSettings(); } catch (e) { /* 忽略 */ }
 
-    debugLog(`[聊天扫描] 扫描完成：${map.length} 个提示词，${map.reduce((n, x) => n + x.floors.length, 0)} 个楼层`);
-    showToast(doc, `扫描完成：识别到 ${map.length} 个提示词`, 'success');
-    return { chatId, name: chatName, scannedAt: Date.now(), map };
+    debugLog(`[聊天扫描] 扫描完成：${byCharacter.size} 个角色，${totalMapEntries} 个提示词记录，${mapByTag.size} 个提示词`);
+    showToast(doc, `扫描完成：识别到 ${totalMapEntries} 个提示词（${byCharacter.size} 个角色）`, 'success');
+    return { characterNames: [...byCharacter.keys()], chatId, name: chatName, scannedAt: Date.now() };
 }
 
-// 读取当前聊天的扫描结果（无则返回空记录）
+// 扁平化 characters 结构 → 记录数组 [{characterName, chatId, name, scannedAt, map:[{storageKey, floors}]}]
+function flattenChatScans() {
+    const scan = configManager.getNaiChatScan();
+    const characters = (scan && scan.characters && typeof scan.characters === 'object') ? scan.characters : {};
+    const records = [];
+    for (const characterName in characters) {
+        const charEntry = characters[characterName];
+        if (!charEntry || !charEntry.chats || typeof charEntry.chats !== 'object') continue;
+        for (const chatId in charEntry.chats) {
+            const c = charEntry.chats[chatId];
+            if (!c || typeof c !== 'object') continue;
+            records.push({
+                characterName: String(characterName),
+                chatId: String(chatId),
+                name: String(c.name || ''),
+                scannedAt: typeof c.scannedAt === 'number' ? c.scannedAt : 0,
+                map: Array.isArray(c.map) ? c.map : [],
+            });
+        }
+    }
+    return records;
+}
+
+// 读取当前聊天的扫描结果（无则返回空记录；跨角色合并为单条，供扫描按钮/单聊天视图）
 export function getChatScanForCurrentChat() {
     const chatId = getChatId(getStContext());
-    const record = getChatScanRecord(chatId);
-    return record || { chatId, name: chatId, scannedAt: 0, map: [] };
+    const all = flattenChatScans();
+    const matches = all.filter(r => r.chatId === chatId);
+    if (matches.length === 0) return { chatId, name: chatId, scannedAt: 0, map: [] };
+    // 合并各角色的 map（每项补 characterName 供消费端）
+    const map = [];
+    matches.forEach(r => {
+        (r.map || []).forEach(m => {
+            if (!m || !m.storageKey) return;
+            map.push({ storageKey: m.storageKey, characterName: r.characterName, floors: m.floors || [] });
+        });
+    });
+    return {
+        chatId,
+        name: matches[0].name || chatId,
+        scannedAt: Math.max(...matches.map(r => r.scannedAt)),
+        map,
+    };
 }
 
-// 按 chatId 读单个聊天的扫描记录
+// 按 chatId 读单个聊天的扫描记录（跨角色合并）
 export function getChatScanRecord(chatId) {
     if (!chatId) return null;
-    const scan = configManager.getNaiChatScan();
-    const chats = (scan && scan.chats) || [];
-    return chats.find(c => c && c.chatId === chatId) || null;
+    return getChatScanForCurrentChat(); // 复用（当前聊天即该 chatId 视图）
 }
 
 // 读取全部已扫描聊天记录（聊天外可见：图片管理聚合所有聊天）
+// 返回扁平记录数组 [{characterName, chatId, name, scannedAt, map:[{storageKey, floors}]}]
 export function getAllChatScans() {
-    const scan = configManager.getNaiChatScan();
-    return (scan && scan.chats) || [];
+    return flattenChatScans();
 }

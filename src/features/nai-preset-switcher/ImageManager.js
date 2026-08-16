@@ -40,6 +40,7 @@ loadChatGroupDims();
 // 聊天扫描结果缓存（全部已扫描聊天，聊天外可见）：
 //   storageKey(=md5) → [{ chatId, chatName, characterName, floors:[] }]
 // 同一提示词可能出现在多个聊天/角色（同一 md5 跨聊天），聚合为数组，图片按数组逐份归属。
+// 角色名为记录层字段（getAllChatScans 扁平化自 characters 结构，天然顶层）。
 let chatScanByKey = new Map();
 let chatScanChatId = '';
 let chatScanChatsCount = 0;
@@ -52,6 +53,7 @@ function reloadChatScan() {
     allScans.forEach(scan => {
         const chatId = scan.chatId || '';
         const chatName = scan.name || chatId;
+        const characterName = scan.characterName || '未知角色';
         (scan.map || []).forEach(m => {
             if (!m.storageKey) return;
             const floors = Array.isArray(m.floors) ? m.floors.map(Number).filter(n => !isNaN(n)) : [];
@@ -59,7 +61,7 @@ function reloadChatScan() {
             chatScanByKey.get(m.storageKey).push({
                 chatId,
                 chatName,
-                characterName: m.characterName || '未知角色',
+                characterName,
                 floors,
             });
         });

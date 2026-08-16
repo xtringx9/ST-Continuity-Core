@@ -584,44 +584,41 @@ class ConfigManager {
 
     /**
      * 获取全部聊天扫描结果（读路径，走独立顶层键 nai_preset_config.chatScan）
-     * @returns {{chats: Array<{chatId:string, name:string, scannedAt:number, map:Array}>}} chatScan
+     * @returns {{characters: Object<characterName, {chats: Object<chatId, {name, scannedAt, map}>}>}} chatScan
      */
     getNaiChatScan() {
         if (!this.isNaiPresetConfigLoaded) {
             this.loadNaiPresetConfig();
         }
-        return this.naiPresetConfig?.chatScan || { chats: [] };
+        return this.naiPresetConfig?.chatScan || { characters: {} };
     }
 
     /**
-     * 合并写入单个聊天的扫描结果（独立顶层键 nai_preset_config.chatScan；保留其他字段与其他聊天）。
-     * chatScan 为单聊天记录：{chatId, name?, scannedAt, map}——同 chatId 覆盖，否则追加。
-     * @param {{chatId:string, name?:string, scannedAt:number, map:Array}} chatScan
+     * 合并写入单个聊天的扫描结果（独立顶层键 nai_preset_config.chatScan；保留其他字段与其他角色/聊天）。
+     * chatScan 为单聊天记录：{characterName, chatId, name?, scannedAt, map}——同角色+同 chatId 覆盖，否则追加。
+     * @param {{characterName:string, chatId:string, name?:string, scannedAt:number, map:Array}} chatScan
      */
     setNaiChatScan(chatScan) {
         if (!ENABLE_DEV_SAVE_GUARD) return;
         const current = this.getNaiPresetSwitcherConfig();
         const existing = this.getNaiChatScan();
-        const chats = Array.isArray(existing.chats) ? existing.chats : [];
-        const idx = chats.findIndex(c => c && c.chatId === chatScan.chatId);
-        const record = {
-            chatId: String(chatScan.chatId || ''),
+        const characters = (existing && existing.characters && typeof existing.characters === 'object') ? existing.characters : {};
+        const characterName = String(chatScan.characterName || '未知角色');
+        const chatId = String(chatScan.chatId || '');
+        if (!characterName || !chatId) return;
+        if (!characters[characterName]) characters[characterName] = { chats: {} };
+        characters[characterName].chats[chatId] = {
             name: String(chatScan.name || ''),
             scannedAt: typeof chatScan.scannedAt === 'number' ? chatScan.scannedAt : Date.now(),
             map: Array.isArray(chatScan.map) ? chatScan.map : [],
         };
-        if (idx >= 0) {
-            chats[idx] = record;
-        } else {
-            chats.push(record);
-        }
         const normalized = normalizeNaiPresetConfig({
             enabled: current.enabled,
             chatu8Launcher: current.chatu8Launcher,
             presets: current.presets || [],
             tags: current.tags || [],
             imageFavorites: current.imageFavorites,
-            chatScan: { chats },
+            chatScan: { characters },
         });
         this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();
@@ -629,21 +626,28 @@ class ConfigManager {
 
     /**
      * 删除单个聊天的扫描结果（聊天被删/手动清理用）。
+     * @param {string} characterName
      * @param {string} chatId
      */
-    deleteNaiChatScan(chatId) {
+    deleteNaiChatScan(characterName, chatId) {
         if (!ENABLE_DEV_SAVE_GUARD) return;
-        if (!chatId) return;
+        if (!characterName || !chatId) return;
         const current = this.getNaiPresetSwitcherConfig();
         const existing = this.getNaiChatScan();
-        const chats = (Array.isArray(existing.chats) ? existing.chats : []).filter(c => c && c.chatId !== chatId);
+        const characters = (existing && existing.characters && typeof existing.characters === 'object') ? existing.characters : {};
+        if (characters[characterName] && characters[characterName].chats) {
+            delete characters[characterName].chats[chatId];
+            if (Object.keys(characters[characterName].chats).length === 0) {
+                delete characters[characterName];
+            }
+        }
         const normalized = normalizeNaiPresetConfig({
             enabled: current.enabled,
             chatu8Launcher: current.chatu8Launcher,
             presets: current.presets || [],
             tags: current.tags || [],
             imageFavorites: current.imageFavorites,
-            chatScan: { chats },
+            chatScan: { characters },
         });
         this.naiPresetConfig = normalized;
         this.saveNaiPresetConfigNow();
