@@ -274,23 +274,25 @@ export function generateUsageGuide(mode) {
         const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
         const promptTag = `${moduleTag}_data_usage_guide`;
 
-        // 获取模块数据
+        // 按「当前模块数据」筛有数据的模块（与 MODULE_DATA 同源提取）——动态控制提示词长度：
+        // 只对 count>0（正文/floor 里实际存在数据）且配置了 usage 提示词的模块提供指导；
+        // sync 与 async-body 内容统一（变量级 usagePrompt 一并给出），不按三态 mode 分模块。
+        const processResult = extractModuleDataForPrompt();
+        const structuredModules = processResult?.content;
         const modulesData = configManager.getModules() || [];
-
-        if (!modulesData || modulesData.length === 0) {
+        if (!structuredModules || typeof structuredModules !== 'object' || modulesData.length === 0) {
             debugLog("[Macro]宏管理器: 未找到模块数据，返回空提示词");
             return "";
         }
 
-        // 按三态过滤后，筛启用且满足输出条件的模块
-        const filteredModules = filterModulesByMode(modulesData, effectiveMode);
-        const modulesWithUsage = filteredModules.filter(module =>
+        const modulesWithUsage = modulesData.filter(module =>
             module.enabled !== false &&
+            structuredModules[module.name]?.moduleCount > 0 &&
             (module.contentPrompt?.trim() || module.variables?.some(v => v.usagePrompt?.trim()))
         );
 
         if (modulesWithUsage.length === 0) {
-            debugLog("[Macro]宏管理器: 没有使用提示词不为空的模块，返回空提示词");
+            debugLog("[Macro]宏管理器: 没有「存在数据且配置使用提示词」的模块，返回空提示词");
             return "";
         }
 
@@ -301,14 +303,13 @@ export function generateUsageGuide(mode) {
 
         usageGuide += "# 模块内容使用指导\n\n";
 
-        // async-body：增强版——模块 usage + 变量级 usagePrompt 组合（[模块|key:如何用] 形式）
-        const isAsyncBody = effectiveMode === 'async-body';
+        // sync 与 async-body 统一：模块 usage + 变量级 usagePrompt 组合（[模块|key:如何用] 形式）
         modulesWithUsage.forEach(module => {
             usageGuide += `${configManager.MODULE_TITLE_LEFT}${module.name}${module.displayName ? ` (${module.displayName})` : ""}${configManager.MODULE_TITLE_RIGHT}\n`;
             if (module.contentPrompt?.trim()) {
                 usageGuide += `usage:${module.contentPrompt}\n`;
             }
-            if (isAsyncBody && Array.isArray(module.variables) && module.variables.length > 0) {
+            if (Array.isArray(module.variables) && module.variables.length > 0) {
                 const enabledVars = module.variables.filter(v => v.enabled !== false);
                 const varUsageParts = enabledVars
                     .filter(v => v.usagePrompt?.trim())
@@ -791,37 +792,46 @@ function getOutputModePrompt(module) {
 }
 
 
+/**
+ * 提取当前上下文的模块数据（{{CONTINUITY_MODULE_DATA}} 与 {{USAGE_GUIDE}} 同源提取）。
+ * 提取参数：getContextBottomFilteredModuleConfigs + 生成期楼层截断（genEndFloor）。
+ * @param {boolean} [skipEmpty] 构建 contentString 时跳过无数据模块（moduleCount===0）
+ * @returns {Object|null} runModulePipeline 结果；chat 为空时返回 null
+ */
+function extractModuleDataForPrompt(skipEmpty = false) {
+    if (!chat || chat.length < 1) return null;
+    const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
+    let endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
+    // 生成期上下文截断：重新生成模块时，宏只读到「目标层前一楼」的数据（目标层模块正要生成）
+    const genEndFloor = getGenerationContextEndFloor();
+    if (typeof genEndFloor === 'number' && genEndFloor >= 0 && genEndFloor < endIndex) {
+        endIndex = genEndFloor;
+        debugLog(`[生成上下文] moduleData 宏截断到楼层 ${endIndex}`);
+    }
+    // 提取全部聊天记录的所有模块数据（一次性获取）
+    const moduleFilters = getContextBottomFilteredModuleConfigs(); // 只提取符合条件的模块
+    const selectedModuleNames = moduleFilters.map(config => config.name);
+
+    // 一次性获取所有模块数据
+    return runModulePipeline({
+        range: { start: 0, end: endIndex },
+        modules: moduleFilters,
+        processType: 'auto',
+        selectedModuleNames,
+        showModuleNames: true,
+        skipEmpty,
+    });
+}
+
 export function generateModuleDataPrompt(mode) {
     try {
         const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
         const promptTag = `${moduleTag}_data`;
         const effectiveMode = mode || getPromptMode();
-        if (!chat || chat.length < 1) return `<${promptTag}>\n</${promptTag}>`;
-        // infoLog("Chat:", chat);
-        const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
-        let endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
-        // 生成期上下文截断：重新生成模块时，宏只读到「目标层前一楼」的数据（目标层模块正要生成）
-        const genEndFloor = getGenerationContextEndFloor();
-        if (typeof genEndFloor === 'number' && genEndFloor >= 0 && genEndFloor < endIndex) {
-            endIndex = genEndFloor;
-            debugLog(`[生成上下文] moduleData 宏截断到楼层 ${endIndex}`);
-        }
-        // 提取全部聊天记录的所有模块数据（一次性获取）
-        const extractParams = {
-            startIndex: 0,
-            endIndex: endIndex, // null表示提取到最新楼层
-            moduleFilters: getContextBottomFilteredModuleConfigs() // 只提取符合条件的模块
-        };
-        const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
-
-        // 一次性获取所有模块数据
-        const processResult = runModulePipeline({
-            range: { start: extractParams.startIndex, end: extractParams.endIndex },
-            modules: extractParams.moduleFilters,
-            processType: 'auto',
-            selectedModuleNames,
-            showModuleNames: true,
-        });
+        // 异步跟随正文（async-body）：只显示 count 非 0 的模块（正文内模块本就在正文里，数据量小）；
+        // 同步跟随正文与异步单独生成保持全量输出。
+        const processResult = extractModuleDataForPrompt(effectiveMode === 'async-body');
+        if (!processResult) return `<${promptTag}>\n</${promptTag}>`;
         let moduleDataPrompt = `<${promptTag}>\n`;
         moduleDataPrompt += getOutputRulePrompt('moduleData', effectiveMode);
         moduleDataPrompt += `# 最新模块数据\n\n${processResult.contentString}\n`;

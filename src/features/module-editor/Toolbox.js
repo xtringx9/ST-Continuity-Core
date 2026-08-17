@@ -293,7 +293,7 @@ function bindPreviewEvents(doc) {
                     case 'prompt': content = generateFormalPrompt(asyncMode); break;
                     case 'order': content = generateModuleOrderPrompt(asyncMode); break;
                     case 'usage': content = generateUsageGuide(asyncMode); break;
-                    case 'data': content = generateModuleDataPrompt(); break;
+                    case 'data': content = generateModuleDataPrompt(asyncMode); break;
                 }
             }
         } catch (e) {

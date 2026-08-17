@@ -18,11 +18,11 @@ import { debugLog } from '../../utils/logger.js';
 /**
  * 读缓存（命中则返回结构化结果，否则返回 null）。
  * 复刻原 moduleProcessor.js:51-92 的缓存命中分支（含按 selectedModuleNames 过滤 + 重建 contentString）。
- * @param {{start:number, end:number|null, processType:string, isAllModule:boolean, force:boolean, selectedModuleNames:string[]|undefined, moduleFilters:Array|null, showModuleNames:boolean, showProcessInfo:boolean, showRule:boolean}} ctx
+ * @param {{start:number, end:number|null, processType:string, isAllModule:boolean, force:boolean, selectedModuleNames:string[]|undefined, moduleFilters:Array|null, showModuleNames:boolean, showProcessInfo:boolean, showRule:boolean, skipEmpty?:boolean}} ctx
  * @returns {object|null}
  */
 export function readCache(ctx) {
-    const { start, end, processType, isAllModule, force, selectedModuleNames, moduleFilters, showModuleNames, showProcessInfo, showRule } = ctx;
+    const { start, end, processType, isAllModule, force, selectedModuleNames, moduleFilters, showModuleNames, showProcessInfo, showRule, skipEmpty = false } = ctx;
 
     // 原读条件：仅 auto 且未 force 且有缓存
     if (processType !== 'auto' || force) return null;
@@ -57,7 +57,7 @@ export function readCache(ctx) {
 
     let contentString = '';
     if (typeof content !== 'string') {
-        contentString = buildModulesString(content, showModuleNames, showProcessInfo, showRule);
+        contentString = buildModulesString(content, showModuleNames, showProcessInfo, showRule, skipEmpty);
     }
     let count = 0;
     let hasContent = false;

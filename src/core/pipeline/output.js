@@ -276,9 +276,11 @@ export function buildModuleString(moduleData, moduleConfig, isIncremental = fals
  * @param {Object} structuredModules 按模块名分组的结构化数据
  * @param {boolean} showModuleNames 是否显示模块名
  * @param {boolean} showProcessInfo 是否显示处理信息
+ * @param {boolean} showRule 是否显示规则
+ * @param {boolean} skipEmpty 跳过无数据模块（moduleCount===0，如异步跟随正文时的 MODULE_DATA）
  * @returns {string} 转换后的模块字符串
  */
-export function buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false, showRule = false) {
+export function buildModulesString(structuredModules, showModuleNames = false, showProcessInfo = false, showRule = false, skipEmpty = false) {
     let result = '';
 
     const allModuleConfigs = configManager.getModules() || [];
@@ -289,6 +291,9 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
         const moduleData = structuredModules[moduleName];
 
         if (moduleData) {
+            // 异步跟随正文：只显示有数据（count 非 0）的模块
+            if (skipEmpty && moduleData.moduleCount === 0) return;
+
             const { processType, data } = moduleData;
 
             result += getModuleDataRuleString(moduleConfig, moduleData, processType, showModuleNames, showProcessInfo, showRule);
@@ -307,7 +312,7 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
                 result += data + '\n\n';
             }
 
-        } else if (!showProcessInfo) {
+        } else if (!showProcessInfo && !skipEmpty) {
             result += getModuleDataRuleString(moduleConfig, moduleData, null, showModuleNames, showProcessInfo, showRule);
         }
     });

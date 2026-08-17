@@ -46,6 +46,7 @@ function deriveCacheMode(processType, force, cacheOption) {
  * @param {boolean} [opts.showModuleNames]
  * @param {boolean} [opts.showProcessInfo]
  * @param {boolean} [opts.showRule]
+ * @param {boolean} [opts.skipEmpty] 构建 contentString 时跳过无数据模块（moduleCount===0）
  * @returns {Object} { success, content, contentString, displayTitle, moduleCount, hasContent, byMessage? }
  */
 export function runModulePipeline(opts = {}) {
@@ -61,6 +62,7 @@ export function runModulePipeline(opts = {}) {
             showModuleNames = false,
             showProcessInfo = false,
             showRule = false,
+            skipEmpty = false,
         } = opts;
 
         const start = range.start ?? 0;
@@ -77,6 +79,7 @@ export function runModulePipeline(opts = {}) {
                 start, end, processType, isAllModule, force,
                 selectedModuleNames, moduleFilters,
                 showModuleNames, showProcessInfo, showRule,
+                skipEmpty,
             });
             if (hit) {
                 if (groupByMessage) hit.byMessage = groupProcessResultByMessageIndex({ content: hit.content });
@@ -168,7 +171,7 @@ export function runModulePipeline(opts = {}) {
         // ---- buildString ----
         let contentString = resultContent;
         if (typeof resultContent !== 'string') {
-            contentString = buildModulesString(resultContent, showModuleNames, showProcessInfo, showRule);
+            contentString = buildModulesString(resultContent, showModuleNames, showProcessInfo, showRule, skipEmpty);
         }
 
         const result = {
