@@ -796,12 +796,15 @@ section.module-detail-panel {
 
 .tristate-prompt-body {
     border-top: 1px solid var(--border-light);
-    padding: 8px 12px;
+    padding: 6px 12px 2px;
 }
 
 .tristate-mode-group {
-    padding: 8px 0;
+    display: block;
+    align-items: initial;
+    padding: 2px 0 6px;
     border-bottom: 1px dashed var(--border-light);
+    margin-bottom: 0;
 }
 
 .tristate-mode-group:last-child {
@@ -812,7 +815,7 @@ section.module-detail-panel {
     font-size: 12px;
     font-weight: 500;
     color: var(--accent-color, inherit);
-    margin-bottom: 4px;
+    margin: 0 0 2px;
     display: block;
 }
 
@@ -820,8 +823,13 @@ section.module-detail-panel {
 .tristate-post-label {
     font-size: 11px;
     opacity: 0.8;
-    margin: 4px 0 2px;
+    margin: 2px 0 1px;
     display: block;
+}
+
+.tristate-mode-group textarea {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* 底部留白（编辑器特有） */

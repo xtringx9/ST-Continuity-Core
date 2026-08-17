@@ -38,6 +38,27 @@ function formatChangeValue(value, length = 50) {
         }
         return `"${escapeHtml(value)}"`;
     }
+    if (typeof value === 'object') {
+        // 三态×前后置对象 { sync:{pre,post}, 'async-body':{pre,post}, 'async-alone':{pre,post} }
+        // 格式化为可读文本（仅列出非空项）
+        const parts = [];
+        for (const [mode, part] of Object.entries(value)) {
+            if (!part || typeof part !== 'object') continue;
+            const pre = part.pre || '';
+            const post = part.post || '';
+            if (pre || post) {
+                parts.push(`${mode}: ${pre ? `pre[${pre}]` : ''}${pre && post ? ' ' : ''}${post ? `post[${post}]` : ''}`);
+            }
+        }
+        const text = parts.length > 0 ? parts.join('; ') : '{}';
+        if (text.length > length) {
+            return `<details style="display: inline-block; cursor: pointer; max-width: 100%;">
+                        <summary style="display: inline; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(text.substring(0, length))}...</summary>
+                        <pre style="margin-top: 5px; padding: 5px; background: rgba(0,0,0,0.1); border-radius: 3px; white-space: pre-wrap; word-break: break-all;">${escapeHtml(text)}</pre>
+                    </details>`;
+        }
+        return escapeHtml(text);
+    }
     return escapeHtml(String(value));
 }
 
