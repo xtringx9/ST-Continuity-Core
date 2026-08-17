@@ -354,9 +354,15 @@ function _buildAbortSection() {
 
 /**
  * 构建操作按钮区域 HTML
+ * 保存方式：append（追加新版本并激活，默认）/ overwrite（覆盖当前激活版本）
  */
 function _buildActionSection() {
     return `<div class="ccore-debug-action-bar">
+        <div class="ccore-debug-save-mode" style="margin-bottom:6px;display:flex;gap:12px;align-items:center;">
+            <span style="color:var(--text-muted);font-size:12px;">保存方式</span>
+            <label style="font-size:12px;"><input type="radio" name="ccore-debug-save-mode" value="append" checked> 追加为新版本</label>
+            <label style="font-size:12px;"><input type="radio" name="ccore-debug-save-mode" value="overwrite"> 覆盖当前版本</label>
+        </div>
         <button class="ccore-debug-btn ccore-debug-btn-save">${_escapeHtml(translate('ccore_debug_save'))}</button>
         <button class="ccore-debug-btn ccore-debug-btn-discard">${_escapeHtml(translate('ccore_debug_discard'))}</button>
         <button class="ccore-debug-btn ccore-debug-btn-current">${_escapeHtml(translate('ccore_debug_view_current'))}</button>
@@ -377,13 +383,15 @@ function _bindActionButtons(doc, data, modal) {
     const currentArea = doc.querySelector('.ccore-debug-current-content');
     const currentPre = doc.querySelector('.ccore-debug-current-pre');
 
-    // 保存
+    // 保存（读取保存方式 radio：append / overwrite）
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
             saveBtn.disabled = true;
             saveBtn.textContent = translate('ccore_debug_saving');
             try {
-                await data.onSave();
+                const checked = doc.querySelector('input[name="ccore-debug-save-mode"]:checked');
+                const saveMode = checked?.value || 'append';
+                await data.onSave(saveMode);
                 saveBtn.textContent = translate('ccore_debug_saved');
                 setTimeout(() => modal.close(), 800);
             } catch (err) {

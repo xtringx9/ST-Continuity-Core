@@ -1,15 +1,15 @@
 // src/ui/messageAiButton.js
 // 为每条消息添加模块操作按钮（Cc 菜单触发器 + 展开的多框菜单）
-// Cc 点击 → 同行右侧展开：[模块框: 重新生成 编辑 汇总] [各 generator 框: 重新生成] ...
+// Cc 点击 → 同行右侧展开：[模块框: 重新生成 编辑 版本切换] [各 generator 框: 重新生成 编辑 版本切换] ...
 
 import { chat } from '../../../../../../script.js';
+import { Popup, POPUP_TYPE, POPUP_RESULT } from '../../../../../popup.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../core/contextBottomUI.js';
-import perMessageStorage from '../services/perMessageStorage.js';
-import { readFloorModules, writeFloorModules } from '../core/floorModuleStore.js';
+import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent } from '../core/floorModuleStore.js';
 import { parseNestedModules } from '../core/moduleExtractor.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 import { showDebugPanel } from './generatorDebugPanel.js';
@@ -270,16 +270,13 @@ function toggleInlineMenu(triggerButton, mesId) {
         opacity: 1, // 激活时完全可见
     });
 
-    // 延迟绑定外部点击关闭（避免本次点击立即触发）
-    setTimeout(() => {
-        $(document).on('click.ccore-menu', handleOutsideClick);
-    }, 0);
+    // 注意：不再绑定外部点击关闭（用户要求：再次点击小 Cc 才折叠，方便切版本时不误关菜单）
 }
 
 /**
  * 创建 inline 菜单（多框横向排列）
  *
- * 布局：[模块框: 重新生成 编辑 汇总] [gen1框: 重新生成] [gen2框: 重新生成] ...
+ * 布局：[模块框: 重新生成 编辑 版本切换] [gen1框: 重新生成 编辑 版本切换] ...
  * 每个框是独立的带边框容器，框之间有间距(gap:4px)，框内按钮紧贴(gap:0)。
  * 模块框始终存在；generator 框从 generator_config 读取启用的 generators 动态生成。
  */
@@ -296,16 +293,15 @@ function createInlineMenu(triggerButton, mesId) {
     const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
     const asyncEnabled = !!asyncModule.enabled;
 
-    // 1. 模块框：重新生成 + 编辑 + 汇总（无 label）
+    // 1. 模块框：重新生成 + 编辑（+ 版本切换，无 label；「模块汇总」已隐藏——大 Cc 按钮已有）
     const moduleRegenIcon = hasPendingResult('modules', mesId) ? 'fa-hourglass-half' : 'fa-arrows-rotate';
     const moduleActions = [
         { action: 'regenerate', icon: moduleRegenIcon, title: '重新生成模块', needAsync: true },
         { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块数据', needAsync: true },
-        { action: 'summary', icon: 'fa-table-list', title: '模块汇总', needAsync: false },
     ];
-    menu.append(createMenuBox(moduleActions, asyncEnabled, triggerButton, mesId));
+    menu.append(createMenuBox(moduleActions, asyncEnabled, triggerButton, mesId, null, 'modules'));
 
-    // 2. 各 generator 框：每个启用的 generator 一个重新生成 + 编辑按钮（带 displayName label）
+    // 2. 各 generator 框：每个启用的 generator 一个重新生成 + 编辑 + 版本切换（带 displayName label）
     const generators = configManager.getGenerators(); // 默认只返回启用的
     for (const gen of generators) {
         const genRegenIcon = hasPendingResult(gen.name, mesId) ? 'fa-hourglass-half' : 'fa-arrows-rotate';
@@ -313,21 +309,22 @@ function createInlineMenu(triggerButton, mesId) {
             { action: `generate:${gen.name}`, icon: genRegenIcon, title: `生成${gen.displayName}`, needAsync: true },
             { action: `edit:${gen.name}`, icon: 'fa-pen-to-square', title: `编辑${gen.displayName}`, needAsync: true },
         ];
-        menu.append(createMenuBox(genActions, asyncEnabled, triggerButton, mesId, gen.displayName));
+        menu.append(createMenuBox(genActions, asyncEnabled, triggerButton, mesId, gen.displayName, gen.name));
     }
 
     return menu;
 }
 
 /**
- * 创建菜单框（带边框容器，内含多个紧贴的按钮）
+ * 创建菜单框（带边框容器，内含多个紧贴的按钮 + 版本切换）
  * @param {Array} actions - 按钮配置数组
  * @param {boolean} asyncEnabled - 异步存储是否开启
  * @param {jQuery} triggerButton - Cc 触发器
  * @param {number} mesId
  * @param {string} [label] - 框内前置 label 文本（如 generator 的 displayName）
+ * @param {string} [genName] - generator 名（'modules' 或 generator.name），提供则加版本切换控件
  */
-function createMenuBox(actions, asyncEnabled, triggerButton, mesId, label) {
+function createMenuBox(actions, asyncEnabled, triggerButton, mesId, label, genName) {
     const box = $('<div>').css({
         display: 'inline-flex',
         gap: '0',
@@ -353,12 +350,122 @@ function createMenuBox(actions, asyncEnabled, triggerButton, mesId, label) {
         box.append(labelEl);
     }
 
+    // 版本切换控件（‹ 当前/总数 ›）：所有 generator 框（含模块）都有
+    if (genName) {
+        box.append(createVersionSwitcher(mesId, genName));
+    }
+
     for (const { action, icon, title, needAsync } of actions) {
         const disabled = needAsync && !asyncEnabled;
         box.append(createMenuButton(action, icon, title, disabled, triggerButton, mesId));
     }
 
     return box;
+}
+
+/**
+ * 创建版本切换控件：‹ 当前版本号/总数 ›
+ * 点击左右箭头切换当前激活的生成内容版本（innerSwipe）。
+ * @param {number} mesId
+ * @param {string} genName
+ * @returns {jQuery}
+ */
+function createVersionSwitcher(mesId, genName) {
+    const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
+    const versions = readAllGeneratorContents(mesId, genName, outerSwipeId);
+    const ids = Object.keys(versions).map(Number).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+    const active = getActiveGeneratorSwipe(mesId, genName, outerSwipeId);
+    const activeIndex = ids.indexOf(active);
+
+    const wrap = $('<div>').css({
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0',
+        fontSize: '11px',
+        lineHeight: '1',
+        color: 'var(--smart-body-text-color, inherit)',
+        userSelect: 'none',
+    });
+
+    // 总数 0：不显示任何版本指示（避免 ?/0 占位）
+    if (ids.length === 0) {
+        return wrap;
+    }
+
+    // 只有存在多版本时才显示切换控件（避免单版本也占位）
+    if (ids.length > 1) {
+        const mkBtn = (dir, label) => $('<span>')
+            .text(label)
+            .attr('title', dir > 0 ? '下一个版本' : '上一个版本')
+            .css({
+                cursor: 'pointer',
+                padding: '0 3px',
+                color: 'var(--smart-body-text-color, inherit)',
+                fontWeight: 'bold',
+            })
+            .on('click', (e) => {
+                e.stopPropagation();
+                switchGeneratorVersion(mesId, genName, dir);
+            });
+        const counter = $('<span>')
+            .attr('data-ccore-ver-counter', genName)
+            .text(`${activeIndex >= 0 ? activeIndex + 1 : '?'}\u200b/\u200b${ids.length}`)
+            .css({ padding: '0 1px' });
+        wrap.append(mkBtn(-1, '‹'), counter, mkBtn(1, '›'));
+    } else {
+        // 单版本：仍显示 1\u200b/\u200b1（提示已有内容），但无切换按钮
+        const counter = $('<span>')
+            .attr('data-ccore-ver-counter', genName)
+            .text(`${activeIndex >= 0 ? activeIndex + 1 : '?'}\u200b/\u200b${ids.length}`)
+            .css({ padding: '0 2px', opacity: '0.7' });
+        wrap.append(counter);
+    }
+
+    return wrap;
+}
+
+/**
+ * 切换某 generator 的激活版本（innerSwipe）到上一个/下一个。
+ * 模块切版本后：若增量模块文本变化 → 刷新下游（suffix）；否则只刷该条（single）。
+ * @param {number} mesId
+ * @param {string} genName
+ * @param {number} direction - -1=上一个, 1=下一个
+ */
+function switchGeneratorVersion(mesId, genName, direction) {
+    const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
+    const versions = readAllGeneratorContents(mesId, genName, outerSwipeId);
+    const ids = Object.keys(versions).map(Number).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+    if (ids.length <= 1) return;
+    const active = getActiveGeneratorSwipe(mesId, genName, outerSwipeId);
+    const activeIndex = ids.indexOf(active);
+    if (activeIndex === -1) return;
+    const nextIndex = (activeIndex + direction + ids.length) % ids.length;
+    const nextId = ids[nextIndex];
+    if (nextId === active) return;
+
+    // 模块：对比切换前后的增量模块文本，决定刷新范围
+    if (genName === 'modules') {
+        const before = readFloorModules(mesId, outerSwipeId);
+        setActiveGeneratorSwipe(mesId, genName, outerSwipeId, nextId);
+        const after = readFloorModules(mesId, outerSwipeId);
+        if (_incrementalModulesChanged(before, after)) {
+            infoLog(LOG_TAG, `切模块版本 ${active}→${nextId} 增量模块变化，刷新下游`);
+            scheduleMsgBottom('suffix', mesId);
+        } else {
+            scheduleMsgBottom('single', mesId);
+        }
+    } else {
+        // 非模块：仅切指针（不渲染 UI，只影响注入提示词），并同步内存缓存
+        setActiveGeneratorSwipe(mesId, genName, outerSwipeId, nextId);
+        generatedContentCache.set(mesId, genName, versions[nextId] || '');
+    }
+
+    // 更新版本计数显示（若菜单仍打开）
+    const counter = $(`.ccore-mes-menu [data-ccore-ver-counter="${genName}"]`);
+    if (counter.length) {
+        const newIndex = ids.indexOf(nextId);
+        counter.text(`${newIndex >= 0 ? newIndex + 1 : '?'}\u200b/\u200b${ids.length}`);
+    }
 }
 
 /**
@@ -454,19 +561,6 @@ function closeInlineMenu() {
         currentTrigger.css({ backgroundColor: '', borderColor: '', color: '' });
     }
     currentTrigger = null;
-    $(document).off('.ccore-menu');
-}
-
-/**
- * 外部点击关闭
- */
-function handleOutsideClick(e) {
-    if (!currentMenu) return;
-    const $target = $(e.target);
-    if (!$target.closest(`.${MENU_CLASS}`).length &&
-        currentTrigger && !$target.closest(currentTrigger).length) {
-        closeInlineMenu();
-    }
 }
 
 /**
@@ -636,100 +730,24 @@ function setRegenButtonState(button, state, generatorName = 'modules', mesId) {
 
 /**
  * 编辑模块数据（就地 textarea）
- * 仅在异步存储开启时可用，编辑 modules key 的文本
+ * 委托通用版本编辑（genName='modules'），支持多版本切换 + 增量模块刷新判断
  */
 async function onEditModules(mesId) {
-    // 数据在 floor（chat[floor].extra.ccore.modulesBySwipe），与异步开关解耦：
-    // 编辑/查看已存模块数据不要求 asyncModule.enabled（便于 debug 查看保存内容）
-    const $message = $(`.mes[mesid="${mesId}"]`);
-    if (!$message.length) {
-        errorLog(LOG_TAG, `找不到消息 ${mesId}`);
-        return;
-    }
-
-    let $container = $message.find(`#${CONTEXT_MSG_CONTAINER_ID}`);
-    if (!$container.length) {
-        $container = $(`<div id="${CONTEXT_MSG_CONTAINER_ID}"></div>`);
-        $message.append($container);
-    }
-
-    // 已有编辑区则不重复创建
-    if ($container.find('.ccore-edit-area').length) return;
-
-    // 隐藏现有 iframe
-    const $iframe = $container.find('iframe');
-    $iframe.hide();
-
-    // 读取模块数据：优先 floor（F 一期新格式），无则回退 perMessageStorage（旧数据兼容）
-    const swipeId = chat[mesId]?.swipe_id ?? 0;
-    let rawText = '';
-    try {
-        rawText = readFloorModules(mesId, swipeId);
-    } catch (err) {
-        errorLog(LOG_TAG, `读取消息 ${mesId} 模块数据失败:`, err);
-    }
-
-    // 构建编辑区
-    // - textarea 不设 placeholder（用户要求：空着即可，无需提示）
-    // - 保存/取消按钮用 ST 原生编辑消息样式（menu_button fa-solid fa-check/fa-times），
-    //   与 ST 原生编辑消息按钮视觉一致
-    const $editArea = $(`
-        <div class="ccore-edit-area" style="position:relative;margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
-            <!-- 复用 ST 原生编辑消息的 textarea 样式（.edit_textarea + .mdHotkeys），自动跟随主题 -->
-            <textarea class="edit_textarea mdHotkeys ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:13px;box-sizing:border-box;padding-right:48px;"></textarea>
-            <!-- 按钮悬浮到 textarea 右上角，复用 ST 编辑按钮类（.mes_edit_done/.mes_edit_cancel） -->
-            <div class="mes_edit_buttons ccore-edit-actions" style="position:absolute;top:7px;right:7px;display:flex;gap:4px;opacity:0.5;transition:opacity 0.15s;">
-                <div class="ccore-edit-save mes_edit_done menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
-                <div class="ccore-edit-cancel mes_edit_cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>
-            </div>
-        </div>
-    `);
-
-    $editArea.find('.ccore-edit-textarea').val(rawText);
-    $container.append($editArea);
-
-    // 保存（div 按钮，用 class 标记禁用状态而非 prop('disabled')）
-    $editArea.find('.ccore-edit-save').on('click', async (e) => {
-        const $btn = $(e.currentTarget);
-        if ($btn.hasClass('disabled')) return;
-        $btn.addClass('disabled').css('opacity', 0.5);
-        const text = String($editArea.find('.ccore-edit-textarea').val() || '');
-        try {
-            // F 一期：模块数据写回 floor（按 swipe），触发楼层模块变更事件
-            writeFloorModules(mesId, swipeId, text);
-            infoLog(LOG_TAG, `消息 ${mesId} 模块数据已保存（${text.length} 字符）`);
-            $editArea.remove();
-            $iframe.show();
-            // 刷新该消息的模块展示区：若编辑前后「增量模块文本」变化 → 下游累积可能变，后缀刷新（mesId..末）；
-            // 否则只刷该条（single）
-            if (_incrementalModulesChanged(rawText, text)) {
-                infoLog(LOG_TAG, `消息 ${mesId} 增量模块文本变化，刷新下游`);
-                scheduleMsgBottom('suffix', mesId);
-            } else {
-                scheduleMsgBottom('single', mesId);
-            }
-        } catch (err) {
-            errorLog(LOG_TAG, `保存消息 ${mesId} 模块数据失败:`, err);
-            toastr.error(`保存消息 ${mesId} 模块数据失败：${err.message}`);
-            $btn.removeClass('disabled').css('opacity', '');
-        }
-    });
-
-    // 取消
-    $editArea.find('.ccore-edit-cancel').on('click', () => {
-        $editArea.remove();
-        $iframe.show();
-    });
+    await onEditGeneratedContent(mesId, 'modules', { isModule: true });
 }
 
 /**
- * 编辑生成内容（小剧场、角色心理等）
- * 逻辑同 onEditModules，但读写 generatorName key，保存后更新内存缓存
+ * 编辑生成内容（小剧场、角色心理等）/ 模块数据（genName='modules'）
+ * 支持多版本（innerSwipe）：编辑区顶部显示版本切换（‹ 当前/总数 ›），
+ * 读取当前激活版本，保存写回当前编辑的版本（不自动切 active）。
  * @param {number} mesId
- * @param {string} generatorName - generator.name
+ * @param {string} generatorName - 'modules' 或 generator.name
+ * @param {Object} [opts]
+ * @param {boolean} [opts.isModule] - 模块编辑（保存后做增量模块判断刷新下游）
  */
-async function onEditGeneratedContent(mesId, generatorName) {
-    // 与 onEditModules 一致：编辑/查看已存内容不要求异步开关开启（便于 debug 查看保存内容）
+async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
+    const isModule = opts.isModule === true || generatorName === 'modules';
+    // 编辑/查看已存内容不要求异步开关开启（便于 debug 查看保存内容）
     const $message = $(`.mes[mesid="${mesId}"]`);
     if (!$message.length) {
         errorLog(LOG_TAG, `找不到消息 ${mesId}`);
@@ -749,51 +767,201 @@ async function onEditGeneratedContent(mesId, generatorName) {
     const $iframe = $container.find('iframe');
     $iframe.hide();
 
-    // 读取 perMessageStorage 数据
-    const swipeId = chat[mesId]?.swipe_id ?? 0;
-    let rawText = '';
-    try {
-        const existingData = await perMessageStorage.getMessage(mesId, swipeId);
-        if (existingData?.[generatorName]) {
-            rawText = existingData[generatorName];
-        }
-    } catch (err) {
-        errorLog(LOG_TAG, `读取消息 ${mesId} ${generatorName} 数据失败:`, err);
-        toastr.warning(`读取消息 ${mesId} ${generatorName} 数据失败，编辑将显示空内容：${err.message}`);
-    }
+    const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
 
-    // 构建编辑区（样式与 onEditModules 一致）
+    // 版本列表状态（含空版本，编辑区需看到手动新建的空版本）
+    let versions = readAllGeneratorContents(mesId, generatorName, outerSwipeId, { includeEmpty: true });
+    let ids = Object.keys(versions).map(Number).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+    let currentIndex = ids.indexOf(getActiveGeneratorSwipe(mesId, generatorName, outerSwipeId));
+    if (currentIndex === -1) currentIndex = ids.length > 0 ? ids.length - 1 : -1;
+
+    // 重新读取版本列表（新建/删除后刷新）
+    const refreshVersions = () => {
+        versions = readAllGeneratorContents(mesId, generatorName, outerSwipeId, { includeEmpty: true });
+        ids = Object.keys(versions).map(Number).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+        // 若 currentIndex 越界，回退到最后一个版本；无版本则 -1（显示空）
+        if (ids.length === 0) {
+            currentIndex = -1;
+        } else if (currentIndex < 0 || currentIndex >= ids.length) {
+            currentIndex = ids.length - 1;
+        }
+    };
+
+    // 楼层/swipe 显示：仿 ST 聊天右下角 swipe 样式「#楼层 · 当前/总数」（formatSwipeCounter 的 x\u200b/y 格式）
+    const totalSwipes = chat[mesId]?.swipes?.length ?? 1;
+    const outerSwipeDisplay = `${Number(outerSwipeId) + 1}\u200b/\u200b${totalSwipes}`;
+
+    // 构建编辑区（顶部栏：左=#楼层·swipe 计数，右=版本切换 + 新建/删除 + 确定/取消）
+    // 按钮用 ST 原生 menu_button 样式 + FontAwesome 图标，但不用 mes_edit_* / mes_edit_buttons 类
+    //（ST 编辑态逻辑会连坐控制 .mes_edit_buttons 显隐，script.js 点编辑显示、取消隐藏，会误伤我们的按钮）。
+    // 内联覆盖小尺寸：缩小 padding / font-size，保持版本栏细高。
     const $editArea = $(`
         <div class="ccore-edit-area" style="position:relative;margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
-            <!-- 复用 ST 原生编辑消息的 textarea 样式（.edit_textarea + .mdHotkeys），自动跟随主题 -->
-            <textarea class="edit_textarea mdHotkeys ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:13px;box-sizing:border-box;padding-right:48px;"></textarea>
-            <!-- 按钮悬浮到 textarea 右上角，复用 ST 编辑按钮类（.mes_edit_done/.mes_edit_cancel） -->
-            <div class="mes_edit_buttons ccore-edit-actions" style="position:absolute;top:7px;right:7px;display:flex;gap:4px;opacity:0.5;transition:opacity 0.15s;">
-                <div class="ccore-edit-save mes_edit_done menu_button fa-solid fa-check interactable" title="确认" data-i18n="[title]Confirm" tabindex="0" role="button"></div>
-                <div class="ccore-edit-cancel mes_edit_cancel menu_button fa-solid fa-times interactable" title="取消" data-i18n="[title]Cancel" tabindex="0" role="button"></div>
+            <div class="ccore-edit-versionbar" style="display:flex;align-items:center;gap:4px;margin-bottom:4px;font-size:12px;color:var(--smart-body-text-color,inherit);min-height:24px;">
+                <span class="ccore-edit-ver-outer" style="opacity:0.6;margin-right:auto;">#${mesId} · ${outerSwipeDisplay}</span>
+                <span class="ccore-edit-ver-prev" style="cursor:pointer;font-weight:bold;padding:0 2px;" title="上一个版本">‹</span>
+                <span class="ccore-edit-ver-label" data-ccore-ver-label style="padding:0 2px;min-width:20px;text-align:center;">0\u200b/\u200b0</span>
+                <span class="ccore-edit-ver-next" style="cursor:pointer;font-weight:bold;padding:0 2px;" title="下一个版本">›</span>
+                <span class="ccore-edit-ver-add menu_button interactable" style="cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;margin:0;" title="新建版本" tabindex="0" role="button"><i class="fa-solid fa-plus"></i></span>
+                <span class="ccore-edit-ver-del menu_button interactable" style="cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;margin:0;" title="删除当前版本" tabindex="0" role="button"><i class="fa-solid fa-trash-can"></i></span>
+                <div class="ccore-edit-actions" style="display:flex;gap:2px;margin-left:8px;">
+                    <span class="ccore-edit-save menu_button interactable" style="cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;margin:0;background-color:var(--okGreen70a);" title="确认" tabindex="0" role="button"><i class="fa-solid fa-check"></i></span>
+                    <span class="ccore-edit-cancel menu_button interactable" style="cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;margin:0;background-color:var(--crimson70a);" title="取消" tabindex="0" role="button"><i class="fa-solid fa-xmark"></i></span>
+                </div>
             </div>
+            <textarea class="edit_textarea mdHotkeys ccore-edit-textarea" style="width:100%;min-height:80px;resize:vertical;font-family:monospace;font-size:13px;box-sizing:border-box;"></textarea>
         </div>
     `);
 
-    $editArea.find('.ccore-edit-textarea').val(rawText);
+    const $textarea = $editArea.find('.ccore-edit-textarea');
+    const $verLabel = $editArea.find('.ccore-edit-ver-label');
+
+    // 加载指定索引版本到 textarea；无版本时显示空 + 标签 0\u200b/\u200b0（仿 ST swipe 计数格式）
+    const loadVersion = (idx) => {
+        if (ids.length === 0) {
+            currentIndex = -1;
+            $textarea.val('');
+            $verLabel.text(`0\u200b/\u200b0`);
+            $editArea.find('.ccore-edit-ver-prev, .ccore-edit-ver-next').css('visibility', 'hidden');
+            return;
+        }
+        if (idx < 0) idx = 0;
+        if (idx >= ids.length) idx = ids.length - 1;
+        currentIndex = idx;
+        $textarea.val(versions[ids[idx]] || '');
+        $verLabel.text(`${idx + 1}\u200b/\u200b${ids.length}`);
+        $editArea.find('.ccore-edit-ver-prev, .ccore-edit-ver-next').css('visibility', ids.length > 1 ? 'visible' : 'hidden');
+    };
+
+    // 版本切换
+    $editArea.find('.ccore-edit-ver-prev').on('click', (e) => {
+        e.stopPropagation();
+        if (ids.length <= 1) return;
+        loadVersion((currentIndex - 1 + ids.length) % ids.length);
+    });
+    $editArea.find('.ccore-edit-ver-next').on('click', (e) => {
+        e.stopPropagation();
+        if (ids.length <= 1) return;
+        loadVersion((currentIndex + 1) % ids.length);
+    });
+
+    // 新建版本：追加一个空版本并切到它
+    $editArea.find('.ccore-edit-ver-add').on('click', (e) => {
+        e.stopPropagation();
+        try {
+            const newId = appendGeneratorContent(mesId, generatorName, outerSwipeId, '');
+            if (newId < 0) {
+                toastr.error('新建版本失败');
+                return;
+            }
+            refreshVersions();
+            // 切到新版本（新版本是最大 id，位于数组末尾）
+            const newIdx = ids.indexOf(newId);
+            loadVersion(newIdx >= 0 ? newIdx : ids.length - 1);
+        } catch (err) {
+            errorLog(LOG_TAG, `新建版本失败:`, err);
+            toastr.error(`新建版本失败：${err.message}`);
+        }
+    });
+
+    // 删除当前版本（删除后回退到剩余最后一个；全删则显示空，保存可重建）
+    // 用 ST 原生 Popup（POPUP_TYPE.CONFIRM）确认，不使用浏览器原生 confirm（与 promptEntryActions 一致）
+    $editArea.find('.ccore-edit-ver-del').on('click', async (e) => {
+        e.stopPropagation();
+        if (ids.length === 0) return;
+        const delIdx = currentIndex >= 0 ? currentIndex : ids.length - 1;
+        const delSwipe = ids[delIdx];
+        try {
+            const $body = $('<div>').append(
+                $('<p>').text(`确定删除版本 ${delIdx + 1}（共 ${ids.length} 个）吗？此操作不可恢复。`),
+            );
+            const result = await new Popup($body, POPUP_TYPE.CONFIRM, '', {
+                okButton: '删除',
+                cancelButton: '取消',
+            }).show();
+            if (result !== POPUP_RESULT.AFFIRMATIVE) return;
+        } catch (err) {
+            errorLog(LOG_TAG, '删除确认弹窗失败:', err);
+            return;
+        }
+        const remainingAfter = ids.length - 1;
+        // 删除前记录模块 active 文本（删除后 active 可能回退，需判断增量变化刷下游）
+        const beforeModuleText = isModule ? readFloorModules(mesId, outerSwipeId) : '';
+        try {
+            deleteGeneratorContent(mesId, generatorName, outerSwipeId, delSwipe);
+            // 若删除的是当前编辑版本，且后续还有版本 → 回退到删除位置或末尾；全删则空
+            if (remainingAfter === 0) {
+                refreshVersions();
+                loadVersion(-1);
+            } else {
+                refreshVersions();
+                loadVersion(Math.min(delIdx, ids.length - 1));
+            }
+            // 非模块同步内存缓存（删后 active 可能变化）
+            if (!isModule && ids.length > 0) {
+                const active = getActiveGeneratorSwipe(mesId, generatorName, outerSwipeId);
+                generatedContentCache.set(mesId, generatorName, readGeneratorContent(mesId, generatorName, outerSwipeId, active) || '');
+            }
+            // 模块：删除导致 active 回退 → 对比删除前后模块文本，增量变化则刷下游
+            if (isModule) {
+                const afterModuleText = readFloorModules(mesId, outerSwipeId);
+                if (_incrementalModulesChanged(beforeModuleText, afterModuleText)) {
+                    infoLog(LOG_TAG, `消息 ${mesId} 删除版本 ${delSwipe} 后模块文本变化，刷新下游`);
+                    scheduleMsgBottom('suffix', mesId);
+                }
+            }
+            infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 删除版本 ${delSwipe}`);
+        } catch (err) {
+            errorLog(LOG_TAG, `删除版本失败:`, err);
+            toastr.error(`删除版本失败：${err.message}`);
+        }
+    });
+
+    loadVersion(currentIndex);
     $container.append($editArea);
 
-    // 保存
+    // 保存：无版本 → 新建（append 并激活）；有版本 → 写回当前编辑版本（不自动切 active）
     $editArea.find('.ccore-edit-save').on('click', async (e) => {
         const $btn = $(e.currentTarget);
         if ($btn.hasClass('disabled')) return;
         $btn.addClass('disabled').css('opacity', 0.5);
-        const text = String($editArea.find('.ccore-edit-textarea').val() || '');
+        const text = String($textarea.val() || '');
+        let before = '';
+        let targetSwipe;
         try {
-            // 只更新 generatorName key，保留其他 key
-            await perMessageStorage.updateMessage(mesId, swipeId, {
-                [generatorName]: text,
-            });
-            // 更新内存缓存（注入时同步读取）
-            generatedContentCache.set(mesId, generatorName, text);
-            infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 数据已保存（${text.length} 字符）`);
+            if (ids.length === 0 || currentIndex < 0) {
+                // 无版本：保存即新建（append 自动激活）
+                targetSwipe = appendGeneratorContent(mesId, generatorName, outerSwipeId, text);
+                if (targetSwipe < 0) {
+                    const msg = `保存失败：楼层 ${mesId} ${generatorName} 无法新建版本（楼层可能已不存在）`;
+                    errorLog(LOG_TAG, msg);
+                    toastr.error(msg);
+                    $btn.removeClass('disabled').css('opacity', '');
+                    return;
+                }
+                infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 数据已保存（新建版本 ${targetSwipe}，${text.length} 字符）`);
+            } else {
+                targetSwipe = ids[currentIndex];
+                before = versions[targetSwipe] || '';
+                // 写入指定版本（不自动改 active）
+                writeGeneratorContent(mesId, generatorName, outerSwipeId, targetSwipe, text);
+                infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 数据已保存到版本 ${targetSwipe}（${text.length} 字符）`);
+            }
+            // 非模块内容同步内存缓存（注入提示词用）
+            if (!isModule) {
+                generatedContentCache.set(mesId, generatorName, text);
+            }
             $editArea.remove();
             $iframe.show();
+            // 模块：对比编辑前后「增量模块文本」→ 变化则刷下游（suffix），否则只刷该条（single）
+            if (isModule) {
+                if (_incrementalModulesChanged(before, text)) {
+                    infoLog(LOG_TAG, `消息 ${mesId} 增量模块文本变化，刷新下游`);
+                    scheduleMsgBottom('suffix', mesId);
+                } else {
+                    scheduleMsgBottom('single', mesId);
+                }
+            }
         } catch (err) {
             errorLog(LOG_TAG, `保存消息 ${mesId} ${generatorName} 数据失败:`, err);
             toastr.error(`保存消息 ${mesId} ${generatorName} 数据失败：${err.message}`);

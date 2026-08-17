@@ -4,17 +4,49 @@
 // 支持模块(generatorName='modules')和其他生成内容(generatorName=generator.name)
 
 import { aiCaller } from './aiCaller.js';
-import perMessageStorage from './perMessageStorage.js';
+// perMessageStorage 已停用（F 二期：统一走 floor 存储）；保留 import 注释以备将来回用
+// import perMessageStorage from './perMessageStorage.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { showDebugPanel, updateDebugPanelResponse, updateDebugPanelPrompt, updateDebugPanelApi, isDebugPanelOpen, finishDebugPanel } from '../ui/generatorDebugPanel.js';
-import { writeFloorModules, readFloorModules } from '../core/floorModuleStore.js';
+import { readFloorModules, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, getActiveGeneratorSwipe } from '../core/floorModuleStore.js';
 import { setGenerationContextEndFloor, clearGenerationContext } from '../core/generationContext.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 
 const LOG_TAG = 'ModuleAiGenerator';
+
+/**
+ * 从 AI 回复文本中提取所有顶层模块 raw，合并为单个换行分隔文本块。
+ * 逻辑同 perMessageStorage.extractMessageModules（已停用 perMessageStorage，此处内联）。
+ * 嵌套模块包含在顶层模块的 raw 内，不单独提取。
+ * @param {string} text
+ * @returns {{ modules: string }}
+ */
+function _extractTopLevelModules(text) {
+    if (!text || typeof text !== 'string') return { modules: '' };
+    const results = [];
+    const stack = [];
+    for (let i = 0; i < text.length; i++) {
+        if (text[i] === '[') {
+            stack.push({ start: i, level: stack.length });
+        } else if (text[i] === ']' && stack.length > 0) {
+            const frame = stack.pop();
+            const content = text.substring(frame.start + 1, i);
+            if (content.includes('|')) {
+                const pipeIdx = content.indexOf('|');
+                const name = content.substring(0, pipeIdx).trim();
+                if (!name.includes(':') && !name.includes('|')) {
+                    if (stack.length === 0) {
+                        results.push(text.substring(frame.start, i + 1));
+                    }
+                }
+            }
+        }
+    }
+    return { modules: results.join('\n') };
+}
 
 // === 待处理结果状态管理 ===
 // 手动重新生成(skipStorage=true)成功后,结果按 聊天标识 + generatorName + mesId 组合暂存
@@ -71,9 +103,11 @@ function _savePendingToStorage() {
 
 /**
  * 创建保存回调（供调试面板"保存"按钮调用）
+ * @param {Object} ctx 生成上下文
+ * @param {Object} [ctx] 扩展字段
  */
 function _createSaveCallback(ctx) {
-    return async () => {
+    return async (saveMode) => {
         const { mesId, swipeId, generatorName, isModule, extracted, text, chatKey } = ctx;
 
         // 聊天归属校验：生成时的聊天 ≠ 当前聊天 → 拒绝保存（避免写错聊天文件），不破坏 pending 可稍后重试
@@ -83,37 +117,43 @@ function _createSaveCallback(ctx) {
             return;
         }
 
-        if (isModule) {
-            // 模块数据存 floor（F 一期：正文后模块）——存整个原始结果文本（不解析，编辑时手动改）
-            const rawText = text || extracted?.modules || '';
-            infoLog(LOG_TAG, `保存模块到 floor：mesId=${mesId}, swipeId=${swipeId}, chat.length=${chat?.length}, raw长度=${rawText.length}, 楼层对象存在=${!!chat?.[mesId]}`);
-            const written = writeFloorModules(mesId, swipeId, rawText);
-            if (!written) {
-                const msg = `保存失败：楼层 ${mesId} 无法写入模块数据（楼层可能已不存在）`;
-                errorLog(LOG_TAG, msg);
-                toastr.error(msg);
-                return;
+        const rawText = text || extracted?.modules || '';
+        const oSwipe = swipeId;
+        // saveMode：'append'（默认，新增一个版本并激活）| 'overwrite'（覆盖当前激活版本）
+        const mode = saveMode === 'overwrite' ? 'overwrite' : 'append';
+
+        try {
+            let targetInnerSwipe;
+            if (mode === 'overwrite') {
+                targetInnerSwipe = getActiveGeneratorSwipe(mesId, generatorName, oSwipe);
+                overwriteGeneratorContent(mesId, generatorName, oSwipe, rawText);
+            } else {
+                targetInnerSwipe = appendGeneratorContent(mesId, generatorName, oSwipe, rawText);
+                if (targetInnerSwipe < 0) {
+                    const msg = `保存失败：楼层 ${mesId} ${generatorName} 无法追加新版本（楼层可能已不存在）`;
+                    errorLog(LOG_TAG, msg);
+                    toastr.error(msg);
+                    return;
+                }
+            }
+            // 非模块生成内容同步内存缓存（注入提示词用）
+            if (!isModule) {
+                generatedContentCache.set(mesId, generatorName, rawText);
             }
             // 立即读回验证
-            const back = readFloorModules(mesId, swipeId);
-            infoLog(LOG_TAG, `保存后读回：长度=${back.length}`, back.slice(0, 200));
-        } else {
-            try {
-                const swipeData = { [generatorName]: text };
-                const swipesData = { [swipeId]: swipeData };
-                await perMessageStorage.writeMessage(mesId, swipeId, swipesData);
-                generatedContentCache.set(mesId, generatorName, text);
-            } catch (err) {
-                const msg = `保存失败：楼层 ${mesId} ${generatorName} 写入存储异常`;
-                errorLog(LOG_TAG, msg, err);
-                toastr.error(`${msg}：${err.message}`);
-                return;
-            }
+            const back = readGeneratorContent(mesId, generatorName, oSwipe, targetInnerSwipe);
+            infoLog(LOG_TAG, `保存到 floor：mesId=${mesId}, gen=${generatorName}, outerSwipe=${oSwipe}, innerSwipe=${targetInnerSwipe}, mode=${mode}, 长度=${back.length}`);
+        } catch (err) {
+            const msg = `保存失败：楼层 ${mesId} ${generatorName} 写入存储异常`;
+            errorLog(LOG_TAG, msg, err);
+            toastr.error(`${msg}：${err.message}`);
+            return;
         }
+
         // 移除 taskRegistry 任务 + 清 pending
         taskRegistry.remove(`${_getChatKey()}::${mesId}::${generatorName}`);
         clearPendingResult(generatorName, mesId);
-        infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认）`);
+        infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认，${mode}）`);
     };
 }
 
@@ -135,12 +175,12 @@ function _createLoadCurrentCallback(ctx) {
     return async () => {
         const { mesId, swipeId, generatorName, isModule } = ctx;
         if (isModule) {
-            // 模块数据在 floor（chat[floor].extra.ccore.modulesBySwipe），读当前 swipe
+            // 模块数据在 floor，读当前激活版本
             return readFloorModules(mesId, swipeId) || '';
         }
-        const msgData = await perMessageStorage.getMessage(mesId, swipeId);
-        if (!msgData) return '';
-        return msgData[generatorName] || '';
+        // 非模块生成内容也在 floor，读当前激活版本
+        const active = getActiveGeneratorSwipe(mesId, generatorName, swipeId);
+        return readGeneratorContent(mesId, generatorName, swipeId, active) || '';
     };
 }
 
@@ -450,61 +490,44 @@ export const moduleAiGenerator = {
 
             if (!skipStorage) {
                 if (isModule) {
-                    // 模块：从 AI 回复提取模块文本,存 modules key
-                    extracted = perMessageStorage.extractMessageModules(result.text);
+                    // 模块：从 AI 回复提取模块文本（顶层提取，不依赖 perMessageStorage）
+                    extracted = _extractTopLevelModules(result.text);
                     hasModules = extracted.modules.length > 0;
                 } else {
                     // 其他生成内容：直接存 AI 回复到 generatorName key
                     hasModules = result.text.length > 0;
                 }
 
-                // 存储到每条消息
+                // 存储到每条消息（统一 floor：模块 + 非模块都走 appendGeneratorContent，新版本自动激活）
                 if (hasModules) {
-                    if (isModule) {
-                        // 模块数据存 floor（F 一期：正文后模块），写入触发楼层模块变更事件
-                        if (isSingle) {
-                            const msg = messages[0];
-                            if (writeFloorModules(msg.mesId, msg.activeSwipeId, extracted?.modules || '')) {
-                                storedCount = 1;
-                                infoLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor）`);
-                            } else {
-                                errorLog(LOG_TAG, `楼层 ${msg.mesId} 模块数据写入失败（楼层可能已不存在）`);
-                                toastr.error(`楼层 ${msg.mesId} 模块数据写入失败`);
-                            }
+                    const storeText = isModule ? (extracted?.modules || '') : result.text;
+                    if (isSingle) {
+                        const msg = messages[0];
+                        const newId = appendGeneratorContent(msg.mesId, generatorName, msg.activeSwipeId, storeText);
+                        if (newId >= 0) {
+                            storedCount = 1;
+                            if (!isModule) generatedContentCache.set(msg.mesId, generatorName, storeText);
+                            infoLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor，innerSwipe=${newId}）`);
                         } else {
-                            for (const msg of messages) {
-                                if (writeFloorModules(msg.mesId, msg.activeSwipeId, extracted?.modules || '')) {
-                                    storedCount++;
-                                } else {
-                                    errorLog(LOG_TAG, `楼层 ${msg.mesId} 模块数据写入失败（楼层可能已不存在）`);
-                                }
-                            }
-                            if (storedCount < messages.length) {
-                                toastr.error(`部分楼层模块数据写入失败（成功 ${storedCount}/${messages.length}）`);
-                            }
-                            infoLog(LOG_TAG, `${messages.length} 条消息 ${generatorName} 数据已存储（floor）`);
+                            errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据写入失败（楼层可能已不存在）`);
+                            toastr.error(`楼层 ${msg.mesId} ${generatorName} 数据写入失败`);
                         }
                     } else {
-                        // 非模块生成内容：仍走 perMessageStorage + 内存缓存
-                        const swipeData = { [generatorName]: result.text };
                         let savedCount = 0;
                         for (const msg of messages) {
-                            try {
-                                generatedContentCache.set(msg.mesId, generatorName, result.text);
-                                const swipesData = { [msg.activeSwipeId]: swipeData };
-                                await perMessageStorage.writeMessage(msg.mesId, msg.activeSwipeId, swipesData);
+                            const newId = appendGeneratorContent(msg.mesId, generatorName, msg.activeSwipeId, storeText);
+                            if (newId >= 0) {
+                                if (!isModule) generatedContentCache.set(msg.mesId, generatorName, storeText);
                                 savedCount++;
-                            } catch (err) {
-                                errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 写入存储异常:`, err);
+                            } else {
+                                errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据写入失败（楼层可能已不存在）`);
                             }
                         }
                         storedCount = savedCount;
                         if (savedCount < messages.length) {
-                            const msg = `部分楼层 ${generatorName} 数据写入失败（成功 ${savedCount}/${messages.length}）`;
-                            errorLog(LOG_TAG, msg);
-                            toastr.error(msg);
+                            toastr.error(`部分楼层 ${generatorName} 数据写入失败（成功 ${savedCount}/${messages.length}）`);
                         }
-                        infoLog(LOG_TAG, `${savedCount}/${messages.length} 条消息 ${generatorName} 数据已存储`);
+                        infoLog(LOG_TAG, `${savedCount}/${messages.length} 条消息 ${generatorName} 数据已存储（floor）`);
                     }
                 } else {
                     infoLog(LOG_TAG, `AI 回复中未提取到 ${generatorName} 数据`);

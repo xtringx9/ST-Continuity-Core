@@ -6,7 +6,7 @@
 //
 // 数据源：
 //   - chatText：扫 chat[].mes 文本 + 世界书条目（同步模式；正文内模块也在此）
-//   - asyncChat：读 chat[floor].extra.ccore.modulesBySwipe（异步模式；正文后模块）
+//   - asyncChat：读 floor generators['modules'] 当前激活版本（异步模式；正文后模块）
 //
 // 同步模式只激活 [chatText]；异步模式激活 [chatText, asyncChat]（混合源：正文内 + 正文后）。
 // 源头判断（符合「判断放源头、下游不散落」约定）：getActiveSources() 单点路由。
@@ -77,10 +77,10 @@ registerModuleDataSource('chatText', {
 });
 
 // ============================================================
-// asyncChatSource：读 floor 的正文后模块 raw（F 一期）
+// asyncChatSource：读 floor 的正文后模块 raw（F 一期 + 二期多版本）
 // ============================================================
-// 数据落点见 floorModuleStore：chat[floor].extra.ccore.modulesBySwipe[currentSwipeId]。
-// 产出与 chatText 同构（{raw, messageIndex, ...}），供 runModulePipeline 合并。
+// 数据落点见 floorModuleStore：chat[floor].extra.ccore.generators['modules'][outerSwipe][activeInnerSwipe]。
+// readFloorModules 自动读当前激活版本。产出与 chatText 同构（{raw, messageIndex, ...}），供 runModulePipeline 合并。
 registerModuleDataSource('asyncChat', {
     /**
      * 遍历 [start, end] 楼层，读当前 swipe 的 floor 模块 raw，按 \n 拆成 raw 块。
