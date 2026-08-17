@@ -163,6 +163,8 @@
     "ccore_settings_backend_url": "Server Address:",
     "ccore_settings_test_backend": "Test Backend Connection",
     "ccore_settings_debug_logs": "Show Debug Logs",
+    "ccore_settings_debug_intercept_send": "Intercept AI Sending",
+    "ccore_settings_debug_intercept_send_hint": "When enabled, aiCaller assembles the prompt but does not actually send the request, returning a placeholder response for testing the debug panel and save flow (no API usage).",
     "ccore_settings_tab_module_behavior": "Module Behavior",
     "ccore_settings_tab_feature_enhance": "Feature Enhancements",
     "ccore_settings_tab_backend": "Backend",

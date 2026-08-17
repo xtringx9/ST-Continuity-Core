@@ -22,6 +22,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
     },
     debug: {
         global: false, // 调试日志总开关，默认关闭（后续按模块细分）
+        interceptSend: false, // 调试：拦截 aiCaller 发送（组装提示词后不真正发请求，返回占位响应，便于测试）
     },
     stFeatureEnhance: { // SillyTavern 功能增强合集（对应设置面板「功能增强」tab）
         messageRangeView: false, // 在扩展菜单显示「消息区间视图」入口
@@ -691,6 +692,15 @@ class ConfigManager {
             this.loadExtensionConfig();
         }
         return this.extensionConfig?.debug || DEFAULT_EXTENSION_CONFIG.debug;
+    }
+
+    /**
+     * 是否拦截 aiCaller 发送（调试开关，默认关闭）。
+     * 开启后组装提示词但不真正发送请求，返回占位响应，便于测试调试面板/保存链路。
+     * @returns {boolean}
+     */
+    isAiSendIntercepted() {
+        return this.getDebugConfig()?.interceptSend === true;
     }
 
     /**

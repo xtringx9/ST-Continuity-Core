@@ -5,6 +5,7 @@ import {
     onEnabledToggle,
     onBackendUrlChange,
     onDebugLogsToggle,
+    onDebugInterceptSendToggle,
     onButtonTypeChange,
     onMessageRangeViewToggle,
     onQuickReplyOptimizeToggle,
@@ -83,6 +84,7 @@ export class SettingsPanel {
         $('#continuity_backend_url').on('input', onBackendUrlChange);
         $('#continuity_test_backend').on('click', sendToBackend);
         $('#continuity_debug_logs').on('input', onDebugLogsToggle);
+        $('#continuity_debug_intercept_send').on('input', onDebugInterceptSendToggle);
         $('#continuity_button_type').on('change', onButtonTypeChange);
         $('#continuity_message_range_view').on('input', onMessageRangeViewToggle);
         $('#continuity_quick_reply_optimize').on('input', onQuickReplyOptimizeToggle);

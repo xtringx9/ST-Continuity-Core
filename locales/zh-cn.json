@@ -163,6 +163,8 @@
     "ccore_settings_backend_url": "服务器地址:",
     "ccore_settings_test_backend": "测试后端连接",
     "ccore_settings_debug_logs": "显示调试日志",
+    "ccore_settings_debug_intercept_send": "拦截 AI 发送",
+    "ccore_settings_debug_intercept_send_hint": "开启后 aiCaller 组装完提示词但不真正发送请求，返回占位响应，便于测试调试面板与保存链路（不消耗 API）。",
     "ccore_settings_tab_module_behavior": "模块行为",
     "ccore_settings_tab_feature_enhance": "功能增强",
     "ccore_settings_tab_backend": "后端配置",

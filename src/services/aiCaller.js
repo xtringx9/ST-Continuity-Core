@@ -20,6 +20,9 @@ import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 
 const LOG_TAG = 'AiCaller';
 
+/** 调试拦截发送时返回的占位响应（configManager.debug.interceptSend 开启时使用） */
+const INTERCEPT_MOCK_RESPONSE = '[拦截测试] aiCaller 发送已被调试开关拦截，未实际调用 API。';
+
 /**
  * AI 调用器
  *
@@ -144,6 +147,12 @@ export const aiCaller = {
         eventSource.once(event_types.GENERATE_AFTER_COMBINE_PROMPTS, textPromptHandler);
 
         try {
+            // 调试拦截：不真正发送（raw 模式 prompt 即最终提示词，直接喂给 capture 供面板显示）
+            if (configManager.isAiSendIntercepted()) {
+                debugLog(LOG_TAG, '调试拦截：raw 模式不发送，返回占位响应');
+                capture.prompt = prompt;
+                return INTERCEPT_MOCK_RESPONSE;
+            }
             const result = await generateRaw({
                 prompt: prompt,
                 responseLength: responseLength || 500,
@@ -336,6 +345,11 @@ export const aiCaller = {
             }
 
             // 自己发送（customApi 拦截在 sendOpenAIRequest 内部生效；不锁 ST 发送按钮）
+            // 调试拦截：提示词已组装完成（capture.prompt 已捕获），不真正发送，返回占位响应
+            if (configManager.isAiSendIntercepted()) {
+                debugLog(LOG_TAG, `调试拦截：pipeline 模式不发送（已组装 ${assembledChat.length} 条），返回占位响应`);
+                return INTERCEPT_MOCK_RESPONSE;
+            }
             debugLog(LOG_TAG, `自行 sendOpenAIRequest，消息数: ${assembledChat.length}`);
             const abortController = new AbortController();
             // 暴露中止能力（调试面板「中止」按钮用）

@@ -47,6 +47,7 @@ export function loadSettingsToUI() {
     $("#continuity_enabled").prop("checked", extensionConfig.enabled);
     $("#continuity_backend_url").val(extensionConfig.server?.url);
     $("#continuity_debug_logs").prop("checked", extensionConfig.debug?.global === true);
+    $("#continuity_debug_intercept_send").prop("checked", extensionConfig.debug?.interceptSend === true);
     $("#continuity_button_type").val(extensionConfig.module?.buttonType || "embedded");
     $("#continuity_message_range_view").prop("checked", extensionConfig.stFeatureEnhance?.messageRangeView !== false);
     $("#continuity_quick_reply_optimize").prop("checked", Boolean(extensionConfig.stFeatureEnhance?.quickReplyOptimize));
@@ -132,6 +133,20 @@ export function onDebugLogsToggle(event) {
     extensionConfig.debug = extensionConfig.debug || {};
     extensionConfig.debug.global = debugLogs;
     configManager.setExtensionConfig(extensionConfig);
+}
+
+/**
+ * Handles the "拦截 AI 发送" debug toggle change.
+ * 开启后 aiCaller 组装提示词但不真正发送请求，返回占位响应（便于测试，不消耗 API）。
+ * @param {Event} event
+ */
+export function onDebugInterceptSendToggle(event) {
+    const intercept = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.debug = extensionConfig.debug || {};
+    extensionConfig.debug.interceptSend = intercept;
+    configManager.setExtensionConfig(extensionConfig);
+    infoLog(`[调试] 拦截 AI 发送已${intercept ? '开启' : '关闭'}`);
 }
 
 /**
