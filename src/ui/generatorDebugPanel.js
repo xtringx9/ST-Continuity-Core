@@ -296,7 +296,7 @@ function _buildSectionsHtml(data) {
         }
         const sentJson = JSON.stringify(sentData, null, 2);
 
-        sections.push(_buildSentContentSection('发送内容', inputJson, inputReadable, sentJson, sentReadable, 'var(--accent-color)', true));
+        sections.push(_buildSentContentSection('发送内容', inputJson, inputReadable, sentJson, sentReadable, 'var(--accent-color)', false));
     }
 
     // 2. 完整响应（加 data-ccore-response-pre 标记，供流式实时更新定位）

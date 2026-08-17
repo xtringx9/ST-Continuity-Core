@@ -14,6 +14,7 @@ import {
     name1,
 } from '../../../../../../script.js';
 import { sendOpenAIRequest } from '../../../../../openai.js';
+import { MacrosParser } from '../../../../../macros.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 
 const LOG_TAG = 'AiCaller';
@@ -191,13 +192,44 @@ export const aiCaller = {
             infoLog(LOG_TAG, `已临时 push 生成指令 user 消息（第 ${chat.length - 1} 层）`);
         }
 
+        // 组装前提取「最新 user 消息」的身份（name）与原文，供组装后定位替换。
+        // 组装后数组不保留 identifier，但历史 user 消息有 name；用 role+name 定位最可靠。
+        let lastUserName = '';
+        let lastUserMes = '';
+        if (Array.isArray(chat)) {
+            const upper = (typeof truncateToMesId === 'number' && truncateToMesId >= 0) ? Math.min(truncateToMesId, chat.length - 1) : chat.length - 1;
+            for (let i = upper; i >= 0; i--) {
+                const m = chat[i];
+                if (m && m.is_user && !m.is_system) {
+                    lastUserName = m.name || '';
+                    lastUserMes = m.mes || '';
+                    break;
+                }
+            }
+        }
+        if (lastUserMes) {
+            infoLog(LOG_TAG, `组装前最新 user 消息（index≤${typeof truncateToMesId === 'number' ? truncateToMesId : 'end'}，name=${lastUserName || '(空)'}）：`, lastUserMes.slice(0, 200));
+        } else {
+            infoLog(LOG_TAG, `组装前未找到最新 user 消息（index≤${typeof truncateToMesId === 'number' ? truncateToMesId : 'end'}）`);
+        }
+
+        // 宏展开前替换（push 未开启时）：覆盖 {{lastUserMessage}} 宏，让 ST 组装时把它展开为生成指令。
+        // 原理：MacrosParser.registerMacro 的宏进 envMacros，在 ST 内置 postEnvMacros 之前展开 → 覆盖生效；
+        // 组装后 unregisterMacro 恢复 ST 内置。此时 quiet_prompt 传空（宏已替换，避免末尾再追加 system）。
+        const overrideLastUser = !shouldPush && quietPrompt && typeof quietPrompt === 'string' && quietPrompt.trim();
+        if (overrideLastUser) {
+            MacrosParser.registerMacro('lastUserMessage', () => quietPrompt);
+            infoLog(LOG_TAG, '已覆盖 {{lastUserMessage}} 宏为生成指令（宏展开前替换）');
+        }
+
         try {
             // dryRun 组装完整提示词：Generate('quiet', opts, true) 只组装不发请求、不锁发送按钮
             // → 走 ST 原生 coreChat（正则/文件/宏/世界书/预设全保留）
             // → push 模式：生成指令已 push 进 chat（历史最后 user），quiet_prompt 传空
-            // → quietPrompt 模式：生成指令经 quiet_prompt（system 角色末尾）
-            const effectiveQuietPrompt = shouldPush ? '' : (quietPrompt || '');
-            infoLog(LOG_TAG, `dryRun 组装提示词，模式: ${shouldPush ? 'push-user' : 'quietPrompt'}，指令长度: ${quietPrompt?.length ?? 0}`);
+            // → 宏替换模式：{{lastUserMessage}} 已展开为生成指令，quiet_prompt 传空
+            // → 保底：quiet_prompt 经 system 角色末尾追加
+            const effectiveQuietPrompt = (shouldPush || overrideLastUser) ? '' : (quietPrompt || '');
+            infoLog(LOG_TAG, `dryRun 组装提示词，模式: ${shouldPush ? 'push-user' : (overrideLastUser ? 'macro-replace' : 'quietPrompt')}，指令长度: ${quietPrompt?.length ?? 0}`);
 
             let assembledChat = null;
             const promptHandler = (eventData) => {
@@ -215,6 +247,37 @@ export const aiCaller = {
             // 组装失败兜底
             if (!Array.isArray(assembledChat) || assembledChat.length === 0) {
                 throw new Error('提示词组装失败（未捕获到组装结果）');
+            }
+
+            // 打印组装后数组结构（诊断用）：一次性打印整个对象（infoLog 用 console.info，对象可展开）
+            try {
+                infoLog(LOG_TAG, `组装后数组（共 ${assembledChat.length} 条）:`, assembledChat);
+            } catch (e) {
+                errorLog(LOG_TAG, '打印组装后数组失败:', e);
+            }
+
+            // 组装后替换「最新 user 消息」本体（与宏替换并存）。
+            // 策略：筛选 role==='user' 的消息，找 content 包含「组装前最新 user 原文」的：
+            //   - 恰好 1 条 → 在该消息内部把 lastUserMes 子串替换为生成指令（保留正则加工的其他内容）
+            //   - 0 条或多条 → 无法唯一命中，走兜底（末尾 quietPrompt system 保留）
+            if (overrideLastUser && lastUserMes && typeof lastUserMes === 'string' && lastUserMes.trim()) {
+                const userMsgs = assembledChat.filter(msg => msg && msg.role === 'user' && typeof msg.content === 'string' && msg.content.includes(lastUserMes));
+                if (userMsgs.length === 1) {
+                    const target = userMsgs[0];
+                    const idx = assembledChat.indexOf(target);
+                    const before = target.content;
+                    target.content = target.content.split(lastUserMes).join(quietPrompt);
+                    // 同步更新 capture.prompt（它是替换前的浅拷贝，面板显示会旧）：
+                    // 若捕获数组存在，把对应 index 的 content 也更新
+                    if (Array.isArray(capture.prompt) && capture.prompt[idx]) {
+                        capture.prompt[idx] = { ...capture.prompt[idx], content: target.content };
+                    }
+                    infoLog(LOG_TAG, `替换唯一命中 user 消息 index=${idx}：`);
+                    infoLog(LOG_TAG, `  替换前 content（len=${before.length}）:`, before.slice(0, 300));
+                    infoLog(LOG_TAG, `  替换后 content（len=${target.content.length}）:`, target.content.slice(0, 300));
+                } else {
+                    infoLog(LOG_TAG, `user 消息命中 ${userMsgs.length} 条（期望1条），走兜底 quietPrompt 逻辑`);
+                }
             }
 
             // 组装完成 → 立即还原临时隐藏的楼层（发送阶段 chat 已是原状，避免其他代码读到隐藏态）
@@ -259,6 +322,11 @@ export const aiCaller = {
             infoLog(LOG_TAG, `sendOpenAIRequest 返回，文本长度: ${resultText.length}`);
             return resultText;
         } finally {
+            // 恢复 {{lastUserMessage}} 宏（宏替换模式）
+            if (overrideLastUser) {
+                MacrosParser.unregisterMacro('lastUserMessage');
+                infoLog(LOG_TAG, '已恢复 {{lastUserMessage}} 宏');
+            }
             // 弹出临时 push 的 user 消息
             if (pushedUserMessage && Array.isArray(chat) && chat[chat.length - 1] === pushedUserMessage) {
                 chat.pop();
