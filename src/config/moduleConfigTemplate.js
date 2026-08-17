@@ -242,6 +242,11 @@ export const MODULE_CONFIG_TEMPLATE = {
                         default: '',
                         description: '变量描述'
                     },
+                    usagePrompt: {
+                        type: 'string',
+                        default: '',
+                        description: '变量使用指导（异步跟随正文 USAGE_GUIDE 增强用：告诉 AI 该 key 是什么、如何使用）'
+                    },
 
                     // // 变量类型设置
                     // type: {
@@ -511,6 +516,7 @@ export function normalizeConfig(config, extension_config = null) {
                     displayName: variable.displayName || '',
                     compatibleVariableNames: variable.compatibleVariableNames || '',
                     description: variable.description || '',
+                    usagePrompt: variable.usagePrompt || '',
                     enabled: variable.enabled !== undefined ? variable.enabled : true,
                     // type: variable.type || 'text',
                     // defaultValue: variable.defaultValue || '',

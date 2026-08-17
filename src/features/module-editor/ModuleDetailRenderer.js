@@ -383,6 +383,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
             displayName: translate('ccore_msg_new_variable'),
             enabled: true,
             description: '',
+            usagePrompt: '',
             isIdentifier: false,
             isBackupIdentifier: false,
             isHideCondition: false,

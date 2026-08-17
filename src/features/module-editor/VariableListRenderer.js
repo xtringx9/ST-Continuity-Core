@@ -201,6 +201,10 @@ export function renderVariableList(module, container, doc, checkForChanges, allM
                     <textarea class="var-description" rows="2">${variable.description || ''}</textarea>
                 </div>
                 <div class="form-group">
+                    <label>${translate('ccore_label_var_usage_prompt')}</label>
+                    <textarea class="var-usage-prompt" rows="2" placeholder="${translate('ccore_placeholder_var_usage_prompt')}">${variable.usagePrompt || ''}</textarea>
+                </div>
+                <div class="form-group">
                     <label>${translate('ccore_label_compatible_variables')}</label>
                     <input type="text" class="var-compatible-names" value="${(variable.compatibleVariableNames || []).join(',')}" placeholder="${translate('ccore_placeholder_compatible_vars')}">
                 </div>
@@ -227,6 +231,7 @@ export function renderVariableList(module, container, doc, checkForChanges, allM
             variable.hideConditionValues = item.querySelector('.var-hide-values').value.split(',').map(s => s.trim()).filter(s => s);
             variable.compatibleVariableNames = item.querySelector('.var-compatible-names').value.split(',').map(s => s.trim()).filter(s => s);
             variable.customStyles = item.querySelector('.var-custom-styles').value;
+            variable.usagePrompt = item.querySelector('.var-usage-prompt').value;
 
             checkForChanges();
         };

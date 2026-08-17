@@ -5,7 +5,45 @@ import configManager, { extensionName } from "../singleton/configManager.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { extension_settings } from "../../../../../extensions.js";
 import { replaceVariables } from "../utils/variableReplacer.js";
-import { getGenerationContextEndFloor } from "../core/generationContext.js";
+import { getGenerationContextEndFloor, getGenerationContextMode } from "../core/generationContext.js";
+
+/**
+ * 三态提示词模式：
+ *   'sync'       — 同步跟随正文（async 未开启）：全部模块
+ *   'async-body' — 异步跟随正文（async 开启，正常游玩）：body 系 + embedded
+ *   'async-alone'— 异步单独生成（Cc 按钮生成 after_body）：after_body + embedded
+ * 推导规则（用户拍板）：async 未开启→sync；async 开启且非 Cc 生成→async-body；Cc 生成→async-alone。
+ * @returns {'sync'|'async-body'|'async-alone'}
+ */
+export function getPromptMode() {
+    const asyncEnabled = configManager.getModuleDomainConfig().asyncModule?.enabled;
+    if (!asyncEnabled) return 'sync';
+    return getGenerationContextMode() === 'async-alone' ? 'async-alone' : 'async-body';
+}
+
+/** body 系输出位置（跟随正文游玩行为） */
+const BODY_POSITIONS = ['body', 'body_start', 'body_end', 'body_surround', 'specific_position'];
+
+/**
+ * 按三态模式过滤模块。
+ * embedded 三态都包含（用户强调：embedded 既跟随正文、异步单独生成也包含）。
+ * @param {Array} modules
+ * @param {'sync'|'async-body'|'async-alone'} mode
+ * @returns {Array}
+ */
+export function filterModulesByMode(modules, mode) {
+    if (!Array.isArray(modules)) return [];
+    switch (mode) {
+        case 'sync':
+            return modules;
+        case 'async-body':
+            return modules.filter(m => m.outputPosition === 'embedded' || BODY_POSITIONS.includes(m.outputPosition));
+        case 'async-alone':
+            return modules.filter(m => m.outputPosition === 'embedded' || m.outputPosition === 'after_body');
+        default:
+            return modules;
+    }
+}
 
 // 默认插入设置
 const DEFAULT_INSERTION_SETTINGS = {
@@ -17,17 +55,22 @@ const DEFAULT_INSERTION_SETTINGS = {
  * 生成正式提示词
  * @returns {string} 生成的正式提示词
  */
-export function generateFormalPrompt() {
+/**
+ * 生成正式提示词（{{CONTINUITY_PROMPT}}）
+ * @param {'sync'|'async-body'|'async-alone'} [mode] 三态模式；缺省按当前上下文推导
+ * @returns {string}
+ */
+export function generateFormalPrompt(mode) {
     try {
         const globalSettings = configManager.getGlobalSettings();
         const moduleTag = globalSettings.moduleTag || "module";
         const promptTag = `${moduleTag}_generate_rule`;
 
         const modules = configManager.getModules() || [];
-        debugLog('开始生成正式提示词，模块数量:', modules.length);
-
-        // 过滤掉未启用的模块
-        const enabledModules = modules.filter(module => module.enabled !== false);
+        const effectiveMode = mode || getPromptMode();
+        // 按三态模式过滤模块（embedded 三态都含）
+        const enabledModules = filterModulesByMode(modules.filter(module => module.enabled !== false), effectiveMode);
+        debugLog('开始生成正式提示词，模块数量:', enabledModules.length, '模式:', effectiveMode);
 
         if (enabledModules.length === 0) {
             infoLog('没有启用的模块，无法生成提示词');
@@ -216,8 +259,15 @@ export function generateModuleFormat(module, needIdentifier = true, showDisplayN
     return result;
 }
 
-export function generateUsageGuide() {
+export function generateUsageGuide(mode) {
     try {
+        // 异步单独生成（Cc 生成 after_body）完全不需要 USAGE_GUIDE——它是指导 AI 把模块数据用在正文内的
+        const effectiveMode = mode || getPromptMode();
+        if (effectiveMode === 'async-alone') {
+            debugLog('[Macro]宏管理器: async-alone 模式不发送 USAGE_GUIDE');
+            return '';
+        }
+
         const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
         const promptTag = `${moduleTag}_data_usage_guide`;
 
@@ -229,14 +279,14 @@ export function generateUsageGuide() {
             return "";
         }
 
-        // 过滤启用的模块且使用提示词不为空
-        const modulesWithUsagePrompt = modulesData.filter(module =>
+        // 按三态过滤后，筛启用且满足输出条件的模块
+        const filteredModules = filterModulesByMode(modulesData, effectiveMode);
+        const modulesWithUsage = filteredModules.filter(module =>
             module.enabled !== false &&
-            module.contentPrompt &&
-            module.contentPrompt.trim() !== ""
+            (module.contentPrompt?.trim() || module.variables?.some(v => v.usagePrompt?.trim()))
         );
 
-        if (modulesWithUsagePrompt.length === 0) {
+        if (modulesWithUsage.length === 0) {
             debugLog("[Macro]宏管理器: 没有使用提示词不为空的模块，返回空提示词");
             return "";
         }
@@ -248,9 +298,23 @@ export function generateUsageGuide() {
 
         usageGuide += "# 模块内容使用指导\n\n";
 
-        modulesWithUsagePrompt.forEach(module => {
+        // async-body：增强版——模块 usage + 变量级 usagePrompt 组合（[模块|key:如何用] 形式）
+        const isAsyncBody = effectiveMode === 'async-body';
+        modulesWithUsage.forEach(module => {
             usageGuide += `${configManager.MODULE_TITLE_LEFT}${module.name}${module.displayName ? ` (${module.displayName})` : ""}${configManager.MODULE_TITLE_RIGHT}\n`;
-            usageGuide += `usage:${module.contentPrompt}\n\n`;
+            if (module.contentPrompt?.trim()) {
+                usageGuide += `usage:${module.contentPrompt}\n`;
+            }
+            if (isAsyncBody && Array.isArray(module.variables) && module.variables.length > 0) {
+                const enabledVars = module.variables.filter(v => v.enabled !== false);
+                const varUsageParts = enabledVars
+                    .filter(v => v.usagePrompt?.trim())
+                    .map(v => `${v.name}:${v.usagePrompt.trim()}`);
+                if (varUsageParts.length > 0) {
+                    usageGuide += `variable usage:[${module.name}|${varUsageParts.join('|')}]\n`;
+                }
+            }
+            usageGuide += '\n';
         });
 
         usageGuide += `</${promptTag}>\n`;
@@ -388,7 +452,7 @@ export function generateUsageGuide() {
 //     }
 // }
 
-export function generateModuleOrderPrompt() {
+export function generateModuleOrderPrompt(mode) {
     try {
         const globalSettings = configManager.getGlobalSettings();
         const moduleTag = globalSettings.moduleTag || "module";
@@ -406,8 +470,10 @@ export function generateModuleOrderPrompt() {
             return "";
         }
 
-        // 过滤启用的模块
-        const enabledModules = modulesData.filter(module => module.enabled !== false);
+        // 过滤启用的模块，再按三态模式过滤（embedded 三态都含）
+        const effectiveMode = mode || getPromptMode();
+        const enabledModules = filterModulesByMode(modulesData.filter(module => module.enabled !== false), effectiveMode);
+        debugLog(`[Macro]宏管理器: ORDER 三态模式 ${effectiveMode}，启用模块 ${enabledModules.length} 个`);
 
         if (enabledModules.length === 0) {
             debugLog("[Macro]宏管理器: 没有启用的模块，返回空提示词");
@@ -758,7 +824,7 @@ function getContextBottomFilteredModuleConfigs() {
     return moduleFilters;
 }
 
-export function generateSingleChatModuleData(index) {
+export function generateSingleChatModuleData(index, mode) {
     try {
         debugLog('[MACRO] 模块内容索引:', index);
 
@@ -768,11 +834,18 @@ export function generateSingleChatModuleData(index) {
         const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
 
+        // 三态：按 mode 过滤 getChatFilteredModuleConfigs 的结果（embedded 三态都含）
+        const effectiveMode = mode || getPromptMode();
+        const baseFilters = getChatFilteredModuleConfigs();
+        const modulesData = configManager.getModules() || [];
+        const modeFilteredNames = new Set(filterModulesByMode(modulesData, effectiveMode).map(m => m.name));
+        const moduleFilters = baseFilters.filter(f => modeFilteredNames.has(f.name));
+
         // 提取全部聊天记录的所有模块数据（一次性获取）
         const extractParams = {
             startIndex: 0,
             endIndex: endIndex, // null表示提取到最新楼层
-            moduleFilters: getChatFilteredModuleConfigs()
+            moduleFilters: moduleFilters
         };
 
         const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
@@ -796,8 +869,7 @@ export function generateSingleChatModuleData(index) {
 
         let resultString = '';
         if (modulesForThisMessage.length > 0) {
-            // 提升到循环外，避免每个 entry 都解析绑定
-            const modulesData = configManager.getModules() || [];
+            // modulesData 已在函数开头声明（三态过滤用），此处复用
             let lastModuleName = '';
             modulesForThisMessage.forEach((entry, index) => {
                 // 判断模块名是否连续一致

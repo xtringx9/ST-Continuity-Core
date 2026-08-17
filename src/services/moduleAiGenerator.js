@@ -12,7 +12,7 @@ import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { showDebugPanel, updateDebugPanelResponse, updateDebugPanelPrompt, updateDebugPanelApi, isDebugPanelOpen, finishDebugPanel } from '../ui/generatorDebugPanel.js';
 import { readFloorModules, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, getActiveGeneratorSwipe } from '../core/floorModuleStore.js';
-import { setGenerationContextEndFloor, clearGenerationContext } from '../core/generationContext.js';
+import { setGenerationContextEndFloor, setGenerationContextMode, clearGenerationContext } from '../core/generationContext.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 
 const LOG_TAG = 'ModuleAiGenerator';
@@ -397,11 +397,13 @@ export const moduleAiGenerator = {
             sentInfo = { type: 'pipeline', quietPrompt, truncateToMesId, pushAsLastUser };
         }
 
-        // 生成期上下文：宏 {{CONTINUITY_MODULE_DATA}} 只读到目标层前一楼（目标层模块正要生成）
+        // 生成期上下文：宏 {{CONTINUITY_MODULE_DATA}} 只读到目标层前一楼（目标层模块正要生成）；
+        // 三态分流：pipeline 生成时宏按「异步单独生成」输出（after_body+embedded）
         const isPipeline = mode === 'pipeline';
         if (isPipeline) {
             setGenerationContextEndFloor(truncateToMesId - 1);
-            debugLog(LOG_TAG, `设置生成上下文截止楼层 ${truncateToMesId - 1}（宏 moduleData 截断）`);
+            setGenerationContextMode('async-alone');
+            debugLog(LOG_TAG, `设置生成上下文截止楼层 ${truncateToMesId - 1} + 模式 async-alone（宏 moduleData 截断 + 三态分流）`);
         }
 
         // 全局任务注册：记录生成所属聊天（保存校验用）+ running 状态（按钮计数/防重）

@@ -187,6 +187,7 @@ const variableKeyToI18nKey = {
     'name': 'label_var_name',
     'displayName': 'label_var_display_name',
     'description': 'label_var_description',
+    'usagePrompt': 'label_var_usage_prompt',
     'enabled': 'label_var_enabled',
     'isIdentifier': 'label_var_identifier',
     'isBackupIdentifier': 'label_var_backup_identifier',

@@ -47,6 +47,11 @@ export function renderToolbox(doc, currentModules) {
             <select id="tool-preview-mode" style="flex: 1;">
                 ${optionsHtml}
             </select>
+            <select id="tool-preview-async-mode" title="${translate('ccore_title_preview_async_mode')}">
+                <option value="sync">${translate('ccore_option_async_sync')}</option>
+                <option value="async-body">${translate('ccore_option_async_body')}</option>
+                <option value="async-alone">${translate('ccore_option_async_alone')}</option>
+            </select>
             <button id="btn-preview-refresh" class="btn-secondary">${translate('ccore_btn_refresh')}</button>
             <button id="btn-preview-copy-macro" class="btn-secondary">${translate('ccore_btn_copy_macro')}</button>
             <button id="btn-preview-copy" class="btn-secondary">${translate('ccore_btn_copy')}</button>
@@ -273,18 +278,21 @@ function copyToClipboard(doc, text, btn) {
 function bindPreviewEvents(doc) {
     const updatePreview = () => {
         const mode = doc.getElementById('tool-preview-mode').value;
+        // 三态模式选择（显式指定，不依赖当前 async 开关状态）
+        const asyncModeEl = doc.getElementById('tool-preview-async-mode');
+        const asyncMode = asyncModeEl ? asyncModeEl.value : 'sync';
         let content = '';
         try {
             if (mode.startsWith('chat_module_')) {
                 const index = parseInt(mode.split('_').pop());
                 if (!isNaN(index)) {
-                    content = generateSingleChatModuleData(index);
+                    content = generateSingleChatModuleData(index, asyncMode);
                 }
             } else {
                 switch (mode) {
-                    case 'prompt': content = generateFormalPrompt(); break;
-                    case 'order': content = generateModuleOrderPrompt(); break;
-                    case 'usage': content = generateUsageGuide(); break;
+                    case 'prompt': content = generateFormalPrompt(asyncMode); break;
+                    case 'order': content = generateModuleOrderPrompt(asyncMode); break;
+                    case 'usage': content = generateUsageGuide(asyncMode); break;
                     case 'data': content = generateModuleDataPrompt(); break;
                 }
             }
@@ -297,6 +305,8 @@ function bindPreviewEvents(doc) {
 
     doc.getElementById('btn-preview-refresh').addEventListener('click', updatePreview);
     doc.getElementById('tool-preview-mode').addEventListener('change', updatePreview);
+    const asyncModeEl = doc.getElementById('tool-preview-async-mode');
+    if (asyncModeEl) asyncModeEl.addEventListener('change', updatePreview);
 
     doc.getElementById('btn-preview-copy').addEventListener('click', () => {
         const content = doc.getElementById('tool-preview-content');
