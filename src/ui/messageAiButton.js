@@ -1069,9 +1069,10 @@ export function initMessageAiButton() {
         }
     });
 
-    // 任务状态变化 → 刷新所有小 Cc 按钮文字（楼层任务数）
+    // 任务状态变化 → 刷新所有小 Cc 按钮文字 + 刷新当前打开菜单中生成按钮状态
     window.addEventListener(taskRegistry.TASK_UPDATE_EVENT, () => {
         _refreshAllCcButtons();
+        _refreshMenuRegenButtons();
     });
 
     // 楼层生成内容变更（保存/追加新版本/删除/切版本）→ 重建菜单中对应 generator 的版本切换控件
@@ -1196,6 +1197,37 @@ function _updateCcButtonText(button) {
 function _refreshAllCcButtons() {
     $('.mes_ai_generate[data-mesid]').each(function () {
         _updateCcButtonText($(this));
+    });
+}
+
+/**
+ * 刷新当前打开菜单中所有「重新生成」按钮状态（按 taskRegistry 恢复）。
+ * 自动生成/生成完毕不经过 onRegenerate 的 setTimeout 恢复，必须在这里按任务状态刷新，
+ * 否则按钮会一直停留在 LOADING（spinner）。
+ */
+function _refreshMenuRegenButtons() {
+    if (!currentMenu || currentMenuMesId === null || currentMenuMesId === undefined) return;
+    const mesId = currentMenuMesId;
+    currentMenu.find('[data-generator]').each(function () {
+        const generatorName = $(this).attr('data-generator');
+        if (!generatorName) return;
+        let task = null;
+        taskRegistry.forEach(t => {
+            if (t.mesId === mesId && t.generatorName === generatorName) task = t;
+        });
+        if (task) {
+            if (task.status === 'running') {
+                setRegenButtonState($(this), STATE.LOADING, generatorName, mesId);
+            } else if (task.status === 'success') {
+                setRegenButtonState($(this), STATE.SUCCESS, generatorName, mesId);
+            } else if (task.status === 'error') {
+                setRegenButtonState($(this), STATE.ERROR, generatorName, mesId);
+            } else {
+                setRegenButtonState($(this), STATE.IDLE, generatorName, mesId);
+            }
+        } else {
+            setRegenButtonState($(this), STATE.IDLE, generatorName, mesId);
+        }
     });
 }
 

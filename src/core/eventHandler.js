@@ -4,9 +4,10 @@ import { updateCurrentCharWorldBookCache, checkAndInitializeWorldBook, getCurren
 import configManager from "../singleton/configManager.js";
 import moduleCacheManager from "../singleton/moduleCacheManager.js";
 import generatedContentCache from "../singleton/generatedContentCache.js";
-import { eventSource, event_types, getCurrentChatDetails } from "../../../../../../script.js";
-import { checkUItoContextBottom, scheduleMsgBottom, checkRenderCurrentMessageContext } from "./contextBottomUI.js"
+import { eventSource, event_types, getCurrentChatDetails, chat } from "../../../../../../script.js";
+import { checkUItoContextBottom, scheduleMsgBottom, checkRenderCurrentMessageContext, isInChatPage } from "./contextBottomUI.js"
 import { addAiButtonToMessage, addAiButtonsToAllMessages } from "../ui/messageAiButton.js";
+import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
 import { taskRegistry } from "./taskRegistry.js";
@@ -52,6 +53,7 @@ export class EventHandler {
             // 注册事件处理器
             this.registerUIEvents();
             this.initializeMessageAiButton();
+            this.initializeAutoModuleGenerate();
 
 
             this.isInitialized = true;
@@ -122,6 +124,67 @@ export class EventHandler {
         } catch (error) {
             errorLog('[EVENTS]注册消息AI按钮事件失败:', error);
         }
+    }
+
+    /**
+     * 聊天消息接收完毕（GENERATION_ENDED）自动触发模块异步生成
+     *
+     * 前置条件（用户拍板 2026-08-17）：
+     *   - asyncModule.enabled 开启（异步模块存储）
+     *   - asyncModule.autoGenerateOnMessageEnd !== false（默认 true）
+     *   - 当前在聊天页
+     *   - chat 最后一条为非 user 消息（生成结束的正是角色回复）
+     *   - 该楼层没有正在运行的模块生成任务（防重复）
+     *
+     * 行为：自动为 chat 最后一条消息（chat.length-1）触发 moduleAiGenerator.generate，
+     *   skipStorage:false 自动存储为 floor 新版本，showDebug 跟随配置。
+     *   ⚠️ 模块生成走 Generate(dryRun)+自 sendOpenAIRequest，不会再次触发 GENERATION_ENDED，无死循环。
+     */
+    initializeAutoModuleGenerate() {
+        this.registerEvent(event_types.GENERATION_ENDED, () => {
+            try {
+                const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
+                if (!asyncModule.enabled) return;
+                if (asyncModule.autoGenerateOnMessageEnd === false) return;
+                if (!isInChatPage()) return;
+
+                const lastIdx = chat.length - 1;
+                if (lastIdx < 0) return;
+                const lastMsg = chat[lastIdx];
+                if (!lastMsg || lastMsg.is_user) return;
+
+                // 防重：该楼层已有模块生成任务进行中
+                if (taskRegistry.getRunningCountForMes(lastIdx) > 0) {
+                    debugLog(`[EVENTS]楼层 ${lastIdx} 已有模块生成任务，跳过自动触发`);
+                    return;
+                }
+
+                // 构造生成参数（与 messageAiButton.onRegenerate 模块分支一致）
+                const useIndependentApi = asyncModule.useIndependentApi || false;
+                let customApi = null;
+                if (useIndependentApi) {
+                    const apiConfig = asyncModule.customApi || {};
+                    if (apiConfig.apiurl) customApi = { ...apiConfig };
+                }
+                const options = {
+                    generatorName: 'modules',
+                    mode: asyncModule.generationMode || 'pipeline',
+                    customApi,
+                    showDebug: asyncModule.showDebug !== false,
+                    skipStorage: false, // 自动存储（生成默认追加新版本）
+                    rawSystemPrompt: asyncModule.rawSystemPrompt || '',
+                    rawUserPrompt: asyncModule.rawUserPromptTemplate || '',
+                    pipelineModifier: asyncModule.pipelineModifier || '',
+                };
+
+                infoLog(`[EVENTS]消息接收完毕，自动触发楼层 ${lastIdx} 的模块异步生成`);
+                moduleAiGenerator.generate(lastIdx, options).catch(err => {
+                    errorLog(`[EVENTS]楼层 ${lastIdx} 自动模块生成失败:`, err);
+                });
+            } catch (err) {
+                errorLog('[EVENTS]自动触发模块生成异常:', err);
+            }
+        });
     }
 
     /**

@@ -69,6 +69,7 @@ export const DEFAULT_EXTENSION_CONFIG = {
             pushUserMessageAsLast: false, // 重新生成时：true=生成指令 push 进 chat 作为最后 user 消息({{lastUserMessage}}可取)；false=经 quietPrompt 传入(system 角色,末尾)
             fallbackPromptRole: 'user', // 组装后补末尾生成指令消息的角色：'user'|'assistant'|'system'（默认 user）
             askPromptBeforeGenerate: false, // 点击小 Cc 生成按钮时弹出输入框，默认填「追加指令」，可临时修改后替代默认提示词（仅模块生成）
+            autoGenerateOnMessageEnd: true, // 聊天消息收到完毕（GENERATION_ENDED）时自动触发模块异步生成（需 asyncModule.enabled）
         },
         buttonType: "embedded", // 按钮类型，默认嵌入按钮
         autoInject: false, // 自动注入开关，默认关闭

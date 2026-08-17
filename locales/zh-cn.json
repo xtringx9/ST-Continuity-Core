@@ -199,6 +199,8 @@
     "ccore_settings_fallback_prompt_role_hint": "当生成指令无法替换进宏/历史消息时，作为最后一条消息补入的角色（默认 user）。",
     "ccore_settings_ask_prompt_before_generate": "生成前询问提示词",
     "ccore_settings_ask_prompt_before_generate_hint": "开启后点击小 Cc 的生成按钮时弹出输入框，默认填入「追加指令」，可临时修改后替代默认提示词（仅模块生成、走 ST 管线时生效；取消则中止本次生成）。",
+    "ccore_settings_auto_generate_on_message_end": "消息接收完成时自动生成",
+    "ccore_settings_auto_generate_on_message_end_hint": "开启后当一轮聊天消息接收完成（角色回复结束）时，自动为新增的最后一条消息触发模块异步生成并存储（需先开启异步模块存储）。",
     "ccore_option_user": "user",
     "ccore_option_assistant": "assistant",
     "ccore_option_system": "system",

@@ -14,6 +14,9 @@
 
 const TASK_UPDATE_EVENT = 'ccore-task-updated';
 
+/** 成功/失败任务的保留时长（ms），到期后自动从注册表移除（按钮恢复 IDLE） */
+const STATUS_RESET_DELAY = 2000;
+
 /** @type {Map<string, {status:'running'|'success'|'error', chatKey:string, mesId:number, generatorName:string, startedAt:number, debugData?:object, abort?:Function}>} */
 const tasks = new Map();
 
@@ -48,6 +51,8 @@ export const taskRegistry = {
 
     /**
      * 更新任务状态（成功/失败），可附 debugData（供「生成中打开面板」用）。
+     * 成功/失败任务在 STATUS_RESET_DELAY 后自动移除（按钮恢复 IDLE）；
+     * 手动保存/抛弃路径的 remove 不受影响（找不到 key 时静默）。
      */
     finish(key, status, debugData = null) {
         const task = tasks.get(key);
@@ -55,6 +60,15 @@ export const taskRegistry = {
         task.status = status;
         if (debugData) task.debugData = debugData;
         _emit();
+        if (status === 'success' || status === 'error') {
+            setTimeout(() => {
+                // 移除时仍保留「保存/抛弃后已 remove」的兼容（running 不会被本定时器误删）
+                if (tasks.get(key)?.status === status) {
+                    tasks.delete(key);
+                    _emit();
+                }
+            }, STATUS_RESET_DELAY);
+        }
     },
 
     /**

@@ -199,6 +199,8 @@
     "ccore_settings_fallback_prompt_role_hint": "Role of the message appended at the end when the generation instruction cannot be injected into macro/history (default: user).",
     "ccore_settings_ask_prompt_before_generate": "Ask for prompt before generating",
     "ccore_settings_ask_prompt_before_generate_hint": "When enabled, clicking the small Cc generate button opens an input dialog pre-filled with the \"Appended Instruction\". You can edit it temporarily to override the default (module generation only, pipeline mode; cancel aborts the generation).",
+    "ccore_settings_auto_generate_on_message_end": "Auto-generate when a message is received",
+    "ccore_settings_auto_generate_on_message_end_hint": "When enabled, after a round of chat messages finishes (character reply ends), automatically trigger module async generation for the new last message and store it (requires async module storage to be enabled).",
     "ccore_option_user": "user",
     "ccore_option_assistant": "assistant",
     "ccore_option_system": "system",
