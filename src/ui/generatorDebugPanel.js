@@ -23,7 +23,13 @@ export function updateDebugPanelResponse(taskKey, text) {
     const entry = panelIframes.get(taskKey);
     if (!entry) return;
     const { responsePre } = entry;
-    if (responsePre) responsePre.textContent = text;
+    if (!responsePre) return;
+    // 记录是否用户已手动上滚（若已在底部附近则跟随自动滚到底）
+    const nearBottom = responsePre.scrollHeight - responsePre.scrollTop - responsePre.clientHeight < 40;
+    responsePre.textContent = text;
+    if (nearBottom) {
+        responsePre.scrollTop = responsePre.scrollHeight; // 锁定底部跟随最新
+    }
     // 标题 badge 已显示「生成调试（生成中）」，无需在流式更新时改动
 }
 
@@ -229,6 +235,11 @@ export function showDebugPanel(data) {
             }
         },
     });
+}
+
+// 暴露到父窗口全局，供 module-editor 工具箱等 iframe 内调用（调试面板测试入口）
+if (typeof window !== 'undefined') {
+    window.showDebugPanel = showDebugPanel;
 }
 
 /**

@@ -75,13 +75,17 @@ body {
 }
 
 /* === Body === */
+/* 用 block 布局 + overflow-y:auto：section 自然堆叠，展开任一 section 不会压缩其他，
+   滚动高度 = 所有 section 实际高度，滚动条始终在 body 内不越界 */
 .ccore-debug-body {
     padding: 12px 16px;
     overflow-y: auto;
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    min-height: 0; /* flex 子项允许收缩，否则内容撑开父容器导致滚动失效、底部被裁 */
+}
+
+.ccore-debug-body .ccore-debug-section {
+    margin-bottom: 12px;
 }
 
 /* === 可折叠 Section === */
@@ -139,6 +143,14 @@ body {
     word-break: break-word;
     max-height: 300px;
     overflow-y: auto;
+    box-sizing: border-box; /* 高度含 padding，滚动条不超出 */
+}
+
+/* 完整响应（流式更新目标）：显式限高 + 独立滚动，滚动条始终在 section 内 */
+[data-ccore-response-pre] {
+    max-height: 300px;
+    overflow-y: auto;
+    overscroll-behavior: contain; /* 滚动到底不冒泡给 body，避免滚动条/内容越界 */
 }
 
 /* === 操作按钮区域（保存/抛弃/查看当前内容） === */

@@ -113,6 +113,7 @@
     "ccore_label_debug_general": "General",
     "ccore_label_debug_server": "Server",
     "ccore_btn_debug_cache": "Print Cache",
+    "ccore_btn_debug_panel": "Debug Panel (Test)",
     "ccore_btn_debug_config": "Print Config",
     "ccore_btn_debug_context": "Print Context",
     "ccore_btn_debug_user_handle": "Print User Handle",

@@ -113,6 +113,7 @@
     "ccore_label_debug_general": "通用",
     "ccore_label_debug_server": "服务器",
     "ccore_btn_debug_cache": "打印缓存数据",
+    "ccore_btn_debug_panel": "调试面板（测试）",
     "ccore_btn_debug_config": "打印配置数据",
     "ccore_btn_debug_context": "打印上下文数据",
     "ccore_btn_debug_user_handle": "打印用户Handle",
