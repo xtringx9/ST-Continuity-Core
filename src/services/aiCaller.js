@@ -176,15 +176,38 @@ export const aiCaller = {
         const fallbackPromptRole = configManager.getModuleDomainConfig().asyncModule?.fallbackPromptRole || 'user';
 
         // 记录需要临时隐藏的楼层及原 is_system 值
+        // 隐藏起点（hideStart）规则（用户拍板，2026-08-17）：
+        //   - 目标楼层为 user 消息 → 隐藏 truncateToMesId+1 .. 末尾（现状）
+        //   - 目标楼层为非 user 消息 → 保留紧邻的下一条（通常为 user 后续输入），隐藏 truncateToMesId+2 .. 末尾
+        //   - 边界：目标楼层为非 user 且为最后一层 → 无后续楼层可保留，不隐藏；组装后生成指令直接走兜底 push
         const hiddenBackup = [];
+        let forceFallbackPush = false;
+        // 组装前搜索「最新 user 消息」的上界（与不隐藏楼层保持一致）：
+        //   - 目标楼层为 user → 到 truncateToMesId（目标楼层本身即最新 user）
+        //   - 目标楼层为非 user 且非末层 → 到 truncateToMesId+1（保留的下一层通常为 user 后续输入，纳入搜索）
+        //   - 目标楼层为非 user 且末层 → 走兜底 push，不依赖 lastUserMes（保持 truncateToMesId 即可）
+        let lastUserSearchUpper = (typeof truncateToMesId === 'number' && truncateToMesId >= 0) ? truncateToMesId : -1;
         if (typeof truncateToMesId === 'number' && truncateToMesId >= 0 && Array.isArray(chat)) {
-            for (let i = truncateToMesId + 1; i < chat.length; i++) {
+            const targetMsg = chat[truncateToMesId];
+            const targetIsUser = targetMsg ? (!!targetMsg.is_user || targetMsg.role === 'user') : false;
+            let hideStart = truncateToMesId + 1;
+            if (targetMsg && !targetIsUser) {
+                if (truncateToMesId < chat.length - 1) {
+                    hideStart = truncateToMesId + 2;
+                    lastUserSearchUpper = truncateToMesId + 1;
+                    debugLog(LOG_TAG, `目标楼层 ${truncateToMesId} 为非 user，保留第 ${truncateToMesId + 1} 层，从 ${hideStart} 开始隐藏`);
+                } else {
+                    forceFallbackPush = true;
+                    debugLog(LOG_TAG, `目标楼层 ${truncateToMesId} 为非 user 且为最后一层，不隐藏，组装后走兜底 push`);
+                }
+            }
+            for (let i = hideStart; i < chat.length; i++) {
                 if (!chat[i]) continue;
                 hiddenBackup.push({ index: i, wasSystem: !!chat[i].is_system });
                 chat[i].is_system = true;
             }
             if (hiddenBackup.length > 0) {
-                debugLog(LOG_TAG, `临时隐藏 ${hiddenBackup.length} 条楼层（${truncateToMesId + 1}..${chat.length - 1}）`);
+                debugLog(LOG_TAG, `临时隐藏 ${hiddenBackup.length} 条楼层（${hideStart}..${chat.length - 1}）`);
             }
         }
 
@@ -198,9 +221,10 @@ export const aiCaller = {
 
         // 组装前提取「最新 user 消息」的原文（lastUserMes），供组装后定位替换。
         // 组装后数组不保留 identifier/name（实测 getChat() 不输出 name），用 content 包含 lastUserMes 匹配。
+        // 搜索上界 = lastUserSearchUpper（与隐藏楼层一致：非 user 目标楼层时纳入保留的下一层）
         let lastUserMes = '';
-        if (Array.isArray(chat)) {
-            const upper = (typeof truncateToMesId === 'number' && truncateToMesId >= 0) ? Math.min(truncateToMesId, chat.length - 1) : chat.length - 1;
+        if (Array.isArray(chat) && lastUserSearchUpper >= 0) {
+            const upper = Math.min(lastUserSearchUpper, chat.length - 1);
             for (let i = upper; i >= 0; i--) {
                 const m = chat[i];
                 if (m && m.is_user && !m.is_system) {
@@ -210,8 +234,8 @@ export const aiCaller = {
             }
         }
         debugLog(LOG_TAG, lastUserMes
-            ? `组装前最新 user 消息（index≤${typeof truncateToMesId === 'number' ? truncateToMesId : 'end'}）：` + lastUserMes.slice(0, 200)
-            : `组装前未找到最新 user 消息（index≤${typeof truncateToMesId === 'number' ? truncateToMesId : 'end'}）`);
+            ? `组装前最新 user 消息（index≤${lastUserSearchUpper >= 0 ? lastUserSearchUpper : 'end'}）：` + lastUserMes.slice(0, 200)
+            : `组装前未找到最新 user 消息（index≤${lastUserSearchUpper >= 0 ? lastUserSearchUpper : 'end'}）`);
 
         // 宏展开前覆盖 {{lastUserMessage}} 宏（push 未开启时无条件覆盖）。
         // 原理：MacrosParser.registerMacro 的宏进 envMacros，在 ST 内置 postEnvMacros 之前展开 → 覆盖生效；
@@ -230,6 +254,8 @@ export const aiCaller = {
             const effectiveQuietPrompt = ''; // 生成指令全部走宏替换或组装后补末尾
             debugLog(LOG_TAG, `dryRun 组装提示词，模式: ${shouldPush ? 'push-user' : (overrideLastUser ? 'macro-replace' : 'no-prompt')}，指令长度: ${quietPrompt?.length ?? 0}`);
 
+            // JSDoc 类型标注：仅写 `let = null` 会被推断为 null 字面量，Array.isArray 收窄失效（全线报「可能为 null」）
+            /** @type {Array|null} */
             let assembledChat = null;
             const promptHandler = (eventData) => {
                 if (Array.isArray(eventData.chat)) {
@@ -260,33 +286,43 @@ export const aiCaller = {
             //   - 恰好 1 条 → 在该消息内部把 lastUserMes 子串替换为生成指令（保留正则加工的其他内容）
             //   - 0 条或多条、或组装前未提取到 lastUserMes → 无法唯一命中 → 把 quietPrompt 补回数组末尾作为最后 user 消息
             if (overrideLastUser) {
-                const canMatch = lastUserMes && typeof lastUserMes === 'string' && lastUserMes.trim();
-                // 筛选含 lastUserMes 的 user 消息，记录「消息条数 + 每条内的命中次数」
-                const userMsgs = canMatch
-                    ? assembledChat.filter(msg => msg && msg.role === 'user' && typeof msg.content === 'string' && msg.content.includes(lastUserMes))
-                    : [];
-                // 有效替换需：恰好 1 条消息 且 该条内只命中 1 次
-                // （若单条内命中多次 → lastUserMes 太短/通用，替换会把所有出现都换掉，结果不对 → 走兜底）
-                const singleCount = userMsgs.length === 1
-                    ? userMsgs[0].content.split(lastUserMes).length - 1
-                    : 0;
-                if (userMsgs.length === 1 && singleCount === 1) {
-                    const target = userMsgs[0];
-                    const idx = assembledChat.indexOf(target);
-                    const before = target.content;
-                    target.content = target.content.split(lastUserMes).join(quietPrompt);
-                    // 同步更新 capture.prompt（它是替换前的浅拷贝，面板显示会旧）
-                    if (Array.isArray(capture.prompt) && capture.prompt[idx]) {
-                        capture.prompt[idx] = { ...capture.prompt[idx], content: target.content };
+                // 边界：目标楼层为非 user 且为最后一层 → 无后续 user 消息可保留，跳过替换直接兜底 push
+                if (forceFallbackPush) {
+                    // 上方已 Array.isArray 校验过（非数组会 throw），此处守卫让 TS 收窄
+                    if (Array.isArray(assembledChat)) {
+                        assembledChat.push({ role: fallbackPromptRole, content: quietPrompt });
                     }
-                    debugLog(LOG_TAG, `替换唯一命中 user 消息 index=${idx}：`);
-                    debugLog(LOG_TAG, `  替换前 content（len=${before.length}）:`, before.slice(0, 300));
-                    debugLog(LOG_TAG, `  替换后 content（len=${target.content.length}）:`, target.content.slice(0, 300));
-                } else {
-                    // 兜底：quietPrompt 作为最后一条消息补回数组末尾（角色可配置，默认 user）
-                    assembledChat.push({ role: fallbackPromptRole, content: quietPrompt });
                     capture.prompt.push({ role: fallbackPromptRole, content: quietPrompt });
-                    debugLog(LOG_TAG, `命中消息 ${userMsgs.length} 条、单条命中 ${singleCount} 次（期望1条×1次，canMatch=${!!canMatch}），兜底：quietPrompt 补为最后 ${fallbackPromptRole} 消息`);
+                    debugLog(LOG_TAG, `非 user 目标楼层为最后一层，直接兜底：quietPrompt 补为最后 ${fallbackPromptRole} 消息`);
+                } else {
+                    const canMatch = lastUserMes && typeof lastUserMes === 'string' && lastUserMes.trim();
+                    // 筛选含 lastUserMes 的 user 消息，记录「消息条数 + 每条内的命中次数」
+                    const userMsgs = canMatch
+                        ? assembledChat.filter(msg => msg && msg.role === 'user' && typeof msg.content === 'string' && msg.content.includes(lastUserMes))
+                        : [];
+                    // 有效替换需：恰好 1 条消息 且 该条内只命中 1 次
+                    // （若单条内命中多次 → lastUserMes 太短/通用，替换会把所有出现都换掉，结果不对 → 走兜底）
+                    const singleCount = userMsgs.length === 1
+                        ? userMsgs[0].content.split(lastUserMes).length - 1
+                        : 0;
+                    if (userMsgs.length === 1 && singleCount === 1) {
+                        const target = userMsgs[0];
+                        const idx = assembledChat.indexOf(target);
+                        const before = target.content;
+                        target.content = target.content.split(lastUserMes).join(quietPrompt);
+                        // 同步更新 capture.prompt（它是替换前的浅拷贝，面板显示会旧）
+                        if (Array.isArray(capture.prompt) && capture.prompt[idx]) {
+                            capture.prompt[idx] = { ...capture.prompt[idx], content: target.content };
+                        }
+                        debugLog(LOG_TAG, `替换唯一命中 user 消息 index=${idx}：`);
+                        debugLog(LOG_TAG, `  替换前 content（len=${before.length}）:`, before.slice(0, 300));
+                        debugLog(LOG_TAG, `  替换后 content（len=${target.content.length}）:`, target.content.slice(0, 300));
+                    } else {
+                        // 兜底：quietPrompt 作为最后一条消息补回数组末尾（角色可配置，默认 user）
+                        assembledChat.push({ role: fallbackPromptRole, content: quietPrompt });
+                        capture.prompt.push({ role: fallbackPromptRole, content: quietPrompt });
+                        debugLog(LOG_TAG, `命中消息 ${userMsgs.length} 条、单条命中 ${singleCount} 次（期望1条×1次，canMatch=${!!canMatch}），兜底：quietPrompt 补为最后 ${fallbackPromptRole} 消息`);
+                    }
                 }
             }
 
