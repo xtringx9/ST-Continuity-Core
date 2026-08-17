@@ -13,7 +13,7 @@ import {
 } from '../../services/continuityCoreServerApi.js';
 import perMessageStorage from '../../services/perMessageStorage.js';
 import { generateFormalPrompt, generateModuleOrderPrompt, generateUsageGuide, generateModuleDataPrompt, generateSingleChatModuleData } from '../../modules/promptGenerator.js';
-import { processModuleData } from '../../core/moduleProcessor.js';
+import { runModulePipeline } from '../../core/pipeline/runModulePipeline.js';
 
 /**
  * 渲染工具箱界面
@@ -381,10 +381,12 @@ function bindDebugButtons(doc) {
             // 用当前聊天的模块数据构造测试面板（不请求 AI，只看面板结构/样式）
             let moduleDataStr = '';
             try {
-                const result = processModuleData(
-                    { startIndex: 0, endIndex: null, moduleFilters: null },
-                    'auto', undefined, false, true,
-                );
+                const result = runModulePipeline({
+                    range: { start: 0, end: null },
+                    modules: null,
+                    processType: 'auto',
+                    showModuleNames: true,
+                });
                 moduleDataStr = result?.contentString || '(无模块数据)';
             } catch (e) {
                 moduleDataStr = `提取失败: ${e.message}`;
@@ -648,14 +650,16 @@ async function handleExtract(doc, type) {
     resultArea.value = translate('ccore_msg_extracting');
 
     try {
-        const result = await processModuleData(
-            { startIndex, endIndex, moduleFilters },
-            type,
+        const result = runModulePipeline({
+            range: { start: startIndex, end: endIndex },
+            modules: moduleFilters,
+            processType: type,
             selectedModuleNames,
-            true, // useChat
-            true, // useWorldInfo
-            true  // returnResult
-        );
+            force: true,
+            cache: 'none',
+            showModuleNames: true,
+            showProcessInfo: true,
+        });
 
         if (result.success) {
             resultArea.value = result.hasContent ? result.contentString : translate('ccore_msg_no_content');

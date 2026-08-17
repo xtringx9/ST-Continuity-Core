@@ -62,18 +62,18 @@
 
 ---
 
-## 3. 6 个调用方现状（仍走旧薄封装，透明转发）
+## 3. 6 个调用方现状（全部已迁移到 runModulePipeline）
 
-| # | 调用方 | 现状 | 迁移目标 |
+| # | 调用方 | 迁移后调用 | 备注 |
 |---|---|---|---|
-| 1 | `moduleCacheManager.updateModuleCache` | `processModuleData({0,end/null},'auto',undefined,isForce)` ×2 | `runModulePipeline({range,modules:null,cache:force?'write':'both',force})` |
-| 2 | `processResultBuilder.buildStyledProcessResult` | `processModuleData(...,'auto',names)` + styleCombiner | `runModulePipeline({range,modules:names,cache:'read',style:true})` |
-| 3 | `promptGenerator.generateModuleDataPrompt`（宏） | `processModuleData(...,'auto',names,false,true)` | `runModulePipeline({range,modules:names,cache:'read',showModuleNames:true})` |
-| 4 | `promptGenerator.generateSingleChatModuleData`（宏） | `processModuleData(...)` + groupByMessage | `runModulePipeline({range,modules:names,cache:'read',groupByMessage:true})` |
-| 5 | `Toolbox` 提取按钮 | `await processModuleData({range,filters},type,names,true,true,true)` | `runModulePipeline({range,modules:names,processType:type,cache:'none',force:true,showModuleNames:true,showProcessInfo:true})` |
-| 6 | timeRef 自动并入（内部） | moduleProcessor:107-123 隐式 | runModulePipeline 内部自动并入 |
+| 1 | `moduleCacheManager._doUpdateModuleCache` | `runModulePipeline({range:{0,end},modules:null,processType:'auto',force:isForce,cache:isForce?'write':'both'})` ×2 | 已迁移 2026-08-17 |
+| 2 | `processResultBuilder.buildStyledProcessResult` | `runModulePipeline({range,modules:extractParams.moduleFilters,processType:'auto',selectedModuleNames})` | 已迁移；style 仍由自身 styleCombiner 处理（不传 style:true） |
+| 3 | `promptGenerator.generateModuleDataPrompt`（宏） | `runModulePipeline({range,modules,processType:'auto',selectedModuleNames,showModuleNames:true})` | 已迁移 |
+| 4 | `promptGenerator.generateSingleChatModuleData`（宏） | `runModulePipeline({range,modules,processType:'auto',selectedModuleNames,groupByMessage:true})` → 读 `result.byMessage` | 已迁移；groupByMessage 分支修复了原 `groupByMessageIndex` 未定义 bug |
+| 5 | `Toolbox` 提取按钮 | `runModulePipeline({range,modules,processType:type,selectedModuleNames,force:true,cache:'none',showModuleNames:true,showProcessInfo:true})` | 已迁移 |
+| 6 | timeRef 自动并入（内部） | runModulePipeline 内部自动并入 | 无需迁移 |
 
-迁移可选（纯清理死代码），不迁移不影响运行。
+**薄封装已删除（2026-08-17）**：`moduleProcessor.js` 的 `processModuleData` 已删除，仅保留 `groupProcessResultByMessageIndex` re-export（`contextBottomUI`/`inlineMessageRenderer` 依赖）。`macroManager.js` 死 import 已清理。
 
 ---
 
@@ -101,8 +101,8 @@
 - 异步存储（F）天然是「每楼层 raw」持久层，可作其 occurrences 输入。
 - 风险：dedup 的「同值合并+diff>2」和 `mergeModulesByOrder` 累积/timeline 语义须逐字节对齐。
 
-### 调用方迁移（低优先）
-6 处从薄封装改直调 runModulePipeline，迁移一个删一个，全部完成后删薄封装。
+### 调用方迁移（已完成 2026-08-17）
+6 处从薄封装改直调 runModulePipeline，全部迁移完成，薄封装 `processModuleData` 已删除。
 
 ---
 

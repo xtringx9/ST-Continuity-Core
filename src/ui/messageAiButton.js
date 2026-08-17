@@ -710,6 +710,7 @@ async function onEditModules(mesId) {
             }
         } catch (err) {
             errorLog(LOG_TAG, `保存消息 ${mesId} 模块数据失败:`, err);
+            toastr.error(`保存消息 ${mesId} 模块数据失败：${err.message}`);
             $btn.removeClass('disabled').css('opacity', '');
         }
     });
@@ -728,12 +729,7 @@ async function onEditModules(mesId) {
  * @param {string} generatorName - generator.name
  */
 async function onEditGeneratedContent(mesId, generatorName) {
-    const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
-    if (!asyncModule.enabled) {
-        infoLog(LOG_TAG, '编辑生成内容仅在异步存储开启时可用');
-        return;
-    }
-
+    // 与 onEditModules 一致：编辑/查看已存内容不要求异步开关开启（便于 debug 查看保存内容）
     const $message = $(`.mes[mesid="${mesId}"]`);
     if (!$message.length) {
         errorLog(LOG_TAG, `找不到消息 ${mesId}`);
@@ -763,6 +759,7 @@ async function onEditGeneratedContent(mesId, generatorName) {
         }
     } catch (err) {
         errorLog(LOG_TAG, `读取消息 ${mesId} ${generatorName} 数据失败:`, err);
+        toastr.warning(`读取消息 ${mesId} ${generatorName} 数据失败，编辑将显示空内容：${err.message}`);
     }
 
     // 构建编辑区（样式与 onEditModules 一致）
@@ -799,6 +796,7 @@ async function onEditGeneratedContent(mesId, generatorName) {
             $iframe.show();
         } catch (err) {
             errorLog(LOG_TAG, `保存消息 ${mesId} ${generatorName} 数据失败:`, err);
+            toastr.error(`保存消息 ${mesId} ${generatorName} 数据失败：${err.message}`);
             $btn.removeClass('disabled').css('opacity', '');
         }
     });

@@ -3,7 +3,6 @@
  * 允许用户在提示词中使用 {{CONTINUITY_PROMPT}} 等宏来自动插入模块提示词
  */
 
-import { groupProcessResultByMessageIndex, processModuleData } from './moduleProcessor.js';
 import { chat } from '../../../../../../script.js';
 import configManager from '../singleton/configManager.js';
 import { debugLog, errorLog, infoLog } from '../utils/logger.js';

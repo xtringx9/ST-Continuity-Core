@@ -87,15 +87,28 @@ function _createSaveCallback(ctx) {
             // 模块数据存 floor（F 一期：正文后模块）——存整个原始结果文本（不解析，编辑时手动改）
             const rawText = text || extracted?.modules || '';
             infoLog(LOG_TAG, `保存模块到 floor：mesId=${mesId}, swipeId=${swipeId}, chat.length=${chat?.length}, raw长度=${rawText.length}, 楼层对象存在=${!!chat?.[mesId]}`);
-            writeFloorModules(mesId, swipeId, rawText);
+            const written = writeFloorModules(mesId, swipeId, rawText);
+            if (!written) {
+                const msg = `保存失败：楼层 ${mesId} 无法写入模块数据（楼层可能已不存在）`;
+                errorLog(LOG_TAG, msg);
+                toastr.error(msg);
+                return;
+            }
             // 立即读回验证
             const back = readFloorModules(mesId, swipeId);
             infoLog(LOG_TAG, `保存后读回：长度=${back.length}`, back.slice(0, 200));
         } else {
-            const swipeData = { [generatorName]: text };
-            const swipesData = { [swipeId]: swipeData };
-            await perMessageStorage.writeMessage(mesId, swipeId, swipesData);
-            generatedContentCache.set(mesId, generatorName, text);
+            try {
+                const swipeData = { [generatorName]: text };
+                const swipesData = { [swipeId]: swipeData };
+                await perMessageStorage.writeMessage(mesId, swipeId, swipesData);
+                generatedContentCache.set(mesId, generatorName, text);
+            } catch (err) {
+                const msg = `保存失败：楼层 ${mesId} ${generatorName} 写入存储异常`;
+                errorLog(LOG_TAG, msg, err);
+                toastr.error(`${msg}：${err.message}`);
+                return;
+            }
         }
         // 移除 taskRegistry 任务 + 清 pending
         taskRegistry.remove(`${_getChatKey()}::${mesId}::${generatorName}`);
@@ -451,26 +464,47 @@ export const moduleAiGenerator = {
                         // 模块数据存 floor（F 一期：正文后模块），写入触发楼层模块变更事件
                         if (isSingle) {
                             const msg = messages[0];
-                            writeFloorModules(msg.mesId, msg.activeSwipeId, extracted?.modules || '');
-                            storedCount = 1;
-                            infoLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor）`);
+                            if (writeFloorModules(msg.mesId, msg.activeSwipeId, extracted?.modules || '')) {
+                                storedCount = 1;
+                                infoLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor）`);
+                            } else {
+                                errorLog(LOG_TAG, `楼层 ${msg.mesId} 模块数据写入失败（楼层可能已不存在）`);
+                                toastr.error(`楼层 ${msg.mesId} 模块数据写入失败`);
+                            }
                         } else {
                             for (const msg of messages) {
-                                writeFloorModules(msg.mesId, msg.activeSwipeId, extracted?.modules || '');
-                                storedCount++;
+                                if (writeFloorModules(msg.mesId, msg.activeSwipeId, extracted?.modules || '')) {
+                                    storedCount++;
+                                } else {
+                                    errorLog(LOG_TAG, `楼层 ${msg.mesId} 模块数据写入失败（楼层可能已不存在）`);
+                                }
+                            }
+                            if (storedCount < messages.length) {
+                                toastr.error(`部分楼层模块数据写入失败（成功 ${storedCount}/${messages.length}）`);
                             }
                             infoLog(LOG_TAG, `${messages.length} 条消息 ${generatorName} 数据已存储（floor）`);
                         }
                     } else {
                         // 非模块生成内容：仍走 perMessageStorage + 内存缓存
                         const swipeData = { [generatorName]: result.text };
+                        let savedCount = 0;
                         for (const msg of messages) {
-                            generatedContentCache.set(msg.mesId, generatorName, result.text);
-                            const swipesData = { [msg.activeSwipeId]: swipeData };
-                            await perMessageStorage.writeMessage(msg.mesId, msg.activeSwipeId, swipesData);
-                            storedCount++;
+                            try {
+                                generatedContentCache.set(msg.mesId, generatorName, result.text);
+                                const swipesData = { [msg.activeSwipeId]: swipeData };
+                                await perMessageStorage.writeMessage(msg.mesId, msg.activeSwipeId, swipesData);
+                                savedCount++;
+                            } catch (err) {
+                                errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 写入存储异常:`, err);
+                            }
                         }
-                        infoLog(LOG_TAG, `${messages.length} 条消息 ${generatorName} 数据已存储`);
+                        storedCount = savedCount;
+                        if (savedCount < messages.length) {
+                            const msg = `部分楼层 ${generatorName} 数据写入失败（成功 ${savedCount}/${messages.length}）`;
+                            errorLog(LOG_TAG, msg);
+                            toastr.error(msg);
+                        }
+                        infoLog(LOG_TAG, `${savedCount}/${messages.length} 条消息 ${generatorName} 数据已存储`);
                     }
                 } else {
                     infoLog(LOG_TAG, `AI 回复中未提取到 ${generatorName} 数据`);

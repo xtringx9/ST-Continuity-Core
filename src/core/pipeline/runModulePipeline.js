@@ -6,7 +6,7 @@
 // 数据源走 moduleDataSources（源头路由），缓存走 cacheLayer（显式 read/write/both/none）。
 //
 // 行为保持：与旧 processModuleData 逐分支对齐（含 timeRef 自动并入、缓存读写条件）。
-// 旧 processModuleData 改为 @deprecated 薄封装调用本函数（见 moduleProcessor.js）。
+// 旧 processModuleData 薄封装已删除：全部调用方已直调本函数（见 docs/PIPELINE_REFACTOR_HANDOFF.md）。
 
 import configManager from '../../singleton/configManager.js';
 import { debugLog, errorLog } from '../../utils/logger.js';
@@ -79,7 +79,7 @@ export function runModulePipeline(opts = {}) {
                 showModuleNames, showProcessInfo, showRule,
             });
             if (hit) {
-                if (groupByMessage) hit.byMessage = groupByMessageIndex({ content: hit.content });
+                if (groupByMessage) hit.byMessage = groupProcessResultByMessageIndex({ content: hit.content });
                 return hit;
             }
         }
@@ -197,7 +197,7 @@ export function runModulePipeline(opts = {}) {
 
         // ---- groupByMessage（可选）----
         if (groupByMessage) {
-            result.byMessage = groupByMessageIndex({ content: result.content });
+            result.byMessage = groupProcessResultByMessageIndex({ content: result.content });
         }
 
         debugLog(`[runModulePipeline] 完成，moduleCount=${count} hasContent=${hasContent}`);

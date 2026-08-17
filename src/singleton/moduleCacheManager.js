@@ -2,7 +2,7 @@ import configManager from "./configManager.js";
 import { chat, chat_metadata, saveSettingsDebounced } from "../../../../../../script.js";
 import { getContext, extension_settings } from "../../../../../extensions.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
-import { processModuleData } from "../core/moduleProcessor.js";
+import { runModulePipeline } from "../core/pipeline/runModulePipeline.js";
 
 // Tier 2：缓存更新防抖状态（模块级单例状态）
 const CACHE_DEBOUNCE_MS = 80;
@@ -34,22 +34,24 @@ class ModuleCacheManager {
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
         const lastIdx = chat.length - 1;
 
-        // 第一次提取（0-endIndex），processModuleData 内部会写 0-endIndex 缓存键
-        const result = processModuleData(
-            { startIndex: 0, endIndex, moduleFilters: null },
-            'auto',
-            undefined,
-            isForce
-        );
+        // 第一次提取（0-endIndex），runModulePipeline 内部会写 0-endIndex 缓存键
+        const result = runModulePipeline({
+            range: { start: 0, end: endIndex },
+            modules: null,
+            processType: 'auto',
+            force: isForce,
+            cache: isForce ? 'write' : 'both',
+        });
 
         if (endIndex !== lastIdx) {
             // 末条是 AI 消息：0-null 范围不同，需独立提取
-            processModuleData(
-                { startIndex: 0, endIndex: null, moduleFilters: null },
-                'auto',
-                undefined,
-                isForce
-            );
+            runModulePipeline({
+                range: { start: 0, end: null },
+                modules: null,
+                processType: 'auto',
+                force: isForce,
+                cache: isForce ? 'write' : 'both',
+            });
         } else {
             // 末条是用户消息：0-endIndex === 0-null，复用第一次结果写 0-null 键
             moduleCacheManager.setCurrentChatData(0, null, result);

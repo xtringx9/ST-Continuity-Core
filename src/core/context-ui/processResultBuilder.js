@@ -1,11 +1,11 @@
 import { debugLog, errorLog } from '../../utils/logger.js';
 import { insertCombinedStylesToDetails } from '../../modules/styleCombiner.js';
-import { processModuleData } from '../moduleProcessor.js';
+import { runModulePipeline } from '../pipeline/runModulePipeline.js';
 
 /**
  * Builds module process results and enriches each module with combined styles.
  *
- * The returned object is the processModuleData result after mutation by
+ * The returned object is the runModulePipeline result after mutation by
  * insertCombinedStylesToDetails(), so this is intentionally not a pure getter.
  */
 export function buildStyledProcessResult(container, extractParams) {
@@ -13,11 +13,12 @@ export function buildStyledProcessResult(container, extractParams) {
         debugLog('[CUSTOM STYLES] 开始更新模块数据和样式', container);
 
         const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
-        const processResult = processModuleData(
-            extractParams,
-            'auto',
+        const processResult = runModulePipeline({
+            range: { start: extractParams.startIndex, end: extractParams.endIndex },
+            modules: extractParams.moduleFilters,
+            processType: 'auto',
             selectedModuleNames,
-        );
+        });
         debugLog('[CUSTOM STYLES] 提取结果:', processResult);
 
         Object.keys(processResult.content).forEach(moduleName => {

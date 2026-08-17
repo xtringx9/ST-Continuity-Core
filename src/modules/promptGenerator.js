@@ -1,5 +1,5 @@
 // 提示词生成器模块
-import { processModuleData, groupProcessResultByMessageIndex } from "../core/moduleProcessor.js";
+import { runModulePipeline } from "../core/pipeline/runModulePipeline.js";
 import { chat } from "../../../../../../script.js";
 import configManager, { extensionName } from "../singleton/configManager.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
@@ -720,17 +720,13 @@ export function generateModuleDataPrompt() {
         const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
 
         // 一次性获取所有模块数据
-        const processResult = processModuleData(
-            extractParams,
-            'auto', // 自动处理类型
+        const processResult = runModulePipeline({
+            range: { start: extractParams.startIndex, end: extractParams.endIndex },
+            modules: extractParams.moduleFilters,
+            processType: 'auto',
             selectedModuleNames,
-            false,
-            true,
-            // false,
-            // false,
-            // false,
-            // true
-        );
+            showModuleNames: true,
+        });
         let moduleDataPrompt = `<${promptTag}>\n`;
         moduleDataPrompt += getOutputRulePrompt('moduleData');
         moduleDataPrompt += `# 最新模块数据\n\n${processResult.contentString}\n</${promptTag}>\n`;
@@ -783,15 +779,17 @@ export function generateSingleChatModuleData(index) {
 
 
         // 一次性获取所有模块数据
-        const processResult = processModuleData(
-            extractParams,
-            'auto', // 自动处理类型
-            selectedModuleNames
-        );
+        const processResult = runModulePipeline({
+            range: { start: extractParams.startIndex, end: extractParams.endIndex },
+            modules: extractParams.moduleFilters,
+            processType: 'auto',
+            selectedModuleNames,
+            groupByMessage: true,
+        });
         // debugLog('[MACRO] 模块提取结果:', processResult);
 
         const curIndex = chat.length - 1 - (isUserMessage ? index : index + 1);
-        const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult);
+        const groupedByMessageIndex = processResult.byMessage || {};
         const modulesForThisMessage = groupedByMessageIndex[curIndex] || [];
         debugLog(`[MACRO] 当前聊天索引为${curIndex}模块index分组结果:`, groupedByMessageIndex);
         // debugLog(`[MACRO] 聊天索引${curIndex}模块结果:`, modulesForThisMessage);

@@ -11,6 +11,7 @@
 // eventHandler 统一监听并刷新模块缓存（机制 A，收口一处）。
 
 import * as floorBridge from '../shared/floorBridge.js';
+import { errorLog } from '../utils/logger.js';
 
 /** floor 数据袋内模块存储 key */
 export const MODULES_BY_SWIPE_KEY = 'modulesBySwipe';
@@ -24,13 +25,19 @@ export const FLOOR_MODULES_UPDATED_EVENT = 'ccore-floor-modules-updated';
  * @param {number} mesId 楼层索引
  * @param {number|string} swipeId
  * @param {string} rawText 模块 raw 文本块（多个模块用换行分隔，同 extractMessageModules 产出格式）
+ * @returns {boolean} 是否写入成功（楼层无效/无法写入时返回 false）
  */
 export function writeFloorModules(mesId, swipeId, rawText) {
-    if (mesId === undefined || mesId === null) return;
+    if (mesId === undefined || mesId === null) return false;
     const map = floorBridge.get(mesId, MODULES_BY_SWIPE_KEY) || {};
     map[String(swipeId)] = rawText;
-    floorBridge.set(mesId, MODULES_BY_SWIPE_KEY, map);
+    const written = floorBridge.set(mesId, MODULES_BY_SWIPE_KEY, map);
+    if (written === undefined) {
+        errorLog('[floorModuleStore] 写入楼层模块失败：楼层索引无效或无法写入:', mesId);
+        return false;
+    }
     notifyFloorModulesUpdated(mesId);
+    return true;
 }
 
 /**
