@@ -657,7 +657,8 @@ function getTristatePromptConfig(type, mode) {
  * @returns {string}
  */
 function getOutputRulePrompt(type, mode) {
-    return getTristatePromptConfig(type, mode).pre;
+    const pre = getTristatePromptConfig(type, mode).pre;
+    return pre ? `\n${pre}\n\n` : '';
 }
 
 /**
@@ -667,7 +668,8 @@ function getOutputRulePrompt(type, mode) {
  * @returns {string}
  */
 function getOutputRulePostPrompt(type, mode) {
-    return getTristatePromptConfig(type, mode).post;
+    const post = getTristatePromptConfig(type, mode).post;
+    return post ? `\n${post}\n\n` : '';
 }
 
 /**

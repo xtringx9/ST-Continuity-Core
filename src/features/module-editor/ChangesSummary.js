@@ -21,7 +21,44 @@ function escapeHtml(unsafe) {
  * @param {number} length - 字符串截断长度
  * @returns {string} - 格式化后的HTML字符串
  */
-function formatChangeValue(value, length = 50) {
+/**
+ * 格式化三态×前后置对象 { sync:{pre,post}, 'async-body':{pre,post}, 'async-alone':{pre,post} }。
+ * 若提供 oldValue，只列出实际变化的 mode+字段（高亮差异）；否则列出所有非空项。
+ * @param {Object} value 当前值
+ * @param {number} length 截断长度
+ * @param {Object} [oldValue] 旧值（用于差异对比）
+ * @returns {string}
+ */
+function formatTristateObject(value, length, oldValue) {
+    const modeLabels = { sync: 'sync', 'async-body': 'async-body', 'async-alone': 'async-alone' };
+    const parts = [];
+    const allModes = new Set([...Object.keys(value || {}), ...Object.keys(oldValue || {})]);
+    for (const mode of allModes) {
+        if (!modeLabels[mode]) continue;
+        const cur = (value && value[mode]) || {};
+        const old = (oldValue && oldValue[mode]) || {};
+        const curPre = cur.pre || '';
+        const curPost = cur.post || '';
+        const oldPre = old.pre || '';
+        const oldPost = old.post || '';
+        if (curPre === oldPre && curPost === oldPost) continue; // 该 mode 未变
+        const label = modeLabels[mode];
+        const partsForMode = [];
+        if (curPre !== oldPre) partsForMode.push(`pre${curPre ? `[${curPre}]` : '(空)'}`);
+        if (curPost !== oldPost) partsForMode.push(`post${curPost ? `[${curPost}]` : '(空)'}`);
+        if (partsForMode.length > 0) parts.push(`${label}: ${partsForMode.join(' ')}`);
+    }
+    const text = parts.length > 0 ? parts.join('; ') : '{}';
+    if (text.length > length) {
+        return `<details style="display: inline-block; cursor: pointer; max-width: 100%;">
+                    <summary style="display: inline; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(text.substring(0, length))}...</summary>
+                    <pre style="margin-top: 5px; padding: 5px; background: rgba(0,0,0,0.1); border-radius: 3px; white-space: pre-wrap; word-break: break-all;">${escapeHtml(text)}</pre>
+                </details>`;
+    }
+    return escapeHtml(text);
+}
+
+function formatChangeValue(value, length = 50, oldValue) {
     if (value === undefined) {
         return 'N/A';
     }
@@ -39,25 +76,7 @@ function formatChangeValue(value, length = 50) {
         return `"${escapeHtml(value)}"`;
     }
     if (typeof value === 'object') {
-        // 三态×前后置对象 { sync:{pre,post}, 'async-body':{pre,post}, 'async-alone':{pre,post} }
-        // 格式化为可读文本（仅列出非空项）
-        const parts = [];
-        for (const [mode, part] of Object.entries(value)) {
-            if (!part || typeof part !== 'object') continue;
-            const pre = part.pre || '';
-            const post = part.post || '';
-            if (pre || post) {
-                parts.push(`${mode}: ${pre ? `pre[${pre}]` : ''}${pre && post ? ' ' : ''}${post ? `post[${post}]` : ''}`);
-            }
-        }
-        const text = parts.length > 0 ? parts.join('; ') : '{}';
-        if (text.length > length) {
-            return `<details style="display: inline-block; cursor: pointer; max-width: 100%;">
-                        <summary style="display: inline; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(text.substring(0, length))}...</summary>
-                        <pre style="margin-top: 5px; padding: 5px; background: rgba(0,0,0,0.1); border-radius: 3px; white-space: pre-wrap; word-break: break-all;">${escapeHtml(text)}</pre>
-                    </details>`;
-        }
-        return escapeHtml(text);
+        return formatTristateObject(value, length, oldValue);
     }
     return escapeHtml(String(value));
 }
@@ -267,8 +286,8 @@ export function generateChangesSummary(originalModules, currentModules, original
         html += `<h4>${translate('ccore_title_global_changes')}</h4><ul>`;
         settingsChanges.forEach(change => {
             const label = translate(`ccore_label_global_${change.key.replace(/([A-Z])/g, '_$1').toLowerCase()}`) || change.key;
-            const oldValueFormatted = formatChangeValue(change.oldValue);
-            const newValueFormatted = formatChangeValue(change.newValue);
+            const oldValueFormatted = formatChangeValue(change.oldValue, 50, change.newValue);
+            const newValueFormatted = formatChangeValue(change.newValue, 50, change.oldValue);
             html += `<li><strong>${escapeHtml(label)}</strong>: <span class="change-old">${oldValueFormatted}</span> → <span class="change-new">${newValueFormatted}</span>`;
             if (change.details) {
                 html += `<div class="change-details" style="font-size: 0.9em; color: #888; margin-left: 1em; margin-top: 2px;">${escapeHtml(change.details)}</div>`;
