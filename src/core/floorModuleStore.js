@@ -32,80 +32,66 @@ export const ACTIVE_KEY = 'swipe_id';
 /** 事件名：楼层模块数据变更 */
 export const FLOOR_MODULES_UPDATED_EVENT = 'ccore-floor-modules-updated';
 
-/** 兼容旧 key：F 一期 modulesBySwipe = { [swipeId]: raw }（最旧结构） */
-const LEGACY_MODULES_BY_SWIPE_KEY = 'modulesBySwipe';
-
-/** 兼容旧 key：13f9e91 独立激活层 generatorActive[genName][outerSwipe] = innerSwipe（已迁移进节点） */
-const LEGACY_ACTIVE_KEY = 'generatorActive';
-
-/**
- * 惰性迁移旧结构到新结构（swipe 节点 = { active, swipes }）。
- * 兼容三种来源：
- *   a) 最旧 modulesBySwipe：{ [swipeId]: raw } → 节点 { swipes: { '0': raw } }
- *   b) 13f9e91 generators[genName][outerSwipe][inner] = text（纯版本表）→ 包一层 swipes
- *   c) 13f9e91 独立 generatorActive 层 → 合并进对应节点 active
- * 迁移后删除旧 key。幂等：新结构（节点含 swipes）已存在则不迁移。
- * @param {number} mesId
- */
-function migrateLegacyStructures(mesId) {
-    const bag = floorBridge.get(mesId, GENERATORS_KEY);
-    const genBag = bag && typeof bag === 'object' ? bag : {};
-
-    // 1) 最旧 modulesBySwipe → generators.modules[swipe].swipes（仅在 generators.modules 不存在时）
-    const legacyModules = floorBridge.get(mesId, LEGACY_MODULES_BY_SWIPE_KEY);
-    if (legacyModules && typeof legacyModules === 'object') {
-        if (!genBag.modules || typeof genBag.modules !== 'object' || !genBag.modules[Object.keys(legacyModules)[0]]?.[CONTENT_KEY]) {
-            const modules = genBag.modules && typeof genBag.modules === 'object' ? genBag.modules : {};
-            for (const [swipeId, raw] of Object.entries(legacyModules)) {
-                if (raw) modules[swipeId] = { swipe_id: 0, swipes: { '0': raw } };
-            }
-            genBag.modules = modules;
-        }
-        floorBridge.del(mesId, LEGACY_MODULES_BY_SWIPE_KEY);
-    }
-
-    // 2) 13f9e91 纯版本表结构（节点直接是 { inner: text }，无 swipes）→ 包一层 swipes
-    let changed = false;
-    for (const genName of Object.keys(genBag)) {
-        const gen = genBag[genName];
-        if (!gen || typeof gen !== 'object') continue;
-        for (const oKey of Object.keys(gen)) {
-            const node = gen[oKey];
-            if (!node || typeof node !== 'object') continue;
-            // 纯版本表特征：不含 swipes 键，且值都是字符串（版本文本）
-            if (node[CONTENT_KEY] === undefined) {
-                const isPureVersions = Object.values(node).every(v => typeof v === 'string');
-                if (isPureVersions) {
-                    gen[oKey] = { swipe_id: undefined, swipes: { ...node } };
-                    changed = true;
-                }
-            }
-        }
-    }
-
-    // 3) 独立 generatorActive 层 → 合并进节点 active
-    const legacyActive = floorBridge.get(mesId, LEGACY_ACTIVE_KEY);
-    if (legacyActive && typeof legacyActive === 'object') {
-        for (const [genName, outerMap] of Object.entries(legacyActive)) {
-            if (!outerMap || typeof outerMap !== 'object') continue;
-            const gen = genBag[genName];
-            if (!gen || typeof gen !== 'object') continue;
-            for (const [oKey, innerSwipe] of Object.entries(outerMap)) {
-                const node = gen[oKey];
-                if (node && typeof node === 'object') {
-                    node.swipe_id = Number(innerSwipe);
-                    changed = true;
-                }
-            }
-        }
-        floorBridge.del(mesId, LEGACY_ACTIVE_KEY);
-    }
-
-    if (changed || legacyModules) {
-        floorBridge.set(mesId, GENERATORS_KEY, genBag);
-        debugLog(`[floorModuleStore] 楼层 ${mesId} 旧存储结构已迁移到节点格式（active + swipes）`);
-    }
-}
+// 旧结构兼容迁移已注释（2026-08-17）：正式结构定为 generators[genName][outerSwipe] = { swipe_id, swipes }，
+// 不再迁移 modulesBySwipe / 13f9e91 纯版本表 / generatorActive 独立层。如需恢复迁移，取消下方注释。
+// /** 兼容旧 key：F 一期 modulesBySwipe = { [swipeId]: raw }（最旧结构） */
+// const LEGACY_MODULES_BY_SWIPE_KEY = 'modulesBySwipe';
+// /** 兼容旧 key：13f9e91 独立激活层 generatorActive[genName][outerSwipe] = innerSwipe */
+// const LEGACY_ACTIVE_KEY = 'generatorActive';
+// function migrateLegacyStructures(mesId) {
+//     const bag = floorBridge.get(mesId, GENERATORS_KEY);
+//     const genBag = bag && typeof bag === 'object' ? bag : {};
+//     // 1) 最旧 modulesBySwipe → generators.modules[swipe].swipes
+//     const legacyModules = floorBridge.get(mesId, LEGACY_MODULES_BY_SWIPE_KEY);
+//     if (legacyModules && typeof legacyModules === 'object') {
+//         if (!genBag.modules || typeof genBag.modules !== 'object' || !genBag.modules[Object.keys(legacyModules)[0]]?.[CONTENT_KEY]) {
+//             const modules = genBag.modules && typeof genBag.modules === 'object' ? genBag.modules : {};
+//             for (const [swipeId, raw] of Object.entries(legacyModules)) {
+//                 if (raw) modules[swipeId] = { swipe_id: 0, swipes: { '0': raw } };
+//             }
+//             genBag.modules = modules;
+//         }
+//         floorBridge.del(mesId, LEGACY_MODULES_BY_SWIPE_KEY);
+//     }
+//     // 2) 13f9e91 纯版本表 → 包一层 swipes
+//     let changed = false;
+//     for (const genName of Object.keys(genBag)) {
+//         const gen = genBag[genName];
+//         if (!gen || typeof gen !== 'object') continue;
+//         for (const oKey of Object.keys(gen)) {
+//             const node = gen[oKey];
+//             if (!node || typeof node !== 'object') continue;
+//             if (node[CONTENT_KEY] === undefined) {
+//                 const isPureVersions = Object.values(node).every(v => typeof v === 'string');
+//                 if (isPureVersions) {
+//                     gen[oKey] = { swipe_id: undefined, swipes: { ...node } };
+//                     changed = true;
+//                 }
+//             }
+//         }
+//     }
+//     // 3) 独立 generatorActive 层 → 合并进节点 swipe_id
+//     const legacyActive = floorBridge.get(mesId, LEGACY_ACTIVE_KEY);
+//     if (legacyActive && typeof legacyActive === 'object') {
+//         for (const [genName, outerMap] of Object.entries(legacyActive)) {
+//             if (!outerMap || typeof outerMap !== 'object') continue;
+//             const gen = genBag[genName];
+//             if (!gen || typeof gen !== 'object') continue;
+//             for (const [oKey, innerSwipe] of Object.entries(outerMap)) {
+//                 const node = gen[oKey];
+//                 if (node && typeof node === 'object') {
+//                     node.swipe_id = Number(innerSwipe);
+//                     changed = true;
+//                 }
+//             }
+//         }
+//         floorBridge.del(mesId, LEGACY_ACTIVE_KEY);
+//     }
+//     if (changed || legacyModules) {
+//         floorBridge.set(mesId, GENERATORS_KEY, genBag);
+//         debugLog(`[floorModuleStore] 楼层 ${mesId} 旧存储结构已迁移到节点格式（swipe_id + swipes）`);
+//     }
+// }
 
 /**
  * 取得某楼层某 generator 的存储袋（genName → { outerSwipeId: node }）。
@@ -116,7 +102,6 @@ function migrateLegacyStructures(mesId) {
  * @returns {object|null} gen 数据袋（可能为 null：楼层无效）
  */
 function genBagOf(mesId, genName, { create = false } = {}) {
-    migrateLegacyStructures(mesId);
     const bag = floorBridge.get(mesId, GENERATORS_KEY);
     if (!bag || typeof bag !== 'object') {
         if (!create) return null;

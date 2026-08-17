@@ -134,7 +134,7 @@
 **核心结构**（`chat[floor].extra.ccore`）：
 - `generators[genName][outerSwipeId] = { swipe_id: innerSwipeId, swipes: { [innerSwipeId]: text } }`（genName='modules' 或 generator.name；outer=正文 swipe_id；inner=生成内容多版本）
 - **激活指针 `swipe_id` 内嵌在 swipe 节点内**（方案 A，用户拍板）：随消息/复制迁移不悬空；`swipes`/`swipe_id` 沿用 ST 概念（正文即 `chat[floor].swipes` + 当前激活 `chat[floor].swipe_id`），子对象隔离版本表，遍历版本号只碰 swipes。
-- 惰性迁移兼容三来源：最旧 `modulesBySwipe`（→ 节点 `{swipe_id:0, swipes:{'0':raw}}`）、13f9e91 纯版本表（→ 包 swipes 层）、13f9e91 独立 `generatorActive` 层（→ 合并进节点 swipe_id）。迁移后删旧 key（幂等）。
+- 旧结构迁移逻辑已注释（2026-08-17）：正式结构定为节点格式，不再兼容 modulesBySwipe / 13f9e91 纯版本表 / generatorActive 独立层。如需恢复迁移，见 floorModuleStore.js 注释块。
 
 **API**（floorModuleStore.js，签名不变调用方零改动）：`write/read/readAll(includeEmpty)/append(max+1并激活)/overwrite(覆盖active)/deleteGeneratorContent` + `get/setActiveGeneratorSwipe`（无指针回退最大版本）。`read/writeFloorModules` 保留为 'modules' 便捷别名（读 active）。
 
