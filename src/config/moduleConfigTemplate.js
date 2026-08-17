@@ -5,6 +5,48 @@ export const CONFIG_CONSTANTS = {
     version: '1.0.0',
 };
 
+/** 三态模式 key */
+export const PROMPT_MODES = ['sync', 'async-body', 'async-alone'];
+
+/**
+ * 规范化「三态 × 前置/后置」提示词结构。
+ * 兼容旧字符串（作为 sync.pre 迁移）。
+ * 新结构：{ sync:{pre,post}, 'async-body':{pre,post}, 'async-alone':{pre,post} }
+ * @param {string|Object} value 旧字符串或新结构对象
+ * @returns {Object} { sync:{pre,post}, 'async-body':{pre,post}, 'async-alone':{pre,post} }
+ */
+export function normalizeTristatePrompt(value) {
+    const empty = { pre: '', post: '' };
+    const out = {
+        sync: { ...empty },
+        'async-body': { ...empty },
+        'async-alone': { ...empty },
+    };
+    if (typeof value === 'string') {
+        // 旧格式：字符串 → sync.pre
+        out.sync.pre = value;
+        return out;
+    }
+    if (value && typeof value === 'object') {
+        for (const mode of PROMPT_MODES) {
+            const part = value[mode];
+            if (typeof part === 'string') {
+                // 部分迁移态：{ sync: '...' } 字符串
+                out[mode].pre = part;
+            } else if (part && typeof part === 'object') {
+                out[mode].pre = typeof part.pre === 'string' ? part.pre : '';
+                out[mode].post = typeof part.post === 'string' ? part.post : '';
+            }
+        }
+    }
+    return out;
+}
+
+/** 空的三态×前后置结构（DEFAULT_CONFIG_VALUES 用） */
+export function emptyTristatePrompt() {
+    return normalizeTristatePrompt('');
+}
+
 /**
  * 模块配置模板对象
  * 定义了完整的模块配置结构，包括模块和变量的所有字段
@@ -48,27 +90,27 @@ export const MODULE_CONFIG_TEMPLATE = {
             default: 6,
             description: '正文保留层数'
         },
-        // 核心原则提示词
+        // 核心原则提示词（三态×前置/后置结构，normalizeTristatePrompt 规范化）
         prompt: {
-            type: 'string',
-            default: '',
-            description: '{{CONTINUITY_PROMPT}}头部提示词'
+            type: 'object',
+            default: emptyTristatePrompt(),
+            description: '{{CONTINUITY_PROMPT}}前置/后置提示词（三态）'
         },
         // 通用格式描述提示词
         orderPrompt: {
-            type: 'string',
-            default: '',
-            description: '{{CONTINUITY_ORDER}}头部提示词'
+            type: 'object',
+            default: emptyTristatePrompt(),
+            description: '{{CONTINUITY_ORDER}}前置/后置提示词（三态）'
         },
         usagePrompt: {
-            type: 'string',
-            default: '',
-            description: '{{CONTINUITY_USAGE_GUIDE}}头部提示词'
+            type: 'object',
+            default: emptyTristatePrompt(),
+            description: '{{CONTINUITY_USAGE_GUIDE}}前置/后置提示词（三态）'
         },
         moduleDataPrompt: {
-            type: 'string',
-            default: '',
-            description: '{{CONTINUITY_MODULE_DATA}}头部提示词'
+            type: 'object',
+            default: emptyTristatePrompt(),
+            description: '{{CONTINUITY_MODULE_DATA}}前置/后置提示词（三态）'
         },
         externalStyles: {
             type: 'string',
@@ -467,10 +509,10 @@ export function normalizeConfig(config, extension_config = null) {
             cotTags: config.globalSettings?.cotTags || [],
             contentTag: config.globalSettings?.contentTag || [],
             contentRemainLayers: config.globalSettings?.contentRemainLayers || 6,
-            prompt: config.globalSettings?.prompt || '',
-            orderPrompt: config.globalSettings?.orderPrompt || '',
-            usagePrompt: config.globalSettings?.usagePrompt || '',
-            moduleDataPrompt: config.globalSettings?.moduleDataPrompt || '',
+            prompt: normalizeTristatePrompt(config.globalSettings?.prompt),
+            orderPrompt: normalizeTristatePrompt(config.globalSettings?.orderPrompt),
+            usagePrompt: normalizeTristatePrompt(config.globalSettings?.usagePrompt),
+            moduleDataPrompt: normalizeTristatePrompt(config.globalSettings?.moduleDataPrompt),
             externalStyles: config.globalSettings?.externalStyles || '${customStyles}',
             containerStyles: config.globalSettings?.containerStyles || '${customStyles}',
             bottomStyles: config.globalSettings?.bottomStyles || '${customStyles}',

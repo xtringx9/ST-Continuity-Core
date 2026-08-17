@@ -2,7 +2,7 @@
 import { extension_settings, getContext } from "../../../../../extensions.js";
 import { saveSettings } from "../../../../../../script.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
-import { normalizeConfig, DEFAULT_CONFIG_VALUES } from '../config/moduleConfigTemplate.js';
+import { normalizeConfig, DEFAULT_CONFIG_VALUES, normalizeTristatePrompt } from '../config/moduleConfigTemplate.js';
 import { normalizeGeneratorConfig, DEFAULT_GENERATOR_CONFIG_VALUES } from '../config/generatorConfigTemplate.js';
 import { normalizePhoneConfig, DEFAULT_PHONE_CONFIG_VALUES } from '../config/phoneConfigTemplate.js';
 import { normalizeCharacterBindingConfig, DEFAULT_CHARACTER_BINDING_VALUES } from '../config/characterBindingTemplate.js';
@@ -253,6 +253,13 @@ class ConfigManager {
             // 从扩展设置加载配置
             if (extension_settings[extensionName] && extension_settings[extensionName][MODULE_CONFIG_KEY]) {
                 this.moduleConfig = extension_settings[extensionName][MODULE_CONFIG_KEY];
+                // 加载时规范化 globalSettings 的四个提示词字段（旧字符串 → 三态×前后置结构，迁移到 sync.pre）
+                const gs = this.moduleConfig?.globalSettings;
+                if (gs) {
+                    for (const key of ['prompt', 'orderPrompt', 'usagePrompt', 'moduleDataPrompt']) {
+                        gs[key] = normalizeTristatePrompt(gs[key]);
+                    }
+                }
                 this.isModuleConfigLoaded = true;
                 debugLog('模块配置已从扩展设置加载到内存缓存:', this.moduleConfig);
                 return;

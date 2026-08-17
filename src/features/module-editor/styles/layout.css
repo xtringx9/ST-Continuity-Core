@@ -758,6 +758,72 @@ section.module-detail-panel {
     /* .header-actions button 缩小规则已抽入 editor-shell.css 手机适配，统一所有 editor */
 }
 
+/* === 三态提示词分组（全局设置） === */
+.tristate-prompt-card {
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.tristate-prompt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    background-color: var(--bg-secondary, rgba(128, 128, 128, 0.08));
+    user-select: none;
+    transition: background-color 0.15s;
+}
+
+.tristate-prompt-header:hover {
+    background-color: var(--bg-hover, rgba(128, 128, 128, 0.14));
+}
+
+.tristate-prompt-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.tristate-prompt-caret {
+    font-size: 12px;
+    color: var(--text-muted);
+    transition: transform 0.15s;
+}
+
+.tristate-prompt-body {
+    border-top: 1px solid var(--border-light);
+    padding: 8px 12px;
+}
+
+.tristate-mode-group {
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border-light);
+}
+
+.tristate-mode-group:last-child {
+    border-bottom: none;
+}
+
+.tristate-mode-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent-color, inherit);
+    margin-bottom: 4px;
+    display: block;
+}
+
+.tristate-pre-label,
+.tristate-post-label {
+    font-size: 11px;
+    opacity: 0.8;
+    margin: 4px 0 2px;
+    display: block;
+}
+
 /* 底部留白（编辑器特有） */
 .spacer-bottom {
     height: 50px;

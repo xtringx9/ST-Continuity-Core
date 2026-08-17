@@ -79,8 +79,8 @@ export function generateFormalPrompt(mode) {
 
         let prompt = `<${promptTag}>\n`;
 
-
-        prompt += getOutputRulePrompt('prompt');
+        // 前置提示词（三态）
+        prompt += getOutputRulePrompt('prompt', effectiveMode);
 
         prompt += '# 模块配置\n';
 
@@ -88,6 +88,9 @@ export function generateFormalPrompt(mode) {
         enabledModules.forEach((module, index) => {
             prompt += generateModulePromptText(module);
         });
+
+        // 后置提示词（三态）
+        prompt += getOutputRulePostPrompt('prompt', effectiveMode);
 
         prompt += `</${promptTag}>\n`;
 
@@ -294,7 +297,7 @@ export function generateUsageGuide(mode) {
         // 构建使用指导提示词
         let usageGuide = `<${promptTag}>\n`;
 
-        usageGuide += getOutputRulePrompt('usage');
+        usageGuide += getOutputRulePrompt('usage', effectiveMode);
 
         usageGuide += "# 模块内容使用指导\n\n";
 
@@ -316,6 +319,9 @@ export function generateUsageGuide(mode) {
             }
             usageGuide += '\n';
         });
+
+        // 后置提示词（三态）
+        usageGuide += getOutputRulePostPrompt('usage', effectiveMode);
 
         usageGuide += `</${promptTag}>\n`;
 
@@ -530,7 +536,7 @@ export function generateModuleOrderPrompt(mode) {
         let orderPrompt = `<${promptTag}>\n`;
         // orderPrompt += "模块生成顺序和配置：\n\n";
 
-        let formatPrompt = getOutputRulePrompt('order');
+        let formatPrompt = getOutputRulePrompt('order', effectiveMode);
         if (formatPrompt) {
             orderPrompt += formatPrompt;
             // orderPrompt += "# 格式与顺序\n";
@@ -558,6 +564,14 @@ export function generateModuleOrderPrompt(mode) {
             if (specificPositionModules.length > 0) specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += `# 正文内模块${contentTagPrompt}:\n`;
             if (contentTagString) { orderPrompt += `<${contentTagString}>\n`; }
+            // 异步跟随正文：专门引导语（env 定界首尾、embedded 跟随事件流、明确不输出正文后模块）
+            if (effectiveMode === 'async-body') {
+                orderPrompt += `> 正文内模块随正文游玩生成：\n`;
+                orderPrompt += `> 正文开头输出环境锚点（如 [env]），建立时空（时间/地点/天气）；\n`;
+                orderPrompt += `> 事件发生处即时插入可嵌入模块（如 [msg]/[item]），跟随事件流，不集中堆放；\n`;
+                orderPrompt += `> 正文结尾若环境变化则再次输出环境锚点收束；\n`;
+                orderPrompt += `> 本场景仅生成正文内模块，不得输出任何正文后模块（那些由单独生成负责）。\n`;
+            }
             bodyStartModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true, "正文内首先输出");
             });
@@ -584,7 +598,7 @@ export function generateModuleOrderPrompt(mode) {
         }
 
         const afterContentTagPrompt = contentTagString ? `位于\`</${contentTagString}>\`后，` : "";
-        // 正文后模块（按序号排序）
+        // 正文后模块（按序号排序）——仅在存在正文后模块时输出 <module_update> 块（避免裸闭合 tag）
         if (afterBodyModules.length > 0) {
             afterBodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             // orderPrompt += "[AFTER TEXT GENERATION]\n";
@@ -594,8 +608,12 @@ export function generateModuleOrderPrompt(mode) {
             afterBodyModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, true);
             });
+            orderPrompt += `</${moduleUpdateTag}>\n\n`;
         }
-        orderPrompt += `</${moduleUpdateTag}>\n\n`;
+
+        // 后置提示词（三态）
+        orderPrompt += getOutputRulePostPrompt('order', effectiveMode);
+
         orderPrompt += `</${promptTag}>\n`;
 
         // 替换提示词中的变量
@@ -607,57 +625,49 @@ export function generateModuleOrderPrompt(mode) {
     }
 }
 
-function getOutputRulePrompt(type, title = "# 模块输出要求") {
+/**
+ * 读取某类型的「三态×前置/后置」提示词配置。
+ * @param {'prompt'|'order'|'usage'|'moduleData'} type
+ * @param {'sync'|'async-body'|'async-alone'} [mode] 缺省按当前上下文推导
+ * @returns {{pre:string, post:string}}
+ */
+function getTristatePromptConfig(type, mode) {
     const globalSettings = configManager.getGlobalSettings();
-
-    // let prompt = title + '\n';
-    let settingPrompt = '';
-    switch (type) {
-        case 'prompt':
-            // 添加核心原则提示词（如果设置了）
-            if (globalSettings?.prompt) {
-                settingPrompt += `${globalSettings.prompt}\n\n`;
-            }
-            break;
-        case 'order':
-            // 添加通用格式描述提示词（如果设置了）
-            if (globalSettings?.orderPrompt) {
-                settingPrompt += `${globalSettings.orderPrompt}\n\n`;
-            }
-            break;
-        case 'usage':
-            // 添加使用说明提示词（如果设置了）
-            if (globalSettings?.usagePrompt) {
-                settingPrompt += `${globalSettings.usagePrompt}\n\n`;
-            }
-            break;
-        case 'moduleData':
-            // 添加模块数据提示词（如果设置了）
-            if (globalSettings?.moduleDataPrompt) {
-                settingPrompt += `${globalSettings.moduleDataPrompt}\n\n`;
-            }
-            break;
-        case 'all':
-            // 添加核心原则提示词（如果设置了）
-            if (globalSettings?.prompt) {
-                settingPrompt += `${globalSettings.prompt}\n\n`;
-            }
-            // 添加通用格式描述提示词（如果设置了）
-            if (globalSettings?.orderPrompt) {
-                settingPrompt += `${globalSettings.orderPrompt}\n\n`;
-            }
-            break;
-        default:
-            return '';
+    const effectiveMode = mode || getPromptMode();
+    const keyMap = { prompt: 'prompt', order: 'orderPrompt', usage: 'usagePrompt', moduleData: 'moduleDataPrompt' };
+    const raw = globalSettings?.[keyMap[type]];
+    // 兼容旧字符串（作为 sync.pre）
+    if (typeof raw === 'string') {
+        return effectiveMode === 'sync' ? { pre: raw, post: '' } : { pre: '', post: '' };
     }
+    if (raw && typeof raw === 'object') {
+        const part = raw[effectiveMode];
+        if (typeof part === 'string') return { pre: part, post: '' };
+        if (part && typeof part === 'object') {
+            return { pre: typeof part.pre === 'string' ? part.pre : '', post: typeof part.post === 'string' ? part.post : '' };
+        }
+    }
+    return { pre: '', post: '' };
+}
 
-    // // 添加输出模式说明
-    // prompt += "[OUTPUT PROTOCOL]\n";
-    // prompt += "增量(INC): Initialize full. ALWAYS output keys marked * or ^ + ONLY changed fields.\n";
-    // prompt += "全量(FULL): Must output ALL fields. NO omissions allowed.\n\n";
-    // if (settingPrompt) return prompt + settingPrompt;
-    return settingPrompt
-    // return '';
+/**
+ * 获取前置提示词（原 getOutputRulePrompt 语义，返回前置段）。
+ * @param {'prompt'|'order'|'usage'|'moduleData'} type
+ * @param {'sync'|'async-body'|'async-alone'} [mode]
+ * @returns {string}
+ */
+function getOutputRulePrompt(type, mode) {
+    return getTristatePromptConfig(type, mode).pre;
+}
+
+/**
+ * 获取后置提示词。
+ * @param {'prompt'|'order'|'usage'|'moduleData'} type
+ * @param {'sync'|'async-body'|'async-alone'} [mode]
+ * @returns {string}
+ */
+function getOutputRulePostPrompt(type, mode) {
+    return getTristatePromptConfig(type, mode).post;
 }
 
 /**
@@ -763,10 +773,11 @@ function getOutputModePrompt(module) {
 }
 
 
-export function generateModuleDataPrompt() {
+export function generateModuleDataPrompt(mode) {
     try {
         const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
         const promptTag = `${moduleTag}_data`;
+        const effectiveMode = mode || getPromptMode();
         if (!chat || chat.length < 1) return `<${promptTag}>\n</${promptTag}>`;
         // infoLog("Chat:", chat);
         const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
@@ -794,8 +805,10 @@ export function generateModuleDataPrompt() {
             showModuleNames: true,
         });
         let moduleDataPrompt = `<${promptTag}>\n`;
-        moduleDataPrompt += getOutputRulePrompt('moduleData');
-        moduleDataPrompt += `# 最新模块数据\n\n${processResult.contentString}\n</${promptTag}>\n`;
+        moduleDataPrompt += getOutputRulePrompt('moduleData', effectiveMode);
+        moduleDataPrompt += `# 最新模块数据\n\n${processResult.contentString}\n`;
+        moduleDataPrompt += getOutputRulePostPrompt('moduleData', effectiveMode);
+        moduleDataPrompt += `</${promptTag}>\n`;
         // 替换提示词中的变量
         const replacedModuleDataPrompt = replaceVariables(moduleDataPrompt.trim());
         return replacedModuleDataPrompt;
@@ -831,11 +844,18 @@ export function generateSingleChatModuleData(index, mode) {
         const moduleUpdateTag = configManager.getGlobalSettings().moduleUpdateTag || "module_update";
         const promptTag = `${moduleUpdateTag}`;
         if (!chat || chat.length < 1) return `<${promptTag}>\n</${promptTag}>`;
+
+        // 异步跟随正文：MSG_MODULE_X 输出的是正文后模块（<module_update>），async-body 场景用不上 → 完全空
+        const effectiveMode = mode || getPromptMode();
+        if (effectiveMode === 'async-body') {
+            debugLog('[MACRO] async-body 模式不输出 MSG_MODULE_X（正文后模块不在此宏）');
+            return '';
+        }
+
         const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
 
         // 三态：按 mode 过滤 getChatFilteredModuleConfigs 的结果（embedded 三态都含）
-        const effectiveMode = mode || getPromptMode();
         const baseFilters = getChatFilteredModuleConfigs();
         const modulesData = configManager.getModules() || [];
         const modeFilteredNames = new Set(filterModulesByMode(modulesData, effectiveMode).map(m => m.name));

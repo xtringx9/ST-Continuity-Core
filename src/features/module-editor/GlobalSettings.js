@@ -1,5 +1,50 @@
 import { translate } from '../../../../../../i18n.js';
 
+/** 三态模式标签（全局设置 UI 用） */
+const PROMPT_MODE_LABELS = [
+    { key: 'sync', labelKey: 'ccore_option_async_sync' },
+    { key: 'async-body', labelKey: 'ccore_option_async_body' },
+    { key: 'async-alone', labelKey: 'ccore_option_async_alone' },
+];
+
+/**
+ * 渲染「三态 × 前置/后置」提示词编辑区（分组卡片）。
+ * 结构：可点击的组标题（label，点击展开/折叠三态填写区）+ 三态各一组前置/后置 textarea。
+ * 默认折叠；组之间分隔线。
+ * @param {string} idPrefix 元素 id 前缀（唯一）
+ * @param {string} title 提示词标题（已翻译，如「{{CONTINUITY_PROMPT}}提示词」）
+ * @param {Object} value 三态×前后置对象 { sync:{pre,post}, 'async-body':{pre,post}, 'async-alone':{pre,post} }
+ * @returns {string} HTML
+ */
+function renderTristatePromptEditor(idPrefix, title, value) {
+    const groups = PROMPT_MODE_LABELS.map(mode => {
+        const part = (value && value[mode.key]) || { pre: '', post: '' };
+        const preVal = (typeof part === 'string' ? part : part.pre || '');
+        const postVal = (typeof part === 'string' ? '' : part.post || '');
+        return `
+            <div class="form-group tristate-mode-group">
+                <label class="tristate-mode-label">${translate(mode.labelKey)}</label>
+                <label class="tristate-pre-label">${translate('ccore_label_prompt_pre')}</label>
+                <textarea id="${idPrefix}-${mode.key}-pre" rows="2" placeholder="${translate('ccore_placeholder_global_prompt_pre')}">${preVal}</textarea>
+                <label class="tristate-post-label">${translate('ccore_label_prompt_post')}</label>
+                <textarea id="${idPrefix}-${mode.key}-post" rows="2" placeholder="${translate('ccore_placeholder_global_prompt_post')}">${postVal}</textarea>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="form-group form-full-width tristate-prompt-card">
+            <div class="tristate-prompt-header" data-tristate-toggle="${idPrefix}" title="${translate('ccore_title_tristate_prompt')}">
+                <span class="tristate-prompt-title">${title}</span>
+                <span class="tristate-prompt-caret">▸</span>
+            </div>
+            <div class="tristate-prompt-body" data-tristate-body="${idPrefix}" style="display:none;">
+                ${groups}
+            </div>
+        </div>
+    `;
+}
+
 /**
  * 渲染全局设置界面
  * @param {Document} doc Iframe文档对象
@@ -43,26 +88,14 @@ export function renderGlobalSettings(doc, settings, onChange) {
                 </div>
 
                 <div class="form-section-title">${translate('ccore_title_global_prompt_config')}</div>
-                
-                <div class="form-group form-full-width">
-                    <label>${translate('ccore_label_global_prompt')}</label>
-                    <textarea id="global-prompt" rows="3" placeholder="${translate('ccore_placeholder_global_prompt')}">${settings.prompt || ''}</textarea>
-                </div>
 
-                <div class="form-group form-full-width">
-                    <label>${translate('ccore_label_global_order_prompt')}</label>
-                    <textarea id="global-order-prompt" rows="3" placeholder="${translate('ccore_placeholder_global_order_prompt')}">${settings.orderPrompt || ''}</textarea>
-                </div>
+                ${renderTristatePromptEditor('global-prompt', translate('ccore_label_global_prompt'), settings.prompt)}
 
-                <div class="form-group form-full-width">
-                    <label>${translate('ccore_label_global_usage_prompt')}</label>
-                    <textarea id="global-usage-prompt" rows="3" placeholder="${translate('ccore_placeholder_global_usage_prompt')}">${settings.usagePrompt || ''}</textarea>
-                </div>
+                ${renderTristatePromptEditor('global-order-prompt', translate('ccore_label_global_order_prompt'), settings.orderPrompt)}
 
-                <div class="form-group form-full-width">
-                    <label>${translate('ccore_label_global_module_data_prompt')}</label>
-                    <textarea id="global-module-data-prompt" rows="3" placeholder="${translate('ccore_placeholder_global_module_data_prompt')}">${settings.moduleDataPrompt || ''}</textarea>
-                </div>
+                ${renderTristatePromptEditor('global-usage-prompt', translate('ccore_label_global_usage_prompt'), settings.usagePrompt)}
+
+                ${renderTristatePromptEditor('global-module-data-prompt', translate('ccore_label_global_module_data_prompt'), settings.moduleDataPrompt)}
 
                 <div class="form-section-title">${translate('ccore_title_global_style_config')}</div>
 
@@ -103,10 +136,21 @@ export function renderGlobalSettings(doc, settings, onChange) {
         settings.contentTag = doc.getElementById('global-content-tag').value.split(',').map(s => s.trim()).filter(s => s);
         settings.contentRemainLayers = parseInt(doc.getElementById('global-content-remain-layers').value) || 0;
 
-        settings.prompt = doc.getElementById('global-prompt').value;
-        settings.orderPrompt = doc.getElementById('global-order-prompt').value;
-        settings.usagePrompt = doc.getElementById('global-usage-prompt').value;
-        settings.moduleDataPrompt = doc.getElementById('global-module-data-prompt').value;
+        const collectTristate = (idPrefix) => {
+            const out = {};
+            for (const mode of PROMPT_MODE_LABELS) {
+                out[mode.key] = {
+                    pre: doc.getElementById(`${idPrefix}-${mode.key}-pre`).value,
+                    post: doc.getElementById(`${idPrefix}-${mode.key}-post`).value,
+                };
+            }
+            return out;
+        };
+
+        settings.prompt = collectTristate('global-prompt');
+        settings.orderPrompt = collectTristate('global-order-prompt');
+        settings.usagePrompt = collectTristate('global-usage-prompt');
+        settings.moduleDataPrompt = collectTristate('global-module-data-prompt');
         settings.containerStyles = doc.getElementById('global-container-styles').value;
         settings.externalStyles = doc.getElementById('global-external-styles').value;
         settings.bottomStyles = doc.getElementById('global-bottom-styles').value;
@@ -119,5 +163,18 @@ export function renderGlobalSettings(doc, settings, onChange) {
     container.querySelectorAll('input, textarea').forEach(el => {
         el.addEventListener('input', updateGlobalSettings);
         el.addEventListener('change', updateGlobalSettings);
+    });
+
+    // 三态提示词分组折叠/展开（点击标题切换）
+    container.querySelectorAll('[data-tristate-toggle]').forEach(header => {
+        header.addEventListener('click', () => {
+            const idPrefix = header.dataset.tristateToggle;
+            const body = container.querySelector(`[data-tristate-body="${idPrefix}"]`);
+            const caret = header.querySelector('.tristate-prompt-caret');
+            if (!body) return;
+            const isOpen = body.style.display !== 'none';
+            body.style.display = isOpen ? 'none' : 'block';
+            if (caret) caret.textContent = isOpen ? '▸' : '▾';
+        });
     });
 }
