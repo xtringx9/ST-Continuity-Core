@@ -490,7 +490,9 @@ export const moduleAiGenerator = {
             let storedCount = 0;
             let hasModules = false;
 
-            if (!skipStorage) {
+            // 存储条件：skipStorage 且调试面板打开时才跳过存储（结果由用户在面板决定保存/抛弃）；
+            // 关闭调试面板时（shouldShowDebug=false），手动点击生成也自动存储（不弹面板则无从暂存，直接落盘）
+            if (!skipStorage || !shouldShowDebug) {
                 if (isModule) {
                     // 模块：从 AI 回复提取模块文本（顶层提取，不依赖 perMessageStorage）
                     extracted = _extractTopLevelModules(result.text);
