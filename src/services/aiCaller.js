@@ -15,6 +15,7 @@ import {
 } from '../../../../../../script.js';
 import { sendOpenAIRequest } from '../../../../../openai.js';
 import { MacrosParser } from '../../../../../macros.js';
+import configManager from '../singleton/configManager.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 
 const LOG_TAG = 'AiCaller';
@@ -171,6 +172,9 @@ export const aiCaller = {
         const { quietPrompt, responseLength, truncateToMesId, pushAsLastUser } = options;
         options.onAbort ||= null;
 
+        // 补末尾生成指令消息的角色（玩家可配置，默认 user）
+        const fallbackPromptRole = configManager.getModuleDomainConfig().asyncModule?.fallbackPromptRole || 'user';
+
         // 记录需要临时隐藏的楼层及原 is_system 值
         const hiddenBackup = [];
         if (typeof truncateToMesId === 'number' && truncateToMesId >= 0 && Array.isArray(chat)) {
@@ -257,10 +261,16 @@ export const aiCaller = {
             //   - 0 条或多条、或组装前未提取到 lastUserMes → 无法唯一命中 → 把 quietPrompt 补回数组末尾作为最后 user 消息
             if (overrideLastUser) {
                 const canMatch = lastUserMes && typeof lastUserMes === 'string' && lastUserMes.trim();
+                // 筛选含 lastUserMes 的 user 消息，记录「消息条数 + 每条内的命中次数」
                 const userMsgs = canMatch
                     ? assembledChat.filter(msg => msg && msg.role === 'user' && typeof msg.content === 'string' && msg.content.includes(lastUserMes))
                     : [];
-                if (userMsgs.length === 1) {
+                // 有效替换需：恰好 1 条消息 且 该条内只命中 1 次
+                // （若单条内命中多次 → lastUserMes 太短/通用，替换会把所有出现都换掉，结果不对 → 走兜底）
+                const singleCount = userMsgs.length === 1
+                    ? userMsgs[0].content.split(lastUserMes).length - 1
+                    : 0;
+                if (userMsgs.length === 1 && singleCount === 1) {
                     const target = userMsgs[0];
                     const idx = assembledChat.indexOf(target);
                     const before = target.content;
@@ -273,10 +283,10 @@ export const aiCaller = {
                     debugLog(LOG_TAG, `  替换前 content（len=${before.length}）:`, before.slice(0, 300));
                     debugLog(LOG_TAG, `  替换后 content（len=${target.content.length}）:`, target.content.slice(0, 300));
                 } else {
-                    // 兜底：quietPrompt 作为最后一条 user 消息补回数组末尾
-                    assembledChat.push({ role: 'user', content: quietPrompt });
-                    capture.prompt.push({ role: 'user', content: quietPrompt });
-                    debugLog(LOG_TAG, `命中 ${userMsgs.length} 条（期望1条，canMatch=${!!canMatch}），兜底：quietPrompt 补为最后 user 消息`);
+                    // 兜底：quietPrompt 作为最后一条消息补回数组末尾（角色可配置，默认 user）
+                    assembledChat.push({ role: fallbackPromptRole, content: quietPrompt });
+                    capture.prompt.push({ role: fallbackPromptRole, content: quietPrompt });
+                    debugLog(LOG_TAG, `命中消息 ${userMsgs.length} 条、单条命中 ${singleCount} 次（期望1条×1次，canMatch=${!!canMatch}），兜底：quietPrompt 补为最后 ${fallbackPromptRole} 消息`);
                 }
             }
 

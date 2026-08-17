@@ -293,7 +293,23 @@
                                 <input id="continuity_push_user_message_as_last" type="checkbox" />
                                 <div class="setting-text">
                                     <label for="continuity_push_user_message_as_last" data-i18n="ccore_settings_push_user_message_as_last">生成指令作为最后 user 消息</label>
-                                    <span class="setting-hint" data-i18n="ccore_settings_push_user_message_as_last_hint">开启时生成指令 push 进聊天作为最后一条 user 消息（{{lastUserMessage}} 可取到）；关闭时经 quietPrompt 传入（system 角色）。</span>
+                                    <span class="setting-hint" data-i18n="ccore_settings_push_user_message_as_last_hint">开启时生成指令 push 进聊天作为最后一条 user 消息（{{lastUserMessage}} 可取到）；关闭时经宏替换+组装后补末尾。</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="continuity-setting-card">
+                            <div class="setting-main">
+                                <div class="setting-text">
+                                    <div class="setting-inline">
+                                        <label for="continuity_fallback_prompt_role" data-i18n="ccore_settings_fallback_prompt_role">补末尾消息角色</label>
+                                        <select id="continuity_fallback_prompt_role" class="continuity-form-input">
+                                            <option value="user" data-i18n="ccore_option_user">user</option>
+                                            <option value="assistant" data-i18n="ccore_option_assistant">assistant</option>
+                                            <option value="system" data-i18n="ccore_option_system">system</option>
+                                        </select>
+                                    </div>
+                                    <span class="setting-hint" data-i18n="ccore_settings_fallback_prompt_role_hint">当生成指令无法替换进宏/历史消息时，作为最后一条消息补入的角色（默认 user）。</span>
                                 </div>
                             </div>
                         </div>
