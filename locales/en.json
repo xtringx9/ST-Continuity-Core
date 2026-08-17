@@ -197,6 +197,8 @@
     "ccore_settings_fetch_models": "Fetch Models",
     "ccore_settings_fallback_prompt_role": "Fallback prompt role:",
     "ccore_settings_fallback_prompt_role_hint": "Role of the message appended at the end when the generation instruction cannot be injected into macro/history (default: user).",
+    "ccore_settings_ask_prompt_before_generate": "Ask for prompt before generating",
+    "ccore_settings_ask_prompt_before_generate_hint": "When enabled, clicking the small Cc generate button opens an input dialog pre-filled with the \"Appended Instruction\". You can edit it temporarily to override the default (module generation only, pipeline mode; cancel aborts the generation).",
     "ccore_option_user": "user",
     "ccore_option_assistant": "assistant",
     "ccore_option_system": "system",

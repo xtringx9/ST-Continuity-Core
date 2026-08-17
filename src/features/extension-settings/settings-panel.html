@@ -240,6 +240,16 @@
                             <textarea id="continuity_pipeline_modifier" rows="3" class="continuity-form-input" style="width:100%;resize:vertical;" placeholder="追加到提示词末尾的指令（留空则不追加）"></textarea>
                         </div>
 
+                        <div class="continuity-setting-card" style="margin-top: 8px;">
+                            <div class="setting-main">
+                                <input id="continuity_ask_prompt_before_generate" type="checkbox" />
+                                <div class="setting-text">
+                                    <label for="continuity_ask_prompt_before_generate" data-i18n="ccore_settings_ask_prompt_before_generate">生成前询问提示词</label>
+                                    <span class="setting-hint" data-i18n="ccore_settings_ask_prompt_before_generate_hint">开启后点击小 Cc 的生成按钮时弹出输入框，默认填入上方「追加指令」，可临时修改后替代默认提示词（仅模块生成，取消则中止本次生成）。</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="continuity-setting-card">
                             <div class="setting-main">
                                 <input id="continuity_use_independent_api" type="checkbox" />

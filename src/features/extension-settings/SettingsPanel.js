@@ -118,6 +118,7 @@ export class SettingsPanel {
         $('#continuity_show_debug').on('input', onAiConfigChange);
         $('#continuity_push_user_message_as_last').on('input', onAiConfigChange);
         $('#continuity_fallback_prompt_role').on('change', onAiConfigChange);
+        $('#continuity_ask_prompt_before_generate').on('input', onAiConfigChange);
         $('#continuity_use_independent_api').on('input', onAiConfigChange);
         $('#continuity_custom_api_url').on('input', onAiConfigChange);
         $('#continuity_custom_api_key').on('input', onAiConfigChange);

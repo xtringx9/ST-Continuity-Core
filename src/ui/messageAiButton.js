@@ -607,6 +607,47 @@ async function onMenuAction(action, triggerButton, mesId, clickedBtn) {
 }
 
 /**
+ * 生成前弹窗让用户临时修改「追加指令」提示词（ST Popup + textarea，样式保持一致）。
+ * 确认后返回修改后的提示词；取消/关闭/失败返回 null（调用方应中止本次生成）。
+ * 留空时提示并回退默认（pipeline 模式必须要有生成指令，空值无法组装）。
+ * @param {string} defaultPrompt 默认填入的「追加指令」
+ * @returns {Promise<string|null>}
+ */
+async function _askPromptBeforeGenerate(defaultPrompt) {
+    const $textarea = $('<textarea>')
+        .addClass('text_pole')
+        .val(defaultPrompt || '')
+        .css({
+            width: '100%',
+            minHeight: '140px',
+            resize: 'vertical',
+            boxSizing: 'border-box',
+            fontFamily: 'monospace',
+            fontSize: '13px',
+        });
+    const $body = $('<div>').append(
+        $('<p>').text('本次生成的追加指令（留空则使用默认）：').css({ margin: '0 0 6px 0' }),
+        $textarea,
+    );
+    try {
+        const result = await new Popup($body, POPUP_TYPE.CONFIRM, '修改生成提示词', {
+            okButton: '生成',
+            cancelButton: '取消',
+        }).show();
+        if (result !== POPUP_RESULT.AFFIRMATIVE) return null;
+        const text = String($textarea.val() ?? '');
+        if (text.trim() === '') {
+            toastr.warning('追加指令为空，已使用默认追加指令');
+            return defaultPrompt;
+        }
+        return text;
+    } catch (err) {
+        errorLog(LOG_TAG, '生成前提示词编辑弹窗失败:', err);
+        return null;
+    }
+}
+
+/**
  * 重新生成（模块或其他生成内容）
  * @param {jQuery} button - 被点击的"重新生成"菜单按钮
  * @param {number} mesId
@@ -659,6 +700,17 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
         options.rawSystemPrompt = asyncModule.rawSystemPrompt || '';
         options.rawUserPrompt = asyncModule.rawUserPromptTemplate || '';
         options.pipelineModifier = asyncModule.pipelineModifier || '';
+
+        // 生成前询问：弹窗让用户临时修改「追加指令」（仅走 ST 管线时生效——raw 模式用自定义提示词，无「追加指令」概念）
+        // 取消/关闭弹窗 → 中止本次生成（不发起请求）
+        if (asyncModule.askPromptBeforeGenerate && (asyncModule.generationMode || 'pipeline') !== 'raw') {
+            const editedPrompt = await _askPromptBeforeGenerate(options.pipelineModifier);
+            if (editedPrompt === null) {
+                debugLog(LOG_TAG, `用户取消生成前提示词编辑，中止楼层 ${mesId} ${generatorName} 的生成`);
+                return;
+            }
+            options.pipelineModifier = editedPrompt;
+        }
     }
 
     setRegenButtonState(button, STATE.LOADING, generatorName);

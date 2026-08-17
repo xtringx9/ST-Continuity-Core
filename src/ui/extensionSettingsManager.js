@@ -79,6 +79,7 @@ export function loadSettingsToUI() {
     $("#continuity_show_debug").prop("checked", asyncModule.showDebug !== false);
     $("#continuity_push_user_message_as_last").prop("checked", asyncModule.pushUserMessageAsLast === true);
     $("#continuity_fallback_prompt_role").val(asyncModule.fallbackPromptRole || 'user');
+    $("#continuity_ask_prompt_before_generate").prop("checked", asyncModule.askPromptBeforeGenerate === true);
 
     // 独立 API 设置
     const customApi = asyncModule.customApi || {};
@@ -791,6 +792,7 @@ function _saveAiGenerationConfig() {
     extensionConfig.module.asyncModule.showDebug = $('#continuity_show_debug').prop('checked');
     extensionConfig.module.asyncModule.pushUserMessageAsLast = $('#continuity_push_user_message_as_last').prop('checked');
     extensionConfig.module.asyncModule.fallbackPromptRole = $('#continuity_fallback_prompt_role').val() || 'user';
+    extensionConfig.module.asyncModule.askPromptBeforeGenerate = $('#continuity_ask_prompt_before_generate').prop('checked');
 
     extensionConfig.module.asyncModule.customApi = {
         apiurl: $('#continuity_custom_api_url').val()?.trim() || '',

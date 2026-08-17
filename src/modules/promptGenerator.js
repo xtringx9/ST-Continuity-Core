@@ -592,7 +592,7 @@ export function generateModuleOrderPrompt(mode) {
                 sortedEmbeddable.forEach(module => dynamicList.push(`[${module.name}|...]`));
             // }
             if (dynamicList.length > 0) {
-                orderPrompt += `(在正文合适位置积极插入:${dynamicList.join('/')})\n`;
+                orderPrompt += `(正文内跟随叙事积极插入:${dynamicList.join('/')})\n`;
             }
 
             bodyModules.forEach(module => {
