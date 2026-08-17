@@ -130,6 +130,27 @@
 - 异步时宏 `{{CONTINUITY_MODULE_DATA}}` 等仍走 runModulePipeline → 已自动读到 floor 数据（混合源生效），无需额外接线。
 - 极端：正文与 floor 同模块但**不同版本**时，dedup 按模块名+变量值保留最后出现版本，不输出两份矛盾数据。
 
+### F 二期：swipe 套 swipe 统一存储（已实现，2026-08-17）
+**核心结构**（`chat[floor].extra.ccore`）：
+- `generators[genName][outerSwipeId] = { swipe_id: innerSwipeId, swipes: { [innerSwipeId]: text } }`（genName='modules' 或 generator.name；outer=正文 swipe_id；inner=生成内容多版本）
+- **激活指针 `swipe_id` 内嵌在 swipe 节点内**（方案 A，用户拍板）：随消息/复制迁移不悬空；`swipes`/`swipe_id` 沿用 ST 概念（正文即 `chat[floor].swipes` + 当前激活 `chat[floor].swipe_id`），子对象隔离版本表，遍历版本号只碰 swipes。
+- 惰性迁移兼容三来源：最旧 `modulesBySwipe`（→ 节点 `{swipe_id:0, swipes:{'0':raw}}`）、13f9e91 纯版本表（→ 包 swipes 层）、13f9e91 独立 `generatorActive` 层（→ 合并进节点 swipe_id）。迁移后删旧 key（幂等）。
+
+**API**（floorModuleStore.js，签名不变调用方零改动）：`write/read/readAll(includeEmpty)/append(max+1并激活)/overwrite(覆盖active)/deleteGeneratorContent` + `get/setActiveGeneratorSwipe`（无指针回退最大版本）。`read/writeFloorModules` 保留为 'modules' 便捷别名（读 active）。
+
+**行为决策（用户拍板）**：
+- 生成默认**追加**新版本（append 自动激活）；调试面板给「保存方式」radio（追加/覆盖）。
+- 小 Cc 菜单：隐藏「模块汇总」（大 Cc 已有）；每个 generator 框加 `‹ N/M ›` 切版本（多版本才显示箭头，总数 0 不显示）；**再次点击小 Cc 才折叠**（去掉外部点击关闭）。
+- 切模块版本：对比前后增量模块文本（`_incrementalModulesChanged`）→ 变化刷下游（suffix）否则 single。
+- 编辑区（onEditGeneratedContent 通用，onEditModules 委托）：版本条 `‹ N/M › ＋ 🗑` + ST 原生 menu_button 样式按钮；总数 0 保存即新建（append）；`＋` 新建空版本；`🗑` 删除当前版本（ST Popup 确认）+ 模块删后增量判断刷下游。**不用 ST 的 mes_edit_* / mes_edit_buttons 类**（ST 编辑态会连坐控制显隐）。
+- 非模块生成内容也统一存 floor（perMessageStorage 全面停用：调用已注释，Toolbox 存储调试按钮/设置面板旧控件已移除，文件保留备回用）。
+- 注入（promptInjector.generateGeneratedContentPrompt）暂未改从 floor 读（用户待定；非模块不注入提示词，将来可能渲染 UI）。
+
+**待办**：
+- 非模块注入/渲染 UI（用户待定）
+- 异步提示词裁剪（`{{CONTINUITY_PROMPT}}/{{CONTINUITY_ORDER}}` 异步模式是否照发）
+- F 二期快照/非全量更新系统（内存级累积中间态，推迟到正式可用后）
+
 ### 重新生成模块·提示词上下文重构（第二版，2026-08-16，未 commit）
 **目标**：在「第 X 层点重新生成」时，发给 AI 的提示词 = 标准 ST 组装（预设/世界书/宏全保留），且：
 - **正文历史**：`chat[0..X]`（含目标层正文，作为历史最后一条）

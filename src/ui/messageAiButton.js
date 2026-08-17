@@ -372,7 +372,8 @@ function createMenuBox(actions, asyncEnabled, triggerButton, mesId, label, genNa
  */
 function createVersionSwitcher(mesId, genName) {
     const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
-    const versions = readAllGeneratorContents(mesId, genName, outerSwipeId);
+    // 与编辑区一致：includeEmpty=true（空版本计入总数，active 指向空版本时能正确匹配，避免 ?/1）
+    const versions = readAllGeneratorContents(mesId, genName, outerSwipeId, { includeEmpty: true });
     const ids = Object.keys(versions).map(Number).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
     const active = getActiveGeneratorSwipe(mesId, genName, outerSwipeId);
     const activeIndex = ids.indexOf(active);
@@ -433,7 +434,8 @@ function createVersionSwitcher(mesId, genName) {
  */
 function switchGeneratorVersion(mesId, genName, direction) {
     const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
-    const versions = readAllGeneratorContents(mesId, genName, outerSwipeId);
+    // 与编辑区一致：includeEmpty=true，保证 ids 与 createVersionSwitcher 的版本表一致
+    const versions = readAllGeneratorContents(mesId, genName, outerSwipeId, { includeEmpty: true });
     const ids = Object.keys(versions).map(Number).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
     if (ids.length <= 1) return;
     const active = getActiveGeneratorSwipe(mesId, genName, outerSwipeId);
