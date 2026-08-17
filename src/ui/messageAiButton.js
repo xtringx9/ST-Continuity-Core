@@ -9,7 +9,7 @@ import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel } from '..
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../core/contextBottomUI.js';
-import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent } from '../core/floorModuleStore.js';
+import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
 import { parseNestedModules } from '../core/moduleExtractor.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 import { showDebugPanel } from './generatorDebugPanel.js';
@@ -296,8 +296,8 @@ function createInlineMenu(triggerButton, mesId) {
     // 1. 模块框：重新生成 + 编辑（+ 版本切换，无 label；「模块汇总」已隐藏——大 Cc 按钮已有）
     const moduleRegenIcon = hasPendingResult('modules', mesId) ? 'fa-hourglass-half' : 'fa-arrows-rotate';
     const moduleActions = [
-        { action: 'regenerate', icon: moduleRegenIcon, title: '重新生成模块', needAsync: true },
-        { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块数据', needAsync: true },
+        { action: 'regenerate', icon: moduleRegenIcon, title: '生成模块', needAsync: true },
+        { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块', needAsync: true },
     ];
     menu.append(createMenuBox(moduleActions, asyncEnabled, triggerButton, mesId, null, 'modules'));
 
@@ -351,8 +351,14 @@ function createMenuBox(actions, asyncEnabled, triggerButton, mesId, label, genNa
     }
 
     // 版本切换控件（‹ 当前/总数 ›）：所有 generator 框（含模块）都有
+    // 外层用带 data-ccore-ver-switcher 的容器，保存/删除/切版本后可按标记重建（刷新当前/总数）
+    // ⚠️ 用 div（inline-flex 居中）而非 span：span 高度由继承 line-height 撑开，内部控件会贴到框底
     if (genName) {
-        box.append(createVersionSwitcher(mesId, genName));
+        const switcherWrap = $('<div>')
+            .attr('data-ccore-ver-switcher', genName)
+            .css({ display: 'inline-flex', alignItems: 'center' });
+        switcherWrap.append(createVersionSwitcher(mesId, genName));
+        box.append(switcherWrap);
     }
 
     for (const { action, icon, title, needAsync } of actions) {
@@ -1014,6 +1020,16 @@ export function initMessageAiButton() {
     // 任务状态变化 → 刷新所有小 Cc 按钮文字（楼层任务数）
     window.addEventListener(taskRegistry.TASK_UPDATE_EVENT, () => {
         _refreshAllCcButtons();
+    });
+
+    // 楼层生成内容变更（保存/追加新版本/删除/切版本）→ 重建菜单中对应 generator 的版本切换控件
+    //（追加后 active 已切到新版本，但菜单 counter 是打开时的快照，需重建才显示新 当前/总数）
+    window.addEventListener(FLOOR_MODULES_UPDATED_EVENT, (e) => {
+        if (!currentMenu || e.detail?.mesId !== currentMenuMesId) return;
+        currentMenu.find('[data-ccore-ver-switcher]').each(function () {
+            const genName = $(this).attr('data-ccore-ver-switcher');
+            if (genName) $(this).empty().append(createVersionSwitcher(currentMenuMesId, genName));
+        });
     });
 
     // 为当前已加载的消息添加按钮
