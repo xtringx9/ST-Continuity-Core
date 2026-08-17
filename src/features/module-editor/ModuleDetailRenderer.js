@@ -84,6 +84,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
                                 <option value="after_body" ${module.outputPosition === 'after_body' ? 'selected' : ''}>${translate('ccore_option_after_body')}</option>
                                 <option value="body" ${module.outputPosition === 'body' ? 'selected' : ''}>${translate('ccore_option_body')}</option>
                                 <option value="body_start" ${module.outputPosition === 'body_start' ? 'selected' : ''}>${translate('ccore_option_body_start')}</option>
+                                <option value="body_dynamic" ${module.outputPosition === 'body_dynamic' ? 'selected' : ''}>${translate('ccore_option_body_dynamic')}</option>
                                 <option value="body_end" ${module.outputPosition === 'body_end' ? 'selected' : ''}>${translate('ccore_option_body_end')}</option>
                                 <option value="body_surround" ${module.outputPosition === 'body_surround' ? 'selected' : ''}>${translate('ccore_option_body_surround')}</option>
                                 <option value="specific_position" ${module.outputPosition === 'specific_position' ? 'selected' : ''}>${translate('ccore_option_specific_position')}</option>

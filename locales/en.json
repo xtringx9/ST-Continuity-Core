@@ -109,6 +109,7 @@
     "ccore_option_after_body": "After Body",
     "ccore_option_body": "Inside Body",
     "ccore_option_body_start": "Body Start",
+    "ccore_option_body_dynamic": "Body Start/End & Dynamic",
     "ccore_option_body_end": "Body End",
     "ccore_option_body_surround": "Body Surround",
     "ccore_option_specific_position": "Specific Position",

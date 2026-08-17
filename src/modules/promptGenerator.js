@@ -22,7 +22,7 @@ export function getPromptMode() {
 }
 
 /** body 系输出位置（跟随正文游玩行为） */
-const BODY_POSITIONS = ['body', 'body_start', 'body_end', 'body_surround', 'specific_position'];
+const BODY_POSITIONS = ['body', 'body_start', 'body_dynamic', 'body_end', 'body_surround', 'specific_position'];
 
 /**
  * 按三态模式过滤模块。
@@ -490,8 +490,9 @@ export function generateModuleOrderPrompt(mode) {
         const embeddableModules = []; // 可嵌入模块
         const bodyModules = []; // 正文内模块
         const bodyStartModules = []; // 正文内开头模块
+        const bodyDynamicModules = []; // 正文内首末与动态模块（body_dynamic，如 env）
         const bodyEndModules = []; // 正文内结尾模块
-        const bodySurroundModules = []; // 正文内模块
+        const bodySurroundModules = []; // 正文内首末模块
         const specificPositionModules = []; // 正文内特定位置模块
         const afterBodyModules = []; // 正文后模块
 
@@ -509,6 +510,10 @@ export function generateModuleOrderPrompt(mode) {
                     break;
                 case 'body_start':
                     bodyStartModules.push(module);
+                    inBodyModules.push(module);
+                    break;
+                case 'body_dynamic':
+                    bodyDynamicModules.push(module);
                     inBodyModules.push(module);
                     break;
                 case 'body_end':
@@ -545,11 +550,11 @@ export function generateModuleOrderPrompt(mode) {
 
         // orderPrompt += "Format: [Module]|Trigger|Qty|Mode|Pos/Note*\n\n";
 
-        // 可嵌入模块（按序号排序）
-        if (embeddableModules.length > 0) {
+        // 可嵌入模块（按序号排序）——async-body 时不单独显示（合并进正文内模块的「动态插入」提示语）
+        if (embeddableModules.length > 0 && effectiveMode !== 'async-body') {
             embeddableModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             // orderPrompt += "[DURING GENERATION]\n";
-            orderPrompt += "# 可嵌入模块，不限制位置，应积极插入正文内\n";
+            orderPrompt += effectiveMode === 'sync'?"# 可嵌入模块，不限制位置，应积极插入正文内\n":"# 可嵌入模块\n";
             embeddableModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module);
             });
@@ -558,35 +563,46 @@ export function generateModuleOrderPrompt(mode) {
 
         const contentTagPrompt = contentTagString ? `(位于<${contentTagString}></${contentTagString}>内)` : "";
         // 正文内模块（按序号排序）
-        if (bodyModules.length > 0 || bodySurroundModules.length > 0 || specificPositionModules.length > 0) {
+        if (bodyModules.length > 0 || bodySurroundModules.length > 0 || specificPositionModules.length > 0 || bodyDynamicModules.length > 0) {
             if (bodyModules.length > 0) bodyModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             if (bodySurroundModules.length > 0) bodySurroundModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             if (specificPositionModules.length > 0) specificPositionModules.sort((a, b) => (a.order || 0) - (b.order || 0));
+            if (bodyDynamicModules.length > 0) bodyDynamicModules.sort((a, b) => (a.order || 0) - (b.order || 0));
             orderPrompt += `# 正文内模块${contentTagPrompt}:\n`;
             if (contentTagString) { orderPrompt += `<${contentTagString}>\n`; }
-            // 异步跟随正文：专门引导语（env 定界首尾、embedded 跟随事件流、明确不输出正文后模块）
-            if (effectiveMode === 'async-body') {
-                orderPrompt += `> 正文内模块随正文游玩生成：\n`;
-                orderPrompt += `> 正文开头输出环境锚点（如 [env]），建立时空（时间/地点/天气）；\n`;
-                orderPrompt += `> 事件发生处即时插入可嵌入模块（如 [msg]/[item]），跟随事件流，不集中堆放；\n`;
-                orderPrompt += `> 正文结尾若环境变化则再次输出环境锚点收束；\n`;
-                orderPrompt += `> 本场景仅生成正文内模块，不得输出任何正文后模块（那些由单独生成负责）。\n`;
-            }
             bodyStartModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true, "正文内首先输出");
             });
             bodySurroundModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true, "正文内首先输出");
             });
+            bodyDynamicModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module, false, false, true, "正文内首先输出");
+            });
             specificPositionModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true);
             });
+
+            // 「动态插入」提示语：body_dynamic 模块（如 env）+ async-body 时的可嵌入模块，格式 [aa|...]/[xx|...] / [yy|...]
+            const dynamicList = [];
+            bodyDynamicModules.forEach(module => dynamicList.push(`[${module.name}|...]`));
+            // if (effectiveMode === 'async-body') {
+                const sortedEmbeddable = [...embeddableModules].sort((a, b) => (a.order || 0) - (b.order || 0));
+                sortedEmbeddable.forEach(module => dynamicList.push(`[${module.name}|...]`));
+            // }
+            if (dynamicList.length > 0) {
+                orderPrompt += `(在正文合适位置积极插入:${dynamicList.join('/')})\n`;
+            }
+
             bodyModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module);
             });
             // inBodyModules.forEach(module => {
             //     orderPrompt += buildModulePrompt(module, false, false, specificPositionModules.includes(module) ? true : false);
             // });
+            bodyDynamicModules.forEach(module => {
+                orderPrompt += buildModulePrompt(module, false, false, true, "正文内最后输出");
+            });
             bodySurroundModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module, false, false, true, "正文内最后输出");
             });

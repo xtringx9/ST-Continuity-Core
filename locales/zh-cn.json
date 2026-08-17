@@ -109,6 +109,7 @@
     "ccore_option_after_body": "正文后输出",
     "ccore_option_body": "正文内输出",
     "ccore_option_body_start": "正文内开头",
+    "ccore_option_body_dynamic": "正文内首末与动态",
     "ccore_option_body_end": "正文内结尾",
     "ccore_option_body_surround": "正文内首末",
     "ccore_option_specific_position": "正文内特定位置",
