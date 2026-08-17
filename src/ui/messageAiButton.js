@@ -10,6 +10,7 @@ import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../core/contextBottomUI.js';
 import perMessageStorage from '../services/perMessageStorage.js';
 import { readFloorModules, writeFloorModules } from '../core/floorModuleStore.js';
+import { parseNestedModules } from '../core/moduleExtractor.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 import { showDebugPanel } from './generatorDebugPanel.js';
 import { CONTEXT_MSG_CONTAINER_ID } from '../core/context-ui/containerManager.js';
@@ -699,8 +700,14 @@ async function onEditModules(mesId) {
             infoLog(LOG_TAG, `消息 ${mesId} 模块数据已保存（${text.length} 字符）`);
             $editArea.remove();
             $iframe.show();
-            // 刷新该消息的模块展示区（异步数据源已接入，直接按单条刷新）
-            scheduleMsgBottom('single', mesId);
+            // 刷新该消息的模块展示区：若编辑前后「增量模块文本」变化 → 下游累积可能变，后缀刷新（mesId..末）；
+            // 否则只刷该条（single）
+            if (_incrementalModulesChanged(rawText, text)) {
+                infoLog(LOG_TAG, `消息 ${mesId} 增量模块文本变化，刷新下游`);
+                scheduleMsgBottom('suffix', mesId);
+            } else {
+                scheduleMsgBottom('single', mesId);
+            }
         } catch (err) {
             errorLog(LOG_TAG, `保存消息 ${mesId} 模块数据失败:`, err);
             $btn.removeClass('disabled').css('opacity', '');
@@ -878,6 +885,55 @@ function setupChatObserver() {
     // 只监听 #chat 直接子元素（.mes）的添加/删除/替换
     // 不监听 subtree，避免流式生成时频繁触发
     chatObserver.observe(chatEl, { childList: true });
+}
+
+/**
+ * 判断当前模块配置是否启用了增量模块（outputMode === 'incremental'）
+ */
+function _hasIncrementalModule() {
+    return (configManager.getModules() || []).some(m => m.outputMode === 'incremental');
+}
+
+/**
+ * 提取文本中所有模块块（形如 [模块名|...]）。
+ * 复用 moduleExtractor 的栈式嵌套解析，返回含嵌套在内的全部模块 raw。
+ * @param {string} content
+ * @returns {string[]}
+ */
+function _extractModuleBlocks(content) {
+    if (typeof content !== 'string' || !content) return [];
+    return parseNestedModules(content).map(m => m.raw);
+}
+
+/**
+ * 判断编辑前后「增量模块文本」是否发生变化。
+ * 仅对比增量模块的 [模块|...] 块文本（存在≠变化，需文本不同才算变）。
+ * @param {string} before 编辑前内容
+ * @param {string} after 编辑后内容
+ * @returns {boolean}
+ */
+function _incrementalModulesChanged(before, after) {
+    if (!_hasIncrementalModule()) return false;
+    const incNames = new Set((configManager.getModules() || [])
+        .filter(m => m.outputMode === 'incremental')
+        .map(m => m.name));
+
+    const pickInc = (content) => _extractModuleBlocks(content)
+        .filter(block => {
+            const pipeIdx = block.indexOf('|');
+            const name = pipeIdx > 0 ? block.slice(1, pipeIdx).trim() : '';
+            return incNames.has(name);
+        });
+
+    const beforeInc = pickInc(before);
+    const afterInc = pickInc(after);
+
+    // 集合文本对比：长度不同或任一块不同 → 变了
+    if (beforeInc.length !== afterInc.length) return true;
+    for (let i = 0; i < beforeInc.length; i++) {
+        if (beforeInc[i] !== afterInc[i]) return true;
+    }
+    return false;
 }
 
 /**
