@@ -5,7 +5,7 @@
 import { chat } from '../../../../../../script.js';
 import { Popup, POPUP_TYPE, POPUP_RESULT } from '../../../../../popup.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
-import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel } from '../services/moduleAiGenerator.js';
+import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel, getPendingCountForMes } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../core/contextBottomUI.js';
@@ -1150,7 +1150,7 @@ export function initMessageAiButton() {
     // 事件委托：Cc 触发器点击
     $(document).on('click', `.${BUTTON_CLASS}`, onTriggerClick);
 
-    // 监听待处理结果清除事件，更新当前菜单中对应按钮的图标
+    // 监听待处理结果清除事件，更新当前菜单中对应按钮的图标 + 刷新所有小 Cc 按钮文字（计数）
     // ⚠️ 排除弹窗生成按钮（.mes_ai_prompt_generate）——它保持固定面板 icon，不参与生成状态显示
     window.addEventListener('ccore-pending-cleared', (e) => {
         const { generatorName, mesId } = e.detail;
@@ -1160,6 +1160,8 @@ export function initMessageAiButton() {
         if (btn.length) {
             setRegenButtonState(btn, STATE.IDLE, generatorName, mesId);
         }
+        // 待处理数变化影响小 Cc 数字（未完成 = running + pending）
+        _refreshAllCcButtons();
     });
 
     // 任务状态变化 → 刷新所有小 Cc 按钮文字 + 刷新当前打开菜单中生成按钮状态
@@ -1273,7 +1275,8 @@ function _incrementalModulesChanged(before, after) {
 function _updateCcButtonText(button) {
     const mesId = Number(button.attr('data-mesid'));
     if (isNaN(mesId)) return;
-    const count = taskRegistry.getRunningCountForMes(mesId);
+    // 未完成数 = running 任务 + 该楼层待处理(pending)记录（2026-08-18：处理完才算结束，失败也算处理完）
+    const count = taskRegistry.getRunningCountForMes(mesId) + getPendingCountForMes(mesId);
     if (count > 0) {
         // 有任务：只改文字为数字 + title，保持与普通 Cc 相同的透明度/颜色
         button.text(count > 99 ? '99+' : String(count));

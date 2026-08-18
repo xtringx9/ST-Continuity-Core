@@ -65,7 +65,16 @@ function _expandPromptMacros(text, mesId) {
 // 不同聊天/角色/楼层的待处理结果互相独立
 // 持久化到 sessionStorage,刷新页面后仍可恢复
 const PENDING_STORAGE_KEY = 'ccore_pending_results';
-const pendingResults = new Map(); // key: `${chatKey}::${generatorName}::${mesId}`, value: { context, debugData }
+// key: `${chatKey}::${generatorName}::${mesId}`, value: Array<record>
+// record = { id, status('pending'|'saved'|'discarded'|'error'), createdAt, context, debugData, note? }
+// 2026-08-18 多记录化：同一楼层并发多次生成各占一条记录，互不覆盖，均可独立处理/回溯。
+const pendingResults = new Map();
+
+let pendingIdCounter = 0;
+function _nextPendingId() {
+    pendingIdCounter++;
+    return `${Date.now()}_${pendingIdCounter}`;
+}
 
 /**
  * 获取当前聊天标识（角色名 + 聊天文件名）
@@ -84,17 +93,67 @@ function _pendingKey(generatorName, mesId) {
     return `${_getChatKey()}::${generatorName}::${mesId}`;
 }
 
+/**
+ * 获取某 generator+楼层 的全部记录数组（不存在返回空数组）。
+ */
+function _getPendingRecords(generatorName, mesId) {
+    return pendingResults.get(_pendingKey(generatorName, mesId)) || [];
+}
+
+/**
+ * 按记录 id 标记状态（saved/discarded/error），并清理该 key 下全部已处理记录。
+ * 若该 key 下无任何记录则删除 key。
+ * @param {string} generatorName
+ * @param {number} mesId
+ * @param {string} recordId
+ * @param {'saved'|'discarded'|'error'} status
+ * @param {string} [note]
+ */
+function _markPendingStatus(generatorName, mesId, recordId, status, note = '') {
+    const key = _pendingKey(generatorName, mesId);
+    const records = pendingResults.get(key);
+    if (!records) return;
+    for (const r of records) {
+        if (r.id === recordId) {
+            r.status = status;
+            if (note) r.note = note;
+        }
+    }
+    // 清理该 key 下已处理记录（saved/discarded/error 均视为处理完）
+    const remaining = records.filter(r => r.status === 'pending');
+    if (remaining.length > 0) {
+        pendingResults.set(key, remaining);
+    } else {
+        pendingResults.delete(key);
+    }
+    _savePendingToStorage();
+    window.dispatchEvent(new CustomEvent('ccore-pending-cleared', { detail: { generatorName, mesId } }));
+}
+
 // 初始化时从 sessionStorage 恢复
 (function _loadPendingFromStorage() {
     try {
         const raw = sessionStorage.getItem(PENDING_STORAGE_KEY);
         if (!raw) return;
         const data = JSON.parse(raw);
-        for (const [key, result] of Object.entries(data)) {
-            pendingResults.set(key, result);
+        for (const [key, value] of Object.entries(data)) {
+            // 兼容旧格式（单条 {context,debugData}）→ 包成数组单条记录
+            if (Array.isArray(value)) {
+                pendingResults.set(key, value.filter(r => r && typeof r === 'object'));
+            } else if (value && typeof value === 'object') {
+                pendingResults.set(key, [{
+                    id: value.id || `legacy_${Date.now()}`,
+                    status: 'pending',
+                    createdAt: value.createdAt || Date.now(),
+                    context: value.context,
+                    debugData: value.debugData,
+                }]);
+            }
         }
-        if (pendingResults.size > 0) {
-            infoLog(LOG_TAG, `从 sessionStorage 恢复 ${pendingResults.size} 个待处理结果`);
+        let count = 0;
+        pendingResults.forEach(arr => { count += arr.length; });
+        if (count > 0) {
+            infoLog(LOG_TAG, `从 sessionStorage 恢复 ${count} 条生成记录`);
         }
     } catch (e) {
         // 忽略解析错误
@@ -104,8 +163,8 @@ function _pendingKey(generatorName, mesId) {
 function _savePendingToStorage() {
     try {
         const data = {};
-        for (const [key, result] of pendingResults) {
-            data[key] = result;
+        for (const [key, records] of pendingResults) {
+            if (Array.isArray(records) && records.length > 0) data[key] = records;
         }
         sessionStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
@@ -120,7 +179,7 @@ function _savePendingToStorage() {
  */
 function _createSaveCallback(ctx) {
     return async (saveMode) => {
-        const { mesId, swipeId, generatorName, isModule, extracted, text, chatKey } = ctx;
+        const { mesId, swipeId, generatorName, isModule, extracted, text, chatKey, recordId } = ctx;
 
         // 聊天归属校验：生成时的聊天 ≠ 当前聊天 → 拒绝保存（避免写错聊天文件），不破坏 pending 可稍后重试
         if (chatKey && chatKey !== _getChatKey()) {
@@ -162,9 +221,13 @@ function _createSaveCallback(ctx) {
             return;
         }
 
-        // 移除 taskRegistry 任务 + 清 pending
+        // 移除 taskRegistry 任务 + 标记该记录为已保存（多记录并存时只处理本条）
         taskRegistry.remove(`${_getChatKey()}::${mesId}::${generatorName}`);
-        clearPendingResult(generatorName, mesId);
+        if (recordId) {
+            _markPendingStatus(generatorName, mesId, recordId, 'saved', `${mode}`);
+        } else {
+            clearPendingResult(generatorName, mesId);
+        }
         infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认，${mode}）`);
     };
 }
@@ -172,10 +235,14 @@ function _createSaveCallback(ctx) {
 /**
  * 创建抛弃回调（供调试面板"抛弃"按钮调用）
  */
-function _createDiscardCallback(generatorName, mesId) {
+function _createDiscardCallback(generatorName, mesId, recordId) {
     return () => {
         taskRegistry.remove(`${_getChatKey()}::${mesId}::${generatorName}`);
-        clearPendingResult(generatorName, mesId);
+        if (recordId) {
+            _markPendingStatus(generatorName, mesId, recordId, 'discarded');
+        } else {
+            clearPendingResult(generatorName, mesId);
+        }
         infoLog(LOG_TAG, `用户抛弃了 楼层${mesId} ${generatorName} 的生成结果`);
     };
 }
@@ -197,16 +264,16 @@ function _createLoadCurrentCallback(ctx) {
 }
 
 /**
- * 是否有指定 generator + 楼层的待处理结果
+ * 是否有指定 generator + 楼层的待处理结果（pending 记录）
  * @param {string} generatorName - 'modules' 或 generator.name
  * @param {number} mesId - 楼层 ID
  */
 export function hasPendingResult(generatorName, mesId) {
-    return pendingResults.has(_pendingKey(generatorName, mesId));
+    return _getPendingRecords(generatorName, mesId).some(r => r.status === 'pending');
 }
 
 /**
- * 清除指定 generator + 楼层的待处理结果
+ * 清除指定 generator + 楼层的待处理结果（全部记录）
  */
 export function clearPendingResult(generatorName, mesId) {
     const key = _pendingKey(generatorName, mesId);
@@ -217,19 +284,78 @@ export function clearPendingResult(generatorName, mesId) {
 }
 
 /**
- * 重新打开调试面板显示待处理结果
- * 用户手误关闭面板后,再次点击"重新生成"时调用
+ * 获取指定 generator + 楼层的全部生成记录（含已处理，供历史面板）。
+ * @returns {Array<{id,status,createdAt,context,debugData,note?}>}
+ */
+export function getPendingRecords(generatorName, mesId) {
+    return _getPendingRecords(generatorName, mesId);
+}
+
+/**
+ * 全局生成记录平铺（供大 Cc 历史面板）：跨角色/聊天/楼层/状态。
+ * @returns {Array<{key, chatKey, generatorName, mesId, ...record}>}
+ */
+export function getAllPendingRecords() {
+    const out = [];
+    for (const [key, records] of pendingResults) {
+        // key = `${chatKey}::${generatorName}::${mesId}`
+        const parts = String(key).split('::');
+        const chatKey = parts[0] || '';
+        const generatorName = parts[1] || '';
+        const mesId = Number(parts[2]);
+        (records || []).forEach(r => {
+            if (r && typeof r === 'object') {
+                out.push({ key, chatKey, generatorName, mesId, ...r });
+            }
+        });
+    }
+    // 按创建时间新→旧
+    out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return out;
+}
+
+/**
+ * 待处理（pending）记录总数（大 Cc 角标 / 小 Cc 计数用）。
+ */
+export function getPendingCount() {
+    let count = 0;
+    pendingResults.forEach(records => {
+        (records || []).forEach(r => { if (r.status === 'pending') count++; });
+    });
+    return count;
+}
+
+/**
+ * 指定楼层的待处理记录数（当前聊天归属，小 Cc 计数用）。
+ */
+export function getPendingCountForMes(mesId) {
+    const chatKey = _getChatKey();
+    let count = 0;
+    pendingResults.forEach((records, key) => {
+        if (!String(key).startsWith(`${chatKey}::`)) return;
+        const parts = String(key).split('::');
+        if (Number(parts[2]) === mesId) {
+            (records || []).forEach(r => { if (r.status === 'pending') count++; });
+        }
+    });
+    return count;
+}
+
+/**
+ * 重新打开调试面板显示某条待处理记录。
+ * 用户手误关闭面板后,再次点击"重新生成"时调用（取第一条 pending）。
  */
 export function reopenPendingDebugPanel(generatorName, mesId) {
-    const pending = pendingResults.get(_pendingKey(generatorName, mesId));
+    const records = _getPendingRecords(generatorName, mesId);
+    const pending = records.find(r => r.status === 'pending');
     if (!pending) return false;
-    const { context, debugData } = pending;
-    // 重新绑定回调（每次 showDebugPanel 创建新 IframeModal）
-    debugData.onSave = _createSaveCallback(context);
-    debugData.onDiscard = _createDiscardCallback(generatorName, mesId);
+    const { context, debugData, id } = pending;
+    // 重新绑定回调（每次 showDebugPanel 创建新 IframeModal；recordId 用于处理时只标记本条）
+    debugData.onSave = _createSaveCallback({ ...context, recordId: id });
+    debugData.onDiscard = _createDiscardCallback(generatorName, mesId, id);
     debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
     showDebugPanel(debugData);
-    infoLog(LOG_TAG, `重新打开 楼层${mesId} ${generatorName} 的待处理结果调试面板`);
+    infoLog(LOG_TAG, `重新打开 楼层${mesId} ${generatorName} 的待处理结果调试面板（记录 ${id}）`);
     return true;
 }
 
@@ -582,9 +708,11 @@ export const moduleAiGenerator = {
                     taskKey: taskKeys[0] || undefined, // 供「面板是否已打开」判断，避免重复弹
                 };
 
-                // 手动重新生成(skipStorage)且单条成功时,暂存结果供用户在面板中决定保存/抛弃
+                // 手动重新生成(skipStorage)且单条成功时,暂存结果供用户在面板中决定保存/抛弃。
+                // 2026-08-18 多记录化：并发多次生成各占一条记录（同 key 数组 push），互不覆盖。
                 if (skipStorage && result.text && isSingle) {
                     const mesId = messages[0].mesId;
+                    const recordId = _nextPendingId();
                     const context = {
                         mesId,
                         swipeId: messages[0].activeSwipeId,
@@ -593,11 +721,21 @@ export const moduleAiGenerator = {
                         extracted,
                         text: result.text,
                         chatKey: taskChatKey, // 生成归属聊天，保存校验用
+                        recordId,            // 处理时只标记本条记录
                     };
-                    pendingResults.set(_pendingKey(generatorName, mesId), { context, debugData });
+                    const key = _pendingKey(generatorName, mesId);
+                    const records = pendingResults.get(key) || [];
+                    records.push({
+                        id: recordId,
+                        status: 'pending',
+                        createdAt: Date.now(),
+                        context,
+                        debugData,
+                    });
+                    pendingResults.set(key, records);
                     _savePendingToStorage();
                     debugData.onSave = _createSaveCallback(context);
-                    debugData.onDiscard = _createDiscardCallback(generatorName, mesId);
+                    debugData.onDiscard = _createDiscardCallback(generatorName, mesId, recordId);
                     debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
                 }
 

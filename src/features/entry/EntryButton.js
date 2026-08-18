@@ -7,6 +7,7 @@ import { initChatReader, syncChatReaderTheme } from '../chat-reader/ChatReader.j
 import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 import { taskRegistry } from '../../core/taskRegistry.js';
+import { getPendingCount } from '../../services/moduleAiGenerator.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
 import { eventSource, event_types } from '../../../../../../../script.js';
 
@@ -48,7 +49,8 @@ export class EntryButton {
         btn.appendChild(badge);
 
         const update = () => {
-            const count = taskRegistry.getTotalRunningCount();
+            // 未完成数 = running 任务 + 待处理(pending)记录（2026-08-18：处理完才算结束，失败也算处理完）
+            const count = taskRegistry.getTotalRunningCount() + getPendingCount();
             if (count > 0) {
                 badge.textContent = count > 99 ? '99+' : String(count);
                 badge.style.display = 'block';
@@ -60,9 +62,11 @@ export class EntryButton {
 
         if (this._taskBadgeListener) {
             window.removeEventListener(taskRegistry.TASK_UPDATE_EVENT, this._taskBadgeListener);
+            window.removeEventListener('ccore-pending-cleared', this._taskBadgeListener);
         }
         this._taskBadgeListener = update;
         window.addEventListener(taskRegistry.TASK_UPDATE_EVENT, this._taskBadgeListener);
+        window.addEventListener('ccore-pending-cleared', this._taskBadgeListener);
     }
 
     /**
@@ -133,6 +137,7 @@ export class EntryButton {
         }
         if (this._taskBadgeListener) {
             window.removeEventListener(taskRegistry.TASK_UPDATE_EVENT, this._taskBadgeListener);
+            window.removeEventListener('ccore-pending-cleared', this._taskBadgeListener);
             this._taskBadgeListener = null;
         }
         this._badgeBtn = null;
