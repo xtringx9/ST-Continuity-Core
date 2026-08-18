@@ -4,6 +4,8 @@
  */
 
 import { debugLog, errorLog } from './logger.js';
+// ST 官方宏展开（script.js 导出，父窗口可用）
+import { substituteParams } from '../../../../../../script.js';
 
 // 导入SillyTavern的getContext函数
 let getContext;
@@ -178,65 +180,20 @@ export function getUserAndCharNames() {
 }
 
 /**
- * 替换提示词中的变量
- * 统一处理 {{user}}、{{char}} 等变量的替换
+ * 替换提示词中的变量（改用 ST 官方宏展开 substituteParams）。
+ * 2026-08-18：此前自行实现 {{user}}/{{char}} 简易替换（以为无法用 ST 宏展开），
+ * 现确认 script.js 导出 substituteParams 可在父窗口调用，改用 ST 全套宏展开
+ * （{{user}}/{{char}}/{{time}}/自定义宏等全部生效）。
  * @param {string} prompt 原始提示词
  * @returns {string} 替换后的提示词
  */
 export function replaceVariables(prompt) {
     try {
-        // debugLog("变量替换器: 开始替换提示词中的变量");
-
         if (!prompt || typeof prompt !== 'string') {
-            debugLog("变量替换器: 提示词为空或无效，直接返回");
             return prompt || "";
         }
-
-        // 检查是否需要替换
-        if (!prompt.includes("{{user}}") && !prompt.includes("{{char}}") && !prompt.includes("<user>") && !prompt.includes("<char>")) {
-            debugLog("变量替换器: 提示词中无变量需要替换");
-            return prompt;
-        }
-
-        // 获取用户和角色名称
-        const { userName, charName } = getUserAndCharNames();
-
-        debugLog(`变量替换器: 获取到用户名称: ${userName}, 角色名称: ${charName}`);
-
-        // 执行替换
-        let replacedPrompt = prompt;
-
-        // 替换 {{user}} 变量
-        if (prompt.includes("{{user}}")) {
-            replacedPrompt = replacedPrompt.replace(/\{\{user\}\}/gi, userName);
-            // debugLog("变量替换器: 已替换 {{user}} 变量");
-        }
-
-        // 替换 {{char}} 变量
-        if (prompt.includes("{{char}}")) {
-            replacedPrompt = replacedPrompt.replace(/\{\{char\}\}/gi, charName);
-            // debugLog("变量替换器: 已替换 {{char}} 变量");
-        }
-
-        // 替换 <user> XML标签格式
-        if (prompt.includes("<user>")) {
-            replacedPrompt = replacedPrompt.replace(/<user>/gi, userName);
-            // debugLog("变量替换器: 已替换 <user> 变量");
-        }
-
-        // 替换 <char> XML标签格式
-        if (prompt.includes("<char>")) {
-            replacedPrompt = replacedPrompt.replace(/<char>/gi, charName);
-            // debugLog("变量替换器: 已替换 <char> 变量");
-        }
-
-        // 替换其他常见变量格式
-        replacedPrompt = replacedPrompt.replace(/\{\{USER\}\}/gi, userName);
-        replacedPrompt = replacedPrompt.replace(/\{\{CHAR\}\}/gi, charName);
-
-        // debugLog("变量替换器: 变量替换完成");
-        return replacedPrompt;
-
+        // 走 ST 官方宏展开（substituteParams 依赖 getContext，父窗口可用）
+        return substituteParams(prompt);
     } catch (error) {
         errorLog("变量替换器: 替换变量失败", error);
         return prompt; // 出错时返回原始提示词

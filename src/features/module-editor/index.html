@@ -45,6 +45,10 @@
                 <span class="nav-icon">⚙️</span>
                 <span class="nav-text" data-i18n="ccore_nav_settings">全局设置</span>
             </div>
+            <div class="nav-item" data-target="view-async">
+                <span class="nav-icon">⚡</span>
+                <span class="nav-text" data-i18n="ccore_nav_async">异步配置</span>
+            </div>
             <div class="nav-item" data-target="view-tools">
                 <span class="nav-icon">🛠️</span>
                 <span class="nav-text" data-i18n="ccore_nav_tools">工具箱</span>
@@ -177,6 +181,11 @@
             <!-- 视图 D: 设置 (占位) -->
             <div id="view-settings" class="view-section">
                 <!-- 全局设置内容将由 JS 生成 -->
+            </div>
+
+            <!-- 视图 E: 异步配置（2026-08-17 新增，承接原 settings-panel async tab 的配置 UI） -->
+            <div id="view-async" class="view-section">
+                <!-- 异步配置内容将由 AsyncSettings.js 生成 -->
             </div>
         </main>
     </div>

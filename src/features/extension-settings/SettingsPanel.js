@@ -24,16 +24,6 @@ import {
     onSendHijackSetChange,
     onSendHijackLabelChange,
     populateSendHijackOptions,
-    onAsyncEnabledToggle,
-    onSnapshotIntervalChange,
-    onAsyncExtractChat,
-    onAsyncExtractFloor,
-    onAsyncRebuildSnapshots,
-    onGenerationModeChange,
-    onAiConfigChange,
-    onFetchModels,
-    onAiGenerateFloor,
-    onAiGenerateChat,
     loadSettingsToUI,
 } from '../../ui/extensionSettingsManager.js';
 import { sendToBackend } from '../../services/backendService.js';
@@ -104,32 +94,9 @@ export class SettingsPanel {
         $('#continuity_send_hijack_label').on('change', onSendHijackLabelChange);
         // 打开下拉时重填，确保反映 ST 内新建/改名/删除的 QR 集合
         $('#continuity_send_hijack_set').on('focus mousedown', populateSendHijackOptions);
-        $('#continuity_async_enabled').on('input', onAsyncEnabledToggle);
-        $('#continuity_snapshot_interval').on('input', onSnapshotIntervalChange);
-        $('#continuity_async_extract_chat').on('click', onAsyncExtractChat);
-        $('#continuity_async_extract_floor').on('click', onAsyncExtractFloor);
-        $('#continuity_async_rebuild_snapshots').on('click', onAsyncRebuildSnapshots);
 
-        // AI 生成相关事件
-        $('#continuity_generation_mode').on('change', onGenerationModeChange);
-        $('#continuity_raw_system_prompt').on('input', onAiConfigChange);
-        $('#continuity_raw_user_prompt').on('input', onAiConfigChange);
-        $('#continuity_pipeline_modifier').on('input', onAiConfigChange);
-        $('#continuity_show_debug').on('input', onAiConfigChange);
-        $('#continuity_push_user_message_as_last').on('input', onAiConfigChange);
-        $('#continuity_fallback_prompt_role').on('change', onAiConfigChange);
-        $('#continuity_ask_prompt_before_generate').on('input', onAiConfigChange);
-        $('#continuity_auto_generate_on_message_end').on('input', onAiConfigChange);
-        $('#continuity_use_independent_api').on('input', onAiConfigChange);
-        $('#continuity_custom_api_url').on('input', onAiConfigChange);
-        $('#continuity_custom_api_key').on('input', onAiConfigChange);
-        $('#continuity_custom_api_model').on('input', onAiConfigChange);
-        $('#continuity_custom_api_source').on('change', onAiConfigChange);
-        $('#continuity_custom_api_temperature').on('input', onAiConfigChange);
-        $('#continuity_custom_api_max_tokens').on('input', onAiConfigChange);
-        $('#continuity_custom_api_fetch_models').on('click', onFetchModels);
-        $('#continuity_ai_generate_floor').on('click', onAiGenerateFloor);
-        $('#continuity_ai_generate_chat').on('click', onAiGenerateChat);
+        // ⚠️ 异步生成配置 UI 已迁移到 module-editor「异步配置」tab（2026-08-17）：
+        //   原 settings-panel async tab（enabled/生成方式/追加指令/独立API/调试面板等）已整体移除。
 
         $('.continuity-tab-btn').on('click', function () {
             const tabId = $(this).data('tab');

@@ -1147,3 +1147,176 @@ section.module-detail-panel {
     border-color: #4CAF50;
     background-color: #4CAF50;
 }
+
+/* === 异步配置页（view-async）样式 === */
+/* 异步模块存储主开关：显眼大滑块（仿模块覆盖 toggle-switch），独占一行 */
+.async-master-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border: 1px solid var(--accent-color, #2563eb);
+    border-radius: 8px;
+    background-color: var(--bg-card);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.async-master-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.async-master-row .async-master-switch {
+    width: 44px;
+    height: 24px;
+    margin-left: 0;
+}
+
+.async-master-row .async-master-switch .slider:before {
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+}
+
+.async-master-row .async-master-switch input:checked + .slider:before {
+    transform: translateX(20px);
+}
+
+/* 生成行为区：两列紧凑布局，开关不占整行 */
+.async-behavior-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px 16px;
+}
+
+/* 生成方式：label 与下拉同行 */
+.async-inline-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.async-inline-field label {
+    flex: 0 0 auto;
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.async-inline-field select {
+    flex: 1;
+    min-width: 0;
+}
+
+.async-settings .async-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    background-color: var(--bg-card);
+    transition: border-color 0.2s, background-color 0.2s;
+    user-select: none;
+}
+
+.async-settings .async-toggle:hover {
+    border-color: var(--accent-color);
+    background-color: var(--bg-hover);
+}
+
+.async-settings .async-toggle input[type="checkbox"] {
+    margin: 0;
+    accent-color: var(--accent-color);
+    width: 14px;
+    height: 14px;
+}
+
+.async-settings .async-toggle span {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.async-group-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.async-group-card {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-card);
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.async-group-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.async-group-head .pg-name {
+    flex: 1;
+    min-width: 0;
+}
+
+.async-group-head .pg-role {
+    flex: 0 0 110px;
+}
+
+.async-group-head .pg-del {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    color: var(--danger-color);
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+
+.async-group-head .pg-del:hover {
+    background-color: var(--bg-hover);
+}
+
+.async-group-default {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.async-group-default input[type="checkbox"] {
+    margin: 0;
+    accent-color: var(--accent-color);
+    width: 13px;
+    height: 13px;
+}
+
+.async-group-card .pg-prompt {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--font-mono);
+    resize: vertical;
+}
+
+#async-prompt-group-add {
+    margin-top: 4px;
+}

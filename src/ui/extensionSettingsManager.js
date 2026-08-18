@@ -65,34 +65,9 @@ export function loadSettingsToUI() {
     $("#continuity_chat_reader").prop("checked", extensionConfig.stFeatureEnhance?.chatReader !== false);
     $("#continuity_include_hidden_messages").prop("checked", extensionConfig.module?.includeHiddenMessages?.enabled !== false);
 
-    // 异步模块存储设置
-    const asyncModule = extensionConfig.module?.asyncModule || {};
-    $("#continuity_async_enabled").prop("checked", asyncModule.enabled || false);
-    $("#continuity_snapshot_interval").val(asyncModule.snapshotInterval || 5);
-
-    // AI 生成设置
-    $("#continuity_generation_mode").val(asyncModule.generationMode || 'pipeline');
-    $("#continuity_use_independent_api").prop("checked", asyncModule.useIndependentApi || false);
-    $("#continuity_raw_system_prompt").val(asyncModule.rawSystemPrompt || '');
-    $("#continuity_raw_user_prompt").val(asyncModule.rawUserPromptTemplate || '');
-    $("#continuity_pipeline_modifier").val(asyncModule.pipelineModifier || '');
-    $("#continuity_show_debug").prop("checked", asyncModule.showDebug !== false);
-    $("#continuity_push_user_message_as_last").prop("checked", asyncModule.pushUserMessageAsLast === true);
-    $("#continuity_fallback_prompt_role").val(asyncModule.fallbackPromptRole || 'user');
-    $("#continuity_ask_prompt_before_generate").prop("checked", asyncModule.askPromptBeforeGenerate === true);
-    $("#continuity_auto_generate_on_message_end").prop("checked", asyncModule.autoGenerateOnMessageEnd !== false);
-
-    // 独立 API 设置
-    const customApi = asyncModule.customApi || {};
-    $("#continuity_custom_api_url").val(customApi.apiurl || '');
-    $("#continuity_custom_api_key").val(customApi.key || '');
-    $("#continuity_custom_api_model").val(customApi.model || '');
-    $("#continuity_custom_api_source").val(customApi.source || 'openai');
-    $("#continuity_custom_api_temperature").val(customApi.temperature ?? 0.3);
-    $("#continuity_custom_api_max_tokens").val(customApi.max_tokens ?? 500);
-
-    // 根据生成模式显示/隐藏对应设置
-    _updateGenerationModeVisibility(asyncModule.generationMode || 'pipeline');
+    // ⚠️ 异步生成配置 UI 已迁移到 module-editor「异步配置」tab（2026-08-17）：
+    //   原 settings-panel async tab（异步开关/生成方式/追加指令/独立API/调试面板等）已整体移除，
+    //   对应 UI 元素不再存在，loadSettingsToUI 不再填充。
 
     updateExtensionUIState(extensionConfig.enabled);
 }

@@ -118,6 +118,7 @@ export function addAiButtonToMessage(messageId) {
         _updateCcButtonText(button);
 
         floatWrap.append(button);
+
         messageBlock.append(floatWrap);
 
         debugLog(LOG_TAG, `已为消息 ${messageId} 添加 Cc 浮动触发器`);
@@ -364,6 +365,44 @@ function createMenuBox(actions, asyncEnabled, triggerButton, mesId, label, genNa
     for (const { action, icon, title, needAsync } of actions) {
         const disabled = needAsync && !asyncEnabled;
         box.append(createMenuButton(action, icon, title, disabled, triggerButton, mesId));
+
+        // 生成类按钮（regenerate / generate:xxx）旁加「弹窗生成」按钮（面板 icon）：
+        // 点击直接走弹窗流程编辑提示词后生成（无视 askPromptBeforeGenerate 开关）
+        const isGenerate = action === 'regenerate' || action.startsWith('generate:');
+        if (isGenerate) {
+            const genForPrompt = action === 'regenerate' ? 'modules' : action.substring('generate:'.length);
+            const promptBtn = $('<div>')
+                .attr('title', '弹窗生成（编辑提示词后生成）')
+                .attr('data-generator', genForPrompt)
+                .addClass('mes_ai_prompt_generate mes_button interactable')
+                .attr('tabindex', '0')
+                .attr('role', 'button')
+                .css({
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '18px',
+                    height: '18px',
+                    padding: '0 !important',
+                    boxSizing: 'border-box',
+                    borderRadius: '4px',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    opacity: disabled ? 0.4 : 0.7,
+                })
+                .html('<i class="fa-solid fa-window-restore"></i>');
+            if (!disabled) {
+                promptBtn.hover(
+                    function () { $(this).css('opacity', 1); },
+                    function () { $(this).css('opacity', 0.7); }
+                );
+                promptBtn.on('click', (e) => {
+                    e.stopPropagation();
+                    // silent=true：弹窗按钮保持固定 icon，不显示生成中/成功/失败状态（状态由相邻的生成按钮体现）
+                    onRegenerate(promptBtn, mesId, genForPrompt, { forcePrompt: true, silent: true });
+                });
+            }
+            box.append(promptBtn);
+        }
     }
 
     return box;
@@ -610,10 +649,32 @@ async function onMenuAction(action, triggerButton, mesId, clickedBtn) {
  * 生成前弹窗让用户临时修改「追加指令」提示词（ST Popup + textarea，样式保持一致）。
  * 确认后返回修改后的提示词；取消/关闭/失败返回 null（调用方应中止本次生成）。
  * 留空时提示并回退默认（pipeline 模式必须要有生成指令，空值无法组装）。
- * @param {string} defaultPrompt 默认填入的「追加指令」
- * @returns {Promise<string|null>}
+ * @param {string} defaultPrompt 默认填入的「默认生成提示词」
+ * @param {Array} [promptGroups] 提示词组 [{ id, name, role, prompt }]
+ * @returns {Promise<{prompt:string, role:string|null}|null>} 确认返回 {prompt, role}；取消/关闭返回 null
  */
-async function _askPromptBeforeGenerate(defaultPrompt) {
+async function _askPromptBeforeGenerate(defaultPrompt, promptGroups = []) {
+    const groups = Array.isArray(promptGroups) ? promptGroups.filter(g => g && g.name) : [];
+
+    // 第一排：提示词组下拉 + 消息角色下拉（同排）；切提示词组时该组的 role 自动应用到角色下拉，玩家可再改
+    const $groupSelect = $('<select>')
+        .css({ flex: '1', minWidth: '0' })
+        .append($('<option>').val('').text('— 选择提示词组 —'));
+    groups.forEach(g => {
+        $groupSelect.append($('<option>').val(String(g.id)).text(g.name));
+    });
+
+    const $roleSelect = $('<select>')
+        .css({ flex: '0 0 110px' })
+        .append('<option value="user">user</option>')
+        .append('<option value="assistant">assistant</option>')
+        .append('<option value="system">system</option>')
+        .val('user');
+
+    const $selectRow = $('<div>')
+        .css({ display: 'flex', gap: '8px', marginBottom: '8px' })
+        .append($groupSelect, $roleSelect);
+
     const $textarea = $('<textarea>')
         .addClass('text_pole')
         .val(defaultPrompt || '')
@@ -625,22 +686,43 @@ async function _askPromptBeforeGenerate(defaultPrompt) {
             fontFamily: 'monospace',
             fontSize: '13px',
         });
+
+    $groupSelect.on('change', () => {
+        const g = groups.find(x => String(x.id) === String($groupSelect.val()));
+        if (g) {
+            $textarea.val(g.prompt || '');
+            if (g.role) $roleSelect.val(g.role);
+            toastr.info(`已载入提示词组「${g.name}」`);
+        }
+    });
+
+    // 默认选中「设为默认」的提示词组（若无默认组则保留占位项 + 默认填 defaultPrompt）
+    const defaultGroup = groups.find(g => g.isDefault);
+    if (defaultGroup) {
+        $groupSelect.val(String(defaultGroup.id));
+        $textarea.val(defaultGroup.prompt || '');
+        if (defaultGroup.role) $roleSelect.val(defaultGroup.role);
+    }
+
     const $body = $('<div>').append(
-        $('<p>').text('本次生成的追加指令（留空则使用默认）：').css({ margin: '0 0 6px 0' }),
+        $('<p>').text('提示词组 / 消息角色：').css({ margin: '0 0 4px 0' }),
+        $selectRow,
+        $('<p>').text('本次生成的提示词（支持 {{module_data}} 宏注入该楼层模块数据，留空则使用默认）：').css({ margin: '0 0 6px 0' }),
         $textarea,
     );
     try {
-        const result = await new Popup($body, POPUP_TYPE.CONFIRM, '修改生成提示词', {
+        const result = await new Popup($body, POPUP_TYPE.CONFIRM, '生成提示词', {
             okButton: '生成',
             cancelButton: '取消',
         }).show();
         if (result !== POPUP_RESULT.AFFIRMATIVE) return null;
         const text = String($textarea.val() ?? '');
+        const role = String($roleSelect.val() || 'user');
         if (text.trim() === '') {
-            toastr.warning('追加指令为空，已使用默认追加指令');
-            return defaultPrompt;
+            toastr.warning('提示词为空，已使用默认提示词');
+            return { prompt: defaultPrompt, role: null };
         }
-        return text;
+        return { prompt: text, role };
     } catch (err) {
         errorLog(LOG_TAG, '生成前提示词编辑弹窗失败:', err);
         return null;
@@ -652,8 +734,11 @@ async function _askPromptBeforeGenerate(defaultPrompt) {
  * @param {jQuery} button - 被点击的"重新生成"菜单按钮
  * @param {number} mesId
  * @param {string} [generatorName='modules'] - 'modules' 或 generator.name
+ * @param {Object} [opts]
+ * @param {boolean} [opts.forcePrompt] - 强制弹窗编辑提示词（忽略 askPromptBeforeGenerate 开关）
+ * @param {boolean} [opts.silent] - 静默模式：不更新按钮状态（弹窗按钮用，保持固定 icon）
  */
-async function onRegenerate(button, mesId, generatorName = 'modules') {
+async function onRegenerate(button, mesId, generatorName = 'modules', opts = {}) {
     // 正在生成中（taskRegistry 有 running 任务）→ 不重复生成；若已捕获 prompt 可打开生成中面板
     let runningTask = null;
     taskRegistry.forEach(t => {
@@ -675,13 +760,14 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
         return;
     }
 
-    // 从配置读取选项
+    // 从配置读取选项（2026-08-17 迁移：生成相关配置已移到 module_config.asyncConfig，enabled/customApi 仍在 asyncModule）
     const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
+    const asyncConfig = configManager.getAsyncConfig();
     const isModule = generatorName === 'modules';
-    const useIndependentApi = asyncModule.useIndependentApi || false;
+    const useIndependentApi = asyncConfig.useIndependentApi || false;
     let customApi = null;
     if (useIndependentApi) {
-        const apiConfig = asyncModule.customApi || {};
+        const apiConfig = asyncConfig.customApi || {};
         if (apiConfig.apiurl) {
             customApi = { ...apiConfig };
         }
@@ -689,49 +775,55 @@ async function onRegenerate(button, mesId, generatorName = 'modules') {
 
     const options = {
         generatorName,
-        mode: asyncModule.generationMode || 'pipeline',
+        mode: asyncConfig.generationMode || 'pipeline',
         customApi,
-        showDebug: asyncModule.showDebug !== false,
+        showDebug: asyncConfig.showDebug !== false,
         skipStorage: true, // 先展示不存储
     };
 
     // 模块才需要传提示词配置(其他生成内容从 generator_config 读)
     if (isModule) {
-        options.rawSystemPrompt = asyncModule.rawSystemPrompt || '';
-        options.rawUserPrompt = asyncModule.rawUserPromptTemplate || '';
-        options.pipelineModifier = asyncModule.pipelineModifier || '';
-
-        // 生成前询问：弹窗让用户临时修改「追加指令」（仅走 ST 管线时生效——raw 模式用自定义提示词，无「追加指令」概念）
-        // 取消/关闭弹窗 → 中止本次生成（不发起请求）
-        if (asyncModule.askPromptBeforeGenerate && (asyncModule.generationMode || 'pipeline') !== 'raw') {
-            const editedPrompt = await _askPromptBeforeGenerate(options.pipelineModifier);
-            if (editedPrompt === null) {
-                debugLog(LOG_TAG, `用户取消生成前提示词编辑，中止楼层 ${mesId} ${generatorName} 的生成`);
-                return;
-            }
-            options.pipelineModifier = editedPrompt;
-        }
+        options.rawSystemPrompt = asyncConfig.rawSystemPrompt || '';
+        options.rawUserPrompt = asyncConfig.rawUserPromptTemplate || '';
+        // 默认生成提示词 = 设为默认的提示词组 prompt（无则空）
+        const defaultGroup = (asyncConfig.promptGroups || []).find(g => g.isDefault);
+        options.pipelineModifier = defaultGroup?.prompt || '';
     }
 
-    setRegenButtonState(button, STATE.LOADING, generatorName);
+    // 生成前询问/强制弹窗（模块与 generator 均适用；raw 模式用自定义提示词，无弹窗概念）
+    // 支持选择提示词组（简名）载入 + 消息角色下拉覆盖本次生成的补末尾消息角色
+    // 取消/关闭弹窗 → 中止本次生成（不发起请求）
+    const shouldAsk = opts.forcePrompt === true
+        || (asyncConfig.askPromptBeforeGenerate && (asyncConfig.generationMode || 'pipeline') !== 'raw');
+    if (shouldAsk && (asyncConfig.generationMode || 'pipeline') !== 'raw') {
+        const edited = await _askPromptBeforeGenerate(options.pipelineModifier || '', asyncConfig.promptGroups);
+        if (edited === null) {
+            debugLog(LOG_TAG, `用户取消生成前提示词编辑，中止楼层 ${mesId} ${generatorName} 的生成`);
+            return;
+        }
+        options.pipelineModifier = edited.prompt;
+        if (edited.role) options.fallbackPromptRole = edited.role;
+    }
+
+    if (!opts.silent) setRegenButtonState(button, STATE.LOADING, generatorName);
 
     try {
         const result = await moduleAiGenerator.generate(mesId, options);
 
         if (result.success) {
-            setRegenButtonState(button, STATE.SUCCESS, generatorName);
+            if (!opts.silent) setRegenButtonState(button, STATE.SUCCESS, generatorName);
             infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成成功`);
         } else {
-            setRegenButtonState(button, STATE.ERROR, generatorName);
+            if (!opts.silent) setRegenButtonState(button, STATE.ERROR, generatorName);
             errorLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成失败: ${result.error || '未知错误'}`);
         }
     } catch (err) {
-        setRegenButtonState(button, STATE.ERROR, generatorName);
+        if (!opts.silent) setRegenButtonState(button, STATE.ERROR, generatorName);
         errorLog(LOG_TAG, `消息 ${mesId} ${generatorName} 生成异常:`, err);
     }
 
     // 一定时间后恢复
-    setTimeout(() => setRegenButtonState(button, STATE.IDLE, generatorName, mesId), RESET_DELAY);
+    if (!opts.silent) setTimeout(() => setRegenButtonState(button, STATE.IDLE, generatorName, mesId), RESET_DELAY);
 }
 
 /**
@@ -1059,11 +1151,12 @@ export function initMessageAiButton() {
     $(document).on('click', `.${BUTTON_CLASS}`, onTriggerClick);
 
     // 监听待处理结果清除事件，更新当前菜单中对应按钮的图标
+    // ⚠️ 排除弹窗生成按钮（.mes_ai_prompt_generate）——它保持固定面板 icon，不参与生成状态显示
     window.addEventListener('ccore-pending-cleared', (e) => {
         const { generatorName, mesId } = e.detail;
         // 只更新当前打开菜单对应楼层的按钮
         if (!currentMenu || mesId !== currentMenuMesId) return;
-        const btn = currentMenu.find(`[data-generator="${generatorName}"]`);
+        const btn = currentMenu.find(`[data-generator="${generatorName}"]`).not('.mes_ai_prompt_generate');
         if (btn.length) {
             setRegenButtonState(btn, STATE.IDLE, generatorName, mesId);
         }
@@ -1208,7 +1301,8 @@ function _refreshAllCcButtons() {
 function _refreshMenuRegenButtons() {
     if (!currentMenu || currentMenuMesId === null || currentMenuMesId === undefined) return;
     const mesId = currentMenuMesId;
-    currentMenu.find('[data-generator]').each(function () {
+    // ⚠️ 排除「弹窗生成」按钮（.mes_ai_prompt_generate）——它保持固定面板 icon，不参与生成状态显示
+    currentMenu.find('[data-generator]').not('.mes_ai_prompt_generate').each(function () {
         const generatorName = $(this).attr('data-generator');
         if (!generatorName) return;
         let task = null;

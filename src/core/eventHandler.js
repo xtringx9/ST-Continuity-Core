@@ -144,14 +144,29 @@ export class EventHandler {
         this.registerEvent(event_types.GENERATION_ENDED, () => {
             try {
                 const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
-                if (!asyncModule.enabled) return;
-                if (asyncModule.autoGenerateOnMessageEnd === false) return;
+                const asyncConfig = configManager.getAsyncConfig();
+                if (!asyncModule.enabled) {
+                    debugLog('[EVENTS]自动生成跳过：异步模块存储未开启');
+                    return;
+                }
+                if (asyncConfig.autoGenerateOnMessageEnd === false) {
+                    debugLog('[EVENTS]自动生成跳过：开关 autoGenerateOnMessageEnd 关闭');
+                    return;
+                }
                 if (!isInChatPage()) return;
 
                 const lastIdx = chat.length - 1;
                 if (lastIdx < 0) return;
                 const lastMsg = chat[lastIdx];
                 if (!lastMsg || lastMsg.is_user) return;
+
+                // 默认生成提示词 = 设为默认的提示词组（无则跳过，避免空指令静默失败）
+                const defaultGroup = (asyncConfig.promptGroups || []).find(g => g.isDefault);
+                const defaultPrompt = defaultGroup?.prompt || '';
+                if (!defaultPrompt.trim()) {
+                    debugLog('[EVENTS]自动生成跳过：未配置默认提示词组（提示词组中需勾选「设为默认」）');
+                    return;
+                }
 
                 // 防重：该楼层已有模块生成任务进行中
                 if (taskRegistry.getRunningCountForMes(lastIdx) > 0) {
@@ -160,21 +175,22 @@ export class EventHandler {
                 }
 
                 // 构造生成参数（与 messageAiButton.onRegenerate 模块分支一致）
-                const useIndependentApi = asyncModule.useIndependentApi || false;
+                const useIndependentApi = asyncConfig.useIndependentApi || false;
                 let customApi = null;
                 if (useIndependentApi) {
-                    const apiConfig = asyncModule.customApi || {};
+                    const apiConfig = asyncConfig.customApi || {};
                     if (apiConfig.apiurl) customApi = { ...apiConfig };
                 }
                 const options = {
                     generatorName: 'modules',
-                    mode: asyncModule.generationMode || 'pipeline',
+                    mode: asyncConfig.generationMode || 'pipeline',
                     customApi,
-                    showDebug: asyncModule.showDebug !== false,
+                    showDebug: asyncConfig.showDebug !== false,
                     skipStorage: false, // 自动存储（生成默认追加新版本）
-                    rawSystemPrompt: asyncModule.rawSystemPrompt || '',
-                    rawUserPrompt: asyncModule.rawUserPromptTemplate || '',
-                    pipelineModifier: asyncModule.pipelineModifier || '',
+                    rawSystemPrompt: asyncConfig.rawSystemPrompt || '',
+                    rawUserPrompt: asyncConfig.rawUserPromptTemplate || '',
+                    // 默认生成提示词 = 默认提示词组的 prompt
+                    pipelineModifier: defaultPrompt,
                 };
 
                 infoLog(`[EVENTS]消息接收完毕，自动触发楼层 ${lastIdx} 的模块异步生成`);

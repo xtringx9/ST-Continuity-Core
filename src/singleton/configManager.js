@@ -2,7 +2,7 @@
 import { extension_settings, getContext } from "../../../../../extensions.js";
 import { saveSettings } from "../../../../../../script.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
-import { normalizeConfig, DEFAULT_CONFIG_VALUES, normalizeTristatePrompt } from '../config/moduleConfigTemplate.js';
+import { normalizeConfig, DEFAULT_CONFIG_VALUES, normalizeTristatePrompt, normalizeAsyncConfig, DEFAULT_ASYNC_CONFIG } from '../config/moduleConfigTemplate.js';
 import { normalizeGeneratorConfig, DEFAULT_GENERATOR_CONFIG_VALUES } from '../config/generatorConfigTemplate.js';
 import { normalizePhoneConfig, DEFAULT_PHONE_CONFIG_VALUES } from '../config/phoneConfigTemplate.js';
 import { normalizeCharacterBindingConfig, DEFAULT_CHARACTER_BINDING_VALUES } from '../config/characterBindingTemplate.js';
@@ -51,25 +51,9 @@ export const DEFAULT_EXTENSION_CONFIG = {
     module: { // 前端模块域合集（模块存储 / UI 呈现 / 元数据）
         asyncModule: {
             enabled: false, // 异步模块存储（需服务器插件）
-            snapshotInterval: 5, // 快照间隔（层）
-            generationMode: 'pipeline', // AI 生成模式: 'pipeline' | 'raw'
-            useIndependentApi: false, // 是否使用独立 API（false=主API, true=独立API）
-            customApi: { // 独立 API 配置（useIndependentApi=true 时生效）
-                apiurl: '',
-                key: '',
-                model: '',
-                source: 'openai',
-                temperature: 0.3,
-                max_tokens: 0, // 0=不限制
-            },
-            rawSystemPrompt: '你是一个模块数据提取助手。请从用户提供的文本中提取模块数据，使用 [模块名|键:值|键:值] 格式输出。只输出模块数据，不要输出其他内容。', // raw 模式的系统提示词
-            rawUserPromptTemplate: '--- 楼层 {{mesId}} ({{senderType}}) ---\n{{messageText}}', // raw 模式的用户提示词模板
-            pipelineModifier: '请根据以上对话内容，生成模块数据。使用 [模块名|键:值|键:值] 格式输出，每个模块占一行。只输出模块数据，不要输出其他内容。', // pipeline 模式追加的指令
-            showDebug: true, // 生成后是否显示调试面板
-            pushUserMessageAsLast: false, // 重新生成时：true=生成指令 push 进 chat 作为最后 user 消息({{lastUserMessage}}可取)；false=经 quietPrompt 传入(system 角色,末尾)
-            fallbackPromptRole: 'user', // 组装后补末尾生成指令消息的角色：'user'|'assistant'|'system'（默认 user）
-            askPromptBeforeGenerate: false, // 点击小 Cc 生成按钮时弹出输入框，默认填「追加指令」，可临时修改后替代默认提示词（仅模块生成）
-            autoGenerateOnMessageEnd: true, // 聊天消息收到完毕（GENERATION_ENDED）时自动触发模块异步生成（需 asyncModule.enabled）
+            // ⚠️ 其余异步配置已迁移到 module_config.asyncConfig（2026-08-17/18）：
+            // generationMode/useIndependentApi/rawSystemPrompt/rawUserPromptTemplate/showDebug/
+            // pushUserMessageAsLast/askPromptBeforeGenerate/autoGenerateOnMessageEnd/snapshotInterval/promptGroups/customApi
         },
         buttonType: "embedded", // 按钮类型，默认嵌入按钮
         autoInject: false, // 自动注入开关，默认关闭
@@ -264,19 +248,89 @@ class ConfigManager {
                     }
                 }
                 this.isModuleConfigLoaded = true;
+                // asyncConfig 迁移（分两次）：
+                //  ① 模块配置无 asyncConfig 键（最旧版本）→ 从旧 extension_config.module.asyncModule 整体搬（含 customApi）
+                if (this.moduleConfig.asyncConfig === undefined) {
+                    const migrated = this._migrateLegacyAsyncToAsyncConfig();
+                    if (migrated) {
+                        debugLog('旧 asyncModule 配置已迁移到 module_config.asyncConfig');
+                    }
+                }
+                // ② asyncConfig 已存在但缺 customApi（8-17 首次迁移后、8-18 customApi 并入前生成的）→ 补充迁移 customApi
+                if (this.moduleConfig.asyncConfig && this.moduleConfig.asyncConfig.customApi === undefined) {
+                    const legacyApi = extension_settings[extensionName]?.[EXTENSION_CONFIG_KEY]?.module?.asyncModule?.customApi;
+                    if (legacyApi && typeof legacyApi === 'object' && Object.keys(legacyApi).length > 0) {
+                        this.moduleConfig.asyncConfig.customApi = legacyApi;
+                        this.moduleConfig.asyncConfig = normalizeAsyncConfig(this.moduleConfig.asyncConfig);
+                        // 清除旧 asyncModule.customApi
+                        const oldModule = extension_settings[extensionName]?.[EXTENSION_CONFIG_KEY]?.module;
+                        if (oldModule?.asyncModule?.customApi !== undefined) {
+                            delete oldModule.asyncModule.customApi;
+                        }
+                        extension_settings[extensionName][MODULE_CONFIG_KEY] = this.moduleConfig;
+                        saveSettings();
+                        debugLog('补充迁移：旧 asyncModule.customApi 已并入 asyncConfig.customApi');
+                    }
+                }
                 debugLog('模块配置已从扩展设置加载到内存缓存:', this.moduleConfig);
                 return;
             }
 
             // 如果没有配置，使用默认配置
-            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES };
+            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES, asyncConfig: { ...DEFAULT_ASYNC_CONFIG, promptGroups: [] } };
             this.isModuleConfigLoaded = true;
             debugLog('使用默认配置初始化内存缓存');
         } catch (error) {
             errorLog('加载模块配置失败:', error);
             // 加载失败时使用默认配置
-            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES };
+            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES, asyncConfig: { ...DEFAULT_ASYNC_CONFIG, promptGroups: [] } };
             this.isModuleConfigLoaded = true;
+        }
+    }
+
+    /**
+     * 迁移旧 asyncModule 配置（extension_config.module.asyncModule）→ module_config.asyncConfig。
+     * 迁移字段：除 enabled 外的全部字段（2026-08-17 用户拍板；2026-08-18 customApi 一并迁入）。
+     * 迁移后旧 asyncModule 仅保留 enabled。
+     * @returns {boolean} 是否发生迁移
+     */
+    _migrateLegacyAsyncToAsyncConfig() {
+        try {
+            const legacy = extension_settings[extensionName]?.[EXTENSION_CONFIG_KEY]?.module?.asyncModule;
+            if (!legacy || typeof legacy !== 'object') return false;
+
+            const MOVE_KEYS = [
+                'snapshotInterval', 'generationMode', 'useIndependentApi',
+                'rawSystemPrompt', 'rawUserPromptTemplate', 'pipelineModifier',
+                'showDebug', 'pushUserMessageAsLast', 'fallbackPromptRole',
+                'askPromptBeforeGenerate', 'autoGenerateOnMessageEnd', 'customApi',
+            ];
+            const migrated = {};
+            let any = false;
+            for (const k of MOVE_KEYS) {
+                if (legacy[k] !== undefined) {
+                    migrated[k] = legacy[k];
+                    any = true;
+                }
+            }
+            if (!any) return false;
+
+            this.moduleConfig.asyncConfig = normalizeAsyncConfig({ ...migrated });
+
+            // 清理旧 asyncModule（仅保留 enabled/customApi）
+            const oldModule = extension_settings[extensionName][EXTENSION_CONFIG_KEY].module;
+            if (oldModule?.asyncModule) {
+                for (const k of MOVE_KEYS) {
+                    delete oldModule.asyncModule[k];
+                }
+            }
+            // 落盘 module_config + extension_config
+            extension_settings[extensionName][MODULE_CONFIG_KEY] = this.moduleConfig;
+            saveSettings();
+            return true;
+        } catch (error) {
+            errorLog('迁移旧 asyncModule 到 asyncConfig 失败:', error);
+            return false;
         }
     }
 
@@ -714,6 +768,35 @@ class ConfigManager {
             this.loadExtensionConfig();
         }
         return this.extensionConfig?.module || DEFAULT_EXTENSION_CONFIG.module;
+    }
+
+    /**
+     * 获取异步生成配置（module_config.asyncConfig，与 globalSettings/modules 平级）。
+     * 2026-08-17 迁移：旧 extension_config.module.asyncModule 的非 enabled/customApi 字段已整体移入。
+     * @returns {Object} asyncConfig（含默认值合并）
+     */
+    getAsyncConfig() {
+        if (!this.isModuleConfigLoaded) {
+            this.loadModuleConfig();
+        }
+        const raw = this.moduleConfig?.asyncConfig;
+        return normalizeAsyncConfig(raw);
+    }
+
+    /**
+     * 写入并落盘异步生成配置（module_config.asyncConfig）。
+     * @param {Object} config
+     */
+    setAsyncConfig(config) {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，setAsyncConfig 阻止自动保存。');
+            return;
+        }
+        if (typeof config !== 'object' || config === null) return;
+        const mc = this.getModuleConfig();
+        mc.asyncConfig = normalizeAsyncConfig(config);
+        this.scheduleAutoSave();
+        debugLog('异步生成配置已更新到内存缓存');
     }
 
     /**

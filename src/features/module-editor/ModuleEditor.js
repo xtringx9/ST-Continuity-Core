@@ -7,6 +7,8 @@ import { translate } from '../../../../../../i18n.js';
 import configManager from '../../singleton/configManager.js';
 import { debugLog, infoLog } from '../../utils/logger.js';
 import { renderGlobalSettings } from './GlobalSettings.js';
+import { renderAsyncSettings } from './AsyncSettings.js';
+import { addAiButtonsToAllMessages } from '../../ui/messageAiButton.js';
 import { renderToolbox } from './Toolbox.js';
 import { initCharacterBinding } from './CharacterBinding.js';
 import { parseModuleString, validateModuleString } from '../../modules/moduleParser.js';
@@ -23,6 +25,10 @@ let originalModules = []; // 保存时用于比较的原始模块列表
 let currentModules = []; // 当前编辑的模块列表副本
 let originalGlobalSettings = {}; // 保存时用于比较的原始全局设置
 let currentGlobalSettings = {}; // 当前编辑的全局设置副本
+let originalAsyncConfig = {}; // 保存时用于比较的原始异步配置
+let currentAsyncConfig = {}; // 当前编辑的异步配置副本（module_config.asyncConfig）
+let originalAsyncModule = {}; // 原始 asyncModule（enabled/customApi）
+let currentAsyncModule = {}; // 当前编辑的 asyncModule（enabled/customApi）
 let selectedModuleId = null; // 记录当前选中的模块 ID
 let activeDetailTab = 'module-detail-settings'; // 记录当前详情页的活动Tab
 let activeViewSectionId = 'view-modules'; // 当前主视图的活动ID
@@ -106,6 +112,13 @@ export function initModuleEditor(iframeDocument) {
     originalGlobalSettings = JSON.parse(JSON.stringify(configManager.getGlobalSettings()));
     currentGlobalSettings = JSON.parse(JSON.stringify(originalGlobalSettings));
 
+    // 加载异步配置（module_config.asyncConfig 为主体；asyncModule 仅剩 enabled 开关）
+    originalAsyncConfig = JSON.parse(JSON.stringify(configManager.getAsyncConfig()));
+    currentAsyncConfig = JSON.parse(JSON.stringify(originalAsyncConfig));
+    const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
+    originalAsyncModule = JSON.parse(JSON.stringify({ enabled: asyncModule.enabled }));
+    currentAsyncModule = JSON.parse(JSON.stringify(originalAsyncModule));
+
     // 初始化视图
     renderModuleList();
 
@@ -125,6 +138,7 @@ export function initModuleEditor(iframeDocument) {
 
     renderToolbox(doc, currentModules);
     renderGlobalSettings(doc, currentGlobalSettings, checkForChanges);
+    renderAsyncSettings(doc, currentAsyncConfig, currentAsyncModule, checkForChanges);
 
     // 初始化角色绑定页（左栏角色树 + 右栏编辑器骨架）
     initCharacterBinding(doc);
@@ -708,7 +722,9 @@ function deleteModule(index) {
 function checkForChanges() {
     const modulesChanged = JSON.stringify(originalModules) !== JSON.stringify(currentModules);
     const settingsChanged = JSON.stringify(originalGlobalSettings) !== JSON.stringify(currentGlobalSettings);
-    const hasChanges = modulesChanged || settingsChanged;
+    const asyncChanged = JSON.stringify(originalAsyncConfig) !== JSON.stringify(currentAsyncConfig)
+        || JSON.stringify(originalAsyncModule) !== JSON.stringify(currentAsyncModule);
+    const hasChanges = modulesChanged || settingsChanged || asyncChanged;
 
     const saveBtn = doc.getElementById('header-save-btn');
     if (saveBtn) {
@@ -816,7 +832,11 @@ function clearAllModules() {
 }
 
 function confirmAndSave() {
-    const { html, hasChanges } = generateChangesSummary(originalModules, currentModules, originalGlobalSettings, currentGlobalSettings);
+    const summary = generateChangesSummary(originalModules, currentModules, originalGlobalSettings, currentGlobalSettings);
+    // asyncConfig / asyncModule 变化不在 ChangesSummary 的 diff 内，单独合并到 hasChanges（保存按钮/确认弹窗可保存）
+    const asyncChanged = JSON.stringify(originalAsyncConfig) !== JSON.stringify(currentAsyncConfig)
+        || JSON.stringify(originalAsyncModule) !== JSON.stringify(currentAsyncModule);
+    const { html, hasChanges } = { html: summary.html, hasChanges: summary.hasChanges || asyncChanged };
 
     const dialog = new IframeDialog(doc);
 
@@ -925,13 +945,30 @@ function computeRenameMigrations(original, current) {
 function saveAll() {
     configManager.setModules(currentModules);
     configManager.setGlobalSettings(currentGlobalSettings);
-    // 取消 setModules/setGlobalSettings 触发的延迟自动保存，直接立即保存
+    configManager.setAsyncConfig(currentAsyncConfig);
+
+    // asyncModule（仅 enabled）写回 extension_config.module.asyncModule；customApi 已并入 asyncConfig
+    const moduleDomain = configManager.getModuleDomainConfig();
+    moduleDomain.asyncModule = moduleDomain.asyncModule || {};
+    moduleDomain.asyncModule.enabled = currentAsyncModule.enabled === true;
+    configManager.setExtensionConfig(configManager.getExtensionConfig());
+
+    // 取消 setModules/setGlobalSettings/setAsyncConfig 触发的延迟自动保存，直接立即保存
     if (configManager.autoSaveTimeout) {
         clearTimeout(configManager.autoSaveTimeout);
         configManager.autoSaveTimeout = null;
     }
     configManager.saveModuleConfigNow();
     infoLog("[ModuleEditor] 所有配置已保存");
+
+    // 异步开关变化：刷新每条消息小 Cc 按钮显隐（与 settings-panel 原 onAsyncEnabledToggle 行为一致）
+    if ((originalAsyncModule.enabled || false) !== (currentAsyncModule.enabled || false)) {
+        try {
+            addAiButtonsToAllMessages();
+        } catch (err) {
+            debugLog("[ModuleEditor] 刷新小 Cc 按钮失败:", err);
+        }
+    }
 
     // 模块/变量改名：迁移绑定覆盖（按名保留旧 override）
     const { moduleRenames, variableRenames } = computeRenameMigrations(originalModules, currentModules);
@@ -947,6 +984,8 @@ function saveAll() {
     // 保存后，将当前状态设为新的"原始"状态
     originalModules = JSON.parse(JSON.stringify(currentModules));
     originalGlobalSettings = JSON.parse(JSON.stringify(currentGlobalSettings));
+    originalAsyncConfig = JSON.parse(JSON.stringify(currentAsyncConfig));
+    originalAsyncModule = JSON.parse(JSON.stringify(currentAsyncModule));
 
     checkForChanges(); // 更新按钮状态（应变为禁用）
     showSavedFeedback();
@@ -955,8 +994,11 @@ function saveAll() {
 function restoreAll() {
     currentModules = JSON.parse(JSON.stringify(originalModules));
     currentGlobalSettings = JSON.parse(JSON.stringify(originalGlobalSettings));
+    currentAsyncConfig = JSON.parse(JSON.stringify(originalAsyncConfig));
+    currentAsyncModule = JSON.parse(JSON.stringify(originalAsyncModule));
     renderModuleList();
     renderGlobalSettings(doc, currentGlobalSettings, checkForChanges);
+    renderAsyncSettings(doc, currentAsyncConfig, currentAsyncModule, checkForChanges);
     renderToolbox(doc, currentModules);
 
     // 如果有模块被选中，需要重新渲染详情视图以反映撤销的更改

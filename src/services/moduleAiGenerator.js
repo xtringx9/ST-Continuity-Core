@@ -48,6 +48,25 @@ function _extractTopLevelModules(text) {
     return { modules: results.join('\n') };
 }
 
+/**
+ * 展开生成提示词中的简单宏（2026-08-17 新增）。
+ * 支持：
+ *   {{module_data}} → 该楼层 floor 里当前激活的模块数据文本（readFloorModules），便于提示词组让 AI 二次修改。
+ * @param {string} text 提示词文本
+ * @param {number} mesId 目标楼层
+ * @returns {string}
+ */
+function _expandPromptMacros(text, mesId) {
+    if (!text || typeof text !== 'string') return text;
+    if (!text.includes('{{module_data}}')) return text;
+    const message = chat[mesId];
+    const swipeId = message?.swipe_id ?? 0;
+    const moduleData = readFloorModules(mesId, swipeId) || '';
+    const expanded = text.split('{{module_data}}').join(moduleData);
+    debugLog(LOG_TAG, `宏展开：{{module_data}} → ${moduleData.length} 字符（楼层 ${mesId}）`);
+    return expanded;
+}
+
 // === 待处理结果状态管理 ===
 // 手动重新生成(skipStorage=true)成功后,结果按 聊天标识 + generatorName + mesId 组合暂存
 // 不同聊天/角色/楼层的待处理结果互相独立
@@ -262,6 +281,7 @@ export const moduleAiGenerator = {
             responseLength,
             showDebug: shouldShowDebug = true,
             skipStorage = false,
+            fallbackPromptRole, // 可选：本次生成的补末尾消息角色覆盖（提示词组 role）
         } = options;
 
         const isModule = generatorName === 'modules';
@@ -336,7 +356,8 @@ export const moduleAiGenerator = {
             if (mode === 'raw') {
                 effectiveRawSystemPrompt = combinedPrompt;
             } else {
-                effectivePipelineModifier = combinedPrompt;
+                // 弹窗编辑的提示词（pipelineModifier 已传）优先于 generator_config 预设
+                effectivePipelineModifier = pipelineModifier || combinedPrompt;
             }
 
             debugLog(LOG_TAG, `生成内容 ${generatorName}(${generator.displayName}) 选中 ${selectedItems.length} 条提示词`);
@@ -379,11 +400,11 @@ export const moduleAiGenerator = {
                 return { success: false, text: '', debug: null, storedCount: 0 };
             }
 
-            // 生成指令作为最后一条 user 消息
-            const quietPrompt = effectivePipelineModifier;
+            // 生成指令作为最后一条 user 消息（先展开简单宏，如 {{module_data}} → 该楼层 floor 的模块数据）
+            const quietPrompt = _expandPromptMacros(effectivePipelineModifier, truncateToMesId);
 
             // 开关：true=push 进 chat 作为最后 user 消息（{{lastUserMessage}} 可取）；false=经 quietPrompt（system 角色末尾）
-            const pushAsLastUser = !!configManager.getModuleDomainConfig().asyncModule?.pushUserMessageAsLast;
+            const pushAsLastUser = !!configManager.getAsyncConfig().pushUserMessageAsLast;
 
             callOptions = {
                 mode: 'pipeline',
@@ -392,6 +413,8 @@ export const moduleAiGenerator = {
                 pushAsLastUser,
                 customApi,
                 responseLength,
+                // 提示词组 role 覆盖（可选，弹窗生成时传入）
+                ...(fallbackPromptRole ? { fallbackPromptRole } : {}),
             };
 
             sentInfo = { type: 'pipeline', quietPrompt, truncateToMesId, pushAsLastUser };

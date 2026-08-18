@@ -48,6 +48,68 @@ export function emptyTristatePrompt() {
 }
 
 /**
+ * 异步配置默认值（module_config.asyncConfig，与 globalSettings/modules 平级）。
+ * 2026-08-17 迁移：原 extension_config.module.asyncModule 中除 enabled/customApi 外的字段整体移入。
+ */
+export const DEFAULT_ASYNC_CONFIG = {
+    snapshotInterval: 5, // 快照间隔（层）
+    generationMode: 'pipeline', // AI 生成模式: 'pipeline' | 'raw'
+    useIndependentApi: false, // 是否使用独立 API（false=主API, true=独立API）
+    rawSystemPrompt: '你是一个模块数据提取助手。请从用户提供的文本中提取模块数据，使用 [模块名|键:值|键:值] 格式输出。只输出模块数据，不要输出其他内容。', // raw 模式的系统提示词
+    rawUserPromptTemplate: '--- 楼层 {{mesId}} ({{senderType}}) ---\n{{messageText}}', // raw 模式的用户提示词模板
+    showDebug: true, // 生成完成后是否弹出面板手动确认（false=自动存储）
+    pushUserMessageAsLast: false, // 重新生成时：true=生成指令 push 进 chat 作为最后 user 消息；false=经 quietPrompt 传入（UI 暂隐藏，保留配置）
+    askPromptBeforeGenerate: false, // 点击小 Cc 生成按钮时弹出输入框（UI 暂隐藏，保留配置）
+    autoGenerateOnMessageEnd: true, // 聊天消息收到完毕（GENERATION_ENDED）时自动触发模块异步生成
+    promptGroups: [], // 提示词组：[{ id, name(简名), role(消息角色), prompt(提示词), isDefault }]
+    customApi: { // 独立 API 配置（useIndependentApi=true 时生效；2026-08-18 从 asyncModule.customApi 迁入）
+        apiurl: '',
+        key: '',
+        model: '',
+        source: 'openai',
+        temperature: 0.3,
+        max_tokens: 0, // 0=不限制
+    },
+    // ⚠️ 2026-08-18 移除字段：pipelineModifier（旧追加指令）/ defaultPrompt / fallbackPromptRole——
+    //   默认生成提示词 = 设为默认的提示词组（promptGroups 中 isDefault 的 prompt）；提示词组为空则默认提示词为空；
+    //   消息角色由提示词组 role 承担（aiCaller 默认回退 'user'）。
+};
+
+/**
+ * 规范化 asyncConfig（合并默认值 + 规范化 promptGroups/customApi）。
+ * @param {Object} config
+ * @returns {Object}
+ */
+export function normalizeAsyncConfig(config) {
+    const base = { ...DEFAULT_ASYNC_CONFIG, ...(config && typeof config === 'object' ? config : {}) };
+    const groups = Array.isArray(base.promptGroups) ? base.promptGroups : [];
+    let normalizedGroups = groups.map((g, i) => ({
+        id: String(g?.id ?? `pg_${Date.now()}_${i}`),
+        name: String(g?.name || ''),
+        role: ['user', 'assistant', 'system'].includes(g?.role) ? g.role : 'user',
+        prompt: String(g?.prompt || ''),
+        isDefault: !!g?.isDefault,
+    }));
+    // 只有一组提示词组 → 自动设为默认（2026-08-18 用户拍板）
+    if (normalizedGroups.length === 1) {
+        normalizedGroups[0].isDefault = true;
+    }
+    const api = base.customApi && typeof base.customApi === 'object' ? base.customApi : {};
+    return {
+        ...base,
+        customApi: {
+            apiurl: String(api.apiurl || ''),
+            key: String(api.key || ''),
+            model: String(api.model || ''),
+            source: ['openai', 'claude', 'custom'].includes(api.source) ? api.source : 'openai',
+            temperature: typeof api.temperature === 'number' ? api.temperature : 0.3,
+            max_tokens: typeof api.max_tokens === 'number' ? api.max_tokens : 0,
+        },
+        promptGroups: normalizedGroups,
+    };
+}
+
+/**
  * 模块配置模板对象
  * 定义了完整的模块配置结构，包括模块和变量的所有字段
  */
@@ -370,7 +432,8 @@ export const DEFAULT_CONFIG_VALUES = {
     },
     globalSettings: {
     },
-    modules: []
+    modules: [],
+    asyncConfig: { ...DEFAULT_ASYNC_CONFIG, promptGroups: [] },
 };
 
 
@@ -519,6 +582,7 @@ export function normalizeConfig(config, extension_config = null) {
             timeFormat: config.globalSettings?.timeFormat || '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}',
         },
         modules: [],
+        asyncConfig: normalizeAsyncConfig(config.asyncConfig),
     };
 
     // 规范化每个模块
