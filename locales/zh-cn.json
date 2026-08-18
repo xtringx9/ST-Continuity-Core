@@ -125,7 +125,6 @@
     "ccore_label_debug_general": "通用",
     "ccore_label_debug_server": "服务器",
     "ccore_btn_debug_cache": "打印缓存数据",
-    "ccore_btn_debug_panel": "调试面板（测试）",
     "ccore_btn_debug_config": "打印配置数据",
     "ccore_btn_debug_context": "打印上下文数据",
     "ccore_btn_debug_user_handle": "打印用户Handle",
@@ -432,6 +431,7 @@
     "ccore_settings_pipeline_modifier_hint": "追加到提示词末尾的指令（留空则不追加）",
     "ccore_settings_custom_api_source": "API 类型:",
     "ccore_history_title": "生成历史",
+    "ccore_records_title": "生成记录",
     "ccore_history_pending": "待处理",
     "ccore_history_all": "全部",
     "ccore_history_empty": "暂无生成记录"

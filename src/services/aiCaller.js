@@ -24,34 +24,20 @@ const LOG_TAG = 'AiCaller';
 const INTERCEPT_MOCK_RESPONSE = '[拦截测试] aiCaller 发送已被调试开关拦截，未实际调用 API。';
 
 /**
- * 组装失败时的兜底数组构造：
- * 真实 chat 0..truncateToMesId 楼层 → { role, content } 数组（跳过 is_system 隐藏楼层），
- * 末尾追加生成指令消息（push 模式已 push 到 chat 末尾，其 is_system falsy 会被包含，此处不重复追加）。
- * @param {number} truncateToMesId 目标楼层（包含）
+ * 组装失败时的兜底数组构造（2026-08-18 简化，用户拍板）：
+ * 不塞历史楼层，仅一条「提示词 + 角色」。
+ * @param {number} truncateToMesId 目标楼层（保留签名兼容调用方，不再用于遍历）
  * @param {string} quietPrompt 生成指令
  * @param {string} fallbackPromptRole 补末尾消息角色
- * @param {boolean} alreadyPushed 是否已走 pushpop（chat 末尾已有生成指令消息）
+ * @param {boolean} alreadyPushed 是否已走 pushpop（保留签名兼容；兜底数组与 pushpop 无关）
  * @returns {Array<{role:string, content:string}>}
  */
 function _buildFallbackChat(truncateToMesId, quietPrompt, fallbackPromptRole, alreadyPushed) {
     const out = [];
-    const upper = (typeof truncateToMesId === 'number' && truncateToMesId >= 0) ? truncateToMesId : chat.length - 1;
-    for (let i = 0; i <= upper && i < chat.length; i++) {
-        const m = chat[i];
-        if (!m || m.is_system) continue;
-        // 组装完成时隐藏楼层已还原，此处 is_system 已是原始值；仍跳过原本就隐藏的楼层
-        let role = m.is_user ? 'user' : 'assistant';
-        if (m.role === 'system') role = 'system';
-        const content = m.mes || m.content || '';
-        if (!content) continue;
-        out.push({ role, content });
-    }
-    // push 模式（或非 user 末层兜底 pushpop）已在 chat 末尾临时 push 生成指令消息，
-    // 上面的循环会把它一并带上（is_user=true），无需重复追加。
-    if (!alreadyPushed && quietPrompt) {
+    if (quietPrompt) {
         out.push({ role: fallbackPromptRole, content: quietPrompt });
     }
-    debugLog(LOG_TAG, `兜底数组构造完成：${out.length} 条（0..${upper}，push=${alreadyPushed}）`);
+    debugLog(LOG_TAG, `兜底数组构造完成：${out.length} 条（仅提示词+角色）`);
     return out;
 }
 

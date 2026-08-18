@@ -12,7 +12,6 @@ import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../co
 import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
 import { parseNestedModules } from '../core/moduleExtractor.js';
 import { taskRegistry } from '../core/taskRegistry.js';
-import { showDebugPanel } from './generatorDebugPanel.js';
 import { CONTEXT_MSG_CONTAINER_ID } from '../core/context-ui/containerManager.js';
 
 const LOG_TAG = '[MessageAiButton]';
@@ -739,25 +738,44 @@ async function _askPromptBeforeGenerate(defaultPrompt, promptGroups = []) {
  * @param {boolean} [opts.silent] - 静默模式：不更新按钮状态（弹窗按钮用，保持固定 icon）
  */
 async function onRegenerate(button, mesId, generatorName = 'modules', opts = {}) {
-    // 正在生成中（taskRegistry 有 running 任务）→ 不重复生成；若已捕获 prompt 可打开生成中面板
-    let runningTask = null;
-    taskRegistry.forEach(t => {
-        if (t.status === 'running' && t.mesId === mesId && t.generatorName === generatorName) runningTask = t;
-    });
-    if (runningTask) {
-        // 生成中：已捕获到 prompt 则打开生成中调试面板（不重复发起生成）
-        if (runningTask.debugData) {
-            showDebugPanel(runningTask.debugData);
-        } else {
-            toastr.info('该楼层此内容正在生成中…');
+    // 弹窗按钮（forcePrompt）允许多并发：跳过防重，直接走弹窗流程再发起新生成；
+    // 普通生成按钮保持防重（running → 打开生成中面板 / pending → 重新打开待处理面板）。
+    if (!opts.forcePrompt) {
+        // 正在生成中（taskRegistry 有 running 任务）→ 不重复生成；若已捕获 prompt 可打开生成中面板
+        let runningTask = null;
+        taskRegistry.forEach(t => {
+            if (t.status === 'running' && t.mesId === mesId && t.generatorName === generatorName) runningTask = t;
+        });
+        if (runningTask) {
+            // 生成中：已捕获到 debugData 则打开生成记录面板的运行中详情（不重复发起生成）
+            if (runningTask.debugData) {
+                window.openGenerationRecords?.({
+                    view: 'detail',
+                    running: {
+                        taskKey: runningTask.debugData.taskKey || '',
+                        generatorName,
+                        mesId,
+                        debugData: runningTask.debugData,
+                    },
+                    filters: {
+                        gen: generatorName,
+                        char: '',
+                        chat: '',
+                        floor: String(mesId),
+                        status: 'all',
+                    },
+                });
+            } else {
+                toastr.info('该楼层此内容正在生成中…');
+            }
+            return;
         }
-        return;
-    }
 
-    // 有该 generator + 楼层的未处理结果时，重新打开调试面板而非发起新生成
-    if (hasPendingResult(generatorName, mesId)) {
-        reopenPendingDebugPanel(generatorName, mesId);
-        return;
+        // 有该 generator + 楼层的未处理结果时，重新打开调试面板而非发起新生成
+        if (hasPendingResult(generatorName, mesId)) {
+            reopenPendingDebugPanel(generatorName, mesId);
+            return;
+        }
     }
 
     // 从配置读取选项（2026-08-17 迁移：生成相关配置已移到 module_config.asyncConfig，enabled/customApi 仍在 asyncModule）

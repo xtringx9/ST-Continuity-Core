@@ -47,6 +47,10 @@ import { initChatu8Launcher } from "./src/features/chatu8-launcher/chatu8Launche
 // 发送键劫持设置面板：QR 下拉填充
 import { populateSendHijackOptions } from "./src/ui/extensionSettingsManager.js";
 
+// 生成记录面板（副作用导入：挂载 window.openGenerationRecords / updateRunningRecord / closeRunningRecord，
+// 供 moduleAiGenerator / messageAiButton / EntryButton 调用，避免反向 import 循环依赖）
+import "./src/features/generation-records/generationRecordsPanel.js";
+
 // infoLog("♥️ Continuity Core LOADED!");
 
 jQuery(async function () {

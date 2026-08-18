@@ -11,7 +11,6 @@ import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { expandPrompts } from '../utils/variableReplacer.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
-import { showDebugPanel, updateDebugPanelResponse, updateDebugPanelPrompt, updateDebugPanelApi, isDebugPanelOpen, finishDebugPanel } from '../ui/generatorDebugPanel.js';
 import { readFloorModules, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, getActiveGeneratorSwipe } from '../core/floorModuleStore.js';
 import { setGenerationContextEndFloor, setGenerationContextMode, clearGenerationContext } from '../core/generationContext.js';
 import { taskRegistry } from '../core/taskRegistry.js';
@@ -253,7 +252,6 @@ function _createSaveCallback(ctx) {
             clearPendingResult(generatorName, mesId);
         }
         infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认，${mode}）`);
-        _autoOpenNextPending(generatorName, mesId, recordId);
     };
 }
 
@@ -269,30 +267,16 @@ function _createDiscardCallback(generatorName, mesId, recordId) {
             clearPendingResult(generatorName, mesId);
         }
         infoLog(LOG_TAG, `用户抛弃了 楼层${mesId} ${generatorName} 的生成结果`);
-        _autoOpenNextPending(generatorName, mesId, recordId);
     };
 }
 
 /**
- * 处理（保存/抛弃）某条记录后，若该楼层还有未处理的 pending 记录，自动打开下一条（历史面板/调试面板连续处理体验）。
- * @param {string} generatorName
- * @param {number} mesId
- * @param {string} processedId 刚处理的记录 id（跳过它）
+ * 处理（保存/抛弃）后自动跳下一条 pending：由生成记录面板的 onPendingChanged 统一负责
+ * （详情中当前记录已处理 → 跳结果集内下一条 pending，无则回列表），此处无需重复处理。
  */
-function _autoOpenNextPending(generatorName, mesId, processedId) {
-    try {
-        const records = _getPendingRecords(generatorName, mesId);
-        const next = records.find(r => r.status === 'pending' && r.id !== processedId);
-        if (next) {
-            showRecordDebugPanel(next);
-        }
-    } catch (err) {
-        errorLog(LOG_TAG, '自动打开下一条待处理记录失败:', err);
-    }
-}
 
 /**
- * 创建"查看当前内容"回调（供调试面板按钮调用，异步返回当前存储内容）
+ * 创建"查看当前内容"回调（供详情面板按钮调用，异步返回当前存储内容）
  */
 function _createLoadCurrentCallback(ctx) {
     return async () => {
@@ -388,38 +372,27 @@ export function getPendingCountForMes(mesId) {
 }
 
 /**
- * 在调试面板展示某条生成记录（历史面板用）。
- * 待处理(pending)项重新绑定保存/抛弃/查看当前内容回调（recordId 只处理本条）；
- * 已处理项只读（无操作按钮）。
+ * 在生成记录面板展示某条生成记录（自动跳下一条 / 历史面板点卡片用）。
+ * 详情视图由 generationRecordsPanel 负责：定位记录 + buildRecordCallbacks 绑定保存/抛弃。
  * @param {object} record { id, status, generatorName, mesId, context, debugData, note? }
  */
 export function showRecordDebugPanel(record) {
     if (!record) return;
-    // 浅拷贝 debugData，避免改动污染记录本身（多次打开标题/回调稳定）
-    const debugData = { ...(record.debugData || {}) };
-    if (record.status === 'pending') {
-        const context = { ...(record.context || {}), recordId: record.id };
-        debugData.onSave = _createSaveCallback(context);
-        debugData.onDiscard = _createDiscardCallback(record.generatorName, record.mesId, record.id);
-        debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
-    } else {
-        delete debugData.onSave;
-        delete debugData.onDiscard;
-    }
-    debugData.title = `#${record.mesId} ${record.generatorName} · ${record.status}`;
-    debugData.statusLabel = record.status;
-    debugData.statusType = record.status === 'pending' ? 'info' : (record.status === 'error' ? 'fail' : 'success');
-    debugData.titleBody = '';
-    // 历史导航（调试面板 ‹ › 切换；onNavigate 由本函数闭包提供，避免 generatorDebugPanel 反向依赖 moduleAiGenerator）
-    const records = _getPendingRecords(record.generatorName, record.mesId);
-    if (records.length > 1) {
-        debugData.historyNav = {
-            records,
-            currentId: record.id,
-            onNavigate: (rec) => showRecordDebugPanel(rec),
-        };
-    }
-    showDebugPanel(debugData);
+    // 优先用平铺记录（含 chatKey/generatorName/mesId 顶层字段）；
+    // 传入的原始记录可能缺这些字段（reopenPendingDebugPanel 场景），按 id 重新定位。
+    const full = getAllPendingRecords().find(r => r.id === record.id) || record;
+    const parts = String(full.chatKey || '').split('::');
+    window.openGenerationRecords?.({
+        view: 'detail',
+        recordId: full.id,
+        filters: {
+            gen: full.generatorName || '',
+            char: parts[0] || '',
+            chat: parts[1] || '',
+            floor: String(full.mesId ?? ''),
+            status: 'all',
+        },
+    });
 }
 
 /**
@@ -435,6 +408,23 @@ export function discardPendingRecord(generatorName, mesId, recordId) {
 }
 
 /**
+ * 构建记录的操作回调（生成记录面板用）：onSave / onDiscard / onLoadCurrentContent。
+ * pending 记录重新绑定（recordId 只处理本条）；已处理返回 null（只读）。
+ * @param {object} record { id, status, generatorName, mesId, context }
+ * @returns {{onSave:Function, onDiscard:Function, onLoadCurrentContent:Function}|null}
+ */
+export function buildRecordCallbacks(record) {
+    if (!record) return null;
+    if (record.status !== 'pending') return null;
+    const context = { ...(record.context || {}), recordId: record.id };
+    return {
+        onSave: _createSaveCallback(context),
+        onDiscard: _createDiscardCallback(record.generatorName, record.mesId, record.id),
+        onLoadCurrentContent: _createLoadCurrentCallback(context),
+    };
+}
+
+/**
  * 重新打开调试面板显示某条待处理记录。
  * 用户手误关闭面板后,再次点击"重新生成"时调用（取第一条 pending）。
  */
@@ -442,13 +432,9 @@ export function reopenPendingDebugPanel(generatorName, mesId) {
     const records = _getPendingRecords(generatorName, mesId);
     const pending = records.find(r => r.status === 'pending');
     if (!pending) return false;
-    const { context, debugData, id } = pending;
-    // 重新绑定回调（每次 showDebugPanel 创建新 IframeModal；recordId 用于处理时只标记本条）
-    debugData.onSave = _createSaveCallback({ ...context, recordId: id });
-    debugData.onDiscard = _createDiscardCallback(generatorName, mesId, id);
-    debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
-    showDebugPanel(debugData);
-    infoLog(LOG_TAG, `重新打开 楼层${mesId} ${generatorName} 的待处理结果调试面板（记录 ${id}）`);
+    // 生成记录面板详情视图会通过 buildRecordCallbacks 重新绑定保存/抛弃回调
+    showRecordDebugPanel(pending);
+    infoLog(LOG_TAG, `重新打开 楼层${mesId} ${generatorName} 的待处理结果（记录 ${pending.id}）`);
     return true;
 }
 
@@ -654,7 +640,7 @@ export const moduleAiGenerator = {
             for (const k of taskKeys) taskRegistry.setAbort(k, abortFn);
         };
 
-        // 流式增量（阶段 2）：aiCaller 每收到 chunk 就推送，更新 taskRegistry debugData + 已打开面板
+        // 流式增量（阶段 2）：aiCaller 每收到 chunk 就推送，更新 taskRegistry debugData + 已打开的生成记录面板（运行中详情）
         callOptions.onStream = (text) => {
             if (taskKeys.length === 0) return;
             const k = taskKeys[0];
@@ -664,8 +650,8 @@ export const moduleAiGenerator = {
                 task.debugData.response = text;
                 task.debugData.statusLabel = `${isModule ? '生成调试' : `生成调试 [${generatorName}]`}（生成中）`;
             }
-            // 实时更新已打开的面板「完整响应」
-            updateDebugPanelResponse(k, text);
+            // 实时更新已打开的生成记录面板「运行中详情」
+            window.updateRunningRecord?.(k, task?.debugData || {});
         };
 
         // 捕获到提示词后实时推送（阶段 2：生成中面板显示「实际发送」而非「未捕获到」）
@@ -676,7 +662,7 @@ export const moduleAiGenerator = {
             if (task?.debugData) {
                 task.debugData.capturedPrompt = prompt;
             }
-            updateDebugPanelPrompt(k, prompt);
+            window.updateRunningRecord?.(k, task?.debugData || {});
         };
 
         // 捕获到 API 信息后实时推送（阶段 2：生成中面板显示「API 信息」）
@@ -687,7 +673,7 @@ export const moduleAiGenerator = {
             if (task?.debugData) {
                 task.debugData.apiUsed = apiUsed;
             }
-            updateDebugPanelApi(k, apiUsed);
+            window.updateRunningRecord?.(k, task?.debugData || {});
         };
 
         // 生成中 debugData（供「生成中点击按钮打开调试面板」用；完整响应生成后由 finish 更新）
@@ -773,7 +759,7 @@ export const moduleAiGenerator = {
                 }
             }
 
-            // 显示 debug 面板
+            // 打开生成记录面板（生成完成 → 详情视图）
             if (shouldShowDebug) {
                 const details = getCurrentChatDetails();
                 const charName = details?.characterName || '';
@@ -798,11 +784,13 @@ export const moduleAiGenerator = {
                     apiUsed: result.debug.apiUsed,
                     hasModules,
                     storedCount,
-                    taskKey: taskKeys[0] || undefined, // 供「面板是否已打开」判断，避免重复弹
+                    taskKey: taskKeys[0] || undefined,
                 };
 
                 // 手动重新生成(skipStorage)且单条成功时,暂存结果供用户在面板中决定保存/抛弃。
                 // 2026-08-18 多记录化：并发多次生成各占一条记录（同 key 数组 push），互不覆盖。
+                // 详情页操作回调由生成记录面板 buildRecordCallbacks 重建，无需在 debugData 上绑定。
+                let openedRecordId = null;
                 if (skipStorage && result.text && isSingle) {
                     const mesId = messages[0].mesId;
                     const recordId = _nextPendingId();
@@ -827,27 +815,29 @@ export const moduleAiGenerator = {
                     });
                     pendingResults.set(key, records);
                     _savePendingToStorage();
-                    debugData.onSave = _createSaveCallback(context);
-                    debugData.onDiscard = _createDiscardCallback(generatorName, mesId, recordId);
-                    // 楼层生成完成面板也带历史导航（与历史面板详情统一：‹ › 切换同楼层记录）
-                    if (records.length > 1) {
-                        debugData.historyNav = {
-                            records: [...records],
-                            currentId: recordId,
-                            onNavigate: (rec) => showRecordDebugPanel(rec),
-                        };
-                    }
-                    debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
+                    openedRecordId = recordId;
                 }
 
-                // 生成中面板已打开 → 不重复弹新面板，改为更新为完成态
-                if (taskKeys[0] && isDebugPanelOpen(taskKeys[0])) {
-                    finishDebugPanel(taskKeys[0], debugData);
+                // 打开完成记录详情（无记录时打开列表）
+                if (openedRecordId) {
+                    window.openGenerationRecords?.({
+                        view: 'detail',
+                        recordId: openedRecordId,
+                        filters: {
+                            gen: generatorName,
+                            char: charName,
+                            chat: chatName,
+                            floor: String(messages[0]?.mesId ?? ''),
+                            status: 'all',
+                        },
+                    });
                 } else {
-                    showDebugPanel(debugData);
+                    window.openGenerationRecords?.({ view: 'list' });
                 }
             }
 
+            // 无论 shouldShowDebug 与否都清理运行中详情（用户可能手动打开过生成中面板）
+            if (taskKeys[0]) window.closeRunningRecord?.(taskKeys[0]);
             if (isPipeline) clearGenerationContext();
             // 成功：完整 debugData 写入任务（供后续「重新打开面板」显示真实结果）
             const successDebug = typeof debugData === 'object' ? debugData : null;
@@ -897,13 +887,55 @@ export const moduleAiGenerator = {
                     error: err.message,
                     taskKey: taskKeys[0] || undefined,
                 };
-                // 生成中面板已打开（如点中止）→ 更新为失败态，不弹新面板
-                if (taskKeys[0] && isDebugPanelOpen(taskKeys[0])) {
-                    finishDebugPanel(taskKeys[0], failDebugData);
+
+                // 失败也暂存为 error 记录（生成记录面板可查看失败详情），单条时打开详情
+                let failRecordId = null;
+                if (isSingle && messages[0]) {
+                    const mesId = messages[0].mesId;
+                    failRecordId = _nextPendingId();
+                    const context = {
+                        mesId,
+                        swipeId: messages[0].activeSwipeId,
+                        generatorName,
+                        isModule,
+                        extracted: null,
+                        text: '',
+                        chatKey: taskChatKey,
+                        recordId: failRecordId,
+                    };
+                    const key = _pendingKey(generatorName, mesId);
+                    const records = pendingResults.get(key) || [];
+                    records.push({
+                        id: failRecordId,
+                        status: 'error',
+                        createdAt: Date.now(),
+                        context,
+                        debugData: failDebugData,
+                    });
+                    pendingResults.set(key, records);
+                    _savePendingToStorage();
+                }
+
+                // 打开失败记录详情（无记录时打开列表）
+                if (failRecordId) {
+                    window.openGenerationRecords?.({
+                        view: 'detail',
+                        recordId: failRecordId,
+                        filters: {
+                            gen: generatorName,
+                            char: charName,
+                            chat: chatName,
+                            floor: String(messages[0]?.mesId ?? ''),
+                            status: 'all',
+                        },
+                    });
                 } else {
-                    showDebugPanel(failDebugData);
+                    window.openGenerationRecords?.({ view: 'list' });
                 }
             }
+
+            // 无论 shouldShowDebug 与否都清理运行中详情（用户可能手动打开过生成中面板）
+            if (taskKeys[0]) window.closeRunningRecord?.(taskKeys[0]);
 
             return { success: false, text: '', debug: err.debugInfo || null, error: err.message, hasModules: false, storedCount: 0 };
         }

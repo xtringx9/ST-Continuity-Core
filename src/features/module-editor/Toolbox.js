@@ -380,55 +380,7 @@ function bindDebugButtons(doc) {
         });
     }
 
-    // 1.5 调试面板（测试）：干跑展示面板，不请求 AI
-    const btnDebugPanel = doc.getElementById('btn-debug-panel');
-    if (btnDebugPanel) {
-        const newBtn = btnDebugPanel.cloneNode(true);
-        newBtn.textContent = translate('ccore_btn_debug_panel');
-        btnDebugPanel.parentNode.replaceChild(newBtn, btnDebugPanel);
-
-        newBtn.addEventListener('click', () => {
-            // 用当前聊天的模块数据构造测试面板（不请求 AI，只看面板结构/样式）
-            let moduleDataStr = '';
-            try {
-                const result = runModulePipeline({
-                    range: { start: 0, end: null },
-                    modules: null,
-                    processType: 'auto',
-                    showModuleNames: true,
-                });
-                moduleDataStr = result?.contentString || '(无模块数据)';
-            } catch (e) {
-                moduleDataStr = `提取失败: ${e.message}`;
-            }
-            const testData = {
-                title: '调试面板（测试） #0 - 测试角色 / 测试聊天',
-                statusLabel: '调试面板（测试）',
-                statusType: 'info',
-                titleBody: '（测试数据，未请求 AI）',
-                mesIds: [0],
-                mode: 'pipeline',
-                sentInfo: {
-                    type: 'pipeline',
-                    quietPrompt: '[测试] 请根据对话内容生成模块数据...',
-                    truncateToMesId: 0,
-                },
-                capturedPrompt: [
-                    { role: 'system', content: 'Write {{char}}\'s next reply...' },
-                    { role: 'user', content: '[测试] 用户消息' },
-                ],
-                response: moduleDataStr || '[测试] 这是 AI 响应占位...',
-                extracted: { modules: moduleDataStr || '' },
-                apiUsed: { custom: false, model: 'gpt-4o-mini', source: 'openai', temperature: 0.3 },
-                hasModules: true,
-            };
-            if (window.parent && typeof window.parent.showDebugPanel === 'function') {
-                window.parent.showDebugPanel(testData);
-            } else {
-                warnLog('父窗口未暴露 showDebugPanel');
-            }
-        });
-    }
+    // 1.5 生成记录面板：已废弃调试面板（测试），无独立测试入口（生成记录面板由生成流程直接打开）
 
     // 2. 打印配置数据
     const btnDebugConfig = doc.getElementById('btn-debug-config');

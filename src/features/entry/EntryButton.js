@@ -8,7 +8,6 @@ import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 import { taskRegistry } from '../../core/taskRegistry.js';
 import { getPendingCount } from '../../services/moduleAiGenerator.js';
-import { openGeneratorHistory } from '../../ui/generatorHistoryPanel.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
 import { eventSource, event_types } from '../../../../../../../script.js';
 
@@ -433,7 +432,7 @@ export class EntryButton {
         const items = [
             { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },
             { action: 'generator-editor', icon: 'fa-wand-magic-sparkles', title: '生成内容配置' },
-            { action: 'history', icon: 'fa-clock-rotate-left', title: '生成历史' },
+            { action: 'history', icon: 'fa-clock-rotate-left', title: '生成记录' },
             { action: 'reader', icon: 'fa-book-open', title: '图文阅读器' },
             { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
             { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式' },
@@ -618,7 +617,7 @@ export class EntryButton {
                 break;
             }
             case 'history':
-                openGeneratorHistory();
+                window.openGenerationRecords?.({ view: 'list' });
                 break;
             case 'summary':
                 openContextBottomAsModal();

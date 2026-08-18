@@ -65,10 +65,11 @@ src/utils/                # 工具函数
   variableReplacer.js     #   变量替换
 src/ui/                   # UI 管理
   extensionSettingsManager.js  # 扩展设置面板逻辑
-  generatorDebugPanel.js       # AI 生成调试弹窗（IframeModal + 独立 HTML/CSS，主题同步）
-  generatorDebugPanel.html     # 调试面板 HTML（<link> 引入 themes.css）
-  generatorDebugPanel.css      # 调试面板样式（全用 themes.css 变量，ccore-debug-* 前缀）
   messageAiButton.js           # 消息内 Cc 菜单触发器（浮动定位 + 编辑模块数据）
+src/features/generation-records/  # 生成记录面板（2026-08-18 重构，替代 generatorDebugPanel + generatorHistoryPanel）
+  generationRecordsPanel.js  # 单一面板双视图：列表（筛选卡片）+ 详情（保存[追加/覆盖]/抛弃/导航/中止）
+  generationRecordsPanel.html # 生成记录面板 HTML（themes.css 变量，ccore-records-* 前缀）
+  # ⚠️ 通过 window.openGenerationRecords / updateRunningRecord / closeRunningRecord 全局调用（continuity-core.js 副作用导入）
 src/shared/               # 可复用 UI 组件
   IframeDialog.js
   IframeModal.js               # 通用 iframe 模态窗口（多实例 + srcdoc 模式）
@@ -290,8 +291,11 @@ aiCaller（底层调用）
   └── customApi       → CHAT_COMPLETION_SETTINGS_READY 拦截替换 API
         │
         ▼
-generatorDebugPanel（调试弹窗）
-  └── 展示提示词/响应/提取结果 + 复制按钮（支持多个弹窗同时存在）
+generationRecordsPanel（生成记录面板）
+  ├── 列表：跨角色/聊天/楼层/状态筛选 + 卡片（status 标色、可直接抛弃）
+  └── 详情：发送内容/响应/提取/API/错误 sections + 保存(追加/覆盖)/抛弃 + ‹ › 结果集导航
+      ├── 生成中：运行中详情（流式实时刷新 + 中止按钮）
+      └── 处理后：自动跳结果集内下一条 pending，无则回列表
 ```
 
 ### 存储集成事件映射

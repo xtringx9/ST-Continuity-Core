@@ -1,0 +1,337 @@
+<!-- src/features/generation-records/generationRecordsPanel.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成记录</title>
+    <link rel="stylesheet" href="../../shared/styles/themes.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 12px 16px;
+            background: var(--bg-app, #fff);
+            color: var(--text-primary, #111);
+            font-size: 13px;
+            font-family: var(--font-main, sans-serif);
+            box-sizing: border-box;
+        }
+
+        .ccore-records-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .ccore-records-count {
+            font-size: 12px;
+            color: var(--text-secondary, #666);
+        }
+
+        #ccore-records-close {
+            background: none;
+            border: none;
+            color: var(--text-primary, #111);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .ccore-records-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .ccore-records-filters select,
+        .ccore-records-filters input {
+            padding: 4px 8px;
+            border: 1px solid var(--border-color, rgba(128,128,128,0.3));
+            border-radius: 4px;
+            background: var(--bg-input, #fff);
+            color: var(--text-input, #111);
+            font-size: 12px;
+            box-sizing: border-box;
+        }
+
+        .ccore-records-filters .ccore-records-floor-input {
+            width: 90px;
+        }
+
+        /* === 列表视图 === */
+        #ccore-records-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 55vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .ccore-records-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted, #999);
+            font-size: 13px;
+        }
+
+        .ccore-records-card {
+            border: 1px solid var(--border-color, rgba(128,128,128,0.3));
+            border-radius: 6px;
+            padding: 8px 10px;
+            cursor: pointer;
+            background: var(--bg-card, #fafafa);
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+
+        .ccore-records-card:hover {
+            border-color: var(--accent-color, #2563eb);
+            background: var(--bg-hover, rgba(128,128,128,0.08));
+        }
+
+        .ccore-records-card.ccore-records-pending {
+            border-color: #C9762E;
+            border-left-width: 3px;
+        }
+
+        .ccore-records-card-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .ccore-records-status {
+            font-size: 11px;
+            font-weight: bold;
+            padding: 1px 8px;
+            border-radius: 8px;
+            flex: 0 0 auto;
+        }
+
+        .ccore-records-pending .ccore-records-status {
+            background: #C9762E;
+            color: #fff;
+        }
+
+        .ccore-records-saved .ccore-records-status {
+            background: #4CAF50;
+            color: #fff;
+        }
+
+        .ccore-records-discarded .ccore-records-status {
+            background: #999;
+            color: #fff;
+        }
+
+        .ccore-records-error .ccore-records-status {
+            background: #f44336;
+            color: #fff;
+        }
+
+        .ccore-records-meta {
+            flex: 1;
+            font-size: 12px;
+            color: var(--text-secondary, #666);
+        }
+
+        .ccore-records-time {
+            font-size: 11px;
+            color: var(--text-muted, #999);
+            flex: 0 0 auto;
+        }
+
+        .ccore-records-card-body {
+            display: flex;
+            gap: 8px;
+            font-size: 12px;
+            align-items: center;
+        }
+
+        .ccore-records-gen {
+            color: var(--accent-color, #2563eb);
+        }
+
+        .ccore-records-note {
+            color: var(--text-muted, #999);
+        }
+
+        .ccore-records-actions {
+            margin-left: auto;
+            flex: 0 0 auto;
+        }
+
+        .ccore-records-act {
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            background: #f44336;
+            color: #fff;
+        }
+
+        .ccore-records-act:hover {
+            opacity: 0.85;
+        }
+
+        /* === 详情视图 === */
+        #ccore-records-detail {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 60vh;
+        }
+
+        .ccore-records-detail-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border: 1px solid var(--border-color, rgba(128,128,128,0.3));
+            border-radius: 6px;
+            background: var(--bg-card, #fafafa);
+            flex-wrap: wrap;
+        }
+
+        .ccore-records-detail-head button {
+            background: none;
+            border: 1px solid var(--border-color, rgba(128,128,128,0.3));
+            border-radius: 4px;
+            color: var(--text-primary, #111);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 8px;
+        }
+
+        .ccore-records-detail-head button:hover {
+            border-color: var(--accent-color, #2563eb);
+        }
+
+        .ccore-records-nav-counter {
+            flex: 1;
+            font-size: 12px;
+            color: var(--text-secondary, #666);
+        }
+
+        .ccore-records-detail-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-muted, #999);
+        }
+
+        .ccore-records-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .ccore-records-actions select {
+            padding: 3px 6px;
+            border: 1px solid var(--border-color, rgba(128,128,128,0.3));
+            border-radius: 4px;
+            background: var(--bg-input, #fff);
+            color: var(--text-input, #111);
+            font-size: 12px;
+        }
+
+        .ccore-records-btn {
+            font-size: 12px;
+            padding: 4px 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .ccore-records-save {
+            background: #4CAF50;
+            color: #fff;
+        }
+
+        .ccore-records-discard {
+            background: #f44336;
+            color: #fff;
+        }
+
+        .ccore-records-readonly {
+            font-size: 12px;
+            color: var(--text-muted, #999);
+        }
+
+        .ccore-records-detail-body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .ccore-records-section {
+            border: 1px solid var(--border-color, rgba(128,128,128,0.3));
+            border-radius: 6px;
+            background: var(--bg-card, #fafafa);
+            padding: 6px 10px;
+        }
+
+        .ccore-records-sec-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--text-secondary, #666);
+            margin-bottom: 4px;
+        }
+
+        .ccore-records-section pre {
+            margin: 0;
+            font-family: var(--font-mono, monospace);
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: var(--text-primary, #111);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .ccore-records-error {
+            border-color: #f44336;
+        }
+
+        .ccore-records-error .ccore-records-sec-title {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="ccore-records-header">
+        <span class="ccore-records-count" id="ccore-records-count"></span>
+        <button id="ccore-records-close" title="关闭">✕</button>
+    </div>
+
+    <div class="ccore-records-filters">
+        <select id="ccore-records-filter-gen"></select>
+        <select id="ccore-records-filter-char"></select>
+        <select id="ccore-records-filter-chat"></select>
+        <input type="number" id="ccore-records-filter-floor" class="ccore-records-floor-input" placeholder="楼层" min="0">
+        <select id="ccore-records-filter-status">
+            <option value="all">全部状态</option>
+            <option value="pending">待处理</option>
+            <option value="saved">已保存</option>
+            <option value="discarded">已抛弃</option>
+            <option value="error">失败</option>
+        </select>
+    </div>
+
+    <!-- 列表视图 -->
+    <div id="ccore-records-list"></div>
+
+    <!-- 详情视图 -->
+    <div id="ccore-records-detail">
+        <div class="ccore-records-detail-head" id="ccore-records-detail-head"></div>
+        <div class="ccore-records-detail-meta" id="ccore-records-detail-meta"></div>
+        <div class="ccore-records-actions" id="ccore-records-actions"></div>
+        <div class="ccore-records-detail-body" id="ccore-records-detail-body"></div>
+    </div>
+</body>
+</html>
