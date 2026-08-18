@@ -303,12 +303,26 @@
             flex-wrap: wrap;
         }
 
+        /* 详情上区（发送内容/完整响应等主体，可滚动） */
         .ccore-records-detail-body {
-            flex: 1;
+            flex: 1 1 auto;
             min-height: 0;
             display: flex;
             flex-direction: column;
             gap: 8px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        /* 详情下区（API/错误，贴底常驻，信息类） */
+        .ccore-records-detail-bottom {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-top: 1px solid var(--border-color, rgba(128,128,128,0.2));
+            padding-top: 8px;
+            max-height: 40%;
             overflow-y: auto;
             padding-right: 4px;
         }
@@ -530,10 +544,10 @@
         <!-- 列表视图 -->
         <div id="ccore-records-list"></div>
 
-        <!-- 详情视图 -->
+        <!-- 详情视图（meta 行已移除：状态徽章在顶栏，note 在 badge 内显示） -->
         <div id="ccore-records-detail">
-            <div class="ccore-records-detail-meta" id="ccore-records-detail-meta"></div>
             <div class="ccore-records-detail-body" id="ccore-records-detail-body"></div>
+            <div class="ccore-records-detail-bottom" id="ccore-records-detail-bottom"></div>
         </div>
     </div>
 

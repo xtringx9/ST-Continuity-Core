@@ -33,6 +33,19 @@ const STATUS_LABELS = {
 };
 
 /**
+ * 组装状态 label（含保存模式）：已保存 →「已保存(追加)」/「已保存(覆盖)」；其余用基础 label。
+ * @param {object} r 记录 { status, note }
+ */
+function statusLabelFor(r) {
+    const base = STATUS_LABELS[r?.status] || r?.status || '';
+    if (r?.status === 'saved' && r?.note) {
+        const mode = r.note === 'overwrite' ? '覆盖' : '追加';
+        return `${base}(${mode})`;
+    }
+    return base;
+}
+
+/**
  * 打开生成记录面板（单实例）。面板已打开时直接切换视图（不重建 iframe）。
  * @param {Object} [opts]
  * @param {'list'|'detail'} [opts.view] 初始视图：list=列表（默认）；detail=详情（需 recordId 或 running）
@@ -205,7 +218,7 @@ function bindPanel(doc) {
             const parts = String(r.chatKey || '').split('::');
             const charName = parts[0] || '?';
             const chatName = parts[1] || '?';
-            const statusLabel = STATUS_LABELS[r.status] || r.status;
+            const statusLabel = statusLabelFor(r);
             const time = r.createdAt ? new Date(r.createdAt).toLocaleString() : '';
             const respLen = r.debugData?.response ? String(r.debugData.response).length : 0;
             const metaSub = respLen > 0 ? ` · ${respLen} 字符` : '';
@@ -249,7 +262,7 @@ function bindPanel(doc) {
         const parts = String(record.chatKey || '').split('::');
         const charName = parts[0] || '?';
         const chatName = parts[1] || '?';
-        const statusLabel = STATUS_LABELS[record.status] || record.status;
+        const statusLabel = statusLabelFor(record);
         const time = record.createdAt ? new Date(record.createdAt).toLocaleString() : '';
 
         // 顶栏：返回 + 状态徽章（pending/已处理均显示）+ 角色/聊天/楼层；底栏：记录时间
@@ -259,14 +272,10 @@ function bindPanel(doc) {
         });
         if (footerTimeEl) footerTimeEl.textContent = time;
 
-        // 元数据行（仅备注；状态徽章已在顶栏）
-        const metaEl = doc.getElementById('ccore-records-detail-meta');
-        metaEl.innerHTML = `<span class="ccore-records-note">${record.note || ''}</span>`;
-
-        // sections（固定全部渲染：发送内容 / 完整响应 / 提取结果 / API / 错误最底，可折叠）
+        // sections：上区（发送内容/完整响应）+ 下区（API/错误贴底）
         const bodyEl = doc.getElementById('ccore-records-detail-body');
-        bodyEl.innerHTML = buildDetailSections(record);
-        bindSectionToggles(bodyEl);
+        const bottomEl = doc.getElementById('ccore-records-detail-bottom');
+        renderDetailSections(bodyEl, bottomEl, record);
 
         // 底部操作栏：‹ › 切左右 + 保存方式 + 查看当前 + 保存 + 抛弃（pending）；已处理只读
         renderOpbar(record);
@@ -467,8 +476,8 @@ function renderOpbar(record) {
     `;
 
     if (!callbacks) {
-        // 已处理：无操作按钮，仅左右切换
-        opbarEl.innerHTML = `${navHtml}<span class="ccore-records-nav-sep"></span><span class="ccore-records-readonly">${STATUS_LABELS[record.status] || record.status}（只读）</span>`;
+        // 已处理：无操作按钮、无只读提示，仅左右切换（状态已在顶栏 badge）
+        opbarEl.innerHTML = navHtml;
         opbarEl.style.display = 'flex';
         bindOpbarNav(record, atStart, atEnd);
         return;
@@ -477,11 +486,11 @@ function renderOpbar(record) {
     opbarEl.innerHTML = `
         ${navHtml}
         <span class="ccore-records-nav-sep"></span>
+        <button class="ccore-records-current-btn" title="查看当前存储内容，与本次生成结果对比">查看当前</button>
         <select class="ccore-records-save-mode" title="保存方式">
             <option value="append">${escapeHtml(translate('ccore_records_save_append'))}</option>
             <option value="overwrite">${escapeHtml(translate('ccore_records_save_overwrite'))}</option>
         </select>
-        <button class="ccore-records-current-btn" title="查看当前存储内容，与本次生成结果对比">查看当前</button>
         <button class="ccore-records-save">保存</button>
         <button class="ccore-records-discard">抛弃</button>
     `;
@@ -562,9 +571,6 @@ showRunningDetail = (running) => {
     });
     if (footerTimeEl) footerTimeEl.textContent = '';
 
-    const metaEl = panelDoc.getElementById('ccore-records-detail-meta');
-    metaEl.innerHTML = '<span class="ccore-records-note">生成中…</span>';
-
     // 操作栏：中止生成
     if (opbarEl) {
         hideCurrentContent();
@@ -583,8 +589,8 @@ showRunningDetail = (running) => {
     }
 
     const bodyEl = panelDoc.getElementById('ccore-records-detail-body');
-    bodyEl.innerHTML = buildDetailSections({ debugData: runningMap.get(taskKey) || debugData });
-    bindSectionToggles(bodyEl);
+    const bottomEl = panelDoc.getElementById('ccore-records-detail-bottom');
+    renderDetailSections(bodyEl, bottomEl, { debugData: runningMap.get(taskKey) || debugData });
 
     panelDoc.getElementById('ccore-records-list').style.display = 'none';
     panelDoc.getElementById('ccore-records-detail').style.display = 'flex';
@@ -600,22 +606,25 @@ export function updateRunningRecord(taskKey, debugData) {
     runningMap.set(taskKey, debugData || {});
     if (panelDoc && state.running?.taskKey === taskKey) {
         const bodyEl = panelDoc.getElementById('ccore-records-detail-body');
-        if (bodyEl) {
-            bodyEl.innerHTML = buildDetailSections({ debugData: runningMap.get(taskKey) });
-            bindSectionToggles(bodyEl);
-        }
+        const bottomEl = panelDoc.getElementById('ccore-records-detail-bottom');
+        renderDetailSections(bodyEl, bottomEl, { debugData: runningMap.get(taskKey) });
     }
 }
 
 /**
- * 运行中记录结束（生成完成/失败），仅清理 runningMap 与运行态。
- * ⚠️ 不再切视图（修复：生成结束会跳回列表的 bug）——视图切换由 notifyGenerationCompleted 决定。
+ * 运行中记录结束（生成完成/失败），清理 runningMap 与运行态。
+ * ⚠️ 视图切换由 notifyGenerationCompleted 决定（它会在面板打开时切到完成详情）；
+ *    此处仅兜底：若清理的正是当前运行中详情且未被 notify 切换（无 recordId 场景），回列表。
  * @param {string} taskKey
  */
 export function closeRunningRecord(taskKey) {
     runningMap.delete(taskKey);
     if (panelDoc && state.running?.taskKey === taskKey) {
         state.running = null;
+        // 未被 notifyGenerationCompleted 切换（仍停在运行中详情、无 currentId）→ 回列表
+        if (!state.currentId && typeof showList === 'function') {
+            showList();
+        }
     }
 }
 
@@ -629,11 +638,13 @@ export function closeRunningRecord(taskKey) {
 export function notifyGenerationCompleted(info = {}) {
     // 面板未打开 → 返回 false，调用方走原逻辑（openGenerationRecords 打开详情）
     if (!panelDoc || !panelModal?.backdrop) return false;
-    // 面板已打开：toast 通知 + 静默刷新（不打断当前视图）
-    const label = info.status === 'error' ? '生成失败' : '生成完成';
-    const time = new Date().toLocaleString();
-    showToast(`${label} #${info.mesId} ${info.generatorName || 'modules'}（${time}）`, info.status === 'error' ? 'error' : 'success');
-    // 刷新筛选项 + 若当前在列表视图则重渲染（静默）
+    // 当前正看着该 runId 的运行中详情 → 生成完成，切换为完成记录详情（不打断用户所在详情）
+    if (info.runId && state.running?.taskKey === info.runId && info.recordId) {
+        state.running = null;
+        showDetail(info.recordId);
+        return true;
+    }
+    // 面板已打开但不在该运行中详情：静默刷新（不打断当前视图；toast 由 moduleAiGenerator 统一发）
     if (panelDoc) {
         try { collectFilterOptions?.(); } catch (e) {}
     }
@@ -644,12 +655,11 @@ export function notifyGenerationCompleted(info = {}) {
 }
 
 /**
- * 详情 sections 渲染（顺序：发送内容 / 完整响应 / 错误[按需] / API[贴底部]；提取结果暂隐藏）。
- * 默认折叠状态：发送内容=折叠、完整响应=展开、API=展开（贴底部的信息类默认展开）；
- * ⚠️ 有错误时：错误 + 发送内容都强制展开（便于排查）。
- * 每个 section 可点击标题折叠/展开。
+ * 详情上区 sections 渲染（发送内容 / 完整响应；提取结果暂隐藏）。
+ * 默认折叠状态：发送内容=折叠、完整响应=展开；
+ * ⚠️ 有错误时：发送内容强制展开（便于排查）。
  */
-function buildDetailSections(record) {
+function buildDetailBody(record) {
     const d = record.debugData || {};
     const sections = [];
     const hasError = !!d.error;
@@ -667,14 +677,23 @@ function buildDetailSections(record) {
     // 完整响应（默认展开）
     sections.push(section('完整响应', d.response || '(空)', { collapsed: false }));
 
-    // 提取结果：暂隐藏（用户拍板，暂时无用）
+    return sections.join('');
+}
 
-    // 错误：按需出现（仅在存在错误时渲染，放在 API 之前、强制展开）
-    if (hasError) {
+/**
+ * 详情下区 sections 渲染（API / 错误[按需]，贴底部信息类）。
+ * API 默认展开；错误仅在存在时渲染且强制展开。
+ */
+function buildDetailBottom(record) {
+    const d = record.debugData || {};
+    const sections = [];
+
+    // 错误：按需出现（仅在存在错误时渲染、强制展开）
+    if (d.error) {
         sections.push(section('错误', d.error, { collapsed: false, error: true }));
     }
 
-    // API 信息（贴底部——与发送内容/完整响应分开，信息类靠底部；默认展开）
+    // API 信息（贴底部信息类；默认展开）
     const api = d.apiUsed || {};
     const apiLines = [];
     if (api.custom !== undefined || Object.keys(api).length > 0) {
@@ -709,6 +728,18 @@ function section(title, content, opts = {}) {
         </div>
         <pre style="display:${collapsed ? 'none' : 'block'}">${escapeHtml(content)}</pre>
     </div>`;
+}
+
+/** 渲染详情上下两区并绑定折叠（showDetail/showRunningDetail/updateRunningRecord 共用） */
+function renderDetailSections(bodyEl, bottomEl, record) {
+    if (bodyEl) {
+        bodyEl.innerHTML = buildDetailBody(record);
+        bindSectionToggles(bodyEl);
+    }
+    if (bottomEl) {
+        bottomEl.innerHTML = buildDetailBottom(record);
+        bindSectionToggles(bottomEl);
+    }
 }
 
 /** 绑定详情 sections 的折叠/展开（在 bodyEl.innerHTML 赋值后调用） */

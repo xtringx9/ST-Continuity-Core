@@ -14,6 +14,7 @@ import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { readFloorModules, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, getActiveGeneratorSwipe } from '../core/floorModuleStore.js';
 import { setGenerationContextEndFloor, setGenerationContextMode, clearGenerationContext } from '../core/generationContext.js';
 import { taskRegistry } from '../core/taskRegistry.js';
+import { showToast } from '../shared/Toast.js';
 
 const LOG_TAG = 'ModuleAiGenerator';
 
@@ -69,10 +70,40 @@ const PENDING_STORAGE_KEY = 'ccore_pending_results';
 // 2026-08-18 多记录化：同一楼层并发多次生成各占一条记录，互不覆盖，均可独立处理/回溯。
 const pendingResults = new Map();
 
+// ⚠️ 运行中任务记录（runId → {chatKey, mesId, generatorName, startedAt, taskKey, debugData}）。
+// taskRegistry 按 `${chatKey}::${mesId}::${generatorName}` 作 key，同楼层同 generator 并发会覆盖；
+// 此 Map 用唯一 runId 记录，保证并发多个生成都出现在记录列表。
+const runningTasks = new Map();
+
+function _trackRunningTask(runId, chatKey, mesId, generatorName, taskKey, startedAt = Date.now()) {
+    runningTasks.set(runId, { chatKey, mesId, generatorName, taskKey, startedAt, debugData: {} });
+}
+
+function _updateRunningTask(runId, debugData) {
+    const entry = runningTasks.get(runId);
+    if (entry) entry.debugData = debugData || {};
+}
+
+function _untrackRunningTask(runId) {
+    runningTasks.delete(runId);
+}
+
 let pendingIdCounter = 0;
 function _nextPendingId() {
     pendingIdCounter++;
     return `${Date.now()}_${pendingIdCounter}`;
+}
+
+let runIdCounter = 0;
+/**
+ * 生成一次运行任务的唯一标识（runId）。
+ * ⚠️ 不能用 taskRegistry 的 key（`chatKey::mesId::generatorName`）——同楼层同
+ *   generator 并发时 key 相同会互相覆盖；runId 全局唯一，保证并发都出现在记录列表。
+ * @returns {string}
+ */
+function _nextRunId() {
+    runIdCounter++;
+    return `gen_${Date.now()}_${runIdCounter}`;
 }
 
 /**
@@ -264,6 +295,9 @@ function _createSaveCallback(ctx) {
             clearPendingResult(generatorName, mesId);
         }
         infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认，${mode}）`);
+        // 保存成功 toast（全局通知）
+        const modeLabel = mode === 'overwrite' ? '覆盖当前版本' : '追加为新版本';
+        showToast(`已保存 #${mesId} ${generatorName || 'modules'}（${modeLabel}）`, 'success');
     };
 }
 
@@ -359,24 +393,25 @@ export function getAllPendingRecords() {
     }
 
     // 合并运行中任务（生成记录列表可见生成中记录，点击进入运行中详情支持流式）
-    // task 结构：{ status:'running', chatKey, mesId, generatorName, startedAt, debugData }
-    taskRegistry.forEach(t => {
-        if (t.status !== 'running') return;
-        if (!t.chatKey || t.mesId === undefined) return;
+    // ⚠️ 用 runningTasks（runId 唯一）而非 taskRegistry：taskRegistry 按
+    //   chatKey::mesId::generatorName 作 key，同楼层同 generator 并发会覆盖；
+    //   runningTasks 记录每个独立生成（runId 唯一），保证并发都出现在列表。
+    for (const [runId, t] of runningTasks) {
+        if (!t.chatKey || t.mesId === undefined) continue;
         out.push({
             key: `running::${t.chatKey}::${t.generatorName}::${t.mesId}`,
             chatKey: t.chatKey,
             generatorName: t.generatorName,
             mesId: t.mesId,
-            id: `running_${t.chatKey}_${t.mesId}_${t.generatorName}`,
+            id: `running_${runId}`,
             status: 'running',
             createdAt: t.startedAt || Date.now(),
             context: {},
             debugData: t.debugData || {},
             isRunning: true,
-            taskKey: t.debugData?.taskKey || '',
+            taskKey: runId,
         });
-    });
+    }
 
     // 按创建时间新→旧
     out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -672,8 +707,13 @@ export const moduleAiGenerator = {
         const taskChatKey = _getChatKey();
         taskRegistry.setCurrentChatKey(taskChatKey);
         const taskKeys = [];
+        // ⚠️ runId：本次生成唯一标识（runningTasks 的 key，支持同楼层并发多任务不互相覆盖）
+        const runId = _nextRunId();
         for (const m of messages) {
-            taskKeys.push(taskRegistry.start({ chatKey: taskChatKey, mesId: m.mesId, generatorName }));
+            const k = taskRegistry.start({ chatKey: taskChatKey, mesId: m.mesId, generatorName });
+            taskKeys.push(k);
+            // 独立跟踪运行中任务（taskRegistry 同 key 并发会覆盖；此 Map 按唯一 runId 记录）
+            _trackRunningTask(runId, taskChatKey, m.mesId, generatorName, k);
         }
 
         // 中止能力：aiCaller 暴露 abort 后注入对应任务（调试面板「中止」按钮用）
@@ -690,9 +730,10 @@ export const moduleAiGenerator = {
             if (task?.debugData) {
                 task.debugData.response = text;
                 task.debugData.statusLabel = `${isModule ? '生成调试' : `生成调试 [${generatorName}]`}（生成中）`;
+                _updateRunningTask(runId, task.debugData);
             }
-            // 实时更新已打开的生成记录面板「运行中详情」
-            window.updateRunningRecord?.(k, task?.debugData || {});
+            // 实时更新已打开的生成记录面板「运行中详情」（按 runId 定位）
+            window.updateRunningRecord?.(runId, task?.debugData || {});
         };
 
         // 捕获到提示词后实时推送（阶段 2：生成中面板显示「实际发送」而非「未捕获到」）
@@ -702,8 +743,9 @@ export const moduleAiGenerator = {
             const task = taskRegistry.get(taskChatKey, messages[0]?.mesId, generatorName);
             if (task?.debugData) {
                 task.debugData.capturedPrompt = prompt;
+                _updateRunningTask(runId, task.debugData);
             }
-            window.updateRunningRecord?.(k, task?.debugData || {});
+            window.updateRunningRecord?.(runId, task?.debugData || {});
         };
 
         // 捕获到 API 信息后实时推送（阶段 2：生成中面板显示「API 信息」）
@@ -713,8 +755,9 @@ export const moduleAiGenerator = {
             const task = taskRegistry.get(taskChatKey, messages[0]?.mesId, generatorName);
             if (task?.debugData) {
                 task.debugData.apiUsed = apiUsed;
+                _updateRunningTask(runId, task.debugData);
             }
-            window.updateRunningRecord?.(k, task?.debugData || {});
+            window.updateRunningRecord?.(runId, task?.debugData || {});
         };
 
         // 生成中 debugData（供「生成中点击按钮打开调试面板」用；完整响应生成后由 finish 更新）
@@ -725,7 +768,7 @@ export const moduleAiGenerator = {
             const titleBody = `${scope} - ${details?.characterName || ''} / ${details?.sessionName || ''}`;
             const titleLabel = isModule ? '生成调试' : `生成调试 [${generatorName}]`;
             const runningTaskKey = taskKeys[0];
-            taskRegistry.setDebugData(runningTaskKey, {
+            const runningDebugData = {
                 title: `${titleLabel} ${titleBody}`,
                 statusLabel: `${titleLabel}（生成中）`,
                 statusType: 'info',
@@ -740,9 +783,13 @@ export const moduleAiGenerator = {
                 hasModules: false,
                 // taskKey：面板据此注册流式实时更新（阶段 2）
                 taskKey: runningTaskKey,
+                // runId：本次生成唯一标识（运行中详情定位/流式更新用）
+                runId,
                 // 中止按钮（生成中打开面板时显示）
                 onAbort: () => taskRegistry.abortTask(runningTaskKey),
-            });
+            };
+            taskRegistry.setDebugData(runningTaskKey, runningDebugData);
+            _updateRunningTask(runId, runningDebugData);
         }
 
         try {
@@ -859,10 +906,11 @@ export const moduleAiGenerator = {
                     openedRecordId = recordId;
                 }
 
-                // 新记录完成通知：面板已打开 → toast + 静默刷新（不打断当前视图）；
+                // 新记录完成通知：面板已打开 → 静默刷新/切换运行中详情（不打断当前视图）；
                 // 面板未打开 → notify 返回 false，此处再打开详情。
                 const handledByPanel = window.notifyGenerationCompleted?.({
                     recordId: openedRecordId,
+                    runId,
                     generatorName,
                     mesId: messages[0]?.mesId,
                     chatKey: taskChatKey,
@@ -889,7 +937,7 @@ export const moduleAiGenerator = {
             }
 
             // 无论 shouldShowDebug 与否都清理运行中详情（用户可能手动打开过生成中面板）
-            if (taskKeys[0]) window.closeRunningRecord?.(taskKeys[0]);
+            if (runId) window.closeRunningRecord?.(runId);
             if (isPipeline) clearGenerationContext();
             // 成功：完整 debugData 写入任务（供后续「重新打开面板」显示真实结果）
             const successDebug = typeof debugData === 'object' ? debugData : null;
@@ -897,6 +945,9 @@ export const moduleAiGenerator = {
                 taskRegistry.finish(k, 'success', successDebug);
                 if (successDebug) taskRegistry.setDebugData(k, successDebug);
             }
+            _untrackRunningTask(runId);
+            // 生成完成 toast（全局通知；面板已打开时不打扰当前视图，仍提示）
+            showToast(`生成完成 #${messages[0]?.mesId} ${generatorName || 'modules'}`, 'success');
             return {
                 success: !!result.text,
                 text: result.text,
@@ -968,9 +1019,10 @@ export const moduleAiGenerator = {
                     _savePendingToStorage();
                 }
 
-                // 新记录完成通知：面板已打开 → toast + 静默刷新（不打断当前视图）
+                // 新记录完成通知：面板已打开 → 静默刷新/切换运行中详情（不打断当前视图）
                 const handledByPanel = window.notifyGenerationCompleted?.({
                     recordId: failRecordId,
+                    runId,
                     generatorName,
                     mesId: messages[0]?.mesId,
                     chatKey: taskChatKey,
@@ -997,7 +1049,11 @@ export const moduleAiGenerator = {
             }
 
             // 无论 shouldShowDebug 与否都清理运行中详情（用户可能手动打开过生成中面板）
-            if (taskKeys[0]) window.closeRunningRecord?.(taskKeys[0]);
+            if (runId) window.closeRunningRecord?.(runId);
+            _untrackRunningTask(runId);
+
+            // 生成失败 toast（全局通知；面板已打开时不打扰当前视图，仍提示）
+            showToast(`生成失败 #${messages[0]?.mesId} ${generatorName || 'modules'}：${err.message || '未知错误'}`, 'error');
 
             return { success: false, text: '', debug: err.debugInfo || null, error: err.message, hasModules: false, storedCount: 0 };
         }

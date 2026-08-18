@@ -749,10 +749,12 @@ async function onRegenerate(button, mesId, generatorName = 'modules', opts = {})
         if (runningTask) {
             // 生成中：已捕获到 debugData 则打开生成记录面板的运行中详情（不重复发起生成）
             if (runningTask.debugData) {
+                // ⚠️ 运行中详情用 runId 定位（流式更新匹配）；旧任务无 runId 时回退 taskKey
+                const runId = runningTask.debugData.runId || runningTask.debugData.taskKey || '';
                 window.openGenerationRecords?.({
                     view: 'detail',
                     running: {
-                        taskKey: runningTask.debugData.taskKey || '',
+                        taskKey: runId,
                         generatorName,
                         mesId,
                         debugData: runningTask.debugData,

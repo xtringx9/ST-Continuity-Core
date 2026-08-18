@@ -691,11 +691,12 @@ button:disabled,
     white-space: pre-line;
 }
 
-/* === 通用表单控件主题（checkbox，所有 editor 共享） ===
+/* === 通用表单控件主题（checkbox / number spinner，所有 editor 共享） ===
  * checkbox/radio：勾选色跟随 accent，背景跟随主题（深色下控件深色）。
- * ⚠️ number spinner 不做自定义覆盖——`::-webkit-inner-spin-button` 自定义
- *    background/height 会导致 WebKit 渲染异常（spinner 消失）。箭头明暗由
- *    themes.css 的 `color-scheme: light/dark` 驱动原生渲染即可。 */
+ * number spinner：仅保证常显（opacity:1）。⚠️ 勿设 background/height——
+ *   `::-webkit-inner-spin-button` 自定义 background/height 会导致 WebKit
+ *   渲染异常（spinner 消失）。背景跟随 input（spinner 是 input 的一部分），
+ *   箭头明暗由 themes.css 的 `color-scheme: light/dark` 驱动。 */
 input[type="checkbox"],
 input[type="radio"] {
     accent-color: var(--accent-color, #2563eb);
@@ -704,6 +705,17 @@ input[type="radio"] {
     margin: 0;
     flex-shrink: 0;
     cursor: pointer;
+}
+
+input[type="number"]::-webkit-inner-spin-button {
+    opacity: 1;
+    /* 背景与输入框一致（var(--bg-input)）：避免深色下 spinner 区域与输入框颜色不一致。
+       ⚠️ 勿设 height——会导致 WebKit spinner 消失 */
+    background: var(--bg-input, #fff);
+    border-left: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+}
+input[type="number"]::-webkit-inner-spin-button:hover {
+    background: var(--bg-hover, rgba(128, 128, 128, 0.08));
 }
 
 /* === 简洁滚动条（通用，所有 editor 滚动区共享） === */
