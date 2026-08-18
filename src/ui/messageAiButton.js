@@ -2,7 +2,7 @@
 // 为每条消息添加模块操作按钮（Cc 菜单触发器 + 展开的多框菜单）
 // Cc 点击 → 同行右侧展开：[模块框: 重新生成 编辑 版本切换] [各 generator 框: 重新生成 编辑 版本切换] ...
 
-import { chat } from '../../../../../../script.js';
+import { chat, eventSource, event_types } from '../../../../../../script.js';
 import { Popup, POPUP_TYPE, POPUP_RESULT } from '../../../../../popup.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel, getPendingCountForMes, getRunningCountForMes } from '../services/moduleAiGenerator.js';
@@ -1194,10 +1194,15 @@ export function initMessageAiButton() {
     //（追加后 active 已切到新版本，但菜单 counter 是打开时的快照，需重建才显示新 当前/总数）
     window.addEventListener(FLOOR_MODULES_UPDATED_EVENT, (e) => {
         if (!currentMenu || e.detail?.mesId !== currentMenuMesId) return;
-        currentMenu.find('[data-ccore-ver-switcher]').each(function () {
-            const genName = $(this).attr('data-ccore-ver-switcher');
-            if (genName) $(this).empty().append(createVersionSwitcher(currentMenuMesId, genName));
-        });
+        refreshMenuVersionSwitchers();
+    });
+
+    // ⚠️ Bug 修复：切换正文 swipe（MESSAGE_SWIPED）时，chat[mesId].swipe_id 变化，
+    //   已展开菜单的版本切换控件（读 outerSwipeId）是打开时快照 → 需重建（否则切到有内容的 swipe 也不显示版本数）。
+    //   注：ST 切 swipe 会重建 .mes，浮动按钮/菜单本身可能被清除；若菜单还在则重建其版本控件。
+    eventSource.on(event_types.MESSAGE_SWIPED, () => {
+        if (!currentMenu) return;
+        refreshMenuVersionSwitchers();
     });
 
     // 为当前已加载的消息添加按钮
@@ -1314,6 +1319,19 @@ function _updateCcButtonText(button) {
 function _refreshAllCcButtons() {
     $('.mes_ai_generate[data-mesid]').each(function () {
         _updateCcButtonText($(this));
+    });
+}
+
+/**
+ * 重建当前打开菜单中所有版本切换控件（‹ 当前/总数 ›）。
+ * 触发时机：楼层内容写入（FLOOR_MODULES_UPDATED_EVENT）或正文 swipe 切换（MESSAGE_SWIPED）。
+ * ⚠️ 两者都会使 chat[mesId].swipe_id 变化/版本表变化，而菜单是打开时快照，须重建才显示最新。
+ */
+function refreshMenuVersionSwitchers() {
+    if (!currentMenu || currentMenuMesId === null || currentMenuMesId === undefined) return;
+    currentMenu.find('[data-ccore-ver-switcher]').each(function () {
+        const genName = $(this).attr('data-ccore-ver-switcher');
+        if (genName) $(this).empty().append(createVersionSwitcher(currentMenuMesId, genName));
     });
 }
 

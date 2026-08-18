@@ -168,8 +168,12 @@ export class EventHandler {
                     return;
                 }
 
-                // 防重：该楼层已有模块生成任务进行中
-                if (taskRegistry.getRunningCountForMes(lastIdx) > 0) {
+                // 防重：该楼层已有「模块」生成任务进行中（⚠️ 只限 modules，其他 generator 任务不阻止自动模块生成）
+                let hasModuleTask = false;
+                taskRegistry.forEach(t => {
+                    if (t.status === 'running' && Number(t.mesId) === lastIdx && t.generatorName === 'modules') hasModuleTask = true;
+                });
+                if (hasModuleTask) {
                     debugLog(`[EVENTS]楼层 ${lastIdx} 已有模块生成任务，跳过自动触发`);
                     return;
                 }
@@ -181,12 +185,15 @@ export class EventHandler {
                     const apiConfig = asyncConfig.customApi || {};
                     if (apiConfig.apiurl) customApi = { ...apiConfig };
                 }
+                // ⚠️ 统一路径（2026-08-18）：自动落盘与否只由 showDebug 决定——
+                //   勾选「生成完成弹出面板手动确认」→ 不落盘弹面板等手动；不勾选 → 自动落盘并标 saved。
+                //   skipStorage 为历史参数不再参与判定（此处保留兼容，无实际作用）。
                 const options = {
                     generatorName: 'modules',
                     mode: asyncConfig.generationMode || 'pipeline',
                     customApi,
                     showDebug: asyncConfig.showDebug !== false,
-                    skipStorage: false, // 自动存储（生成默认追加新版本）
+                    skipStorage: false,
                     rawSystemPrompt: asyncConfig.rawSystemPrompt || '',
                     rawUserPrompt: asyncConfig.rawUserPromptTemplate || '',
                     // 默认生成提示词 = 默认提示词组的 prompt
@@ -194,9 +201,29 @@ export class EventHandler {
                 };
 
                 infoLog(`[EVENTS]消息接收完毕，自动触发楼层 ${lastIdx} 的模块异步生成`);
-                moduleAiGenerator.generate(lastIdx, options).catch(err => {
-                    errorLog(`[EVENTS]楼层 ${lastIdx} 自动模块生成失败:`, err);
-                });
+                // ⚠️ Bug 修复：GENERATION_ENDED 发射时 ST 尚未执行 showSwipeButtons()（在 hideStopButton → emit 之后），
+                //   若同步启动 generate → _callPipeline 立即 chat.push 临时生成指令消息（is_user:true），
+                //   污染 chat[last] → ST 的 showSwipeButtons 读到 is_user 直接 return → 该消息 swipe 箭头消失。
+                //   延迟到下一帧（ST 已恢复 UI）再启动；lastIdx 用延迟后的 chat.length-1（避免期间消息变化）。
+                setTimeout(() => {
+                    try {
+                        const runIdx = chat.length - 1;
+                        if (runIdx < 0) return;
+                        const runMsg = chat[runIdx];
+                        if (!runMsg || runMsg.is_user) return;
+                        // 防重（延迟后重新校验：期间可能已有任务开始）
+                        let dupTask = false;
+                        taskRegistry.forEach(t => {
+                            if (t.status === 'running' && Number(t.mesId) === runIdx && t.generatorName === 'modules') dupTask = true;
+                        });
+                        if (dupTask) return;
+                        moduleAiGenerator.generate(runIdx, options).catch(err => {
+                            errorLog(`[EVENTS]楼层 ${runIdx} 自动模块生成失败:`, err);
+                        });
+                    } catch (e2) {
+                        errorLog('[EVENTS]延迟自动生成异常:', e2);
+                    }
+                }, 0);
             } catch (err) {
                 errorLog('[EVENTS]自动触发模块生成异常:', err);
             }
