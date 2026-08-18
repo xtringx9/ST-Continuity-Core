@@ -101,8 +101,8 @@ function _getPendingRecords(generatorName, mesId) {
 }
 
 /**
- * 按记录 id 标记状态（saved/discarded/error），并清理该 key 下全部已处理记录。
- * 若该 key 下无任何记录则删除 key。
+ * 按记录 id 标记状态（saved/discarded/error）。
+ * ⚠️ 2026-08-18 保留已处理记录（历史面板可查看已处理项），仅当 key 下无任何记录时删除 key。
  * @param {string} generatorName
  * @param {number} mesId
  * @param {string} recordId
@@ -119,11 +119,8 @@ function _markPendingStatus(generatorName, mesId, recordId, status, note = '') {
             if (note) r.note = note;
         }
     }
-    // 清理该 key 下已处理记录（saved/discarded/error 均视为处理完）
-    const remaining = records.filter(r => r.status === 'pending');
-    if (remaining.length > 0) {
-        pendingResults.set(key, remaining);
-    } else {
+    // 仅当 key 下无任何记录时删除 key（已处理记录保留供历史面板查看）
+    if (records.length === 0) {
         pendingResults.delete(key);
     }
     _savePendingToStorage();
@@ -229,6 +226,7 @@ function _createSaveCallback(ctx) {
             clearPendingResult(generatorName, mesId);
         }
         infoLog(LOG_TAG, `楼层 ${mesId} ${generatorName} 数据已保存（用户确认，${mode}）`);
+        _autoOpenNextPending(generatorName, mesId, recordId);
     };
 }
 
@@ -244,7 +242,26 @@ function _createDiscardCallback(generatorName, mesId, recordId) {
             clearPendingResult(generatorName, mesId);
         }
         infoLog(LOG_TAG, `用户抛弃了 楼层${mesId} ${generatorName} 的生成结果`);
+        _autoOpenNextPending(generatorName, mesId, recordId);
     };
+}
+
+/**
+ * 处理（保存/抛弃）某条记录后，若该楼层还有未处理的 pending 记录，自动打开下一条（历史面板/调试面板连续处理体验）。
+ * @param {string} generatorName
+ * @param {number} mesId
+ * @param {string} processedId 刚处理的记录 id（跳过它）
+ */
+function _autoOpenNextPending(generatorName, mesId, processedId) {
+    try {
+        const records = _getPendingRecords(generatorName, mesId);
+        const next = records.find(r => r.status === 'pending' && r.id !== processedId);
+        if (next) {
+            showRecordDebugPanel(next);
+        }
+    } catch (err) {
+        errorLog(LOG_TAG, '自动打开下一条待处理记录失败:', err);
+    }
 }
 
 /**
@@ -351,7 +368,8 @@ export function getPendingCountForMes(mesId) {
  */
 export function showRecordDebugPanel(record) {
     if (!record) return;
-    const debugData = record.debugData || {};
+    // 浅拷贝 debugData，避免改动污染记录本身（多次打开标题/回调稳定）
+    const debugData = { ...(record.debugData || {}) };
     if (record.status === 'pending') {
         const context = { ...(record.context || {}), recordId: record.id };
         debugData.onSave = _createSaveCallback(context);
@@ -365,6 +383,15 @@ export function showRecordDebugPanel(record) {
     debugData.statusLabel = record.status;
     debugData.statusType = record.status === 'pending' ? 'info' : (record.status === 'error' ? 'fail' : 'success');
     debugData.titleBody = '';
+    // 历史导航（调试面板 ‹ › 切换；onNavigate 由本函数闭包提供，避免 generatorDebugPanel 反向依赖 moduleAiGenerator）
+    const records = _getPendingRecords(record.generatorName, record.mesId);
+    if (records.length > 1) {
+        debugData.historyNav = {
+            records,
+            currentId: record.id,
+            onNavigate: (rec) => showRecordDebugPanel(rec),
+        };
+    }
     showDebugPanel(debugData);
 }
 

@@ -1214,6 +1214,26 @@ section.module-detail-panel {
 .async-inline-field select {
     flex: 1;
     min-width: 0;
+    padding: 4px 8px;
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+/* ⚠️ password 输入框不在 editor-shell 的 .form-group 规则内（只有 text/number/select/textarea）→ 补主题色 */
+.async-settings .form-group input[type="password"] {
+    width: 100%;
+    padding: 4px 8px;
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    box-sizing: border-box;
 }
 
 .async-settings .async-toggle {

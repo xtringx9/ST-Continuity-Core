@@ -202,6 +202,39 @@ export function showDebugPanel(data) {
             const closeBtn = doc.querySelector('.ccore-debug-close');
             if (closeBtn) closeBtn.addEventListener('click', () => modal.close());
 
+            // 4.5 历史导航（historyNav 存在时显示：‹ 上一条 / 计数器 / 下一条 ›，跨已处理/未处理）
+            if (data.historyNav && Array.isArray(data.historyNav.records) && data.historyNav.records.length > 1) {
+                const nav = doc.querySelector('.ccore-debug-history-nav');
+                const prevBtn = doc.querySelector('.ccore-debug-history-prev');
+                const nextBtn = doc.querySelector('.ccore-debug-history-next');
+                const counter = doc.querySelector('.ccore-debug-history-counter');
+                if (nav && prevBtn && nextBtn && counter) {
+                    const { records, currentId, onNavigate } = data.historyNav;
+                    const curIdx = records.findIndex(r => r.id === currentId);
+                    const updateCounter = () => {
+                        counter.textContent = `${curIdx + 1}/${records.length}`;
+                    };
+                    updateCounter();
+                    nav.style.display = 'flex';
+                    prevBtn.addEventListener('click', () => {
+                        const idx = (curIdx - 1 + records.length) % records.length;
+                        const rec = records[idx];
+                        if (rec && typeof onNavigate === 'function') {
+                            modal.close();
+                            onNavigate(rec);
+                        }
+                    });
+                    nextBtn.addEventListener('click', () => {
+                        const idx = (curIdx + 1) % records.length;
+                        const rec = records[idx];
+                        if (rec && typeof onNavigate === 'function') {
+                            modal.close();
+                            onNavigate(rec);
+                        }
+                    });
+                }
+            }
+
             // 5. 绑定折叠/复制按钮
             _bindSectionEvents(doc);
 
