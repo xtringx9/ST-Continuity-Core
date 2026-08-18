@@ -214,12 +214,29 @@ export const aiCaller = {
         // 补末尾生成指令消息的角色（默认 user；弹窗提示词组可传 role 覆盖本次生成）
         const fallbackPromptRole = options.fallbackPromptRole || 'user';
 
+        // ⚠️ 2026-08-18 修复：try/finally 范围扩大到「隐藏楼层 + push + 宏注册」之前——
+        //   此前这些修改 chat/宏的操作在 try 外，若其间抛错则 finally 的 pop/还原不执行，
+        //   导致 chat 数组残留临时消息/楼层 is_system 污染（「中止/异常走不到收尾」）。
+        // ⚠️ finally 引用的变量（hiddenBackup/pushedUserMessage/overrideLastUser）必须在 try 外声明
+        //   （const 是块级作用域，try 内声明 finally 不可见 → ReferenceError）。
+        /** @type {Array<{index:number, wasSystem:boolean}>} */
+        const hiddenBackup = [];
+        let pushedUserMessage = null;
+        let overrideLastUser = false;
+        // ⚠️ 2026-08-18 收尾状态标识：避免 finally 对已提前清理的操作重复执行（二次 pop / 重复还原楼层 / 重复还原宏）。
+        //   - hiddenRestored：隐藏楼层是否已还原（提前清理置 true，finally 依据它跳过）
+        //   - pushedPopped：push 的生成指令消息是否已弹出（提前清理置 true，finally 依据它跳过）
+        //   - macroRestored：{{lastUserMessage}} 宏是否已还原（提前清理置 true，finally 依据它跳过）
+        let hiddenRestored = false;
+        let pushedPopped = false;
+        let macroRestored = false;
+
+        try {
         // 记录需要临时隐藏的楼层及原 is_system 值
         // 隐藏起点（hideStart）规则（用户拍板，2026-08-17）：
         //   - 目标楼层为 user 消息 → 隐藏 truncateToMesId+1 .. 末尾（现状）
         //   - 目标楼层为非 user 消息 → 保留紧邻的下一条（通常为 user 后续输入），隐藏 truncateToMesId+2 .. 末尾
         //   - 边界：目标楼层为非 user 且为最后一层 → 无后续楼层可保留，不隐藏；组装后生成指令直接走兜底 push
-        const hiddenBackup = [];
         let forceFallbackPush = false;
         // 组装前搜索「最新 user 消息」的上界（与不隐藏楼层保持一致）：
         //   - 目标楼层为 user → 到 truncateToMesId（目标楼层本身即最新 user）
@@ -256,7 +273,7 @@ export const aiCaller = {
         //   pushed 消息 is_system falsy → 成为组装数组最后一条（紧跟在截断区最后一条=目标楼层后）；
         //   finally pop() 还原且不保存 → 安全。push 是「截断 chat 的最后一条之后」而非「真的所有楼层最后一条之后」。
         const shouldPush = (pushAsLastUser || forceFallbackPush) && quietPrompt && typeof quietPrompt === 'string' && quietPrompt.trim();
-        const pushedUserMessage = shouldPush ? _buildPushedMessage(quietPrompt, name1) : null;
+        pushedUserMessage = shouldPush ? _buildPushedMessage(quietPrompt, name1) : null;
         if (pushedUserMessage && Array.isArray(chat)) {
             chat.push(pushedUserMessage);
             debugLog(LOG_TAG, `已临时 push 生成指令 user 消息（第 ${chat.length - 1} 层）${forceFallbackPush ? '（非 user 末层兜底）' : ''}`);
@@ -288,13 +305,12 @@ export const aiCaller = {
         //   但当前 ST 版本（本项目）无 macro-system.js、无 macros.registry，substituteParams 在 public/script.js:2225 导出。
         //   → 弃用警告仅是未来兼容提示，当前版本 registerMacro 功能完全正常，**暂不改**；
         //   待 ST 升级到含 macro-system.js 的版本后再适配（改后需同步 unregisterMacro 调用）。
-        const overrideLastUser = !shouldPush && quietPrompt && typeof quietPrompt === 'string' && quietPrompt.trim();
+        overrideLastUser = !shouldPush && quietPrompt && typeof quietPrompt === 'string' && quietPrompt.trim();
         if (overrideLastUser) {
             MacrosParser.registerMacro('lastUserMessage', () => quietPrompt);
             debugLog(LOG_TAG, '已覆盖 {{lastUserMessage}} 宏为生成指令（宏展开前替换）');
         }
 
-        try {
             // dryRun 组装完整提示词：Generate('quiet', opts, true) 只组装不发请求、不锁发送按钮
             // → 走 ST 原生 coreChat（正则/文件/宏/世界书/预设全保留）
             // → quiet_prompt 一律传空：生成指令由「宏覆盖展开」或「组装后手动补末尾 user」承载，
@@ -375,8 +391,26 @@ export const aiCaller = {
             for (const { index, wasSystem } of hiddenBackup) {
                 if (chat[index]) chat[index].is_system = wasSystem;
             }
+            hiddenRestored = true; // 标记已还原，finally 据此跳过（避免重复还原）
             if (hiddenBackup.length > 0) {
                 debugLog(LOG_TAG, `组装完成已还原 ${hiddenBackup.length} 条临时隐藏楼层`);
+            }
+
+            // ⚠️ 组装完成即弹出临时 push 的生成指令消息：此后发送只用 assembledChat 数组，不再读 chat，
+            //   无需让 push 消息在 chat 末尾停留整个发送期（缩短 chat 污染窗口；finally 据此跳过）。
+            if (pushedUserMessage && Array.isArray(chat) && chat[chat.length - 1] === pushedUserMessage) {
+                chat.pop();
+                pushedPopped = true; // 标记已弹出，finally 据此跳过（避免二次 pop）
+                debugLog(LOG_TAG, '组装完成已弹出临时 push 的生成指令 user 消息');
+            }
+
+            // ⚠️ 组装完成即恢复 {{lastUserMessage}} 宏：宏只在 Generate dryRun 组装期间被消费，
+            //   组装后替换/发送都基于 assembledChat 数组，不再经宏系统 → 提前还原缩短宏覆盖窗口
+            //   （发送期间其他代码读 {{lastUserMessage}} 恢复 ST 内置；finally 据此跳过）。
+            if (overrideLastUser && !macroRestored) {
+                MacrosParser.unregisterMacro('lastUserMessage');
+                macroRestored = true; // 标记已还原，finally 据此跳过（避免重复 unregister）
+                debugLog(LOG_TAG, '组装完成已恢复 {{lastUserMessage}} 宏');
             }
 
             // 自己发送（customApi 拦截在 sendOpenAIRequest 内部生效；不锁 ST 发送按钮）
@@ -417,22 +451,27 @@ export const aiCaller = {
             infoLog(LOG_TAG, `sendOpenAIRequest 返回，文本长度: ${resultText.length}`);
             return resultText;
         } finally {
-            // 恢复 {{lastUserMessage}} 宏（宏替换模式）
-            if (overrideLastUser) {
+            // 恢复 {{lastUserMessage}} 宏（宏替换模式）：仅当组装完成前尚未还原（含异常/中止早退路径）
+            if (overrideLastUser && !macroRestored) {
                 MacrosParser.unregisterMacro('lastUserMessage');
+                macroRestored = true;
                 debugLog(LOG_TAG, '已恢复 {{lastUserMessage}} 宏');
             }
-            // 弹出临时 push 的 user 消息
-            if (pushedUserMessage && Array.isArray(chat) && chat[chat.length - 1] === pushedUserMessage) {
+            // 弹出临时 push 的 user 消息：仅当组装完成前尚未弹出（含异常/中止早退路径）
+            if (!pushedPopped && pushedUserMessage && Array.isArray(chat) && chat[chat.length - 1] === pushedUserMessage) {
                 chat.pop();
+                pushedPopped = true;
                 debugLog(LOG_TAG, '已弹出临时 push 的生成指令 user 消息');
             }
-            // 还原临时隐藏的楼层
-            for (const { index, wasSystem } of hiddenBackup) {
-                if (chat[index]) chat[index].is_system = wasSystem;
-            }
-            if (hiddenBackup.length > 0) {
-                debugLog(LOG_TAG, `已还原 ${hiddenBackup.length} 条临时隐藏的楼层`);
+            // 还原临时隐藏的楼层：仅当组装完成前尚未还原（含异常/中止早退路径）
+            if (!hiddenRestored) {
+                for (const { index, wasSystem } of hiddenBackup) {
+                    if (chat[index]) chat[index].is_system = wasSystem;
+                }
+                if (hiddenBackup.length > 0) {
+                    debugLog(LOG_TAG, `已还原 ${hiddenBackup.length} 条临时隐藏的楼层`);
+                }
+                hiddenRestored = true;
             }
         }
     },
