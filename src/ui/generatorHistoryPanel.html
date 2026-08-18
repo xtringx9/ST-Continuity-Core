@@ -1,0 +1,180 @@
+<!-- src/ui/generatorHistoryPanel.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成历史</title>
+    <link rel="stylesheet" href="../shared/styles/themes.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 12px 16px;
+            background: var(--bg-app, #fff);
+            color: var(--text-primary, #111);
+            font-size: 13px;
+            font-family: var(--font-main, sans-serif);
+        }
+
+        .ccore-history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .ccore-history-count {
+            font-size: 12px;
+            color: var(--text-secondary, #666);
+        }
+
+        #ccore-history-close {
+            background: none;
+            border: none;
+            color: var(--text-primary, #111);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .ccore-history-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .ccore-history-filters select,
+        .ccore-history-filters input {
+            padding: 4px 8px;
+            border: 1px solid var(--border-color, rgba(128,128,128,0.3));
+            border-radius: 4px;
+            background: var(--bg-input, #fff);
+            color: var(--text-input, #111);
+            font-size: 12px;
+            box-sizing: border-box;
+        }
+
+        .ccore-history-filters .ccore-history-floor-input {
+            width: 90px;
+        }
+
+        #ccore-history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 55vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .ccore-history-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted, #999);
+            font-size: 13px;
+        }
+
+        .ccore-history-card {
+            border: 1px solid var(--border-color, rgba(128,128,128,0.3));
+            border-radius: 6px;
+            padding: 8px 10px;
+            cursor: pointer;
+            background: var(--bg-card, #fafafa);
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+
+        .ccore-history-card:hover {
+            border-color: var(--accent-color, #2563eb);
+            background: var(--bg-hover, rgba(128,128,128,0.08));
+        }
+
+        .ccore-history-card.ccore-history-pending {
+            border-color: #C9762E;
+            border-left-width: 3px;
+        }
+
+        .ccore-history-card-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .ccore-history-status {
+            font-size: 11px;
+            font-weight: bold;
+            padding: 1px 8px;
+            border-radius: 8px;
+            flex: 0 0 auto;
+        }
+
+        .ccore-history-pending .ccore-history-status {
+            background: #C9762E;
+            color: #fff;
+        }
+
+        .ccore-history-saved .ccore-history-status {
+            background: #4CAF50;
+            color: #fff;
+        }
+
+        .ccore-history-discarded .ccore-history-status {
+            background: #999;
+            color: #fff;
+        }
+
+        .ccore-history-error .ccore-history-status {
+            background: #f44336;
+            color: #fff;
+        }
+
+        .ccore-history-meta {
+            flex: 1;
+            font-size: 12px;
+            color: var(--text-secondary, #666);
+        }
+
+        .ccore-history-time {
+            font-size: 11px;
+            color: var(--text-muted, #999);
+            flex: 0 0 auto;
+        }
+
+        .ccore-history-card-body {
+            display: flex;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .ccore-history-gen {
+            color: var(--accent-color, #2563eb);
+        }
+
+        .ccore-history-note {
+            color: var(--text-muted, #999);
+        }
+    </style>
+</head>
+<body>
+    <div class="ccore-history-header">
+        <span class="ccore-history-count" id="ccore-history-count"></span>
+        <button id="ccore-history-close" title="关闭">✕</button>
+    </div>
+
+    <div class="ccore-history-filters">
+        <select id="ccore-history-filter-char"></select>
+        <select id="ccore-history-filter-chat"></select>
+        <input type="number" id="ccore-history-filter-floor" class="ccore-history-floor-input" placeholder="楼层" min="0">
+        <select id="ccore-history-filter-status">
+            <option value="all">全部状态</option>
+            <option value="pending">待处理</option>
+            <option value="saved">已保存</option>
+            <option value="discarded">已抛弃</option>
+            <option value="error">失败</option>
+        </select>
+    </div>
+
+    <div id="ccore-history-list"></div>
+</body>
+</html>

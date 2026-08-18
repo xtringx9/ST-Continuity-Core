@@ -430,5 +430,9 @@
     "ccore_async_pipeline_modifier_deprecated": "（旧「追加指令」，将由「默认生成提示词」取代）",
     "ccore_async_behavior_title": "生成行为",
     "ccore_settings_pipeline_modifier_hint": "追加到提示词末尾的指令（留空则不追加）",
-    "ccore_settings_custom_api_source": "API 类型:"
+    "ccore_settings_custom_api_source": "API 类型:",
+    "ccore_history_title": "生成历史",
+    "ccore_history_pending": "待处理",
+    "ccore_history_all": "全部",
+    "ccore_history_empty": "暂无生成记录"
 }

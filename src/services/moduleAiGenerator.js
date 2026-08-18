@@ -342,6 +342,31 @@ export function getPendingCountForMes(mesId) {
 }
 
 /**
+ * 在调试面板展示某条生成记录（历史面板用）。
+ * 待处理(pending)项重新绑定保存/抛弃/查看当前内容回调（recordId 只处理本条）；
+ * 已处理项只读（无操作按钮）。
+ * @param {object} record { id, status, generatorName, mesId, context, debugData, note? }
+ */
+export function showRecordDebugPanel(record) {
+    if (!record) return;
+    const debugData = record.debugData || {};
+    if (record.status === 'pending') {
+        const context = { ...(record.context || {}), recordId: record.id };
+        debugData.onSave = _createSaveCallback(context);
+        debugData.onDiscard = _createDiscardCallback(record.generatorName, record.mesId, record.id);
+        debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
+    } else {
+        delete debugData.onSave;
+        delete debugData.onDiscard;
+    }
+    debugData.title = `#${record.mesId} ${record.generatorName} · ${record.status}`;
+    debugData.statusLabel = record.status;
+    debugData.statusType = record.status === 'pending' ? 'info' : (record.status === 'error' ? 'fail' : 'success');
+    debugData.titleBody = '';
+    showDebugPanel(debugData);
+}
+
+/**
  * 重新打开调试面板显示某条待处理记录。
  * 用户手误关闭面板后,再次点击"重新生成"时调用（取第一条 pending）。
  */

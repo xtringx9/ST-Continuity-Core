@@ -8,6 +8,7 @@ import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 import { taskRegistry } from '../../core/taskRegistry.js';
 import { getPendingCount } from '../../services/moduleAiGenerator.js';
+import { openGeneratorHistory } from '../../ui/generatorHistoryPanel.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
 import { eventSource, event_types } from '../../../../../../../script.js';
 
@@ -432,6 +433,7 @@ export class EntryButton {
         const items = [
             { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },
             { action: 'generator-editor', icon: 'fa-wand-magic-sparkles', title: '生成内容配置' },
+            { action: 'history', icon: 'fa-clock-rotate-left', title: '生成历史' },
             { action: 'reader', icon: 'fa-book-open', title: '图文阅读器' },
             { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
             { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式' },
@@ -526,9 +528,9 @@ export class EntryButton {
         this._activeMenu.querySelectorAll('.continuity-entry-menu-item').forEach(btn => {
             const action = btn.dataset.action;
             const title = btn.dataset.title || '';
-            // 全局工具（不受聊天页限制）：editor / generator-editor / nai-preset / reader。
-            // reader 有首页（角色→聊天选择），无需先打开聊天即可浏览任意历史聊天。
-            const disabled = !inChat && action !== 'editor' && action !== 'generator-editor' && action !== 'nai-preset' && action !== 'reader';
+            // 全局工具（不受聊天页限制）：editor / generator-editor / nai-preset / reader / history。
+            // reader 有首页（角色→聊天选择）；history 是全局生成记录，均无需先打开聊天。
+            const disabled = !inChat && action !== 'editor' && action !== 'generator-editor' && action !== 'nai-preset' && action !== 'reader' && action !== 'history';
             btn.dataset.disabled = disabled ? 'true' : 'false';
             if (disabled) {
                 btn.style.opacity = '0.4';
@@ -615,6 +617,9 @@ export class EntryButton {
                 syncChatReaderTheme(this.readerIframe?.contentDocument);
                 break;
             }
+            case 'history':
+                openGeneratorHistory();
+                break;
             case 'summary':
                 openContextBottomAsModal();
                 break;

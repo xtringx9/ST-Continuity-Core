@@ -430,5 +430,9 @@
     "ccore_async_pipeline_modifier_deprecated": "(legacy 'Appended Instruction', to be replaced by the default prompt)",
     "ccore_async_behavior_title": "Generation Behavior",
     "ccore_settings_pipeline_modifier_hint": "Instruction appended to the end of the prompt (leave empty for none)",
-    "ccore_settings_custom_api_source": "API Type:"
+    "ccore_settings_custom_api_source": "API Type:",
+    "ccore_history_title": "Generation History",
+    "ccore_history_pending": "Pending",
+    "ccore_history_all": "All",
+    "ccore_history_empty": "No generation records"
 }
