@@ -19,8 +19,10 @@ import {
     openai_settings,
     openai_setting_names,
     settingsToUpdate,
+    promptManager,
 } from '../../../../../openai.js';
 import { MacrosParser } from '../../../../../macros.js';
+import { getPromptBindings, WB_BIND_MODE } from '../features/prompt-binding/promptBindingState.js';
 import configManager from '../singleton/configManager.js';
 import { debugLog, infoLog, errorLog, warnLog } from '../utils/logger.js';
 
@@ -61,9 +63,11 @@ function _buildPushedMessage(quietPrompt, name) {
 
 /**
  * 临时应用 ST OpenAI 预设到 oai_settings（dryRun 组装期间用，2026-08-18）。
- * ⚠️ 只覆盖「组装内容相关」字段：按 settingsToUpdate 映射遍历，跳过 isConnection（模型/URL/来源等
+ * ⚠️ 只覆盖「组装内容相关」字段：按 settingsToUpdate 映射遍历，跳过 isConnection（模型/URL/source 等
  *   连接绑定字段——组装内容无关，且发送阶段反正被 customApi 拦截覆盖）。
  * ⚠️ 不触发 OAI_PRESET_CHANGED 事件/UI 刷新（纯内存覆盖，无副作用）。
+ * ⚠️ 2026-08-18 增强：若「提示词条目·聊天绑定」（promptBinding）功能开启，把当前聊天的条目绑定
+ *   （on/off）应用到目标预设的 prompt_order 条目 enabled 上，实现对拿来 dryRun 组装的那个预设的条目开关。
  * @param {string} presetName ST OpenAI 预设名（openai_setting_names 的 key，空=用当前预设不覆盖）
  * @returns {Array<{setting:string, oldValue:*}>|null} 备份数组（供 _restorePresetForAssembly 恢复）
  */
@@ -82,9 +86,61 @@ function _applyPresetForAssembly(presetName) {
         fields.push({ setting, oldValue: oai_settings[setting] });
         oai_settings[setting] = preset[presetKey];
     }
+    // promptBinding 增强：功能开启才处理，否则保持现有逻辑（用户拍板，2026-08-18）
+    if (configManager.getStFeatureEnhanceConfig()?.promptBinding?.enabled === true) {
+        _applyPromptBindingsToPresetOrder(fields);
+    }
     if (fields.length === 0) return null;
     debugLog(LOG_TAG, `已临时应用 ST OpenAI 预设「${presetName}」，覆盖 ${fields.length} 个组装相关字段`);
     return fields;
+}
+
+/**
+ * 把当前聊天的提示词条目绑定（promptBinding，存在 floor）应用到目标预设的 prompt_order 条目。
+ * 生效原理：组装时 getPromptCollection 用 `entry.enabled` 决定是否纳入（PromptManager.js:1533），
+ *   与 applyBindingsToPromptManager 瞬态改 entry.enabled 等效。
+ * ⚠️ 深拷贝：修改落在副本上，不污染预设本体（openai_settings[idx]）。
+ * ⚠️ 备份保护：只要改了 prompt_order 条目就必须把 prompt_order 加入备份（无论是否被预设覆盖），
+ *   否则恢复时 finally 不还原 → 残留污染。若无条目命中则撤销该备份。
+ * @param {Array<{setting:string, oldValue:*}>} fields 备份数组（_applyPresetForAssembly 传入，可能已含 prompt_order）
+ */
+function _applyPromptBindingsToPresetOrder(fields) {
+    const bindings = getPromptBindings();
+    if (!bindings || typeof bindings !== 'object') return;
+    const entries = Object.entries(bindings).filter(([, mode]) => mode === WB_BIND_MODE.ON || mode === WB_BIND_MODE.OFF);
+    if (entries.length === 0) return;
+
+    const order = oai_settings.prompt_order;
+    if (!Array.isArray(order)) return;
+
+    // 定位 activeCharacter 对应的 order 列表（global strategy 下 activeCharacter.id=dummyId）
+    const activeId = promptManager?.activeCharacter ? String(promptManager.activeCharacter.id) : null;
+    const charOrder = activeId !== null ? order.find(l => String(l.character_id) === activeId) : null;
+    if (!charOrder || !Array.isArray(charOrder.order)) return;
+
+    // ⚠️ 备份 prompt_order 原值（引用）；若已被预设覆盖则 fields 已含，勿重复
+    if (!fields.some(f => f.setting === 'prompt_order')) {
+        fields.push({ setting: 'prompt_order', oldValue: oai_settings.prompt_order });
+    }
+
+    // 深拷贝后修改（避免污染预设本体）
+    const clonedOrder = structuredClone(order);
+    const clonedCharOrder = clonedOrder.find(l => String(l.character_id) === activeId);
+    let appliedCount = 0;
+    for (const [identifier, mode] of entries) {
+        const entry = (clonedCharOrder?.order || []).find(e => e.identifier === identifier);
+        if (!entry) continue; // 目标预设没有该条目 → 跳过
+        entry.enabled = (mode === WB_BIND_MODE.ON);
+        appliedCount++;
+    }
+    oai_settings.prompt_order = clonedOrder;
+    if (appliedCount > 0) {
+        debugLog(LOG_TAG, `promptBinding 已应用：${appliedCount} 个条目按聊天绑定开关（目标预设 prompt_order）`);
+    } else {
+        // 无条目命中：撤销刚加的 prompt_order 备份（引用已换为等价深拷贝，无害）
+        const idx = fields.findIndex(f => f.setting === 'prompt_order');
+        if (idx >= 0) fields.splice(idx, 1);
+    }
 }
 
 /**
