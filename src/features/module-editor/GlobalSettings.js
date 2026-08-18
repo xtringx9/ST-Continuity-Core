@@ -18,12 +18,17 @@ const PROMPT_MODE_LABELS = [
  */
 function renderTristatePromptEditor(idPrefix, title, value) {
     const groups = PROMPT_MODE_LABELS.map(mode => {
-        const part = (value && value[mode.key]) || { pre: '', post: '' };
+        const part = (value && value[mode.key]) || { pre: '', post: '', tag: '' };
         const preVal = (typeof part === 'string' ? part : part.pre || '');
         const postVal = (typeof part === 'string' ? '' : part.post || '');
+        // tag 会注入 input value 属性，做最小转义（单行短文本）
+        const tagVal = (typeof part === 'string' ? '' : part.tag || '')
+            .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         return `
             <div class="form-group tristate-mode-group">
                 <label class="tristate-mode-label">${translate(mode.labelKey)}</label>
+                <label class="tristate-tag-label">${translate('ccore_label_prompt_tag')}</label>
+                <input type="text" id="${idPrefix}-${mode.key}-tag" placeholder="${translate('ccore_placeholder_global_prompt_tag')}" value="${tagVal}">
                 <label class="tristate-pre-label">${translate('ccore_label_prompt_pre')}</label>
                 <textarea id="${idPrefix}-${mode.key}-pre" rows="2" placeholder="${translate('ccore_placeholder_global_prompt_pre')}">${preVal}</textarea>
                 <label class="tristate-post-label">${translate('ccore_label_prompt_post')}</label>
@@ -142,6 +147,7 @@ export function renderGlobalSettings(doc, settings, onChange) {
                 out[mode.key] = {
                     pre: doc.getElementById(`${idPrefix}-${mode.key}-pre`).value,
                     post: doc.getElementById(`${idPrefix}-${mode.key}-post`).value,
+                    tag: doc.getElementById(`${idPrefix}-${mode.key}-tag`).value,
                 };
             }
             return out;

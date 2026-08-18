@@ -96,7 +96,7 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
                         </select>
                     </div>
                     <div class="async-inline-field">
-                        <label for="async-preset-name">${translate('ccore_settings_ai_preset')}</label>
+                        <label for="async-preset-name">${translate('ccore_settings_generation_preset')}</label>
                         <select id="async-preset-name">
                             <option value="">${translate('ccore_settings_ai_preset_default')}</option>
                             ${Object.keys(openai_setting_names || {}).map(name => `<option value="${escapeHtml(name)}" ${asyncConfig.presetName === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}

@@ -805,7 +805,8 @@ section.module-detail-panel {
 }
 
 .tristate-pre-label,
-.tristate-post-label {
+.tristate-post-label,
+.tristate-tag-label {
     font-size: 11px;
     opacity: 0.8;
     margin: 2px 0 1px;
@@ -813,6 +814,11 @@ section.module-detail-panel {
 }
 
 .tristate-mode-group textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.tristate-mode-group input[type="text"] {
     width: 100%;
     box-sizing: border-box;
 }
@@ -1174,10 +1180,10 @@ section.module-detail-panel {
     transform: translateX(20px);
 }
 
-/* 生成行为区：两列紧凑布局，开关不占整行 */
+/* 生成行为区：固定两列——第一行两个下拉框（生成方式/生成预设），第二行两个开关 */
 .async-behavior-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px 16px;
 }
 

@@ -39,13 +39,16 @@ function formatTristateObject(value, length, oldValue) {
         const old = (oldValue && oldValue[mode]) || {};
         const curPre = cur.pre || '';
         const curPost = cur.post || '';
+        const curTag = cur.tag || '';
         const oldPre = old.pre || '';
         const oldPost = old.post || '';
-        if (curPre === oldPre && curPost === oldPost) continue; // 该 mode 未变
+        const oldTag = old.tag || '';
+        if (curPre === oldPre && curPost === oldPost && curTag === oldTag) continue; // 该 mode 未变
         const label = modeLabels[mode];
         const partsForMode = [];
         if (curPre !== oldPre) partsForMode.push(`pre${curPre ? `[${curPre}]` : '(空)'}`);
         if (curPost !== oldPost) partsForMode.push(`post${curPost ? `[${curPost}]` : '(空)'}`);
+        if (curTag !== oldTag) partsForMode.push(`tag${curTag ? `[${curTag}]` : '(空)'}`);
         if (partsForMode.length > 0) parts.push(`${label}: ${partsForMode.join(' ')}`);
     }
     const text = parts.length > 0 ? parts.join('; ') : '{}';
@@ -76,7 +79,23 @@ function formatChangeValue(value, length = 50, oldValue) {
         return `"${escapeHtml(value)}"`;
     }
     if (typeof value === 'object') {
-        return formatTristateObject(value, length, oldValue);
+        // 三态结构 → 差异对比；其他对象 → JSON 展示
+        if (value && (value.sync !== undefined || value['async-body'] !== undefined || value['async-alone'] !== undefined)) {
+            return formatTristateObject(value, length, oldValue);
+        }
+        let json;
+        try {
+            json = JSON.stringify(value);
+        } catch (e) {
+            json = String(value);
+        }
+        if (json && json.length > length) {
+            return `<details style="display: inline-block; cursor: pointer; max-width: 100%;">
+                        <summary style="display: inline; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(json.substring(0, length))}...</summary>
+                        <pre style="margin-top: 5px; padding: 5px; background: rgba(0,0,0,0.1); border-radius: 3px; white-space: pre-wrap; word-break: break-all;">${escapeHtml(json)}</pre>
+                    </details>`;
+        }
+        return escapeHtml(json);
     }
     return escapeHtml(String(value));
 }
@@ -223,6 +242,80 @@ function compareModuleLists(list1, list2) {
     return { added, deleted, modified, reordered };
 }
 
+/** asyncConfig / asyncModule 字段 → locale key */
+const asyncKeyToI18n = {
+    'enabled': 'ccore_settings_async_enabled',
+    'snapshotInterval': 'ccore_settings_snapshot_interval',
+    'generationMode': 'ccore_settings_generation_mode',
+    'useIndependentApi': 'ccore_settings_use_independent_api',
+    'rawSystemPrompt': 'ccore_settings_raw_system_prompt',
+    'rawUserPromptTemplate': 'ccore_settings_raw_user_prompt',
+    'showDebug': 'ccore_settings_show_debug',
+    'pushUserMessageAsLast': 'ccore_settings_push_user_message_as_last',
+    'askPromptBeforeGenerate': 'ccore_settings_ask_prompt_before_generate',
+    'autoGenerateOnMessageEnd': 'ccore_settings_auto_generate_on_message_end',
+    'presetName': 'ccore_settings_ai_preset',
+    'promptGroups': 'ccore_async_prompt_groups_title',
+    'customApi': 'ccore_settings_custom_api_summary',
+    'customApi.apiurl': 'ccore_settings_custom_api_url',
+    'customApi.key': 'ccore_settings_custom_api_key',
+    'customApi.model': 'ccore_settings_custom_api_model',
+    'customApi.source': 'ccore_settings_custom_api_source',
+    'customApi.temperature': 'ccore_settings_custom_api_temperature',
+    'customApi.max_tokens': 'ccore_settings_custom_api_max_tokens',
+};
+
+/** 提示词组摘要（名称 + 默认标记） */
+function formatPromptGroups(groups) {
+    const arr = Array.isArray(groups) ? groups : [];
+    if (arr.length === 0) return '(空)';
+    return arr.map(g => `${g.name || '(未命名)'}${g.isDefault ? '★' : ''}`).join(', ');
+}
+
+/**
+ * 比较 asyncConfig / asyncModule 的差异。
+ * asyncModule.enabled 并入；customApi 子字段展开；其余标量字段逐一对比。
+ * @param {Object} originalAsyncConfig
+ * @param {Object} currentAsyncConfig
+ * @param {Object} originalAsyncModule
+ * @param {Object} currentAsyncModule
+ * @returns {Array<{key:string, oldValue:*, newValue:*}>}
+ */
+function compareAsyncConfigs(originalAsyncConfig, currentAsyncConfig, originalAsyncModule, currentAsyncModule) {
+    const changes = [];
+    const oldEnabled = !!(originalAsyncModule && originalAsyncModule.enabled);
+    const newEnabled = !!(currentAsyncModule && currentAsyncModule.enabled);
+    if (oldEnabled !== newEnabled) {
+        changes.push({ key: 'enabled', oldValue: oldEnabled, newValue: newEnabled });
+    }
+    const orig = originalAsyncConfig || {};
+    const curr = currentAsyncConfig || {};
+
+    // customApi 子字段展开
+    const ca1 = (orig.customApi && typeof orig.customApi === 'object') ? orig.customApi : {};
+    const ca2 = (curr.customApi && typeof curr.customApi === 'object') ? curr.customApi : {};
+    const caKeys = new Set([...Object.keys(ca1), ...Object.keys(ca2)]);
+    for (const k of caKeys) {
+        if (JSON.stringify(ca1[k]) !== JSON.stringify(ca2[k])) {
+            changes.push({ key: `customApi.${k}`, oldValue: ca1[k], newValue: ca2[k] });
+        }
+    }
+
+    // 其余标量字段（含 promptGroups）
+    const scalarKeys = [
+        'snapshotInterval', 'generationMode', 'useIndependentApi',
+        'rawSystemPrompt', 'rawUserPromptTemplate', 'showDebug',
+        'pushUserMessageAsLast', 'askPromptBeforeGenerate',
+        'autoGenerateOnMessageEnd', 'presetName', 'promptGroups',
+    ];
+    for (const key of scalarKeys) {
+        if (JSON.stringify(orig[key]) !== JSON.stringify(curr[key])) {
+            changes.push({ key, oldValue: orig[key], newValue: curr[key] });
+        }
+    }
+    return changes;
+}
+
 const variableKeyToI18nKey = {
     'name': 'label_var_name',
     'displayName': 'label_var_display_name',
@@ -273,9 +366,13 @@ function getModulePropertyLabel(key) {
  * @param {Array} currentModules
  * @param {Object} originalSettings
  * @param {Object} currentSettings
+ * @param {Object} [originalAsyncConfig]
+ * @param {Object} [currentAsyncConfig]
+ * @param {Object} [originalAsyncModule]
+ * @param {Object} [currentAsyncModule]
  * @returns {{html: string, hasChanges: boolean}}
  */
-export function generateChangesSummary(originalModules, currentModules, originalSettings, currentSettings) {
+export function generateChangesSummary(originalModules, currentModules, originalSettings, currentSettings, originalAsyncConfig, currentAsyncConfig, originalAsyncModule, currentAsyncModule) {
     let html = '';
     let hasChanges = false;
 
@@ -358,6 +455,31 @@ export function generateChangesSummary(originalModules, currentModules, original
                 html += '</ul></details>';
             });
         }
+    }
+
+    // 3. Compare Async Config
+    const asyncChanges = compareAsyncConfigs(originalAsyncConfig, currentAsyncConfig, originalAsyncModule, currentAsyncModule);
+    if (asyncChanges.length > 0) {
+        hasChanges = true;
+        html += `<h4>${translate('ccore_title_async_changes')}</h4><ul>`;
+        asyncChanges.forEach(change => {
+            const label = translate(asyncKeyToI18n[change.key]) || change.key;
+            let oldValueFormatted;
+            let newValueFormatted;
+            if (change.key === 'promptGroups') {
+                oldValueFormatted = escapeHtml(formatPromptGroups(change.oldValue));
+                newValueFormatted = escapeHtml(formatPromptGroups(change.newValue));
+            } else if (change.key === 'customApi.key') {
+                // API Key 打码
+                oldValueFormatted = change.oldValue ? '****' : '(空)';
+                newValueFormatted = change.newValue ? '****' : '(空)';
+            } else {
+                oldValueFormatted = formatChangeValue(change.oldValue, 50, change.newValue);
+                newValueFormatted = formatChangeValue(change.newValue, 50, change.oldValue);
+            }
+            html += `<li><strong>${escapeHtml(label)}</strong>: <span class="change-old">${oldValueFormatted}</span> → <span class="change-new">${newValueFormatted}</span></li>`;
+        });
+        html += '</ul>';
     }
 
     if (!hasChanges) {

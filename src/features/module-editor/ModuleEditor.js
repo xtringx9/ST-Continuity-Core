@@ -832,11 +832,9 @@ function clearAllModules() {
 }
 
 function confirmAndSave() {
-    const summary = generateChangesSummary(originalModules, currentModules, originalGlobalSettings, currentGlobalSettings);
-    // asyncConfig / asyncModule 变化不在 ChangesSummary 的 diff 内，单独合并到 hasChanges（保存按钮/确认弹窗可保存）
-    const asyncChanged = JSON.stringify(originalAsyncConfig) !== JSON.stringify(currentAsyncConfig)
-        || JSON.stringify(originalAsyncModule) !== JSON.stringify(currentAsyncModule);
-    const { html, hasChanges } = { html: summary.html, hasChanges: summary.hasChanges || asyncChanged };
+    // asyncConfig / asyncModule 变化一并纳入 ChangesSummary 的 diff
+    const summary = generateChangesSummary(originalModules, currentModules, originalGlobalSettings, currentGlobalSettings, originalAsyncConfig, currentAsyncConfig, originalAsyncModule, currentAsyncModule);
+    const { html, hasChanges } = summary;
 
     const dialog = new IframeDialog(doc);
 

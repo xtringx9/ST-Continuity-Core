@@ -62,12 +62,10 @@ const DEFAULT_INSERTION_SETTINGS = {
  */
 export function generateFormalPrompt(mode) {
     try {
-        const globalSettings = configManager.getGlobalSettings();
-        const moduleTag = globalSettings.moduleTag || "module";
-        const promptTag = `${moduleTag}_generate_rule`;
-
         const modules = configManager.getModules() || [];
         const effectiveMode = mode || getPromptMode();
+        // 包裹标签（三态 tag 配置，空=不输出 <tag> 包裹）
+        const promptTag = getTristatePromptTag('prompt', effectiveMode);
         // 按三态模式过滤模块（embedded 三态都含）
         const enabledModules = filterModulesByMode(modules.filter(module => module.enabled !== false), effectiveMode);
         debugLog('开始生成正式提示词，模块数量:', enabledModules.length, '模式:', effectiveMode);
@@ -77,7 +75,7 @@ export function generateFormalPrompt(mode) {
             return '';
         }
 
-        let prompt = `<${promptTag}>\n`;
+        let prompt = promptTag ? `<${promptTag}>\n` : '';
 
         // 前置提示词（三态）
         prompt += getOutputRulePrompt('prompt', effectiveMode);
@@ -92,7 +90,7 @@ export function generateFormalPrompt(mode) {
         // 后置提示词（三态）
         prompt += getOutputRulePostPrompt('prompt', effectiveMode);
 
-        prompt += `</${promptTag}>\n`;
+        if (promptTag) prompt += `</${promptTag}>\n`;
 
         // 替换提示词中的变量
         const replacedPrompt = replaceVariables(prompt);
@@ -271,8 +269,7 @@ export function generateUsageGuide(mode) {
             return '';
         }
 
-        const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
-        const promptTag = `${moduleTag}_data_usage_guide`;
+        const promptTag = getTristatePromptTag('usage', effectiveMode);
 
         // 按「当前模块数据」筛有数据的模块（与 MODULE_DATA 同源提取）——动态控制提示词长度：
         // 只对 count>0（正文/floor 里实际存在数据）且配置了 usage 提示词的模块提供指导；
@@ -297,7 +294,7 @@ export function generateUsageGuide(mode) {
         }
 
         // 构建使用指导提示词
-        let usageGuide = `<${promptTag}>\n`;
+        let usageGuide = promptTag ? `<${promptTag}>\n` : '';
 
         usageGuide += getOutputRulePrompt('usage', effectiveMode);
 
@@ -324,7 +321,7 @@ export function generateUsageGuide(mode) {
         // 后置提示词（三态）
         usageGuide += getOutputRulePostPrompt('usage', effectiveMode);
 
-        usageGuide += `</${promptTag}>\n`;
+        if (promptTag) usageGuide += `</${promptTag}>\n`;
 
         // 替换提示词中的变量
         const replacedUsageGuide = replaceVariables(usageGuide.trim());
@@ -462,9 +459,7 @@ export function generateUsageGuide(mode) {
 export function generateModuleOrderPrompt(mode) {
     try {
         const globalSettings = configManager.getGlobalSettings();
-        const moduleTag = globalSettings.moduleTag || "module";
         const moduleUpdateTag = globalSettings.moduleUpdateTag || "module_update";
-        const promptTag = `${moduleTag}_output_rule`;
         const contentTag = globalSettings.contentTag;
         let contentTagString = Array.isArray(contentTag) ? contentTag.join(',') : contentTag;
         if (Array.isArray(contentTag) && contentTag.length > 1) contentTagString = contentTagString + ",...";
@@ -479,6 +474,8 @@ export function generateModuleOrderPrompt(mode) {
 
         // 过滤启用的模块，再按三态模式过滤（embedded 三态都含）
         const effectiveMode = mode || getPromptMode();
+        // 包裹标签（三态 tag 配置，空=不输出 <tag> 包裹）
+        const promptTag = getTristatePromptTag('order', effectiveMode);
         const enabledModules = filterModulesByMode(modulesData.filter(module => module.enabled !== false), effectiveMode);
         debugLog(`[Macro]宏管理器: ORDER 三态模式 ${effectiveMode}，启用模块 ${enabledModules.length} 个`);
 
@@ -539,7 +536,7 @@ export function generateModuleOrderPrompt(mode) {
         });
 
         // 构建顺序提示词
-        let orderPrompt = `<${promptTag}>\n`;
+        let orderPrompt = promptTag ? `<${promptTag}>\n` : '';
         // orderPrompt += "模块生成顺序和配置：\n\n";
 
         let formatPrompt = getOutputRulePrompt('order', effectiveMode);
@@ -631,7 +628,7 @@ export function generateModuleOrderPrompt(mode) {
         // 后置提示词（三态）
         orderPrompt += getOutputRulePostPrompt('order', effectiveMode);
 
-        orderPrompt += `</${promptTag}>\n`;
+        if (promptTag) orderPrompt += `</${promptTag}>\n`;
 
         // 替换提示词中的变量
         const replacedOrderPrompt = replaceVariables(orderPrompt.trim());
@@ -643,10 +640,10 @@ export function generateModuleOrderPrompt(mode) {
 }
 
 /**
- * 读取某类型的「三态×前置/后置」提示词配置。
+ * 读取某类型的「三态×前置/后置/tag」提示词配置。
  * @param {'prompt'|'order'|'usage'|'moduleData'} type
  * @param {'sync'|'async-body'|'async-alone'} [mode] 缺省按当前上下文推导
- * @returns {{pre:string, post:string}}
+ * @returns {{pre:string, post:string, tag:string}}
  */
 function getTristatePromptConfig(type, mode) {
     const globalSettings = configManager.getGlobalSettings();
@@ -655,16 +652,31 @@ function getTristatePromptConfig(type, mode) {
     const raw = globalSettings?.[keyMap[type]];
     // 兼容旧字符串（作为 sync.pre）
     if (typeof raw === 'string') {
-        return effectiveMode === 'sync' ? { pre: raw, post: '' } : { pre: '', post: '' };
+        return effectiveMode === 'sync' ? { pre: raw, post: '', tag: '' } : { pre: '', post: '', tag: '' };
     }
     if (raw && typeof raw === 'object') {
         const part = raw[effectiveMode];
-        if (typeof part === 'string') return { pre: part, post: '' };
+        if (typeof part === 'string') return { pre: part, post: '', tag: '' };
         if (part && typeof part === 'object') {
-            return { pre: typeof part.pre === 'string' ? part.pre : '', post: typeof part.post === 'string' ? part.post : '' };
+            return {
+                pre: typeof part.pre === 'string' ? part.pre : '',
+                post: typeof part.post === 'string' ? part.post : '',
+                tag: typeof part.tag === 'string' ? part.tag : '',
+            };
         }
     }
-    return { pre: '', post: '' };
+    return { pre: '', post: '', tag: '' };
+}
+
+/**
+ * 读取某类型三态提示词的「包裹标签」（tag）。
+ * tag 为空 → 生成时忽略 promptTag，不输出 <tag> 包裹。
+ * @param {'prompt'|'order'|'usage'|'moduleData'} type
+ * @param {'sync'|'async-body'|'async-alone'} [mode]
+ * @returns {string}
+ */
+function getTristatePromptTag(type, mode) {
+    return getTristatePromptConfig(type, mode).tag || '';
 }
 
 /**
@@ -825,18 +837,18 @@ function extractModuleDataForPrompt(skipEmpty = false) {
 
 export function generateModuleDataPrompt(mode) {
     try {
-        const moduleTag = configManager.getGlobalSettings().moduleTag || "module";
-        const promptTag = `${moduleTag}_data`;
         const effectiveMode = mode || getPromptMode();
+        // 包裹标签（三态 tag 配置，空=不输出 <tag> 包裹）
+        const promptTag = getTristatePromptTag('moduleData', effectiveMode);
         // 异步跟随正文（async-body）：只显示 count 非 0 的模块（正文内模块本就在正文里，数据量小）；
         // 同步跟随正文与异步单独生成保持全量输出。
         const processResult = extractModuleDataForPrompt(effectiveMode === 'async-body');
-        if (!processResult) return `<${promptTag}>\n</${promptTag}>`;
-        let moduleDataPrompt = `<${promptTag}>\n`;
+        if (!processResult) return promptTag ? `<${promptTag}>\n</${promptTag}>` : '';
+        let moduleDataPrompt = promptTag ? `<${promptTag}>\n` : '';
         moduleDataPrompt += getOutputRulePrompt('moduleData', effectiveMode);
         moduleDataPrompt += `# 最新模块数据\n\n${processResult.contentString}\n`;
         moduleDataPrompt += getOutputRulePostPrompt('moduleData', effectiveMode);
-        moduleDataPrompt += `</${promptTag}>\n`;
+        if (promptTag) moduleDataPrompt += `</${promptTag}>\n`;
         // 替换提示词中的变量
         const replacedModuleDataPrompt = replaceVariables(moduleDataPrompt.trim());
         return replacedModuleDataPrompt;

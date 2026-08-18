@@ -2,7 +2,7 @@
 import { extension_settings, getContext } from "../../../../../extensions.js";
 import { saveSettings } from "../../../../../../script.js";
 import { infoLog, errorLog, debugLog } from "../utils/logger.js";
-import { normalizeConfig, DEFAULT_CONFIG_VALUES, normalizeTristatePrompt, normalizeAsyncConfig, DEFAULT_ASYNC_CONFIG } from '../config/moduleConfigTemplate.js';
+import { normalizeConfig, DEFAULT_CONFIG_VALUES, normalizeTristatePrompt, normalizeAsyncConfig, defaultAsyncConfig } from '../config/moduleConfigTemplate.js';
 import { normalizeGeneratorConfig, DEFAULT_GENERATOR_CONFIG_VALUES } from '../config/generatorConfigTemplate.js';
 import { normalizePhoneConfig, DEFAULT_PHONE_CONFIG_VALUES } from '../config/phoneConfigTemplate.js';
 import { normalizeCharacterBindingConfig, DEFAULT_CHARACTER_BINDING_VALUES } from '../config/characterBindingTemplate.js';
@@ -240,11 +240,18 @@ class ConfigManager {
             // 从扩展设置加载配置
             if (extension_settings[extensionName] && extension_settings[extensionName][MODULE_CONFIG_KEY]) {
                 this.moduleConfig = extension_settings[extensionName][MODULE_CONFIG_KEY];
-                // 加载时规范化 globalSettings 的四个提示词字段（旧字符串 → 三态×前后置结构，迁移到 sync.pre）
+                // 加载时规范化 globalSettings 的四个提示词字段（旧字符串 → 三态×前后置/tag结构，迁移到 sync.pre）
+                // tag 缺省按宏默认填充（module_generate_rule 等），保持既有包裹行为
                 const gs = this.moduleConfig?.globalSettings;
                 if (gs) {
-                    for (const key of ['prompt', 'orderPrompt', 'usagePrompt', 'moduleDataPrompt']) {
-                        gs[key] = normalizeTristatePrompt(gs[key]);
+                    const tristateDefaults = {
+                        prompt: 'module_generate_rule',
+                        orderPrompt: 'module_output_rule',
+                        usagePrompt: 'module_data_usage_guide',
+                        moduleDataPrompt: 'module_data',
+                    };
+                    for (const key of Object.keys(tristateDefaults)) {
+                        gs[key] = normalizeTristatePrompt(gs[key], tristateDefaults[key]);
                     }
                 }
                 this.isModuleConfigLoaded = true;
@@ -277,13 +284,13 @@ class ConfigManager {
             }
 
             // 如果没有配置，使用默认配置
-            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES, asyncConfig: { ...DEFAULT_ASYNC_CONFIG, promptGroups: [] } };
+            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES, asyncConfig: defaultAsyncConfig() };
             this.isModuleConfigLoaded = true;
             debugLog('使用默认配置初始化内存缓存');
         } catch (error) {
             errorLog('加载模块配置失败:', error);
             // 加载失败时使用默认配置
-            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES, asyncConfig: { ...DEFAULT_ASYNC_CONFIG, promptGroups: [] } };
+            this.moduleConfig = { ...DEFAULT_CONFIG_VALUES, asyncConfig: defaultAsyncConfig() };
             this.isModuleConfigLoaded = true;
         }
     }

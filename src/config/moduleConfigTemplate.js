@@ -9,14 +9,15 @@ export const CONFIG_CONSTANTS = {
 export const PROMPT_MODES = ['sync', 'async-body', 'async-alone'];
 
 /**
- * 规范化「三态 × 前置/后置」提示词结构。
+ * 规范化「三态 × 前置/后置/tag」提示词结构。
  * 兼容旧字符串（作为 sync.pre 迁移）。
- * 新结构：{ sync:{pre,post}, 'async-body':{pre,post}, 'async-alone':{pre,post} }
+ * 新结构：{ sync:{pre,post,tag}, 'async-body':{pre,post,tag}, 'async-alone':{pre,post,tag} }
  * @param {string|Object} value 旧字符串或新结构对象
- * @returns {Object} { sync:{pre,post}, 'async-body':{pre,post}, 'async-alone':{pre,post} }
+ * @param {string} [defaultTag] 缺省 tag（tag 未显式配置时填充；显式空字符串保留为空）
+ * @returns {Object} { sync:{pre,post,tag}, 'async-body':{pre,post,tag}, 'async-alone':{pre,post,tag} }
  */
-export function normalizeTristatePrompt(value) {
-    const empty = { pre: '', post: '' };
+export function normalizeTristatePrompt(value, defaultTag = '') {
+    const empty = { pre: '', post: '', tag: defaultTag };
     const out = {
         sync: { ...empty },
         'async-body': { ...empty },
@@ -36,10 +37,20 @@ export function normalizeTristatePrompt(value) {
             } else if (part && typeof part === 'object') {
                 out[mode].pre = typeof part.pre === 'string' ? part.pre : '';
                 out[mode].post = typeof part.post === 'string' ? part.post : '';
+                out[mode].tag = typeof part.tag === 'string' ? part.tag : defaultTag;
             }
         }
     }
     return out;
+}
+
+/**
+ * 创建「三态 × 前置/后置/tag」结构，tag 三态统一填充。
+ * @param {string} [tag] 包裹标签（空=生成时不输出 <tag> 包裹）
+ * @returns {Object}
+ */
+export function tristatePrompt(tag = '') {
+    return normalizeTristatePrompt(null, tag);
 }
 
 /** 空的三态×前后置结构（DEFAULT_CONFIG_VALUES 用） */
@@ -61,7 +72,17 @@ export const DEFAULT_ASYNC_CONFIG = {
     pushUserMessageAsLast: false, // 重新生成时：true=生成指令 push 进 chat 作为最后 user 消息；false=经 quietPrompt 传入（UI 暂隐藏，保留配置）
     askPromptBeforeGenerate: false, // 点击小 Cc 生成按钮时弹出输入框（UI 暂隐藏，保留配置）
     autoGenerateOnMessageEnd: true, // 聊天消息收到完毕（GENERATION_ENDED）时自动触发模块异步生成
-    promptGroups: [], // 提示词组：[{ id, name(简名), role(消息角色), prompt(提示词), isDefault }]
+    // 提示词组：[{ id, name(简名), role(消息角色), prompt(提示词), isDefault }]
+    // 默认含一条「仅输出 module_update」的组（未显式配置/缺省时使用；用户删除后不再回填）
+    promptGroups: [
+        {
+            id: 'default',
+            name: '默认',
+            role: 'user',
+            prompt: '停止一切角色扮演内容和模块的输出，仅输出以下要求的内容：\n输出最新一轮<content>的module_update内容',
+            isDefault: true,
+        },
+    ],
     presetName: '', // 指定 ST OpenAI 预设（pipeline dryRun 组装时临时使用；空=用当前预设，2026-08-18）
     customApi: { // 独立 API 配置（useIndependentApi=true 时生效；2026-08-18 从 asyncModule.customApi 迁入）
         apiurl: '',
@@ -112,6 +133,17 @@ export function normalizeAsyncConfig(config) {
 }
 
 /**
+ * 创建独立的默认 asyncConfig（深拷贝 promptGroups，避免共享数组引用被误改）。
+ * @returns {Object}
+ */
+export function defaultAsyncConfig() {
+    return {
+        ...DEFAULT_ASYNC_CONFIG,
+        promptGroups: DEFAULT_ASYNC_CONFIG.promptGroups.map(g => ({ ...g })),
+    };
+}
+
+/**
  * 模块配置模板对象
  * 定义了完整的模块配置结构，包括模块和变量的所有字段
  */
@@ -154,27 +186,27 @@ export const MODULE_CONFIG_TEMPLATE = {
             default: 6,
             description: '正文保留层数'
         },
-        // 核心原则提示词（三态×前置/后置结构，normalizeTristatePrompt 规范化）
+        // 核心原则提示词（三态×前置/后置/tag结构，normalizeTristatePrompt 规范化）
         prompt: {
             type: 'object',
-            default: emptyTristatePrompt(),
-            description: '{{CONTINUITY_PROMPT}}前置/后置提示词（三态）'
+            default: tristatePrompt('module_generate_rule'),
+            description: '{{CONTINUITY_PROMPT}}前置/后置/tag提示词（三态）'
         },
         // 通用格式描述提示词
         orderPrompt: {
             type: 'object',
-            default: emptyTristatePrompt(),
-            description: '{{CONTINUITY_ORDER}}前置/后置提示词（三态）'
+            default: tristatePrompt('module_output_rule'),
+            description: '{{CONTINUITY_ORDER}}前置/后置/tag提示词（三态）'
         },
         usagePrompt: {
             type: 'object',
-            default: emptyTristatePrompt(),
-            description: '{{CONTINUITY_USAGE_GUIDE}}前置/后置提示词（三态）'
+            default: tristatePrompt('module_data_usage_guide'),
+            description: '{{CONTINUITY_USAGE_GUIDE}}前置/后置/tag提示词（三态）'
         },
         moduleDataPrompt: {
             type: 'object',
-            default: emptyTristatePrompt(),
-            description: '{{CONTINUITY_MODULE_DATA}}前置/后置提示词（三态）'
+            default: tristatePrompt('module_data'),
+            description: '{{CONTINUITY_MODULE_DATA}}前置/后置/tag提示词（三态）'
         },
         externalStyles: {
             type: 'string',
@@ -433,9 +465,13 @@ export const DEFAULT_CONFIG_VALUES = {
         source: "ST-Continuity-Core",
     },
     globalSettings: {
+        prompt: tristatePrompt('module_generate_rule'),
+        orderPrompt: tristatePrompt('module_output_rule'),
+        usagePrompt: tristatePrompt('module_data_usage_guide'),
+        moduleDataPrompt: tristatePrompt('module_data'),
     },
     modules: [],
-    asyncConfig: { ...DEFAULT_ASYNC_CONFIG, promptGroups: [] },
+    asyncConfig: defaultAsyncConfig(),
 };
 
 
@@ -574,10 +610,10 @@ export function normalizeConfig(config, extension_config = null) {
             cotTags: config.globalSettings?.cotTags || [],
             contentTag: config.globalSettings?.contentTag || [],
             contentRemainLayers: config.globalSettings?.contentRemainLayers || 6,
-            prompt: normalizeTristatePrompt(config.globalSettings?.prompt),
-            orderPrompt: normalizeTristatePrompt(config.globalSettings?.orderPrompt),
-            usagePrompt: normalizeTristatePrompt(config.globalSettings?.usagePrompt),
-            moduleDataPrompt: normalizeTristatePrompt(config.globalSettings?.moduleDataPrompt),
+            prompt: normalizeTristatePrompt(config.globalSettings?.prompt, 'module_generate_rule'),
+            orderPrompt: normalizeTristatePrompt(config.globalSettings?.orderPrompt, 'module_output_rule'),
+            usagePrompt: normalizeTristatePrompt(config.globalSettings?.usagePrompt, 'module_data_usage_guide'),
+            moduleDataPrompt: normalizeTristatePrompt(config.globalSettings?.moduleDataPrompt, 'module_data'),
             externalStyles: config.globalSettings?.externalStyles || '${customStyles}',
             containerStyles: config.globalSettings?.containerStyles || '${customStyles}',
             bottomStyles: config.globalSettings?.bottomStyles || '${customStyles}',
