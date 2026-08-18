@@ -36,6 +36,11 @@ import {
     initPromptBinding,
 } from "./src/features/prompt-binding/promptBinding.js";
 
+// 预设·绑定当前聊天（在 ST 预设下拉旁绑定聊天↔预设，按打开的聊天切换当前预设）
+import {
+    initPresetBinding,
+} from "./src/features/preset-binding/presetBinding.js";
+
 // 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
 import {
     initPromptEntryActions,
@@ -97,6 +102,9 @@ jQuery(async function () {
 
     // 提示词预设条目·扩展操作：复制 / 插入空白 / 移除（接管原生 Remove）
     initPromptEntryActions();
+
+    // 预设·绑定当前聊天：按打开的聊天切换 ST 当前预设（未绑定聊天切回默认预设）
+    initPresetBinding();
 
     // 智绘姬文生图工作台启动器：独立模块（与 EntryButton 解耦），不受全局 enabled 控制，
     // 仅看自身开关；此处聊天页已就绪、#leftSendForm 存在，保证刷新后自动注入
