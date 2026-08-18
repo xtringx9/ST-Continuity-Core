@@ -14,7 +14,7 @@
 import { IframeModal } from '../../shared/IframeModal.js';
 import { showToast } from '../../shared/Toast.js';
 import { translate } from '../../../../../../i18n.js';
-import { getAllPendingRecords, getPendingCount, buildRecordCallbacks } from '../../services/moduleAiGenerator.js';
+import { getAllPendingRecords, getPendingCount, buildRecordCallbacks, clearHandledRecords } from '../../services/moduleAiGenerator.js';
 import { taskRegistry } from '../../core/taskRegistry.js';
 
 const PANEL_HTML_URL = new URL('generationRecordsPanel.html', import.meta.url).href;
@@ -257,7 +257,13 @@ function bindPanel(doc) {
     // 详情视图渲染（当前记录 + sections + 底部操作栏）
     showDetail = (recordId) => {
         state.currentId = recordId;
-        const record = state.records.find(r => r.id === recordId) || getAllPendingRecords().find(r => r.id === recordId);
+        // ⚠️ 每次进详情都重算结果集，避免处理后 state.records 是旧快照（记录状态/新增记录不同步）
+        state.records = computeRecords();
+        if (!state.records.find(r => r.id === recordId)) {
+            // 当前记录不在筛选结果集 → 临时放宽（回退到全局）
+            state.records = getAllPendingRecords();
+        }
+        const record = state.records.find(r => r.id === recordId);
         if (!record) return;
         const parts = String(record.chatKey || '').split('::');
         const charName = parts[0] || '?';
@@ -320,6 +326,20 @@ function bindPanel(doc) {
         if (countEl) countEl.textContent = `${translate('ccore_history_pending')}: ${getPendingCount()}`;
     };
     updateCount();
+
+    // 底栏「清理已处理」按钮
+    const clearBtn = doc.getElementById('ccore-records-footer-clear');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            const removed = clearHandledRecords();
+            if (removed > 0) {
+                showToast(`已清理 ${removed} 条已处理记录`, 'success');
+                // 事件已由 clearHandledRecords dispatch → onPendingChanged 刷新
+            } else {
+                showToast('没有可清理的已处理记录', 'info');
+            }
+        });
+    }
 
     // 记录被处理（保存/抛弃/失败）后刷新：结果集重算；若当前在详情且当前记录已处理 → 自动跳下一条 pending 或回列表
     // ⚠️ 监听器提升为模块级单例（bindPendingListener）：面板重复打开/关闭时先移除再注册，避免监听累积
@@ -501,12 +521,15 @@ function renderOpbar(record) {
         const saveModeSelect = opbarEl.querySelector('.ccore-records-save-mode');
         const saveMode = saveModeSelect?.value || 'append';
         try { await callbacks.onSave(saveMode); } catch (e) { console.error('[Records] 保存失败', e); }
+        // 处理后刷新（事件可能已被模块层 dispatch；此处兜底确保 UI 立即更新）
+        refreshAfterHandle();
     });
 
     // 抛弃（全局有效：buildRecordCallbacks 已带记录所属 chatKey）+ iframe 通用 toast 反馈
     opbarEl.querySelector('.ccore-records-discard').addEventListener('click', () => {
         try { callbacks.onDiscard(); } catch (e) { console.error('[Records] 抛弃失败', e); }
         showToast(`已抛弃 #${record.mesId} ${record.generatorName || 'modules'} 的生成结果`, 'success');
+        refreshAfterHandle();
     });
 
     // 查看当前内容（对比用）
@@ -530,6 +553,34 @@ function renderOpbar(record) {
     });
 
     opbarEl.style.display = 'flex';
+}
+
+/**
+ * 处理（保存/抛弃）后刷新面板：
+ * - 详情页当前记录已处理 → 跳结果集内下一条 pending，无则回列表
+ * - 详情页仍 pending（保存失败/被拒）→ 刷新当前详情
+ * - 列表页 → 重渲染
+ * 供 renderOpbar 保存/抛弃回调兜底调用（事件链路已由模块层 dispatch，此处确保 UI 立即更新）。
+ */
+function refreshAfterHandle() {
+    if (!panelDoc) return;
+    if (typeof collectFilterOptions === 'function') collectFilterOptions();
+    if (state.currentId) {
+        const cur = getAllPendingRecords().find(r => r.id === state.currentId);
+        if (cur && cur.status !== 'pending') {
+            const remaining = getAllPendingRecords().filter(r =>
+                r.status === 'pending' && matchesFilters(r, state.filters) && r.id !== state.currentId);
+            if (remaining.length > 0) {
+                showDetail(remaining[0].id);
+            } else {
+                showList();
+            }
+            return;
+        }
+        showDetail(state.currentId);
+    } else if (typeof renderList === 'function') {
+        renderList();
+    }
 }
 
 /** 绑定操作栏左右切换（禁用态不绑定） */

@@ -515,6 +515,21 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
+        .ccore-records-footer .ccore-records-footer-clear {
+            flex-shrink: 0;
+            background: none;
+            border: 1px solid var(--border-color, rgba(128,128,128,0.3));
+            border-radius: 4px;
+            color: var(--text-secondary, #666);
+            cursor: pointer;
+            font-size: 11px;
+            padding: 1px 8px;
+        }
+        .ccore-records-footer .ccore-records-footer-clear:hover {
+            border-color: var(--accent-color, #2563eb);
+            color: var(--accent-color, #2563eb);
+        }
     </style>
 </head>
 <body>
@@ -565,6 +580,7 @@
         <span id="ccore-records-count"></span>
         <span class="ccore-records-footer-info" id="ccore-records-footer-info"></span>
         <span class="ccore-records-footer-time" id="ccore-records-footer-time"></span>
+        <button class="ccore-records-footer-clear" id="ccore-records-footer-clear" title="清理全部已处理记录（已保存/已抛弃/失败），保留待处理与生成中">清理已处理</button>
     </div>
 </body>
 </html>

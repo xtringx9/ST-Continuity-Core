@@ -711,8 +711,11 @@ input[type="number"]::-webkit-inner-spin-button {
     opacity: 1;
     /* 背景与输入框一致（var(--bg-input)）：避免深色下 spinner 区域与输入框颜色不一致。
        ⚠️ 勿设 height——会导致 WebKit spinner 消失 */
-    background: var(--bg-input, #fff);
+    background: var(--bg-input, #fff) !important;
     border-left: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    /* 小三角调小 */
+    transform: scale(0.8);
+    transform-origin: center;
 }
 input[type="number"]::-webkit-inner-spin-button:hover {
     background: var(--bg-hover, rgba(128, 128, 128, 0.08));

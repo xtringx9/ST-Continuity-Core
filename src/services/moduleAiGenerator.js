@@ -430,6 +430,30 @@ export function getPendingCount() {
 }
 
 /**
+ * 清理全部已处理记录（saved/discarded/error），只保留 pending 与运行中任务。
+ * 供生成记录列表底栏「清理已处理」按钮调用。
+ * @returns {number} 清理的记录条数
+ */
+export function clearHandledRecords() {
+    let removed = 0;
+    for (const [key, records] of pendingResults) {
+        if (!Array.isArray(records)) continue;
+        const pending = records.filter(r => r && r.status === 'pending');
+        removed += records.length - pending.length;
+        if (pending.length > 0) {
+            pendingResults.set(key, pending);
+        } else {
+            pendingResults.delete(key);
+        }
+    }
+    if (removed > 0) {
+        _savePendingToStorage();
+        window.dispatchEvent(new CustomEvent('ccore-pending-cleared', { detail: {} }));
+    }
+    return removed;
+}
+
+/**
  * 指定楼层的待处理记录数（当前聊天归属，小 Cc 计数用）。
  */
 export function getPendingCountForMes(mesId) {
@@ -845,6 +869,58 @@ export const moduleAiGenerator = {
                 } else {
                     infoLog(LOG_TAG, `AI 回复中未提取到 ${generatorName} 数据`);
                 }
+            }
+
+            // ⚠️ 先移除运行中记录（在 push pending/通知刷新之前），避免「pending 行已出现、running 行延迟消失」
+            _untrackRunningTask(runId);
+
+            // 自动存储路径（非 pending 确认流程）：也记录到历史（status:'saved'，note 标记自动存储）
+            // 触发条件：存储已发生（storedCount>0）且未走 pending 暂存（shouldShowDebug=false 或 skipStorage=false）
+            if (storedCount > 0 && !(skipStorage && shouldShowDebug) && isSingle && messages[0] && result.text) {
+                const autoMesId = messages[0].mesId;
+                const autoRecordId = _nextPendingId();
+                const autoContext = {
+                    mesId: autoMesId,
+                    swipeId: messages[0].activeSwipeId,
+                    generatorName,
+                    isModule,
+                    extracted,
+                    text: result.text,
+                    chatKey: taskChatKey,
+                    recordId: autoRecordId,
+                };
+                // 独立构造 debugData（shouldShowDebug=false 时块内 debugData 不存在）
+                const autoDebug = {
+                    title: `生成完成 #${autoMesId} ${generatorName}`,
+                    statusLabel: '生成完成',
+                    statusType: 'info',
+                    titleBody: `#${autoMesId} - ${generatorName}`,
+                    mesIds: ids,
+                    mode,
+                    sentInfo,
+                    capturedPrompt: result.debug.prompt,
+                    response: result.text,
+                    extracted,
+                    apiUsed: result.debug.apiUsed,
+                    hasModules,
+                    storedCount,
+                    taskKey: taskKeys[0] || undefined,
+                    runId,
+                };
+                const autoKey = _pendingKey(generatorName, autoMesId);
+                const autoRecords = pendingResults.get(autoKey) || [];
+                autoRecords.push({
+                    id: autoRecordId,
+                    status: 'saved',
+                    createdAt: Date.now(),
+                    context: autoContext,
+                    debugData: autoDebug,
+                    note: '自动存储',
+                });
+                pendingResults.set(autoKey, autoRecords);
+                _savePendingToStorage();
+                // 通知面板刷新（历史列表新增 saved 记录；运行中详情已完成，列表更新）
+                window.dispatchEvent(new CustomEvent('ccore-pending-cleared', { detail: { generatorName, mesId: autoMesId } }));
             }
 
             // 打开生成记录面板（生成完成 → 详情视图）
