@@ -239,7 +239,7 @@ function renderGeneratorDetail() {
                     </select>
                 </div>
                 <div class="form-group form-full-width">
-                    <label>${escapeHtml(translate('ccore_settings_ai_preset'))}</label>
+                    <label>${escapeHtml(translate('ccore_settings_generation_preset'))}</label>
                     <select id="gen-preset-name">
                         <option value="">${escapeHtml(translate('ccore_settings_ai_preset_default'))}</option>
                         ${Object.keys(openai_setting_names || {}).map(name => `<option value="${escapeHtml(name)}" ${gen.presetName === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}

@@ -27,8 +27,10 @@ function renderTristatePromptEditor(idPrefix, title, value) {
         return `
             <div class="form-group tristate-mode-group">
                 <label class="tristate-mode-label">${translate(mode.labelKey)}</label>
-                <label class="tristate-tag-label">${translate('ccore_label_prompt_tag')}</label>
-                <input type="text" id="${idPrefix}-${mode.key}-tag" placeholder="${translate('ccore_placeholder_global_prompt_tag')}" value="${tagVal}">
+                <div class="tristate-tag-row">
+                    <label class="tristate-tag-label">${translate('ccore_label_prompt_tag')}</label>
+                    <input type="text" id="${idPrefix}-${mode.key}-tag" placeholder="${translate('ccore_placeholder_global_prompt_tag')}" value="${tagVal}">
+                </div>
                 <label class="tristate-pre-label">${translate('ccore_label_prompt_pre')}</label>
                 <textarea id="${idPrefix}-${mode.key}-pre" rows="2" placeholder="${translate('ccore_placeholder_global_prompt_pre')}">${preVal}</textarea>
                 <label class="tristate-post-label">${translate('ccore_label_prompt_post')}</label>

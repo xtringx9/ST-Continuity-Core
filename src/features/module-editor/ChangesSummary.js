@@ -254,7 +254,7 @@ const asyncKeyToI18n = {
     'pushUserMessageAsLast': 'ccore_settings_push_user_message_as_last',
     'askPromptBeforeGenerate': 'ccore_settings_ask_prompt_before_generate',
     'autoGenerateOnMessageEnd': 'ccore_settings_auto_generate_on_message_end',
-    'presetName': 'ccore_settings_ai_preset',
+    'presetName': 'ccore_settings_generation_preset',
     'promptGroups': 'ccore_async_prompt_groups_title',
     'customApi': 'ccore_settings_custom_api_summary',
     'customApi.apiurl': 'ccore_settings_custom_api_url',

@@ -805,20 +805,44 @@ section.module-detail-panel {
 }
 
 .tristate-pre-label,
-.tristate-post-label,
-.tristate-tag-label {
+.tristate-post-label {
     font-size: 11px;
     opacity: 0.8;
     margin: 2px 0 1px;
     display: block;
 }
 
-.tristate-mode-group textarea {
-    width: 100%;
-    box-sizing: border-box;
+/* 包裹标签：label 与输入框同一行 */
+.tristate-tag-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
 }
 
-.tristate-mode-group input[type="text"] {
+.tristate-tag-label {
+    font-size: 11px;
+    opacity: 0.8;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.tristate-tag-row input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    box-sizing: border-box;
+    padding: 3px 8px;
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.tristate-mode-group textarea {
     width: 100%;
     box-sizing: border-box;
 }
@@ -1180,10 +1204,12 @@ section.module-detail-panel {
     transform: translateX(20px);
 }
 
-/* 生成行为区：固定两列——第一行两个下拉框（生成方式/生成预设），第二行两个开关 */
+/* 生成行为区：左列两个下拉框（生成方式/生成预设），右列两个开关 */
 .async-behavior-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(2, auto);
     gap: 10px 16px;
 }
 
