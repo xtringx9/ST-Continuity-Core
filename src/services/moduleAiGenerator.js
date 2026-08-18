@@ -157,15 +157,42 @@ function _markPendingStatus(generatorName, mesId, recordId, status, note = '') {
     }
 })();
 
+/** 每个 key 保留的已处理记录上限（2026-08-18 惰性清理，防 sessionStorage 堆积） */
+const PENDING_KEEP_HANDLED = 20;
+
 function _savePendingToStorage() {
     try {
         const data = {};
         for (const [key, records] of pendingResults) {
-            if (Array.isArray(records) && records.length > 0) data[key] = records;
+            if (!Array.isArray(records) || records.length === 0) continue;
+            // 惰性清理：已处理记录（saved/discarded/error）超过上限时，丢最旧的（保留最新 PENDING_KEEP_HANDLED 条）
+            const handled = records.filter(r => r.status !== 'pending');
+            const pending = records.filter(r => r.status === 'pending');
+            const keptHandled = handled.slice(-PENDING_KEEP_HANDLED);
+            const kept = [...pending, ...keptHandled];
+            if (kept.length !== records.length) {
+                pendingResults.set(key, kept);
+            }
+            if (kept.length > 0) data[key] = kept;
         }
         sessionStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
-        // 忽略写入错误（如 sessionStorage 已满）
+        // 写入失败（如 sessionStorage 已满）：丢弃最老的已处理记录后重试一次
+        try {
+            for (const [key, records] of pendingResults) {
+                const handled = (records || []).filter(r => r.status !== 'pending');
+                if (handled.length > 5) {
+                    pendingResults.set(key, handled.slice(-5).concat((records || []).filter(r => r.status === 'pending')));
+                }
+            }
+            const data2 = {};
+            for (const [key, records] of pendingResults) {
+                if (Array.isArray(records) && records.length > 0) data2[key] = records;
+            }
+            sessionStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(data2));
+        } catch (e2) {
+            // 仍失败则放弃持久化（仅内存保留）
+        }
     }
 }
 
@@ -393,6 +420,18 @@ export function showRecordDebugPanel(record) {
         };
     }
     showDebugPanel(debugData);
+}
+
+/**
+ * 直接抛弃某条待处理记录（历史面板列表「抛弃」按钮用）。
+ * 抛弃不涉及保存/聊天归属校验，随时可执行。
+ * @param {string} generatorName
+ * @param {number} mesId
+ * @param {string} recordId
+ */
+export function discardPendingRecord(generatorName, mesId, recordId) {
+    const cb = _createDiscardCallback(generatorName, mesId, recordId);
+    cb();
 }
 
 /**
@@ -790,6 +829,14 @@ export const moduleAiGenerator = {
                     _savePendingToStorage();
                     debugData.onSave = _createSaveCallback(context);
                     debugData.onDiscard = _createDiscardCallback(generatorName, mesId, recordId);
+                    // 楼层生成完成面板也带历史导航（与历史面板详情统一：‹ › 切换同楼层记录）
+                    if (records.length > 1) {
+                        debugData.historyNav = {
+                            records: [...records],
+                            currentId: recordId,
+                            onNavigate: (rec) => showRecordDebugPanel(rec),
+                        };
+                    }
                     debugData.onLoadCurrentContent = _createLoadCurrentCallback(context);
                 }
 

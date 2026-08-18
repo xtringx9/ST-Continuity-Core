@@ -145,6 +145,7 @@
             display: flex;
             gap: 8px;
             font-size: 12px;
+            align-items: center;
         }
 
         .ccore-history-gen {
@@ -153,6 +154,25 @@
 
         .ccore-history-note {
             color: var(--text-muted, #999);
+        }
+
+        .ccore-history-actions {
+            margin-left: auto;
+            flex: 0 0 auto;
+        }
+
+        .ccore-history-act {
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            background: #f44336;
+            color: #fff;
+        }
+
+        .ccore-history-act:hover {
+            opacity: 0.85;
         }
     </style>
 </head>

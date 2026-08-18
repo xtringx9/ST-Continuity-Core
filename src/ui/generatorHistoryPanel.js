@@ -6,7 +6,7 @@
 
 import { IframeModal } from '../shared/IframeModal.js';
 import { translate } from '../../../../../i18n.js';
-import { getAllPendingRecords, getPendingCount, showRecordDebugPanel } from '../services/moduleAiGenerator.js';
+import { getAllPendingRecords, getPendingCount, showRecordDebugPanel, discardPendingRecord } from '../services/moduleAiGenerator.js';
 
 const HISTORY_HTML_URL = new URL('generatorHistoryPanel.html', import.meta.url).href;
 
@@ -138,6 +138,9 @@ function renderList(listEl, records) {
         const chatName = parts[1] || '?';
         const statusLabel = STATUS_LABELS[r.status] || r.status;
         const time = r.createdAt ? new Date(r.createdAt).toLocaleString() : '';
+        // 元数据：响应长度 / 模块数（弱化显示）
+        const respLen = r.debugData?.response ? String(r.debugData.response).length : 0;
+        const metaSub = respLen > 0 ? ` · ${respLen} 字符` : '';
 
         const card = document.createElement('div');
         card.className = `ccore-history-card ccore-history-${r.status}`;
@@ -148,13 +151,33 @@ function renderList(listEl, records) {
                 <span class="ccore-history-time">${time}</span>
             </div>
             <div class="ccore-history-card-body">
-                <span class="ccore-history-gen">${r.generatorName || 'modules'}</span>
+                <span class="ccore-history-gen">${r.generatorName || 'modules'}${metaSub}</span>
                 ${r.note ? `<span class="ccore-history-note">${r.note}</span>` : ''}
+                <span class="ccore-history-actions">
+                    ${r.status === 'pending' ? `<button class="ccore-history-act ccore-history-discard" title="抛弃（不保存，随时可执行）">抛弃</button>` : ''}
+                </span>
             </div>
         `;
         card.addEventListener('click', () => showRecordDebugPanel(r));
+        // 抛弃按钮：停止冒泡，直接抛弃（不依赖当前聊天，随时可执行）
+        const discardBtn = card.querySelector('.ccore-history-discard');
+        if (discardBtn) {
+            discardBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                discardRecord(r);
+            });
+        }
         listEl.appendChild(card);
     });
+}
+
+/**
+ * 抛弃记录（不保存，随时可执行）。抛弃后列表自动刷新（ccore-pending-cleared 事件）。
+ */
+function discardRecord(r) {
+    if (!r || r.status !== 'pending') return;
+    discardPendingRecord(r.generatorName, r.mesId, r.id);
+    toastr.info(`已抛弃 #${r.mesId} ${r.generatorName} 的生成结果`);
 }
 
 export default { openGeneratorHistory };
