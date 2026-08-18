@@ -5,7 +5,7 @@
 import { chat } from '../../../../../../script.js';
 import { Popup, POPUP_TYPE, POPUP_RESULT } from '../../../../../popup.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
-import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel, getPendingCountForMes } from '../services/moduleAiGenerator.js';
+import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel, getPendingCountForMes, getRunningCountForMes } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../core/contextBottomUI.js';
@@ -798,7 +798,7 @@ async function onRegenerate(button, mesId, generatorName = 'modules', opts = {})
         mode: asyncConfig.generationMode || 'pipeline',
         customApi,
         showDebug: asyncConfig.showDebug !== false,
-        skipStorage: true, // 先展示不存储
+        skipStorage: true, // ⚠️ 历史参数，不再参与行为判定（统一由 showDebug 决定弹窗/自动保存）
     };
 
     // 模块才需要传提示词配置(其他生成内容从 generator_config 读)
@@ -1296,7 +1296,8 @@ function _updateCcButtonText(button) {
     const mesId = Number(button.attr('data-mesid'));
     if (isNaN(mesId)) return;
     // 未完成数 = running 任务 + 该楼层待处理(pending)记录（2026-08-18：处理完才算结束，失败也算处理完）
-    const count = taskRegistry.getRunningCountForMes(mesId) + getPendingCountForMes(mesId);
+    // ⚠️ 用 moduleAiGenerator.getRunningCountForMes（基于 runningTasks，并发多个各算一条）而非 taskRegistry 计数
+    const count = getRunningCountForMes(mesId) + getPendingCountForMes(mesId);
     if (count > 0) {
         // 有任务：只改文字为数字 + title，保持与普通 Cc 相同的透明度/颜色
         button.text(count > 99 ? '99+' : String(count));

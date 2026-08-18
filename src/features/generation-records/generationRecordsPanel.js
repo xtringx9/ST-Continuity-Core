@@ -234,7 +234,6 @@ function bindPanel(doc) {
                 </div>
                 <div class="ccore-records-card-body">
                     <span class="ccore-records-gen">${r.generatorName || 'modules'}${metaSub}</span>
-                    ${r.note ? `<span class="ccore-records-note">${r.note}</span>` : ''}
                 </div>
             `;
             card.addEventListener('click', () => {

@@ -471,6 +471,20 @@ export function getPendingCountForMes(mesId) {
 }
 
 /**
+ * 指定楼层的运行中任务数（当前聊天归属，小 Cc 计数用）。
+ * ⚠️ 基于 runningTasks（runId 唯一）而非 taskRegistry——taskRegistry 同楼层同
+ *   generator 并发会覆盖（key=chatKey::mesId::generatorName），并发多个只算 1。
+ */
+export function getRunningCountForMes(mesId) {
+    const chatKey = _getChatKey();
+    let count = 0;
+    for (const t of runningTasks.values()) {
+        if (t.chatKey === chatKey && Number(t.mesId) === Number(mesId)) count++;
+    }
+    return count;
+}
+
+/**
  * 在生成记录面板展示某条生成记录（自动跳下一条 / 历史面板点卡片用）。
  * 详情视图由 generationRecordsPanel 负责：定位记录 + buildRecordCallbacks 绑定保存/抛弃。
  * @param {object} record { id, status, generatorName, mesId, context, debugData, note? }
@@ -530,7 +544,8 @@ export function buildRecordCallbacks(record) {
  */
 export function reopenPendingDebugPanel(generatorName, mesId) {
     const records = _getPendingRecords(generatorName, mesId);
-    const pending = records.find(r => r.status === 'pending');
+    // ⚠️ 取最新一条 pending（records 按 push 旧→新；reverse 后 find 是最近生成）
+    const pending = records.slice().reverse().find(r => r.status === 'pending');
     if (!pending) return false;
     // 生成记录面板详情视图会通过 buildRecordCallbacks 重新绑定保存/抛弃回调
     showRecordDebugPanel(pending);
@@ -578,7 +593,7 @@ export const moduleAiGenerator = {
             selectedPrompts,
             responseLength,
             showDebug: shouldShowDebug = true,
-            skipStorage = false,
+            skipStorage = false, // ⚠️ 历史参数（原「是否跳过存储」）；统一路径后不再参与行为判定，保留兼容
             fallbackPromptRole, // 可选：本次生成的补末尾消息角色覆盖（提示词组 role）
         } = options;
 
@@ -823,9 +838,12 @@ export const moduleAiGenerator = {
             let storedCount = 0;
             let hasModules = false;
 
-            // 存储条件：skipStorage 且调试面板打开时才跳过存储（结果由用户在面板决定保存/抛弃）；
-            // 关闭调试面板时（shouldShowDebug=false），手动点击生成也自动存储（不弹面板则无从暂存，直接落盘）
-            if (!skipStorage || !shouldShowDebug) {
+            // ⚠️ 2026-08-18 统一路径：是否自动落盘只由「生成完成弹出面板手动确认」（showDebug）决定：
+            //   - 勾选（shouldShowDebug=true）→ 不落盘，创建 pending，弹面板等手动保存/抛弃
+            //   - 不勾选（shouldShowDebug=false）→ 自动落盘，创建 pending 并自动标记 saved，不弹窗
+            //   （无论手动/自动生成，行为一致；skipStorage 为历史参数，不再参与判定）
+            const autoSave = !shouldShowDebug;
+            if (autoSave) {
                 if (isModule) {
                     // 模块：从 AI 回复提取模块文本（顶层提取，不依赖 perMessageStorage）
                     extracted = _extractTopLevelModules(result.text);
@@ -874,114 +892,73 @@ export const moduleAiGenerator = {
             // ⚠️ 先移除运行中记录（在 push pending/通知刷新之前），避免「pending 行已出现、running 行延迟消失」
             _untrackRunningTask(runId);
 
-            // 自动存储路径（非 pending 确认流程）：也记录到历史（status:'saved'，note 标记自动存储）
-            // 触发条件：存储已发生（storedCount>0）且未走 pending 暂存（shouldShowDebug=false 或 skipStorage=false）
-            if (storedCount > 0 && !(skipStorage && shouldShowDebug) && isSingle && messages[0] && result.text) {
-                const autoMesId = messages[0].mesId;
-                const autoRecordId = _nextPendingId();
-                const autoContext = {
-                    mesId: autoMesId,
+            // ── 统一路径（2026-08-18）：勾选/不勾选弹面板走同一套逻辑 ──
+            // 构造统一 debugData（不依赖 shouldShowDebug 块）
+            const details = getCurrentChatDetails();
+            const charName = details?.characterName || '';
+            const chatName = details?.sessionName || '';
+            const scope = isSingle
+                ? `#${messages[0].mesId}`
+                : `#${ids[0]}-${ids[ids.length - 1]}`;
+            const titleBody = `${scope} - ${charName} / ${chatName}`;
+            const titleLabel = isModule ? '生成调试' : `生成调试 [${generatorName}]`;
+            const debugData = {
+                title: `${titleLabel} ${titleBody}`,
+                statusLabel: titleLabel,
+                statusType: 'info',
+                titleBody,
+                mesIds: ids,
+                mode,
+                sentInfo,
+                capturedPrompt: result.debug.prompt,
+                response: result.text,
+                extracted,
+                apiUsed: result.debug.apiUsed,
+                hasModules,
+                storedCount,
+                taskKey: taskKeys[0] || undefined,
+                runId,
+            };
+
+            // 总是创建 pending 记录（单条成功有文本；多记录化：并发各占一条，互不覆盖）
+            // 详情页操作回调由生成记录面板 buildRecordCallbacks 重建，无需在 debugData 上绑定。
+            let openedRecordId = null;
+            if (result.text && isSingle && messages[0]) {
+                const mesId = messages[0].mesId;
+                const recordId = _nextPendingId();
+                const context = {
+                    mesId,
                     swipeId: messages[0].activeSwipeId,
                     generatorName,
                     isModule,
                     extracted,
                     text: result.text,
-                    chatKey: taskChatKey,
-                    recordId: autoRecordId,
+                    chatKey: taskChatKey, // 生成归属聊天，保存校验用
+                    recordId,            // 处理时只标记本条记录
                 };
-                // 独立构造 debugData（shouldShowDebug=false 时块内 debugData 不存在）
-                const autoDebug = {
-                    title: `生成完成 #${autoMesId} ${generatorName}`,
-                    statusLabel: '生成完成',
-                    statusType: 'info',
-                    titleBody: `#${autoMesId} - ${generatorName}`,
-                    mesIds: ids,
-                    mode,
-                    sentInfo,
-                    capturedPrompt: result.debug.prompt,
-                    response: result.text,
-                    extracted,
-                    apiUsed: result.debug.apiUsed,
-                    hasModules,
-                    storedCount,
-                    taskKey: taskKeys[0] || undefined,
-                    runId,
-                };
-                const autoKey = _pendingKey(generatorName, autoMesId);
-                const autoRecords = pendingResults.get(autoKey) || [];
-                autoRecords.push({
-                    id: autoRecordId,
-                    status: 'saved',
+                const key = _pendingKey(generatorName, mesId);
+                const records = pendingResults.get(key) || [];
+                records.push({
+                    id: recordId,
+                    status: 'pending',
                     createdAt: Date.now(),
-                    context: autoContext,
-                    debugData: autoDebug,
-                    note: '自动存储',
+                    context,
+                    debugData,
                 });
-                pendingResults.set(autoKey, autoRecords);
+                pendingResults.set(key, records);
                 _savePendingToStorage();
-                // 通知面板刷新（历史列表新增 saved 记录；运行中详情已完成，列表更新）
-                window.dispatchEvent(new CustomEvent('ccore-pending-cleared', { detail: { generatorName, mesId: autoMesId } }));
+                openedRecordId = recordId;
+
+                // 自动保存（未勾选弹面板，autoSave=!shouldShowDebug）：自动标记 saved
+                // （存储已在上方 autoSave 块落盘；_markPendingStatus 内部会 dispatch ccore-pending-cleared 通知面板刷新）
+                if (autoSave) {
+                    _markPendingStatus(generatorName, mesId, recordId, 'saved', '自动存储');
+                }
             }
 
-            // 打开生成记录面板（生成完成 → 详情视图）
+            // 手动确认（shouldShowDebug）：打开生成记录面板详情等待保存/抛弃；
+            // 自动保存（autoSave）：不弹窗，仅通知（面板已打开则静默刷新/切换运行中详情）
             if (shouldShowDebug) {
-                const details = getCurrentChatDetails();
-                const charName = details?.characterName || '';
-                const chatName = details?.sessionName || '';
-                const scope = isSingle
-                    ? `#${messages[0].mesId}`
-                    : `#${ids[0]}-${ids[ids.length - 1]}`;
-                const titleBody = `${scope} - ${charName} / ${chatName}`;
-                const titleLabel = isModule ? '生成调试' : `生成调试 [${generatorName}]`;
-
-                const debugData = {
-                    title: `${titleLabel} ${titleBody}`,
-                    statusLabel: titleLabel,
-                    statusType: 'info',
-                    titleBody,
-                    mesIds: ids,
-                    mode,
-                    sentInfo,
-                    capturedPrompt: result.debug.prompt,
-                    response: result.text,
-                    extracted,
-                    apiUsed: result.debug.apiUsed,
-                    hasModules,
-                    storedCount,
-                    taskKey: taskKeys[0] || undefined,
-                };
-
-                // 手动重新生成(skipStorage)且单条成功时,暂存结果供用户在面板中决定保存/抛弃。
-                // 2026-08-18 多记录化：并发多次生成各占一条记录（同 key 数组 push），互不覆盖。
-                // 详情页操作回调由生成记录面板 buildRecordCallbacks 重建，无需在 debugData 上绑定。
-                let openedRecordId = null;
-                if (skipStorage && result.text && isSingle) {
-                    const mesId = messages[0].mesId;
-                    const recordId = _nextPendingId();
-                    const context = {
-                        mesId,
-                        swipeId: messages[0].activeSwipeId,
-                        generatorName,
-                        isModule,
-                        extracted,
-                        text: result.text,
-                        chatKey: taskChatKey, // 生成归属聊天，保存校验用
-                        recordId,            // 处理时只标记本条记录
-                    };
-                    const key = _pendingKey(generatorName, mesId);
-                    const records = pendingResults.get(key) || [];
-                    records.push({
-                        id: recordId,
-                        status: 'pending',
-                        createdAt: Date.now(),
-                        context,
-                        debugData,
-                    });
-                    pendingResults.set(key, records);
-                    _savePendingToStorage();
-                    openedRecordId = recordId;
-                }
-
                 // 新记录完成通知：面板已打开 → 静默刷新/切换运行中详情（不打断当前视图）；
                 // 面板未打开 → notify 返回 false，此处再打开详情。
                 const handledByPanel = window.notifyGenerationCompleted?.({
@@ -1010,6 +987,16 @@ export const moduleAiGenerator = {
                         window.openGenerationRecords?.({ view: 'list' });
                     }
                 }
+            } else if (openedRecordId) {
+                // 自动保存：面板已打开 → 通知刷新（运行中详情若正看该 runId 则切换为 saved 详情）
+                window.notifyGenerationCompleted?.({
+                    recordId: openedRecordId,
+                    runId,
+                    generatorName,
+                    mesId: messages[0]?.mesId,
+                    chatKey: taskChatKey,
+                    status: 'saved',
+                });
             }
 
             // 无论 shouldShowDebug 与否都清理运行中详情（用户可能手动打开过生成中面板）
