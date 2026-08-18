@@ -89,7 +89,7 @@ export const DEFAULT_ASYNC_CONFIG = {
         key: '',
         model: '',
         source: 'openai',
-        temperature: 0.3,
+        temperature: 1,
         max_tokens: 0, // 0=不限制
     },
     // ⚠️ 2026-08-18 移除字段：pipelineModifier（旧追加指令）/ defaultPrompt / fallbackPromptRole——
