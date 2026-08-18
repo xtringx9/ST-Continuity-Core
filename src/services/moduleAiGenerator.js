@@ -9,6 +9,7 @@ import { aiCaller } from './aiCaller.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
+import { expandPrompts } from '../utils/variableReplacer.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { showDebugPanel, updateDebugPanelResponse, updateDebugPanelPrompt, updateDebugPanelApi, isDebugPanelOpen, finishDebugPanel } from '../ui/generatorDebugPanel.js';
 import { readFloorModules, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, getActiveGeneratorSwipe } from '../core/floorModuleStore.js';
@@ -49,22 +50,14 @@ function _extractTopLevelModules(text) {
 }
 
 /**
- * 展开生成提示词中的简单宏（2026-08-17 新增）。
- * 支持：
- *   {{module_data}} → 该楼层 floor 里当前激活的模块数据文本（readFloorModules），便于提示词组让 AI 二次修改。
+ * 展开生成提示词中的宏（2026-08-18 升级为通用）：先自家宏（{{module_data}}）再 ST 全套宏。
+ * 委托 utils/variableReplacer.expandPrompts（保留此薄封装，调用点不变）。
  * @param {string} text 提示词文本
  * @param {number} mesId 目标楼层
  * @returns {string}
  */
 function _expandPromptMacros(text, mesId) {
-    if (!text || typeof text !== 'string') return text;
-    if (!text.includes('{{module_data}}')) return text;
-    const message = chat[mesId];
-    const swipeId = message?.swipe_id ?? 0;
-    const moduleData = readFloorModules(mesId, swipeId) || '';
-    const expanded = text.split('{{module_data}}').join(moduleData);
-    debugLog(LOG_TAG, `宏展开：{{module_data}} → ${moduleData.length} 字符（楼层 ${mesId}）`);
-    return expanded;
+    return expandPrompts(text, mesId);
 }
 
 // === 待处理结果状态管理 ===

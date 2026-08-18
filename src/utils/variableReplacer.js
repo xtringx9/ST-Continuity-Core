@@ -5,7 +5,9 @@
 
 import { debugLog, errorLog } from './logger.js';
 // ST 官方宏展开（script.js 导出，父窗口可用）
-import { substituteParams } from '../../../../../../script.js';
+import { substituteParams, chat } from '../../../../../../script.js';
+// {{module_data}} 宏：读该楼层 floor 的模块数据（无循环依赖：floorModuleStore 不依赖本模块）
+import { readFloorModules } from '../core/floorModuleStore.js';
 
 // 导入SillyTavern的getContext函数
 let getContext;
@@ -197,6 +199,39 @@ export function replaceVariables(prompt) {
     } catch (error) {
         errorLog("变量替换器: 替换变量失败", error);
         return prompt; // 出错时返回原始提示词
+    }
+}
+
+/**
+ * 通用提示词宏展开（2026-08-18 新增）：先展开「自家自定义宏」，再交给 ST 全套宏展开。
+ * 目前自家宏：{{module_data}} → 该楼层 floor 的模块数据（readFloorModules）。
+ * 用于提示词组/弹窗等生成的 quietPrompt——使其既支持 module_data 又支持 ST 标准宏
+ * （{{user}}/{{char}}/{{time}} 等），且不依赖 ST 组装路径（组装失败自建数组时同样生效）。
+ * @param {string} text 原始提示词
+ * @param {number} mesId 目标楼层（{{module_data}} 注入用）
+ * @returns {string}
+ */
+export function expandPrompts(text, mesId) {
+    if (!text || typeof text !== 'string') return text;
+    // 1. 自家宏
+    let out = text;
+    if (out.includes('{{module_data}}')) {
+        try {
+            const message = chat?.[mesId];
+            const swipeId = message?.swipe_id ?? 0;
+            const moduleData = readFloorModules(mesId, swipeId) || '';
+            out = out.split('{{module_data}}').join(moduleData);
+            debugLog(`变量替换器: {{module_data}} → ${moduleData.length} 字符（楼层 ${mesId}）`);
+        } catch (e) {
+            debugLog("变量替换器: {{module_data}} 展开失败", e);
+        }
+    }
+    // 2. ST 全套宏
+    try {
+        return substituteParams(out);
+    } catch (e) {
+        errorLog("变量替换器: ST 宏展开失败", e);
+        return out;
     }
 }
 
