@@ -585,6 +585,7 @@ export const moduleAiGenerator = {
      * @param {number} [options.responseLength] - 响应长度
      * @param {boolean} [options.showDebug=true] - 是否显示 debug 面板
      * @param {boolean} [options.skipStorage=false] - 是否跳过存储
+     * @param {string} [options.presetName] - 指定 ST OpenAI 预设（pipeline 组装时临时使用，默认取 generator_config/asyncConfig 配置）
      * @returns {Promise<{success: boolean, text: string, debug: object, hasModules: boolean, storedCount: number}>}
      */
     async generate(mesIds, options = {}) {
@@ -600,6 +601,7 @@ export const moduleAiGenerator = {
             showDebug: shouldShowDebug = true,
             skipStorage = false, // ⚠️ 历史参数（原「是否跳过存储」）；统一路径后不再参与行为判定，保留兼容
             fallbackPromptRole, // 可选：本次生成的补末尾消息角色覆盖（提示词组 role）
+            presetName, // 可选：显式指定 ST OpenAI 预设（优先于 generator_config/asyncConfig 配置）
         } = options;
 
         const isModule = generatorName === 'modules';
@@ -639,14 +641,19 @@ export const moduleAiGenerator = {
         // 根据 generatorName 决定提示词来源
         let effectivePipelineModifier = pipelineModifier;
         let effectiveRawSystemPrompt = rawSystemPrompt;
+        // ST OpenAI 预设：pipeline 模式 dryRun 组装时临时使用（空=用当前预设）。
+        // 优先级：显式 options.presetName > generator_config 的 generator.presetName > asyncConfig.presetName
+        let generator = null;
+        let effectivePresetName = presetName || null;
 
         if (!isModule) {
             // 其他生成内容：从 generator_config 查找提示词
-            const generator = configManager.getGeneratorByName(generatorName);
+            generator = configManager.getGeneratorByName(generatorName);
             if (!generator) {
                 warnLog(LOG_TAG, `找不到生成内容配置: ${generatorName}`);
                 return { success: false, text: '', debug: null, storedCount: 0 };
             }
+            effectivePresetName = effectivePresetName || generator.presetName || null;
 
             // 按 promptMode 选提示词
             let selectedItems = [];
@@ -679,6 +686,9 @@ export const moduleAiGenerator = {
             }
 
             debugLog(LOG_TAG, `生成内容 ${generatorName}(${generator.displayName}) 选中 ${selectedItems.length} 条提示词`);
+        } else {
+            // 模块生成：ST OpenAI 预设从 asyncConfig 读（显式 options / generator_config 优先在上面已处理）
+            effectivePresetName = effectivePresetName || (configManager.getAsyncConfig().presetName || null);
         }
 
         let callOptions = {};
@@ -731,6 +741,8 @@ export const moduleAiGenerator = {
                 pushAsLastUser,
                 customApi,
                 responseLength,
+                // 指定 ST OpenAI 预设（dryRun 组装时临时使用；空=用当前预设）
+                ...(effectivePresetName ? { presetName: effectivePresetName } : {}),
                 // 提示词组 role 覆盖（可选，弹窗生成时传入）
                 ...(fallbackPromptRole ? { fallbackPromptRole } : {}),
             };

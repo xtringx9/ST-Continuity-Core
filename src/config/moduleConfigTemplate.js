@@ -62,6 +62,7 @@ export const DEFAULT_ASYNC_CONFIG = {
     askPromptBeforeGenerate: false, // 点击小 Cc 生成按钮时弹出输入框（UI 暂隐藏，保留配置）
     autoGenerateOnMessageEnd: true, // 聊天消息收到完毕（GENERATION_ENDED）时自动触发模块异步生成
     promptGroups: [], // 提示词组：[{ id, name(简名), role(消息角色), prompt(提示词), isDefault }]
+    presetName: '', // 指定 ST OpenAI 预设（pipeline dryRun 组装时临时使用；空=用当前预设，2026-08-18）
     customApi: { // 独立 API 配置（useIndependentApi=true 时生效；2026-08-18 从 asyncModule.customApi 迁入）
         apiurl: '',
         key: '',
@@ -97,6 +98,7 @@ export function normalizeAsyncConfig(config) {
     const api = base.customApi && typeof base.customApi === 'object' ? base.customApi : {};
     return {
         ...base,
+        presetName: String(base.presetName || ''), // ST OpenAI 预设名（空=用当前预设）
         customApi: {
             apiurl: String(api.apiurl || ''),
             key: String(api.key || ''),

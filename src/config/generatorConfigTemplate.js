@@ -46,6 +46,11 @@ export const GENERATOR_CONFIG_TEMPLATE = {
                 default: 'random',
                 description: '提示词选择模式: random=随机选一个, select=面板多选合并一次调用'
             },
+            presetName: {
+                type: 'string',
+                default: '',
+                description: '指定 ST OpenAI 预设（pipeline dryRun 组装时临时使用；空=用当前预设，2026-08-18）'
+            },
         }
     ]
 };
@@ -147,6 +152,7 @@ export function normalizeGeneratorConfig(config) {
                 }))
                 : [],
             promptMode: gen.promptMode || 'random',
+            presetName: gen.presetName || '',
         }));
     }
 

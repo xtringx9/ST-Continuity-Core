@@ -7,6 +7,7 @@ import configManager from '../../singleton/configManager.js';
 import { showToast } from '../../shared/Toast.js';
 import { infoLog, errorLog } from '../../utils/logger.js';
 import { translate } from '../../../../../../i18n.js';
+import { openai_setting_names } from '../../../../../../openai.js';
 
 let doc = null;
 let currentGenerators = [];
@@ -237,6 +238,13 @@ function renderGeneratorDetail() {
                         <option value="select" ${gen.promptMode === 'select' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_select'))}</option>
                     </select>
                 </div>
+                <div class="form-group form-full-width">
+                    <label>${escapeHtml(translate('ccore_settings_ai_preset'))}</label>
+                    <select id="gen-preset-name">
+                        <option value="">${escapeHtml(translate('ccore_settings_ai_preset_default'))}</option>
+                        ${Object.keys(openai_setting_names || {}).map(name => `<option value="${escapeHtml(name)}" ${gen.presetName === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
+                    </select>
+                </div>
             </div>
             <div class="prompts-section">
                 <h3>
@@ -326,10 +334,12 @@ function collectCurrentDetail() {
     const nameEl = doc.getElementById('gen-name');
     const displayNameEl = doc.getElementById('gen-display-name');
     const promptModeEl = doc.getElementById('gen-prompt-mode');
+    const presetNameEl = doc.getElementById('gen-preset-name');
 
     if (nameEl) gen.name = nameEl.value.trim();
     if (displayNameEl) gen.displayName = displayNameEl.value.trim();
     if (promptModeEl) gen.promptMode = promptModeEl.value;
+    if (presetNameEl) gen.presetName = presetNameEl.value;
 
     const labelInputs = doc.querySelectorAll('.prompt-label-input');
     const contentTextareas = doc.querySelectorAll('textarea[data-field="content"]');
@@ -356,6 +366,7 @@ function addGenerator() {
         enabled: true,
         prompts: [],
         promptMode: 'random',
+        presetName: '',
     };
     currentGenerators.push(newGen);
     selectedGenId = newGen.id;

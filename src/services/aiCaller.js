@@ -13,7 +13,13 @@ import {
     chat,
     name1,
 } from '../../../../../../script.js';
-import { sendOpenAIRequest } from '../../../../../openai.js';
+import {
+    sendOpenAIRequest,
+    oai_settings,
+    openai_settings,
+    openai_setting_names,
+    settingsToUpdate,
+} from '../../../../../openai.js';
 import { MacrosParser } from '../../../../../macros.js';
 import configManager from '../singleton/configManager.js';
 import { debugLog, infoLog, errorLog, warnLog } from '../utils/logger.js';
@@ -54,6 +60,46 @@ function _buildPushedMessage(quietPrompt, name) {
 }
 
 /**
+ * 临时应用 ST OpenAI 预设到 oai_settings（dryRun 组装期间用，2026-08-18）。
+ * ⚠️ 只覆盖「组装内容相关」字段：按 settingsToUpdate 映射遍历，跳过 isConnection（模型/URL/来源等
+ *   连接绑定字段——组装内容无关，且发送阶段反正被 customApi 拦截覆盖）。
+ * ⚠️ 不触发 OAI_PRESET_CHANGED 事件/UI 刷新（纯内存覆盖，无副作用）。
+ * @param {string} presetName ST OpenAI 预设名（openai_setting_names 的 key，空=用当前预设不覆盖）
+ * @returns {Array<{setting:string, oldValue:*}>|null} 备份数组（供 _restorePresetForAssembly 恢复）
+ */
+function _applyPresetForAssembly(presetName) {
+    if (!presetName || typeof presetName !== 'string') return null;
+    const idx = openai_setting_names?.[presetName];
+    const preset = idx !== undefined ? openai_settings?.[idx] : null;
+    if (!preset || typeof preset !== 'object') {
+        warnLog(LOG_TAG, `找不到 ST OpenAI 预设: ${presetName}，本次生成使用当前预设`);
+        return null;
+    }
+    const fields = [];
+    for (const [presetKey, [, setting, , isConnection]] of Object.entries(settingsToUpdate)) {
+        if (isConnection) continue; // 连接绑定字段（模型/URL/source 等）不覆盖
+        if (preset[presetKey] === undefined) continue; // 预设没有该字段 → 不动
+        fields.push({ setting, oldValue: oai_settings[setting] });
+        oai_settings[setting] = preset[presetKey];
+    }
+    if (fields.length === 0) return null;
+    debugLog(LOG_TAG, `已临时应用 ST OpenAI 预设「${presetName}」，覆盖 ${fields.length} 个组装相关字段`);
+    return fields;
+}
+
+/**
+ * 恢复临时应用的 ST OpenAI 预设（组装完成后立即调用；异常/中止由 finally 兜底）。
+ * @param {Array<{setting:string, oldValue:*}>|null} fields _applyPresetForAssembly 返回的备份
+ */
+function _restorePresetForAssembly(fields) {
+    if (!Array.isArray(fields) || fields.length === 0) return;
+    for (const { setting, oldValue } of fields) {
+        oai_settings[setting] = oldValue;
+    }
+    debugLog(LOG_TAG, `已恢复 oai_settings（${fields.length} 个字段回到原值）`);
+}
+
+/**
  * AI 调用器
  *
  * 用法：
@@ -76,6 +122,7 @@ export const aiCaller = {
      * @param {number} [options.customApi.temperature] - 温度
      * @param {number} [options.customApi.max_tokens] - 最大 token
      * @param {number} [options.responseLength] - 响应长度限制
+     * @param {string} [options.presetName] - pipeline 模式：dryRun 组装时临时使用的 ST OpenAI 预设名（空=用当前预设）
      * @returns {Promise<{text: string, debug: {prompt: string|Array, response: string, apiUsed: object}}>}
      */
     async call(options = {}) {
@@ -208,7 +255,7 @@ export const aiCaller = {
      * 4. 自行 sendOpenAIRequest 发送（customApi 拦截在内部生效 → 独立 API 可用）
      */
     async _callPipeline(options, capture) {
-        const { quietPrompt, responseLength, truncateToMesId, pushAsLastUser } = options;
+        const { quietPrompt, responseLength, truncateToMesId, pushAsLastUser, presetName } = options;
         options.onAbort ||= null;
 
         // 补末尾生成指令消息的角色（默认 user；弹窗提示词组可传 role 覆盖本次生成）
@@ -223,13 +270,17 @@ export const aiCaller = {
         const hiddenBackup = [];
         let pushedUserMessage = null;
         let overrideLastUser = false;
-        // ⚠️ 2026-08-18 收尾状态标识：避免 finally 对已提前清理的操作重复执行（二次 pop / 重复还原楼层 / 重复还原宏）。
+        // ⚠️ 2026-08-18 收尾状态标识：避免 finally 对已提前清理的操作重复执行（二次 pop / 重复还原楼层 / 重复还原宏 / 重复恢复预设）。
         //   - hiddenRestored：隐藏楼层是否已还原（提前清理置 true，finally 依据它跳过）
         //   - pushedPopped：push 的生成指令消息是否已弹出（提前清理置 true，finally 依据它跳过）
         //   - macroRestored：{{lastUserMessage}} 宏是否已还原（提前清理置 true，finally 依据它跳过）
+        //   - presetRestored：临时应用的 ST OpenAI 预设是否已恢复（提前清理置 true，finally 依据它跳过）
         let hiddenRestored = false;
         let pushedPopped = false;
         let macroRestored = false;
+        let presetRestored = false;
+        /** @type {Array<{setting:string, oldValue:*}>|null} */
+        let presetBackup = null;
 
         try {
         // 记录需要临时隐藏的楼层及原 is_system 值
@@ -331,6 +382,10 @@ export const aiCaller = {
             };
             eventSource.once(event_types.CHAT_COMPLETION_PROMPT_READY, promptHandler);
 
+            // 临时应用指定 ST OpenAI 预设（presetName）→ dryRun 组装用该预设的 prompts/prompt_order/上下文设置
+            // ⚠️ 只影响组装：组装完成后立即恢复（提前清理块），finally 兜底；不触发 OAI_PRESET_CHANGED 事件
+            presetBackup = _applyPresetForAssembly(presetName);
+
             await Generate('quiet', { quiet_prompt: effectiveQuietPrompt, force_name2: true }, true);
 
             // 组装失败兜底：dryRun 未捕获到组装结果（如用户把 ST 其他内容全关、无角色/世界书等）
@@ -413,6 +468,13 @@ export const aiCaller = {
                 debugLog(LOG_TAG, '组装完成已恢复 {{lastUserMessage}} 宏');
             }
 
+            // ⚠️ 组装完成即恢复临时应用的 ST OpenAI 预设：预设只在 dryRun 组装期间被消费，
+            //   组装后替换/发送都不再读 oai_settings → 提前恢复缩短污染窗口（finally 据此跳过）。
+            if (!presetRestored) {
+                _restorePresetForAssembly(presetBackup);
+                presetRestored = true; // 标记已恢复，finally 据此跳过（避免重复恢复）
+            }
+
             // 自己发送（customApi 拦截在 sendOpenAIRequest 内部生效；不锁 ST 发送按钮）
             // 调试拦截：提示词已组装完成（capture.prompt 已捕获），不真正发送，返回占位响应
             if (configManager.isAiSendIntercepted()) {
@@ -472,6 +534,11 @@ export const aiCaller = {
                     debugLog(LOG_TAG, `已还原 ${hiddenBackup.length} 条临时隐藏的楼层`);
                 }
                 hiddenRestored = true;
+            }
+            // 恢复临时应用的 ST OpenAI 预设：仅当组装完成前尚未恢复（含异常/中止早退路径）
+            if (!presetRestored) {
+                _restorePresetForAssembly(presetBackup);
+                presetRestored = true;
             }
         }
     },

@@ -12,6 +12,7 @@
 // 渲染模式与 GlobalSettings 一致：直接操作传入引用，change 时回调 onChange 标脏。
 
 import { translate } from '../../../../../../i18n.js';
+import { openai_setting_names } from '../../../../../../openai.js';
 import { errorLog } from '../../utils/logger.js';
 
 const ROLE_OPTIONS = ['user', 'assistant', 'system'];
@@ -92,6 +93,13 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
                         <select id="async-generation-mode">
                             <option value="pipeline" ${asyncConfig.generationMode !== 'raw' ? 'selected' : ''}>${translate('ccore_option_pipeline')}</option>
                             <option value="raw" ${asyncConfig.generationMode === 'raw' ? 'selected' : ''}>${translate('ccore_option_raw')}</option>
+                        </select>
+                    </div>
+                    <div class="async-inline-field">
+                        <label for="async-preset-name">${translate('ccore_settings_ai_preset')}</label>
+                        <select id="async-preset-name">
+                            <option value="">${translate('ccore_settings_ai_preset_default')}</option>
+                            ${Object.keys(openai_setting_names || {}).map(name => `<option value="${escapeHtml(name)}" ${asyncConfig.presetName === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
@@ -176,10 +184,13 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         onChange?.();
     });
 
-    // === 联动显隐：raw 显示 raw 配置块；独立 API 开关显示 customApi 配置块 ===
+    // === 联动显隐：raw 显示 raw 配置块；独立 API 开关显示 customApi 配置块；preset 仅 pipeline 有效 ===
     const updateModeVisibility = () => {
         const mode = container.querySelector('#async-generation-mode').value;
         container.querySelector('#async-raw-block').style.display = mode === 'raw' ? '' : 'none';
+        // ST OpenAI 预设只在 pipeline 组装时有效（raw 模式不组装），raw 时隐藏
+        const presetField = container.querySelector('#async-preset-name')?.closest('.async-inline-field');
+        if (presetField) presetField.style.display = mode === 'raw' ? 'none' : '';
         const useApi = container.querySelector('#async-use-independent-api').checked;
         container.querySelector('#async-custom-api-block').style.display = useApi ? '' : 'none';
     };
@@ -187,6 +198,7 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
     // === 变更收集 ===
     const collect = () => {
         asyncConfig.generationMode = container.querySelector('#async-generation-mode').value;
+        asyncConfig.presetName = container.querySelector('#async-preset-name').value;
         asyncConfig.autoGenerateOnMessageEnd = container.querySelector('#async-auto-generate').checked;
         asyncConfig.rawSystemPrompt = container.querySelector('#async-raw-system-prompt').value;
         asyncConfig.rawUserPromptTemplate = container.querySelector('#async-raw-user-prompt').value;
@@ -207,7 +219,7 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
     };
 
     // 只绑定基础字段（提示词组由各组自身监听处理，避免重复标脏）
-    container.querySelectorAll('#async-enabled, #async-auto-generate, #async-generation-mode, #async-raw-system-prompt, #async-raw-user-prompt, #async-use-independent-api, #async-show-debug, #async-custom-api-url, #async-custom-api-key, #async-custom-api-model, #async-custom-api-source, #async-custom-api-temperature, #async-custom-api-max-tokens').forEach(el => {
+    container.querySelectorAll('#async-enabled, #async-auto-generate, #async-generation-mode, #async-preset-name, #async-raw-system-prompt, #async-raw-user-prompt, #async-use-independent-api, #async-show-debug, #async-custom-api-url, #async-custom-api-key, #async-custom-api-model, #async-custom-api-source, #async-custom-api-temperature, #async-custom-api-max-tokens').forEach(el => {
         el.addEventListener('input', collect);
         el.addEventListener('change', () => {
             collect();
