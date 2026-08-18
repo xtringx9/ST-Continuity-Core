@@ -432,6 +432,8 @@
     "ccore_settings_custom_api_source": "API Type:",
     "ccore_history_title": "Generation History",
     "ccore_records_title": "Generation Records",
+    "ccore_records_save_append": "Append as new version",
+    "ccore_records_save_overwrite": "Overwrite current version",
     "ccore_history_pending": "Pending",
     "ccore_history_all": "All",
     "ccore_history_empty": "No generation records"

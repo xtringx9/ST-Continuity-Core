@@ -100,8 +100,29 @@ function _getPendingRecords(generatorName, mesId) {
 }
 
 /**
+ * 按记录 id 全局定位记录（跨聊天操作：生成记录面板可在任意聊天打开并处理记录）。
+ * recordId 由 _nextPendingId 生成（Date.now()_counter），全局唯一。
+ * @param {string} recordId
+ * @returns {{key:string, chatKey:string, record:object}|null}
+ */
+function _findRecordEntry(recordId) {
+    for (const [key, records] of pendingResults) {
+        if (!Array.isArray(records)) continue;
+        const record = records.find(r => r && r.id === recordId);
+        if (record) {
+            // key = chatKey::generatorName::mesId（chatKey 内部含 ::，故 parts[0]=角色、parts[1]=聊天文件）
+            const parts = String(key).split('::');
+            const chatKey = `${parts[0] || ''}::${parts[1] || ''}`;
+            return { key, chatKey, record };
+        }
+    }
+    return null;
+}
+
+/**
  * 按记录 id 标记状态（saved/discarded/error）。
- * ⚠️ 2026-08-18 保留已处理记录（历史面板可查看已处理项），仅当 key 下无任何记录时删除 key。
+ * ⚠️ 2026-08-18 保留已处理记录（历史面板可查看已处理项）。
+ * ⚠️ 2026-08-18 改为按 recordId 全局定位：抛弃可跨聊天执行（不依赖当前 _getChatKey()）。
  * @param {string} generatorName
  * @param {number} mesId
  * @param {string} recordId
@@ -109,19 +130,10 @@ function _getPendingRecords(generatorName, mesId) {
  * @param {string} [note]
  */
 function _markPendingStatus(generatorName, mesId, recordId, status, note = '') {
-    const key = _pendingKey(generatorName, mesId);
-    const records = pendingResults.get(key);
-    if (!records) return;
-    for (const r of records) {
-        if (r.id === recordId) {
-            r.status = status;
-            if (note) r.note = note;
-        }
-    }
-    // 仅当 key 下无任何记录时删除 key（已处理记录保留供历史面板查看）
-    if (records.length === 0) {
-        pendingResults.delete(key);
-    }
+    const entry = _findRecordEntry(recordId);
+    if (!entry) return;
+    entry.record.status = status;
+    if (note) entry.record.note = note;
     _savePendingToStorage();
     window.dispatchEvent(new CustomEvent('ccore-pending-cleared', { detail: { generatorName, mesId } }));
 }
@@ -256,11 +268,18 @@ function _createSaveCallback(ctx) {
 }
 
 /**
- * 创建抛弃回调（供调试面板"抛弃"按钮调用）
+ * 创建抛弃回调（供生成记录面板「抛弃」按钮调用）。
+ * ⚠️ 2026-08-18 抛弃全局有效：优先用记录所属 chatKey 移除任务（跨聊天也能执行），
+ * 不再依赖当前 _getChatKey()（否则在其他聊天打开面板时抛弃无效）。
+ * @param {string} generatorName
+ * @param {number} mesId
+ * @param {string} recordId
+ * @param {string} [chatKey] 记录所属聊天标识（生成时归属；无则回退当前聊天）
  */
-function _createDiscardCallback(generatorName, mesId, recordId) {
+function _createDiscardCallback(generatorName, mesId, recordId, chatKey) {
     return () => {
-        taskRegistry.remove(`${_getChatKey()}::${mesId}::${generatorName}`);
+        const taskChatKey = chatKey || _getChatKey();
+        taskRegistry.remove(`${taskChatKey}::${mesId}::${generatorName}`);
         if (recordId) {
             _markPendingStatus(generatorName, mesId, recordId, 'discarded');
         } else {
@@ -338,6 +357,27 @@ export function getAllPendingRecords() {
             }
         });
     }
+
+    // 合并运行中任务（生成记录列表可见生成中记录，点击进入运行中详情支持流式）
+    // task 结构：{ status:'running', chatKey, mesId, generatorName, startedAt, debugData }
+    taskRegistry.forEach(t => {
+        if (t.status !== 'running') return;
+        if (!t.chatKey || t.mesId === undefined) return;
+        out.push({
+            key: `running::${t.chatKey}::${t.generatorName}::${t.mesId}`,
+            chatKey: t.chatKey,
+            generatorName: t.generatorName,
+            mesId: t.mesId,
+            id: `running_${t.chatKey}_${t.mesId}_${t.generatorName}`,
+            status: 'running',
+            createdAt: t.startedAt || Date.now(),
+            context: {},
+            debugData: t.debugData || {},
+            isRunning: true,
+            taskKey: t.debugData?.taskKey || '',
+        });
+    });
+
     // 按创建时间新→旧
     out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     return out;
@@ -397,20 +437,21 @@ export function showRecordDebugPanel(record) {
 
 /**
  * 直接抛弃某条待处理记录（历史面板列表「抛弃」按钮用）。
- * 抛弃不涉及保存/聊天归属校验，随时可执行。
+ * 抛弃不涉及保存/聊天归属校验，随时可执行；按 recordId 全局定位（跨聊天）。
  * @param {string} generatorName
  * @param {number} mesId
  * @param {string} recordId
  */
 export function discardPendingRecord(generatorName, mesId, recordId) {
-    const cb = _createDiscardCallback(generatorName, mesId, recordId);
+    const entry = _findRecordEntry(recordId);
+    const cb = _createDiscardCallback(generatorName, mesId, recordId, entry?.chatKey);
     cb();
 }
 
 /**
  * 构建记录的操作回调（生成记录面板用）：onSave / onDiscard / onLoadCurrentContent。
  * pending 记录重新绑定（recordId 只处理本条）；已处理返回 null（只读）。
- * @param {object} record { id, status, generatorName, mesId, context }
+ * @param {object} record { id, status, generatorName, mesId, context, chatKey }
  * @returns {{onSave:Function, onDiscard:Function, onLoadCurrentContent:Function}|null}
  */
 export function buildRecordCallbacks(record) {
@@ -419,7 +460,7 @@ export function buildRecordCallbacks(record) {
     const context = { ...(record.context || {}), recordId: record.id };
     return {
         onSave: _createSaveCallback(context),
-        onDiscard: _createDiscardCallback(record.generatorName, record.mesId, record.id),
+        onDiscard: _createDiscardCallback(record.generatorName, record.mesId, record.id, record.chatKey),
         onLoadCurrentContent: _createLoadCurrentCallback(context),
     };
 }
@@ -818,21 +859,32 @@ export const moduleAiGenerator = {
                     openedRecordId = recordId;
                 }
 
-                // 打开完成记录详情（无记录时打开列表）
-                if (openedRecordId) {
-                    window.openGenerationRecords?.({
-                        view: 'detail',
-                        recordId: openedRecordId,
-                        filters: {
-                            gen: generatorName,
-                            char: charName,
-                            chat: chatName,
-                            floor: String(messages[0]?.mesId ?? ''),
-                            status: 'all',
-                        },
-                    });
-                } else {
-                    window.openGenerationRecords?.({ view: 'list' });
+                // 新记录完成通知：面板已打开 → toast + 静默刷新（不打断当前视图）；
+                // 面板未打开 → notify 返回 false，此处再打开详情。
+                const handledByPanel = window.notifyGenerationCompleted?.({
+                    recordId: openedRecordId,
+                    generatorName,
+                    mesId: messages[0]?.mesId,
+                    chatKey: taskChatKey,
+                    status: 'pending',
+                });
+                if (!handledByPanel) {
+                    // 打开完成记录详情（无记录时打开列表）
+                    if (openedRecordId) {
+                        window.openGenerationRecords?.({
+                            view: 'detail',
+                            recordId: openedRecordId,
+                            filters: {
+                                gen: generatorName,
+                                char: charName,
+                                chat: chatName,
+                                floor: String(messages[0]?.mesId ?? ''),
+                                status: 'all',
+                            },
+                        });
+                    } else {
+                        window.openGenerationRecords?.({ view: 'list' });
+                    }
                 }
             }
 
@@ -916,21 +968,31 @@ export const moduleAiGenerator = {
                     _savePendingToStorage();
                 }
 
-                // 打开失败记录详情（无记录时打开列表）
-                if (failRecordId) {
-                    window.openGenerationRecords?.({
-                        view: 'detail',
-                        recordId: failRecordId,
-                        filters: {
-                            gen: generatorName,
-                            char: charName,
-                            chat: chatName,
-                            floor: String(messages[0]?.mesId ?? ''),
-                            status: 'all',
-                        },
-                    });
-                } else {
-                    window.openGenerationRecords?.({ view: 'list' });
+                // 新记录完成通知：面板已打开 → toast + 静默刷新（不打断当前视图）
+                const handledByPanel = window.notifyGenerationCompleted?.({
+                    recordId: failRecordId,
+                    generatorName,
+                    mesId: messages[0]?.mesId,
+                    chatKey: taskChatKey,
+                    status: 'error',
+                });
+                if (!handledByPanel) {
+                    // 打开失败记录详情（无记录时打开列表）
+                    if (failRecordId) {
+                        window.openGenerationRecords?.({
+                            view: 'detail',
+                            recordId: failRecordId,
+                            filters: {
+                                gen: generatorName,
+                                char: charName,
+                                chat: chatName,
+                                floor: String(messages[0]?.mesId ?? ''),
+                                status: 'all',
+                            },
+                        });
+                    } else {
+                        window.openGenerationRecords?.({ view: 'list' });
+                    }
                 }
             }
 

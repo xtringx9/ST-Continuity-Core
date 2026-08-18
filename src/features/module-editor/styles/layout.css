@@ -638,19 +638,7 @@ section.module-detail-panel {
     color: var(--text-primary);
 }
 
-/* 移动端返回按钮图标 */
-.btn-back-icon {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 4px 8px 4px 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-}
+/* 移动端返回按钮图标（.btn-back-icon / .mobile-only 基础定义已抽到 editor-shell.css 共享） */
 
 /* 变量管理页面的粘性头部 */
 .variable-sticky-header {
@@ -695,10 +683,7 @@ section.module-detail-panel {
     background-color: var(--bg-hover);
 }
 
-/* 通用工具类 */
-.mobile-only {
-    display: none !important;
-}
+/* 通用工具类 .mobile-only 基础定义已抽到 editor-shell.css 共享（此处仅保留移动端覆盖） */
 
 /* 4. Responsive (Mobile) */
 @media (max-width: 768px) {

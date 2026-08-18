@@ -2,6 +2,9 @@
 
 /* 默认主题 (Light / 现代简洁风格) */
 :root {
+    /* 表单控件原生渲染模式（checkbox 勾勾 / number spinner 箭头随主题明暗） */
+    color-scheme: light;
+
     /* 背景色 */
     --bg-app: #ffffff;
     --bg-panel: #f9fafb;
@@ -41,6 +44,9 @@
 
 /* 深色主题 (Dark) */
 [data-theme="dark"] {
+    /* 深色下表单原生控件（checkbox/spinner 箭头）渲染为浅色 */
+    color-scheme: dark;
+
     --bg-app: #18181b;
     /* Zinc-900 */
     --bg-panel: #27272a;

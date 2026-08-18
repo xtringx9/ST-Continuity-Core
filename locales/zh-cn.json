@@ -432,6 +432,8 @@
     "ccore_settings_custom_api_source": "API 类型:",
     "ccore_history_title": "生成历史",
     "ccore_records_title": "生成记录",
+    "ccore_records_save_append": "追加为新版本",
+    "ccore_records_save_overwrite": "覆盖当前版本",
     "ccore_history_pending": "待处理",
     "ccore_history_all": "全部",
     "ccore_history_empty": "暂无生成记录"
