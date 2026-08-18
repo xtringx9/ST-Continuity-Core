@@ -22,9 +22,13 @@ const LOG_TAG = 'ModuleAiGenerator';
  * 从 AI 回复文本中提取所有顶层模块 raw，合并为单个换行分隔文本块。
  * 逻辑同 perMessageStorage.extractMessageModules（已停用 perMessageStorage，此处内联）。
  * 嵌套模块包含在顶层模块的 raw 内，不单独提取。
+ *
+ * ⚠️ 2026-08-18 暂注释：当前生成流程不需要提取模块步骤（autoSave 直接存 AI 回复原文），
+ *    且提取逻辑曾导致「自动落盘失败但误标 saved」。以后若恢复「模块提取后再存」可重新启用。
  * @param {string} text
  * @returns {{ modules: string }}
  */
+/*
 function _extractTopLevelModules(text) {
     if (!text || typeof text !== 'string') return { modules: '' };
     const results = [];
@@ -48,6 +52,7 @@ function _extractTopLevelModules(text) {
     }
     return { modules: results.join('\n') };
 }
+*/
 
 /**
  * 展开生成提示词中的宏（2026-08-18 升级为通用）：先自家宏（{{module_data}}）再 ST 全套宏。
@@ -844,18 +849,12 @@ export const moduleAiGenerator = {
             //   （无论手动/自动生成，行为一致；skipStorage 为历史参数，不再参与判定）
             const autoSave = !shouldShowDebug;
             if (autoSave) {
-                if (isModule) {
-                    // 模块：从 AI 回复提取模块文本（顶层提取，不依赖 perMessageStorage）
-                    extracted = _extractTopLevelModules(result.text);
-                    hasModules = extracted.modules.length > 0;
-                } else {
-                    // 其他生成内容：直接存 AI 回复到 generatorName key
-                    hasModules = result.text.length > 0;
-                }
-
+                // ⚠️ 2026-08-18：模块提取已注释（_extractTopLevelModules），当前直接存 AI 回复原文；
+                //   不再区分 isModule 的提取步骤（曾导致自动落盘失败但误标 saved）
+                hasModules = result.text.length > 0;
                 // 存储到每条消息（统一 floor：模块 + 非模块都走 appendGeneratorContent，新版本自动激活）
                 if (hasModules) {
-                    const storeText = isModule ? (extracted?.modules || '') : result.text;
+                    const storeText = result.text;
                     if (isSingle) {
                         const msg = messages[0];
                         const newId = appendGeneratorContent(msg.mesId, generatorName, msg.activeSwipeId, storeText);
@@ -949,9 +948,10 @@ export const moduleAiGenerator = {
                 _savePendingToStorage();
                 openedRecordId = recordId;
 
-                // 自动保存（未勾选弹面板，autoSave=!shouldShowDebug）：自动标记 saved
-                // （存储已在上方 autoSave 块落盘；_markPendingStatus 内部会 dispatch ccore-pending-cleared 通知面板刷新）
-                if (autoSave) {
+                // 自动保存（未勾选弹面板，autoSave=!shouldShowDebug）：仅当真正落盘成功才标记 saved
+                // ⚠️ 存储依赖 hasModules / appendGeneratorContent 成功；落盘失败时保留 pending（可手动处理）
+                //   _markPendingStatus 内部会 dispatch ccore-pending-cleared 通知面板刷新
+                if (autoSave && storedCount > 0) {
                     _markPendingStatus(generatorName, mesId, recordId, 'saved', '自动存储');
                 }
             }
