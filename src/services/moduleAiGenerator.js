@@ -919,6 +919,37 @@ export const moduleAiGenerator = {
                 runId,
             };
 
+            // ⚠️ 空响应兜底：AI 调用成功但返回空文本（result.text 为空）时，
+            //   不满足下方 pending 创建条件 → 生成记录面板无任何记录（用户看到「自动保存不成功且无记录」）。
+            //   此处补一条 error 记录并提示，保证每次生成都在记录里可见。
+            if (!result.text && isSingle && messages[0]) {
+                const emptyMesId = messages[0].mesId;
+                const emptyRecordId = _nextPendingId();
+                const emptyContext = {
+                    mesId: emptyMesId,
+                    swipeId: messages[0].activeSwipeId,
+                    generatorName,
+                    isModule,
+                    extracted: null,
+                    text: '',
+                    chatKey: taskChatKey,
+                    recordId: emptyRecordId,
+                };
+                const emptyKey = _pendingKey(generatorName, emptyMesId);
+                const emptyRecords = pendingResults.get(emptyKey) || [];
+                emptyRecords.push({
+                    id: emptyRecordId,
+                    status: 'error',
+                    createdAt: Date.now(),
+                    context: emptyContext,
+                    debugData: { ...debugData, error: 'AI 响应为空（未返回任何内容），未落盘', response: '' },
+                });
+                pendingResults.set(emptyKey, emptyRecords);
+                _savePendingToStorage();
+                window.dispatchEvent(new CustomEvent('ccore-pending-cleared', { detail: { generatorName, mesId: emptyMesId } }));
+                showToast(`生成返回为空 #${emptyMesId} ${generatorName || 'modules'}，未保存`, 'error');
+            }
+
             // 总是创建 pending 记录（单条成功有文本；多记录化：并发各占一条，互不覆盖）
             // 详情页操作回调由生成记录面板 buildRecordCallbacks 重建，无需在 debugData 上绑定。
             let openedRecordId = null;
