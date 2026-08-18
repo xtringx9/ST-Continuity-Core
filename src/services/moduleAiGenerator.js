@@ -1055,90 +1055,91 @@ export const moduleAiGenerator = {
             for (const k of taskKeys) taskRegistry.finish(k, 'error', { mesId: messages[0]?.mesId, generatorName, success: false, error: err.message });
             errorLog(LOG_TAG, `AI 生成失败:`, err);
 
-            if (shouldShowDebug) {
-                const details = getCurrentChatDetails();
-                const charName = details?.characterName || '';
-                const chatName = details?.sessionName || '';
-                const scope = isSingle
-                    ? `#${messages[0].mesId}`
-                    : `#${ids[0]}-${ids[ids.length - 1]}`;
-                const titleBody = `${scope} - ${charName} / ${chatName}`;
-                const titleLabel = isModule ? '生成失败' : `生成失败 [${generatorName}]`;
+            // ── 统一失败路径（2026-08-18）：无论是否勾选弹面板，失败/中止都创建 error 记录 ──
+            const details = getCurrentChatDetails();
+            const charName = details?.characterName || '';
+            const chatName = details?.sessionName || '';
+            const scope = isSingle
+                ? `#${messages[0].mesId}`
+                : `#${ids[0]}-${ids[ids.length - 1]}`;
+            const titleBody = `${scope} - ${charName} / ${chatName}`;
+            const titleLabel = isModule ? '生成失败' : `生成失败 [${generatorName}]`;
 
-                // 从 err.debugInfo 读取 aiCaller 已捕获的提示词(API 失败时仍有值)
-                const errDebug = err.debugInfo || {};
+            // 从 err.debugInfo 读取 aiCaller 已捕获的提示词(API 失败时仍有值)
+            const errDebug = err.debugInfo || {};
 
-                const failDebugData = {
-                    title: `${titleLabel} ${titleBody}`,
-                    statusLabel: titleLabel,
-                    statusType: 'fail',
-                    titleBody,
-                    mesIds: ids,
-                    mode,
-                    sentInfo,
-                    capturedPrompt: errDebug.prompt || '',
-                    response: errDebug.response || `错误: ${err.message}`,
-                    extracted: isModule ? { modules: '' } : null,
-                    apiUsed: errDebug.apiUsed || {},
-                    hasModules: false,
-                    error: err.message,
-                    taskKey: taskKeys[0] || undefined,
-                };
+            const failDebugData = {
+                title: `${titleLabel} ${titleBody}`,
+                statusLabel: titleLabel,
+                statusType: 'fail',
+                titleBody,
+                mesIds: ids,
+                mode,
+                sentInfo,
+                capturedPrompt: errDebug.prompt || '',
+                response: errDebug.response || `错误: ${err.message}`,
+                extracted: isModule ? { modules: '' } : null,
+                apiUsed: errDebug.apiUsed || {},
+                hasModules: false,
+                error: err.message,
+                taskKey: taskKeys[0] || undefined,
+            };
 
-                // 失败也暂存为 error 记录（生成记录面板可查看失败详情），单条时打开详情
-                let failRecordId = null;
-                if (isSingle && messages[0]) {
-                    const mesId = messages[0].mesId;
-                    failRecordId = _nextPendingId();
-                    const context = {
-                        mesId,
-                        swipeId: messages[0].activeSwipeId,
-                        generatorName,
-                        isModule,
-                        extracted: null,
-                        text: '',
-                        chatKey: taskChatKey,
-                        recordId: failRecordId,
-                    };
-                    const key = _pendingKey(generatorName, mesId);
-                    const records = pendingResults.get(key) || [];
-                    records.push({
-                        id: failRecordId,
-                        status: 'error',
-                        createdAt: Date.now(),
-                        context,
-                        debugData: failDebugData,
-                    });
-                    pendingResults.set(key, records);
-                    _savePendingToStorage();
-                }
-
-                // 新记录完成通知：面板已打开 → 静默刷新/切换运行中详情（不打断当前视图）
-                const handledByPanel = window.notifyGenerationCompleted?.({
-                    recordId: failRecordId,
-                    runId,
+            // 失败/中止也暂存为 error 记录（生成记录面板可查看失败详情），单条时创建；
+            // ⚠️ 不再受 shouldShowDebug 限制——任何 pending 最后都会留下记录
+            let failRecordId = null;
+            if (isSingle && messages[0]) {
+                const mesId = messages[0].mesId;
+                failRecordId = _nextPendingId();
+                const context = {
+                    mesId,
+                    swipeId: messages[0].activeSwipeId,
                     generatorName,
-                    mesId: messages[0]?.mesId,
+                    isModule,
+                    extracted: null,
+                    text: '',
                     chatKey: taskChatKey,
+                    recordId: failRecordId,
+                };
+                const key = _pendingKey(generatorName, mesId);
+                const records = pendingResults.get(key) || [];
+                records.push({
+                    id: failRecordId,
                     status: 'error',
+                    createdAt: Date.now(),
+                    context,
+                    debugData: failDebugData,
                 });
-                if (!handledByPanel) {
-                    // 打开失败记录详情（无记录时打开列表）
-                    if (failRecordId) {
-                        window.openGenerationRecords?.({
-                            view: 'detail',
-                            recordId: failRecordId,
-                            filters: {
-                                gen: generatorName,
-                                char: charName,
-                                chat: chatName,
-                                floor: String(messages[0]?.mesId ?? ''),
-                                status: 'all',
-                            },
-                        });
-                    } else {
-                        window.openGenerationRecords?.({ view: 'list' });
-                    }
+                pendingResults.set(key, records);
+                _savePendingToStorage();
+            }
+
+            // 新记录完成通知：面板已打开 → 静默刷新/切换运行中详情（不打断当前视图）
+            const handledByPanel = window.notifyGenerationCompleted?.({
+                recordId: failRecordId,
+                runId,
+                generatorName,
+                mesId: messages[0]?.mesId,
+                chatKey: taskChatKey,
+                status: 'error',
+            });
+
+            // 仅勾选弹面板时打开失败详情（不勾选则静默留记录 + toast）
+            if (shouldShowDebug && !handledByPanel) {
+                if (failRecordId) {
+                    window.openGenerationRecords?.({
+                        view: 'detail',
+                        recordId: failRecordId,
+                        filters: {
+                            gen: generatorName,
+                            char: charName,
+                            chat: chatName,
+                            floor: String(messages[0]?.mesId ?? ''),
+                            status: 'all',
+                        },
+                    });
+                } else {
+                    window.openGenerationRecords?.({ view: 'list' });
                 }
             }
 

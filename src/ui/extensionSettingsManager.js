@@ -864,6 +864,8 @@ export async function onFetchModels() {
 
 /**
  * AI 生成指定楼层
+ * ⚠️ 旧工具（遗留）：入口 DOM 已随「异步存储」设置页删除，当前无调用方不会运行。
+ *    多消息一次 AI 调用（mesIds 数组）保留以防未来「批量生成」回用（与 perMessageStorage 同策略勿删）。
  */
 export async function onAiGenerateFloor() {
     const input = prompt('输入楼层范围，楼层从0开始（如 5 或 5-10）:');
