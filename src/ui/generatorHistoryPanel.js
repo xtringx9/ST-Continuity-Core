@@ -42,23 +42,27 @@ function bindHistory(doc) {
     const listEl = doc.getElementById('ccore-history-list');
     if (!listEl) return;
 
+    const genFilter = doc.getElementById('ccore-history-filter-generator');
     const charFilter = doc.getElementById('ccore-history-filter-char');
     const chatFilter = doc.getElementById('ccore-history-filter-chat');
     const floorFilter = doc.getElementById('ccore-history-filter-floor');
     const statusFilter = doc.getElementById('ccore-history-filter-status');
 
-    const state = { char: '', chat: '', floor: '', status: 'all' };
+    const state = { gen: '', char: '', chat: '', floor: '', status: 'all' };
 
     const render = () => {
         const all = getAllPendingRecords();
-        // 收集筛选项（角色/聊天去重）
+        // 收集筛选项（generator/角色/聊天去重）
+        const gens = new Set();
         const chars = new Set();
         const chats = new Set();
         all.forEach(r => {
+            if (r.generatorName) gens.add(r.generatorName);
             const parts = String(r.chatKey || '').split('::');
             if (parts[0]) chars.add(parts[0]);
             if (parts[1]) chats.add(parts[1]);
         });
+        fillSelect(genFilter, [...gens], state.gen);
         fillSelect(charFilter, [...chars], state.char);
         fillSelect(chatFilter, [...chats], state.chat);
 
@@ -67,6 +71,7 @@ function bindHistory(doc) {
             const parts = String(r.chatKey || '').split('::');
             const c = parts[0] || '';
             const ch = parts[1] || '';
+            if (state.gen && r.generatorName !== state.gen) return false;
             if (state.char && c !== state.char) return false;
             if (state.chat && ch !== state.chat) return false;
             if (state.floor !== '' && Number(r.mesId) !== Number(state.floor)) return false;
@@ -77,9 +82,10 @@ function bindHistory(doc) {
         renderList(listEl, filtered);
     };
 
-    [charFilter, chatFilter, floorFilter, statusFilter].forEach(el => {
+    [genFilter, charFilter, chatFilter, floorFilter, statusFilter].forEach(el => {
         if (!el) return;
         el.addEventListener('change', () => {
+            state.gen = genFilter?.value || '';
             state.char = charFilter?.value || '';
             state.chat = chatFilter?.value || '';
             state.floor = floorFilter?.value || '';
@@ -93,6 +99,20 @@ function bindHistory(doc) {
         if (countEl) countEl.textContent = `${translate('ccore_history_pending')}: ${getPendingCount()}`;
     };
     updateCount();
+
+    // 记录被处理（保存/抛弃/失败）后刷新列表与计数（否则面板停留在旧状态，看起来「处理没用」）
+    const onPendingChanged = () => {
+        updateCount();
+        render();
+    };
+    window.addEventListener('ccore-pending-cleared', onPendingChanged);
+    // 面板关闭时移除监听（避免 iframe 重开重复累积；listener 挂在父 window）
+    const closeBtn = doc.getElementById('ccore-history-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            window.removeEventListener('ccore-pending-cleared', onPendingChanged);
+        });
+    }
 
     render();
 }

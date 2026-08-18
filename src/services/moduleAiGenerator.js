@@ -298,11 +298,12 @@ export function getPendingRecords(generatorName, mesId) {
 export function getAllPendingRecords() {
     const out = [];
     for (const [key, records] of pendingResults) {
-        // key = `${chatKey}::${generatorName}::${mesId}`
+        // ⚠️ key = `${chatKey}::${generatorName}::${mesId}`，且 chatKey = `角色名::聊天文件名`（内部含 ::）！
+        // 故 split('::') 后：parts[0]=角色名, parts[1]=聊天文件名, parts[2]=generatorName, parts[3]=mesId
         const parts = String(key).split('::');
-        const chatKey = parts[0] || '';
-        const generatorName = parts[1] || '';
-        const mesId = Number(parts[2]);
+        const chatKey = `${parts[0] || ''}::${parts[1] || ''}`;
+        const generatorName = parts[2] || '';
+        const mesId = Number(parts[3]);
         (records || []).forEach(r => {
             if (r && typeof r === 'object') {
                 out.push({ key, chatKey, generatorName, mesId, ...r });
@@ -333,8 +334,9 @@ export function getPendingCountForMes(mesId) {
     let count = 0;
     pendingResults.forEach((records, key) => {
         if (!String(key).startsWith(`${chatKey}::`)) return;
+        // ⚠️ key = chatKey::generatorName::mesId（chatKey 内部含 ::），parts[3] 才是 mesId
         const parts = String(key).split('::');
-        if (Number(parts[2]) === mesId) {
+        if (Number(parts[3]) === mesId) {
             (records || []).forEach(r => { if (r.status === 'pending') count++; });
         }
     });
