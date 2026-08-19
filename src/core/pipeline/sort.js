@@ -4,6 +4,7 @@ import { debugLog, errorLog } from '../../utils/logger.js';
 import { IdentifierParser } from '../../utils/identifierParser.js';
 import { convertAlphaNumericId } from '../../utils/numberParser.js';
 import { idCompletionToState } from './idCompletionStep.js';
+import { compressLevelToState } from './levelCompressionStep.js';
 
 /**
  * 判断字符串是否可以转换为数值
@@ -126,21 +127,6 @@ function parseIdRange(idValue) {
 }
 
 /**
- * 检查ID是否在范围内
- * @param {string|number} id 要检查的ID
- * @param {Object} range 范围对象
- * @returns {boolean} 是否在范围内
- */
-function isIdInRange(id, range) {
-    const idNum = typeof id === 'string' ? parseInt(id, 10) : id;
-    const startNum = typeof range.start === 'string' ? parseInt(range.start, 10) : range.start;
-    const endNum = typeof range.end === 'string' ? parseInt(range.end, 10) : range.end;
-
-    return !isNaN(idNum) && !isNaN(startNum) && !isNaN(endNum) &&
-        idNum >= startNum && idNum <= endNum;
-}
-
-/**
  * 通用模块排序方法
  * @param {Array} modules 模块数组
  * @returns {Array} 排序后的模块数组
@@ -228,92 +214,6 @@ export function sortModules(modules) {
 }
 
 /**
- * 将被压缩模块推入压缩模块的timeline
- */
-function pushToCompressed(compressedModule, module) {
-    if (compressedModule) {
-        if (!compressedModule.timeline) compressedModule.timeline = [];
-        compressedModule.timeline.push(module);
-        debugLog('[timeline] 模块添加到时间线:', module, '压缩模块:', compressedModule);
-    }
-}
-
-/**
- * 处理基于时间的压缩
- */
-function processTimeBasedCompression(compressedModule, modules, backupIdentifierName) {
-    try {
-        const { timeData } = compressedModule;
-        if (!timeData || !timeData.isValid || (!timeData.isComplete && !timeData.startTime.hasDate)) return;
-        const compressedStart = timeData.startTime.timestamp;
-        const compressedEnd = timeData.endTime.timestamp;
-        const compressedLevel = compressedModule.variables.level;
-        const comporessedBackupIdentifierValue = backupIdentifierName ? compressedModule.variables[backupIdentifierName] : '';
-
-        modules.forEach(module => {
-            if (module === compressedModule || !module.visibility) return;
-            if (module.variables.level >= compressedLevel) return;
-
-            const backupIdentifierValue = backupIdentifierName ? module.variables[backupIdentifierName] : '';
-            if (!IdentifierParser.isIdentifierMatch(comporessedBackupIdentifierValue, backupIdentifierValue)) return;
-
-            const moduleTimeData = module.timeData;
-            if (moduleTimeData && moduleTimeData.isValid && (moduleTimeData.isComplete || (!moduleTimeData.isComplete && moduleTimeData.startTime.hasDate))) {
-                if (!moduleTimeData.isRange) {
-                    const moduleStart = moduleTimeData.startTime.timestamp;
-                    if (moduleStart >= compressedStart && moduleStart <= compressedEnd) {
-                        module.visibility = false;
-                        pushToCompressed(compressedModule, module);
-                    }
-                } else {
-                    const moduleStart = moduleTimeData.startTime.timestamp;
-                    const moduleEnd = moduleTimeData.endTime.timestamp;
-                    if (moduleStart >= compressedStart && moduleEnd <= compressedEnd) {
-                        module.visibility = false;
-                        pushToCompressed(compressedModule, module);
-                    }
-                }
-            }
-        });
-        pushToCompressed(compressedModule, compressedModule);
-    } catch (error) {
-        errorLog('[Level Processor] 处理时间压缩模块时出错:', error, compressedModule, modules);
-    }
-}
-
-/**
- * 处理基于ID的压缩
- */
-function processIdBasedCompression(compressedModule, modules, identifierVar, backupIdentifierName) {
-    const identifierName = identifierVar.name;
-    const compressedIdValue = compressedModule.variables[identifierName];
-    const compressedLevel = compressedModule.variables.level;
-    const comporessedBackupIdentifierValue = backupIdentifierName ? compressedModule.variables[backupIdentifierName] : '';
-
-    debugLog('[Level Processor] 压缩模块的ID值:', compressedIdValue, '压缩模块的level:', compressedLevel, compressedModule);
-
-    const idRange = parseIdRange(compressedIdValue);
-    if (!idRange) return;
-
-    modules.forEach(module => {
-        if (module === compressedModule || !module.visibility) return;
-        if (module.variables.level >= compressedLevel) return;
-
-        const backupIdentifierValue = backupIdentifierName ? module.variables[backupIdentifierName] : '';
-        if (!IdentifierParser.isIdentifierMatch(comporessedBackupIdentifierValue, backupIdentifierValue)) return;
-
-        const moduleIdValue = module.variables[identifierName];
-        if (moduleIdValue) {
-            const convertedModuleId = convertAlphaNumericId(moduleIdValue);
-            if (isIdInRange(convertedModuleId, idRange)) {
-                module.visibility = false;
-                pushToCompressed(compressedModule, module);
-            }
-        }
-    });
-}
-
-/**
  * 处理level变量，管理压缩层级和可见性
  * @param {Array} modules 排序后的模块数组
  * @param {Array} modulesData 模块配置数据
@@ -321,40 +221,9 @@ function processIdBasedCompression(compressedModule, modules, identifierVar, bac
  */
 export function processLevelVariables(modules, modulesData) {
     debugLog('[Level Processor] 开始处理level变量，模块:', modules);
-
-    modules.forEach(module => {
-        if (module.variables.level === undefined || module.variables.level === null || module.variables.level === '') {
-            module.variables.level = 0;
-        }
-        module.visibility = true;
-    });
-
-    const compressedModules = modules.filter(module => module.variables.level > 0)
-        .sort((a, b) => b.variables.level - a.variables.level);
-    debugLog('[Level Processor] level大于0的模块：', compressedModules);
-
-    compressedModules.forEach(compressedModule => {
-        const moduleConfig = modulesData.find(config => config.name === compressedModule.moduleName);
-        if (!moduleConfig) return;
-
-        const identifierVariables = moduleConfig.variables.filter(variable => variable.isIdentifier);
-        if (identifierVariables.length !== 1) return;
-
-        const identifierVar = identifierVariables[0];
-        const identifierName = identifierVar.name;
-        const identifierValue = compressedModule.variables[identifierName];
-        debugLog('[Level Processor] 压缩模块的identifier变量:', identifierVar, '名称:', identifierName, '值:', identifierValue, compressedModule);
-
-        const backupIdentifierName = moduleConfig.variables.filter(variable => variable.isBackupIdentifier)?.[0]?.name || '';
-
-        if (identifierName.toLowerCase().includes('time')) {
-            processTimeBasedCompression(compressedModule, modules, backupIdentifierName);
-        } else if (identifierName.toLowerCase() === 'id') {
-            processIdBasedCompression(compressedModule, modules, identifierVar, backupIdentifierName);
-        }
-    });
-
-    const visibleModules = sortModules(modules.filter(module => module.visibility));
+    // ⚠️ 可组合性改造（快照阶段 0）：核心逻辑已抽到 levelCompressionStep.js
+    //（无 ST 依赖纯函数，sortFn 注入）。本函数作为薄封装，行为不变。
+    const visibleModules = compressLevelToState(modules, modulesData, sortModules);
     debugLog('[Level Processor] 可见模块:', visibleModules);
     return visibleModules;
 }

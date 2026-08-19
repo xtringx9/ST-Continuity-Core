@@ -96,6 +96,14 @@ export function attachTimeToState(modules, moduleConfigs, parsers, initialState)
 /**
  * 补全同一 messageIndex 组的 time 变量（等价于原 completeTimeVariables 单组体）。
  * 组内独立、无跨层状态 → 逐层调用即可续传。
+ *
+ * ⚠️ 设计意图（用户确认保留，2026-08-19）：
+ *   补全按「模块的 messageIndex（dedup 后 full 模块保留最早创建层）」分组取该层标准时间。
+ *   因此旧聊天中「无时间的模块」补全时用的是「最早创建那一层」的基准时间，而不是
+ *   「最近一次变化层」（timeline 最后一条）的时间。
+ *   这是有意设计：从创建楼层可反向确定该模块的创建楼层；旧聊天数据很少，不改。
+ *   若将来要改为「按最近变化层补全」，需在 merge（timeline 生成）之后处理或改基准选择逻辑。
+ *
  * @param {Array} messageModules 同一 messageIndex 的模块数组
  * @param {Array} moduleConfigs 模块配置
  * @param {Object} parsers 解析器 { completeTimeDataWithStandard }

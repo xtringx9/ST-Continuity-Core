@@ -6,6 +6,10 @@ import { createMergeStepState, mergeStep, mergeModulesToState } from '../src/cor
 import { createDedupState, dedupStep, dedupToState, uniqueModulesFromState } from '../src/core/pipeline/deduplicateStep.js';
 import { createIdCompletionState, idCompletionStep, idCompletionToState } from '../src/core/pipeline/idCompletionStep.js';
 import { createTimeState, attachTimeToState, completeTimeForMessage, completeTimeToState } from '../src/core/pipeline/timeCompletionStep.js';
+import { compressLevelToState } from '../src/core/pipeline/levelCompressionStep.js';
+
+// level 压缩测试的 mock sortFn（按 messageIndex 升序——足够复刻「可见模块排序」语义）
+const mockSortFn = (modules) => [...modules].sort((a, b) => a.messageIndex - b.messageIndex);
 
 // timeCompletionStep 的 mock 解析器（复刻真实 timeParser 关键语义，避免浏览器依赖链）：
 // - 完整格式 'YYYY-MM-DD 周X HH:MM' → isComplete:true, formattedString=原文
@@ -330,6 +334,64 @@ for (const [si, mods] of timeScenarios.entries()) {
             isAddTime: m.isAddTime,
         }));
         assert(deepEqual(sig, fullSig), `time 层场景${si + 1}: 从 X=${X} 分段 == 全段（attach+complete）`);
+    }
+}
+
+/* ================= level 压缩 ================= */
+// sum 模块：id 主键 + level + time；level>0 的压缩模块按 id 范围折叠更低 level 的模块
+const levelModuleConfigs = [
+    {
+        name: 'sum', outputMode: 'full', outputPosition: 'after_body',
+        variables: [
+            { name: 'id', isIdentifier: true },
+            { name: 'level' },
+            { name: 'event' },
+            { name: 'time' },
+        ],
+    },
+];
+
+function lmod(mi, id, level, event) {
+    return {
+        moduleName: 'sum',
+        messageIndex: mi,
+        variables: { id, level, event, time: '2024-11-12 周二 10:00' },
+        messageIndexHistory: [mi],
+    };
+}
+
+// 场景1：level=0 明细 + level=1 压缩（id 范围折叠）
+const levelScenarios = [
+    [
+        lmod(0, '1', 0, '事件1'),
+        lmod(1, '2', 0, '事件2'),
+        lmod(2, '3', 0, '事件3'),
+        lmod(3, '1-3', 1, '压缩1-3'),   // level=1，折叠 id 1-3
+        lmod(4, '4', 0, '事件4'),        // 压缩范围外，保留
+        lmod(5, '4-5', 1, '压缩4-5'),   // level=1，折叠 id 4-5（含刚新增的 4）
+    ],
+];
+
+// 快照语义：存「压缩前」干净副本集合，从 X 继续 = 快照[X-1] ∪ X..end → 组内全量重跑
+for (const [si, mods] of levelScenarios.entries()) {
+    // 全量参考
+    const fullMods = cloneDeep(mods);
+    const fullVisible = compressLevelToState(fullMods, levelModuleConfigs, mockSortFn);
+    // 签名：可见模块（id+level）+ 压缩模块 timeline 内容
+    const sigOf = (visible) => visible.map(m => ({
+        id: m.variables.id,
+        level: m.variables.level,
+        timeline: (m.timeline || []).map(t => t.variables?.id ?? t.variables?.event ?? ''),
+    }));
+
+    for (let X = 0; X <= mods.length; X++) {
+        // 分段：0..X-1 干净副本跑压缩；X..end 合并后组内全量重跑
+        const prefixMods = cloneDeep(mods.slice(0, X));
+        const suffixMods = cloneDeep(mods.slice(X));
+        // 快照[X-1] = 压缩前集合（干净副本），续传时直接取 prefix 全部模块
+        const merged = [...prefixMods, ...suffixMods];
+        const visible = compressLevelToState(merged, levelModuleConfigs, mockSortFn);
+        assert(deepEqual(sigOf(visible), sigOf(fullVisible)), `level 压缩场景${si + 1}: 从 X=${X} 合并重跑 == 全量（可见+timeline）`);
     }
 }
 
