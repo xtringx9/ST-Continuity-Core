@@ -12,6 +12,7 @@ import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
 import { CHAT_MODULE_ENTRIES_UPDATED_EVENT } from "./chatModuleEntryStore.js";
 import { incrementalModulesChanged } from "./pipeline/incrementalModuleCompare.js";
+import { getChatCacheKey, invalidateOccurrence, invalidateSourceAll, clearOccurrenceCache } from "./occurrenceCache.js";
 import { taskRegistry } from "./taskRegistry.js";
 
 /** 编辑前文本缓存：mesId → 编辑框打开时的 chat[mesId].mes（MESSAGE_UPDATED 前对比增量用） */
@@ -89,6 +90,9 @@ export class EventHandler {
                 scheduleMsgBottom('full');
                 // 编辑缓存按聊天隔离，切聊天清空
                 _editTextCache.clear();
+                // occurrence 缓存：切聊天清空全部（CHAT_CHANGED 触发时已是新聊天 key，
+                // 旧聊天缓存无法定位，全清无妨——切聊天频率低）
+                clearOccurrenceCache();
             });
             // ⚠️ 监听 ST 编辑框打开（document 委托 .mes_edit 点击）缓存该层旧文本：
             // ST 无编辑开始事件、MESSAGE_UPDATED 触发时 chat 已是新文本，拿不到 before。
@@ -108,6 +112,8 @@ export class EventHandler {
             this.registerEvent(event_types.MESSAGE_UPDATED, (mesid) => {
                 const x = Number(mesid);
                 if (Number.isNaN(x)) { scheduleMsgBottom('suffix', mesid); return; }
+                // occurrence 缓存：编辑正文只失效该层 chatText（extract 逐层独立）
+                invalidateOccurrence(getChatCacheKey(), 'chatText', x);
                 const before = _editTextCache.get(String(x));
                 _editTextCache.delete(String(x));
                 const after = chat[x]?.mes ?? '';
@@ -119,7 +125,13 @@ export class EventHandler {
                     scheduleMsgBottom('suffix', x);
                 }
             });
-            this.registerEvent(event_types.MESSAGE_SWIPED, (mesid) => scheduleMsgBottom('single', mesid));
+            this.registerEvent(event_types.MESSAGE_SWIPED, (mesid) => {
+                const x = Number(mesid);
+                if (!Number.isNaN(x)) {
+                    invalidateOccurrence(getChatCacheKey(), 'chatText', x);
+                }
+                scheduleMsgBottom('single', mesid);
+            });
             this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, (mesid) => scheduleMsgBottom('single', mesid));
             // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, (mesid) => scheduleMsgBottom('full')); // 暂不注册
             this.registerEvent(event_types.MORE_MESSAGES_LOADED, () => scheduleMsgBottom('full'));
@@ -453,6 +465,8 @@ export class EventHandler {
             debugLog('[Module Cache]楼层模块数据变更，刷新缓存:', e?.detail);
             moduleCacheManager.updateModuleCacheDebounced(true);
             if (typeof mesId === 'number') {
+                // occurrence 缓存：floor generators 变更只失效该层 asyncChat（floorModuleStore 所有写操作统一收口此事件）
+                invalidateOccurrence(getChatCacheKey(), 'asyncChat', mesId);
                 // 同步刷新该楼层的消息底部模块展示区（空保存/编辑走 scheduleMsgBottom 会更新，这里统一收口）
                 scheduleMsgBottom('single', mesId);
                 // ⚠️ 嵌入模块（outputPosition==='embedded'）的 floor 内容变化会影响「正文内」样式注入
@@ -474,6 +488,18 @@ export class EventHandler {
             const { floor, affect, inline } = e?.detail || {};
             debugLog('[Module Cache]聊天级模块条目变更，刷新缓存', { floor, affect, inline });
             if (affect === 'none') return;
+            // occurrence 缓存：聊天级条目变更失效 chatMeta 源。
+            // ⚠️ 负数条目（起始态）只合并到第 0 层缓存（start=0 时并入，按楼层从小到大排最前）→
+            // 负数/全量失效只清第 0 层 chatMeta；非负锚定层失效该层。
+            const chatKey = getChatCacheKey();
+            if (affect === 'full') {
+                invalidateOccurrence(chatKey, 'chatMeta', 0);
+            } else if (typeof floor === 'number' && Number.isFinite(floor) && floor >= 0) {
+                invalidateOccurrence(chatKey, 'chatMeta', floor);
+            } else if (typeof floor === 'number' && Number.isFinite(floor) && floor < 0) {
+                // 负数条目变更：内容在第 0 层缓存里 → 只失效第 0 层
+                invalidateOccurrence(chatKey, 'chatMeta', 0);
+            }
             moduleCacheManager.updateModuleCacheDebounced(true);
             const isFloorValid = typeof floor === 'number' && Number.isFinite(floor) && floor >= 0;
             if (affect === 'single') {

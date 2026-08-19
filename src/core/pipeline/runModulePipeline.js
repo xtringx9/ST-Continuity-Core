@@ -10,6 +10,7 @@
 
 import configManager from '../../singleton/configManager.js';
 import { debugLog, errorLog } from '../../utils/logger.js';
+import { chat } from '../../../../../../../script.js';
 import {
     processExtractModules,
     processProcessedModules,
@@ -20,6 +21,62 @@ import { insertCombinedStylesToDetails } from '../../modules/styleCombiner.js';
 import { groupProcessResultByMessageIndex } from './groupByMessage.js';
 import { getActiveSources } from './moduleDataSources.js';
 import { readCache, writeCache } from './cacheLayer.js';
+import {
+    getChatCacheKey,
+    getOccurrence,
+    setOccurrence,
+} from '../occurrenceCache.js';
+
+/**
+ * occurrence 缓存启用开关（阶段 1：先关，验证后再开）。
+ * 开启后 extract 走「每层全量缓存 + 下游按 filters 过滤」。
+ */
+const USE_OCCURRENCE_CACHE = true;
+
+/**
+ * 按 filters 过滤全量 raw 模块（从 raw 解析模块名，匹配 name + compatibleModuleNames）。
+ * 与各数据源内部 matchesFilter 语义一致。
+ * @param {Array} rawModules 全量 raw 数组
+ * @param {Array|null} filters 模块过滤条件；null=不过滤
+ * @returns {Array}
+ */
+function filterRawByModuleNames(rawModules, filters) {
+    // ⚠️ 返回副本而非原数组：调用方会 `rawModules.length = 0` 原地清空，
+    // 若直接返回 rawModules 会把调用方的数组一起清空（同一引用）。
+    if (filters === null || filters.length === 0) return rawModules.slice();
+    const filterNames = new Set();
+    for (const f of filters) {
+        if (f?.name) filterNames.add(f.name);
+        if (Array.isArray(f?.compatibleModuleNames)) {
+            for (const cn of f.compatibleModuleNames) filterNames.add(cn);
+        }
+    }
+    return rawModules.filter(m => {
+        const raw = m?.raw;
+        if (typeof raw !== 'string') return false;
+        const pipeIdx = raw.indexOf('|');
+        const name = pipeIdx > 0 ? raw.slice(1, pipeIdx).trim() : '';
+        return filterNames.has(name);
+    });
+}
+
+/**
+ * 从 occurrence 缓存取某层全量 raw；miss 则单层全量提取并写缓存。
+ * @param {string} chatKey
+ * @param {string} sourceName 源名（'chatText' | 'asyncChat' | 'chatMeta'）
+ * @param {Object} impl 数据源实现（getRawModules）
+ * @param {number} floor 楼层
+ * @returns {Array} 全量 raw
+ */
+function getLayerRawsCached(chatKey, sourceName, impl, floor) {
+    const cached = getOccurrence(chatKey, sourceName, floor);
+    if (cached) return cached;
+    // 单层全量提取（filters=null → 不过滤）
+    const part = impl.getRawModules({ start: floor, end: floor, filters: null });
+    const raws = Array.isArray(part) ? part : [];
+    setOccurrence(chatKey, sourceName, floor, raws);
+    return raws;
+}
 
 /**
  * 默认缓存策略推导（对齐旧隐式语义）。
@@ -124,11 +181,31 @@ export function runModulePipeline(opts = {}) {
             throw new Error('无可用模块数据源');
         }
         const rawModules = [];
-        for (const { impl } of sources) {
-            const part = impl.getRawModules({ start, end, filters: effectiveFilters });
-            if (Array.isArray(part)) rawModules.push(...part);
+        if (USE_OCCURRENCE_CACHE) {
+            // 阶段 1：occurrence 缓存（每层全量缓存 + 下游按 filters 过滤）。
+            // ⚠️ 负数层（聊天级条目起始态）在 chatMeta 单层提取时自动并入每层缓存；
+            // 其变更需全量失效（见 eventHandler）。
+            const chatKey = getChatCacheKey();
+            const from = Math.max(0, start);
+            const to = end !== null ? Math.min(end, chat.length - 1) : chat.length - 1;
+            for (const { name, impl } of sources) {
+                for (let f = from; f <= to; f++) {
+                    const raws = getLayerRawsCached(chatKey, name, impl, f);
+                    rawModules.push(...raws);
+                }
+            }
+            // 过滤（全量缓存 → 按 effectiveFilters 筛）
+            const filtered = filterRawByModuleNames(rawModules, effectiveFilters);
+            rawModules.length = 0;
+            rawModules.push(...filtered);
+            debugLog(`[runModulePipeline] occurrence 提取：${rawModules.length} 个（源：${sources.map(s => s.name).join(',')}，层 ${from}-${to}）`);
+        } else {
+            for (const { impl } of sources) {
+                const part = impl.getRawModules({ start, end, filters: effectiveFilters });
+                if (Array.isArray(part)) rawModules.push(...part);
+            }
+            debugLog(`[runModulePipeline] 多源合并 raw 模块：${rawModules.length} 个（源：${sources.map(s => s.name).join(',')}）`);
         }
-        debugLog(`[runModulePipeline] 多源合并 raw 模块：${rawModules.length} 个（源：${sources.map(s => s.name).join(',')}）`);
 
         // ---- 处理 ----
         let resultContent = '';

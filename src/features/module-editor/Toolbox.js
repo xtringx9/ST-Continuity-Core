@@ -17,6 +17,7 @@ import { runModulePipeline } from '../../core/pipeline/runModulePipeline.js';
 import { getActiveSources } from '../../core/pipeline/moduleDataSources.js';
 import { processAutoModules, buildModulesString } from '../../core/pipeline/output.js';
 import { migrateWorldBookModulesToChatEntries } from '../../core/chatModuleEntryStore.js';
+import { getOccurrenceStats, getChatCacheKey, hasOccurrence, outputOccurrenceCache } from '../../core/occurrenceCache.js';
 
 /**
  * 渲染工具箱界面
@@ -340,6 +341,54 @@ function bindPreviewEvents(doc) {
 }
 
 /**
+ * 诊断 occurrence 缓存 + 提取链路（阶段 1 调试）。
+ * 输出：
+ *   1. 缓存统计（getOccurrenceStats）+ 当前 chatKey
+ *   2. 各源手动全段提取（filters=null）的数量与首条样例（确认提取本身正常）
+ *   3. runModulePipeline auto 全段结果（确认管线输出）
+ */
+async function diagnoseOccurrenceCache() {
+    const chatKey = getChatCacheKey();
+    infoLog('[Occurrence诊断] chatKey:', chatKey);
+    infoLog('[Occurrence诊断] 缓存统计:', getOccurrenceStats());
+    // 打印当前已缓存完的完整结构（chatKey → source → floor → 模块名/数量/样例）
+    outputOccurrenceCache();
+
+    const sources = getActiveSources();
+    for (const { name, impl } of sources) {
+        try {
+            const part = impl.getRawModules({ start: 0, end: null, filters: null });
+            const arr = Array.isArray(part) ? part : [];
+            infoLog(`[Occurrence诊断] 源 ${name} 全段提取 ${arr.length} 个（filters=null）`, arr.slice(0, 2));
+            // 单层提取测试（occurrence 缓存路径的关键）
+            const single = impl.getRawModules({ start: 0, end: 0, filters: null });
+            const singleArr = Array.isArray(single) ? single : [];
+            infoLog(`[Occurrence诊断] 源 ${name} 单层[0,0]提取 ${singleArr.length} 个`, singleArr.slice(0, 2));
+        } catch (err) {
+            errorLog(`[Occurrence诊断] 源 ${name} 提取失败:`, err);
+        }
+    }
+
+    try {
+        const result = runModulePipeline({
+            range: { start: 0, end: null },
+            modules: null,
+            processType: 'auto',
+            cache: 'none',
+        });
+        infoLog('[Occurrence诊断] runModulePipeline(auto,全段) 结果:', {
+            success: result.success,
+            moduleCount: result.moduleCount,
+            hasContent: result.hasContent,
+            contentKeys: result.content && typeof result.content === 'object' ? Object.keys(result.content) : [],
+            error: result.error,
+        });
+    } catch (err) {
+        errorLog('[Occurrence诊断] runModulePipeline 抛错:', err);
+    }
+}
+
+/**
  * 管线性能采样（F 二期快照前置实测）
  * 对当前聊天从 0 到多个 endIndex 全量跑管线各阶段，输出各阶段耗时占比，
  * 用于判断性能大头在 extract 还是 process（决定快照系统投入方向）。
@@ -457,6 +506,30 @@ function bindDebugButtons(doc) {
                 }
             } catch (err) {
                 errorLog('[Perf] 性能采样失败:', err);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(err.message);
+                }
+            } finally {
+                newBtn.disabled = false;
+            }
+        });
+    }
+
+    // 1.8 诊断 occurrence 缓存 + 提取链路（阶段 1 调试）
+    const btnDiag = doc.getElementById('btn-debug-occurrence-diag');
+    if (btnDiag) {
+        const newBtn = btnDiag.cloneNode(true);
+        newBtn.textContent = translate('ccore_btn_debug_occurrence_diag');
+        btnDiag.parentNode.replaceChild(newBtn, btnDiag);
+        newBtn.addEventListener('click', async () => {
+            newBtn.disabled = true;
+            try {
+                await diagnoseOccurrenceCache();
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(translate('ccore_btn_debug_occurrence_diag') + ' 完成，结果见控制台');
+                }
+            } catch (err) {
+                errorLog('[Occurrence诊断] 失败:', err);
                 if (typeof toastr !== 'undefined') {
                     toastr.error(err.message);
                 }

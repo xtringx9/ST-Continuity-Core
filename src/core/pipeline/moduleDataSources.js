@@ -200,19 +200,36 @@ registerModuleDataSource('chatMeta', {
             return filterNames.has(moduleName);
         };
 
+        const effStart = start ?? 0;
+        // ⚠️ 负数条目（起始态）只在 start===0 时并入（合并到楼层 0 最前，按 messageIndex 从小到大）。
+        // start>0 时不带负数条目（用户决策 2026-08-19：模块数据放正确楼层号，不需要负数随行）。
+        // 与 occurrence 缓存配合：负数只在楼层 0 缓存一份 → 负数变更只需失效第 0 层。
+        const includeStartState = effStart === 0;
+        // 收集负数条目（start=0 时），按楼层从小到大
+        const startStateEntries = [];
         for (const entry of entries) {
-            // 条目独立开关：enabled === false 的条目不参与提取（缺省视为启用）
             if (entry?.enabled === false) continue;
+            const messageIndex = Number(entry.messageIndex);
+            if (messageIndex < 0) startStateEntries.push(entry);
+        }
+        startStateEntries.sort((a, b) => Number(a.messageIndex) - Number(b.messageIndex));
+
+        const pendingEntries = includeStartState ? startStateEntries : [];
+        // 非负条目按 [start,end] 过滤（start>0 时也正常过滤）
+        for (const entry of entries) {
+            if (entry?.enabled === false) continue;
+            const messageIndex = Number(entry.messageIndex);
+            if (messageIndex < 0) continue;
+            if (messageIndex < effStart) continue;
+            if (end !== null && end !== undefined && messageIndex > end) continue;
+            pendingEntries.push(entry);
+        }
+
+        for (const entry of pendingEntries) {
             const rawText = entry?.content;
             if (!rawText || typeof rawText !== 'string' || rawText.trim() === '') continue;
 
             const messageIndex = Number(entry.messageIndex);
-            const isStartState = messageIndex < 0;
-            // 非负楼层按 range 过滤；负数起始态始终参与
-            if (!isStartState) {
-                if (start !== undefined && start !== null && messageIndex < start) continue;
-                if (end !== null && end !== undefined && messageIndex > end) continue;
-            }
 
             // 按换行拆成单个模块 raw（与 asyncChatSource 一致）
             const blocks = rawText.split('\n');
