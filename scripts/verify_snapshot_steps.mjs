@@ -1,10 +1,84 @@
-// 快照阶段 0 回归测试：mergeStep + dedupStep + idCompletionStep 可组合性等价性。
+// 快照阶段 0 回归测试：mergeStep + dedupStep + idCompletionStep + time 层可组合性等价性。
 // 运行：node scripts/verify_snapshot_steps.mjs
 // 验证「从 X 分段 == 全段」对每个 X 切点成立。用完即删（或保留为回归资产）。
 
 import { createMergeStepState, mergeStep, mergeModulesToState } from '../src/core/pipeline/mergeStep.js';
 import { createDedupState, dedupStep, dedupToState, uniqueModulesFromState } from '../src/core/pipeline/deduplicateStep.js';
 import { createIdCompletionState, idCompletionStep, idCompletionToState } from '../src/core/pipeline/idCompletionStep.js';
+import { createTimeState, attachTimeToState, completeTimeForMessage, completeTimeToState } from '../src/core/pipeline/timeCompletionStep.js';
+
+// timeCompletionStep 的 mock 解析器（复刻真实 timeParser 关键语义，避免浏览器依赖链）：
+// - 完整格式 'YYYY-MM-DD 周X HH:MM' → isComplete:true, formattedString=原文
+// - 纯时间 'HH:MM' → isComplete:false, formattedString=null（可被补全）
+// - completeTimeDataWithStandard：把纯时间补成标准时间的完整格式
+function mockParseTimeDetailed(timeStr, standardTimeData) {
+    if (!timeStr || typeof timeStr !== 'string') {
+        return { isValid: false, isComplete: false, originalText: timeStr, startTime: null, formattedString: null };
+    }
+    // 完整日期时间范围：2024-11-12 周二 01:54~02:14
+    const fullRange = timeStr.match(/^(\d{4}-\d{2}-\d{2}) .+? (\d{1,2}:\d{2})~(\d{1,2}:\d{2})$/);
+    if (fullRange) {
+        return {
+            isValid: true,
+            isComplete: true,
+            isRange: true,
+            originalText: timeStr,
+            startTime: { timestamp: Date.parse(fullRange[1] + 'T' + fullRange[2]) },
+            endTime: { timestamp: Date.parse(fullRange[1] + 'T' + fullRange[3]) },
+            formattedString: timeStr,
+        };
+    }
+    // 完整日期时间：2024-05-08 周三 15:38
+    const fullMatch = timeStr.match(/^(\d{4}-\d{2}-\d{2}) .+? (\d{1,2}:\d{2})$/);
+    if (fullMatch) {
+        return {
+            isValid: true,
+            isComplete: true,
+            originalText: timeStr,
+            startTime: { timestamp: Date.parse(fullMatch[1] + 'T' + fullMatch[2]) },
+            formattedString: timeStr,
+        };
+    }
+    // 纯时间范围：01:54~02:14
+    const timeRange = timeStr.match(/^(\d{1,2}:\d{2})~(\d{1,2}:\d{2})$/);
+    if (timeRange) {
+        return {
+            isValid: true,
+            isComplete: false,
+            isRange: true,
+            originalText: timeStr,
+            startTime: { timestamp: null },
+            endTime: { timestamp: null },
+            formattedString: null,
+        };
+    }
+    // 纯时间：15:38
+    const timeOnly = timeStr.match(/^\d{1,2}:\d{2}$/);
+    if (timeOnly) {
+        return {
+            isValid: true,
+            isComplete: false,
+            originalText: timeStr,
+            startTime: { timestamp: null },
+            formattedString: null,
+        };
+    }
+    return { isValid: false, isComplete: false, originalText: timeStr, startTime: null, formattedString: null };
+}
+
+function mockCompleteTimeDataWithStandard(target, standard) {
+    if (!target || !target.isValid || target.isComplete || !standard || !standard.isValid || !standard.isComplete) {
+        return target;
+    }
+    // 把纯时间/纯时间范围补全为标准时间的完整格式：借用标准日期 + 自身时间（范围保留）
+    const targetTime = target.originalText; // 'HH:MM' 或 'HH:MM~HH:MM'
+    const standardFull = standard.formattedString; // 'YYYY-MM-DD 周X HH:MM'
+    const datePart = standardFull.replace(/ \d{1,2}:\d{2}$/, '');
+    const completed = { ...target, isComplete: true, formattedString: `${datePart} ${targetTime}` };
+    return completed;
+}
+
+const timeParsers = { parseTimeDetailed: mockParseTimeDetailed, completeTimeDataWithStandard: mockCompleteTimeDataWithStandard };
 
 let failures = 0;
 function assert(cond, msg) {
@@ -174,6 +248,88 @@ for (const [si, mods] of idScenarios.entries()) {
             deepEqual(ids, fullIds) && deepEqual(snapshotIdGroups(st), fullGroups),
             `idCompletionStep 场景${si + 1}: 从 X=${X} 分段 == 全段（id 分配 + 计数器）`,
         );
+    }
+}
+
+/* ================= time 层 ================= */
+// timeReferenceStandard 模块配置（env 为标准时间模块）
+const timeModuleConfigs = [
+    {
+        name: 'env', outputMode: 'full', outputPosition: 'body',
+        timeReferenceStandard: true,
+        variables: [{ name: 'time' }, { name: 'loc' }],
+    },
+    {
+        name: 'item', outputMode: 'incremental', outputPosition: 'embedded',
+        variables: [{ name: 'id', isIdentifier: true }, { name: 'name' }, { name: 'time' }],
+    },
+];
+
+function tmod(name, mi, vars) {
+    return { moduleName: name, messageIndex: mi, variables: { ...vars } };
+}
+
+// 场景：env 提供完整标准时间；item 用纯时间（可被补全）+ 无时间模块
+const timeScenarios = [
+    [
+        tmod('env', 0, { time: '2024-05-08 周三 15:38', loc: '客厅' }),   // 完整标准时间
+        tmod('item', 1, { id: '1', name: 'A', time: '15:40' }),           // 纯时间 → 用 env 补全
+        tmod('item', 2, { id: '2', name: 'B', time: '16:00' }),           // 纯时间 → 用 env 补全
+        tmod('item', 3, { id: '3', name: 'C' }),                          // 无 time 变量 → 不受影响
+    ],
+    [
+        // 场景2：标准时间模块不在最前（验证「第一个基准」从 X 继续的语义）
+        tmod('item', 0, { id: '1', name: 'A', time: '15:40' }),           // 此时无基准 → 解析失败（isValid 或补全不同）
+        tmod('env', 1, { time: '2024-05-08 周三 16:00', loc: '客厅' }),   // 第一个标准时间基准
+        tmod('item', 2, { id: '2', name: 'B', time: '16:10' }),           // 用 env 补全
+        tmod('item', 3, { id: '3', name: 'C', time: '16:20' }),           // 用 env 补全
+    ],
+    [
+        // 场景3（用户 bug 回归）：同一楼层两条 sum（env 配置名用于基准），
+        // 第一条是完整日期范围，第二条也是完整日期范围。处理后第一条 time 必须保持原值
+        //（不能被误判无效覆盖成第二条）。
+        // ⚠️ item 放独立楼层（messageIndex=2），避免测试切点落在同 messageIndex 组内
+        //（complete 按 messageIndex 分组，快照切点应落在楼层边界）。
+        tmod('env', 0, { time: '2024-11-12 周二 01:54~02:14', loc: '公寓' }),
+        tmod('env', 0, { time: '2024-11-12 周二 02:15~02:25', loc: '客厅' }),
+        tmod('env', 1, { time: '2024-11-12 周二 02:30~02:40', loc: '门口' }),
+        tmod('item', 2, { id: '9', name: 'Z', time: '02:35' }),
+    ],
+];
+
+function cloneDeep(v) {
+    return JSON.parse(JSON.stringify(v));
+}
+
+for (const [si, mods] of timeScenarios.entries()) {
+    // 全段参考：完整跑 attach → complete
+    const fullMods = cloneDeep(mods);
+    attachTimeToState(fullMods, timeModuleConfigs, timeParsers);
+    completeTimeToState(fullMods, timeModuleConfigs, timeParsers);
+    const fullSig = fullMods.map(m => ({
+        timeData: m.timeData ? { isValid: m.timeData.isValid, isComplete: m.timeData.isComplete, originalText: m.timeData.originalText, formattedString: m.timeData.formattedString } : null,
+        time: m.variables.time ?? '',
+        isAddTime: m.isAddTime,
+    }));
+
+    for (let X = 0; X <= mods.length; X++) {
+        // 分段：0..X-1 副本跑 attach+complete；X..end 从快照继续
+        const prefixMods = cloneDeep(mods.slice(0, X));
+        const suffixMods = cloneDeep(mods.slice(X));
+        const prefixState = attachTimeToState(prefixMods, timeModuleConfigs, timeParsers);
+        completeTimeToState(prefixMods, timeModuleConfigs, timeParsers);
+        // 从 X 继续：段级 attach（携带快照基准 { standardTimeData, standardFound }）
+        attachTimeToState(suffixMods, timeModuleConfigs, timeParsers, prefixState);
+        // 从 X 继续 complete（逐 messageIndex 组）
+        completeTimeToState(suffixMods, timeModuleConfigs, timeParsers);
+
+        const allMods = [...prefixMods, ...suffixMods];
+        const sig = allMods.map(m => ({
+            timeData: m.timeData ? { isValid: m.timeData.isValid, isComplete: m.timeData.isComplete, originalText: m.timeData.originalText, formattedString: m.timeData.formattedString } : null,
+            time: m.variables.time ?? '',
+            isAddTime: m.isAddTime,
+        }));
+        assert(deepEqual(sig, fullSig), `time 层场景${si + 1}: 从 X=${X} 分段 == 全段（attach+complete）`);
     }
 }
 
