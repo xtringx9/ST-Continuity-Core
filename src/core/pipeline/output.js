@@ -4,6 +4,7 @@ import { debugLog } from '../../utils/logger.js';
 import { IdentifierParser } from '../../utils/identifierParser.js';
 import { formatIdValue } from '../../utils/numberParser.js';
 import { normalizeModules } from './normalize.js';
+import { createMergeStepState, mergeStep, mergeModulesToState } from './mergeStep.js';
 
 /**
  * HTML转义函数 - 将特殊字符转换为HTML实体，确保标签显示为文本
@@ -141,74 +142,10 @@ export function mergeModulesByOrder(modules, moduleConfig) {
         merged.messageIndex = Math.min(...lastModule.messageIndexHistory);
     }
 
-    let cumulativeVariables = {};
-    let hasTimeVar = false;
-    let lastTimeData = undefined;
-    let lastTimeString = undefined;
-
-    modules.forEach((module, index) => {
-        const currentVariables = { ...cumulativeVariables };
-        const lastVariables = { ...cumulativeVariables };
-        const changedKeys = [];
-
-        Object.keys(module.variables).forEach(key => {
-            let value = module.variables[key];
-
-            if (value !== '' && value !== undefined) {
-                let canSave = true;
-                if (key === 'time') {
-                    hasTimeVar = true;
-                }
-                if (hasTimeVar && key === 'time') {
-                    if (lastTimeString === undefined && module.variables[key] && module.variables[key].trim() !== '') {
-                        lastTimeString = module.variables[key].trim();
-                    }
-                    if (lastTimeData === undefined && module.timeData !== undefined && module.timeData.isValid && module.timeData.isComplete) {
-                        lastTimeData = module.timeData;
-                        lastTimeString = module.variables[key].trim();
-                    }
-                    else if (module.isAddTime === undefined || (module.isAddTime != undefined && !module.isAddTime)) {
-                        lastTimeData = module.timeData;
-                        lastTimeString = module.variables[key].trim();
-                    }
-                    else if (module.isAddTime !== undefined && module.isAddTime) {
-                        module.timeData = lastTimeData !== undefined ? lastTimeData : module.timeData;
-                        module.variables[key] = lastTimeString !== undefined ? lastTimeString : module.variables[key];
-                        value = lastTimeString !== undefined ? lastTimeString : value;
-                        canSave = false;
-                    }
-                }
-
-                if (currentVariables[key] !== value && canSave) {
-                    changedKeys.push(key);
-                }
-                currentVariables[key] = value;
-                cumulativeVariables[key] = value;
-            }
-        });
-
-        if (changedKeys.length > 0) {
-            // 增量模块：timeline 条目的 messageIndex 同样取该模块 history 的最小值，
-            // 与 merged.messageIndex 保持一致（与最新内容相同的最早那条楼层）。
-            let entryMessageIndex = module.messageIndex || 0;
-            if (isIncremental && Array.isArray(module.messageIndexHistory) && module.messageIndexHistory.length > 0) {
-                entryMessageIndex = Math.min(...module.messageIndexHistory);
-            }
-            merged.timeline.push({
-                moduleName: module.moduleName,
-                messageIndex: entryMessageIndex,
-                messageIndexHistory: module.messageIndexHistory || [module.messageIndex],
-                raw: module.raw || '',
-                processedRaw: module.processedRaw || '',
-                nestedInfo: module.nestedInfo,
-                variables: { ...currentVariables },
-                lastVariables: { ...lastVariables },
-                changedKeys: changedKeys,
-            });
-        }
-    });
-
-    merged.variables = cumulativeVariables;
+    // 从空状态逐步合并（复用 mergeStep 纯函数，行为与旧逻辑逐 item 一致）
+    const state = mergeModulesToState(modules, isIncremental);
+    merged.variables = state.cumulativeVariables;
+    merged.timeline = state.timeline;
 
     debugLog('[ModuleMerge] 合并后的模块数据:', merged);
     return merged;
