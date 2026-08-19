@@ -3,6 +3,7 @@ import configManager from '../../singleton/configManager.js';
 import { debugLog, errorLog } from '../../utils/logger.js';
 import { IdentifierParser } from '../../utils/identifierParser.js';
 import { convertAlphaNumericId } from '../../utils/numberParser.js';
+import { idCompletionToState } from './idCompletionStep.js';
 
 /**
  * 判断字符串是否可以转换为数值
@@ -366,67 +367,10 @@ export function processLevelVariables(modules, modulesData) {
 export function completeIdVariables(modules) {
     debugLog('[IdCompletion] 开始智能补全id变量，模块数量:', modules.length);
 
-    const moduleGroups = {};
-    modules.forEach(module => {
-        const moduleName = module.moduleName;
-        if (!moduleGroups[moduleName]) {
-            moduleGroups[moduleName] = [];
-        }
-        moduleGroups[moduleName].push(module);
-    });
-
-    // 提升到循环外，避免每组都深拷贝全部模块
+    // ⚠️ 可组合性改造（快照阶段 0）：核心逻辑已抽到 idCompletionStep.js，
+    // 本函数作为「从空状态跑全段」的薄封装，行为不变。
     const modulesData = configManager.getModules() || [];
-    Object.entries(moduleGroups).forEach(([moduleName, moduleList]) => {
-        debugLog(`[IdCompletion] 处理模块组 ${moduleName}，包含 ${moduleList.length} 个模块`);
-
-        const moduleConfig = modulesData.find(config => config.name === moduleName);
-
-        if (!moduleConfig) {
-            debugLog(`[IdCompletion] 模块 ${moduleName} 没有配置，跳过处理`);
-            return;
-        }
-
-        const hasIdVariable = moduleConfig.variables.some(variable => variable.name === 'id');
-
-        if (!hasIdVariable) {
-            debugLog(`[IdCompletion] 模块 ${moduleName} 没有id变量，跳过处理`);
-            return;
-        }
-
-        const backupIdentifiers = moduleConfig.variables
-            .filter(variable => variable.isBackupIdentifier)
-            .map(variable => variable.name);
-
-        const identifierIdMap = new Map();
-        let currentId = 1;
-
-        moduleList.forEach(module => {
-            let currentIdValue = module.variables.id || '';
-
-            if (!currentIdValue) {
-                let backupKey = '';
-                if (backupIdentifiers.length > 0) {
-                    backupKey = backupIdentifiers.map(identifier => module.variables[identifier] || '').join('__');
-                }
-
-                if (backupKey) {
-                    if (identifierIdMap.has(backupKey)) {
-                        currentIdValue = identifierIdMap.get(backupKey);
-                    } else {
-                        currentIdValue = currentId;
-                        identifierIdMap.set(backupKey, currentIdValue);
-                        currentId++;
-                    }
-                } else {
-                    currentIdValue = currentId;
-                    currentId++;
-                }
-
-                module.variables.id = currentIdValue;
-            }
-        });
-    });
+    idCompletionToState(modules, modulesData);
 
     debugLog('[IdCompletion] 智能补全id变量完成');
 }
