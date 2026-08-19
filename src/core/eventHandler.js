@@ -489,15 +489,17 @@ export class EventHandler {
                             const id = Number(el.getAttribute('mesid'));
                             if (!Number.isNaN(id) && id >= floor) suffixIds.push(id);
                         });
+                        // ⚠️ force：后续楼层正文内模块 raw 可能已被样式替换（已渲染），
+                        // 普通路径找不到原文会跳过 → force 重建原文再替换。
                         if (suffixIds.length > 0) {
-                            checkRenderCurrentMessageContext(suffixIds);
+                            checkRenderCurrentMessageContext(suffixIds, true);
                         }
                     }
                 }
             } else {
                 scheduleMsgBottom('full');
-                // full 且 inline（负数起始态条目含非 after_body 增量）→ 全量正文内渲染
-                if (inline) checkRenderCurrentMessageContext();
+                // full 且 inline（负数起始态条目含非 after_body 增量）→ 全量正文内渲染（force）
+                if (inline) checkRenderCurrentMessageContext(null, true);
             }
         };
         window.addEventListener(CHAT_MODULE_ENTRIES_UPDATED_EVENT, this.chatModuleEntriesUpdatedHandler);

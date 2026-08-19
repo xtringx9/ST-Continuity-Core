@@ -8,9 +8,10 @@ import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel, getPendingCountForMes, getRunningCountForMes } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
-import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../core/contextBottomUI.js';
+import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom, checkRenderCurrentMessageContext } from '../core/contextBottomUI.js';
 import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
 import { incrementalModulesChanged } from '../core/pipeline/incrementalModuleCompare.js';
+import { resolveModuleChangeAffect } from '../core/pipeline/resolveModuleChangeAffect.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 import { CONTEXT_MSG_CONTAINER_ID } from '../core/context-ui/containerManager.js';
 
@@ -497,6 +498,16 @@ function switchGeneratorVersion(mesId, genName, direction) {
         if (incrementalModulesChanged(before, after)) {
             infoLog(LOG_TAG, `切模块版本 ${active}→${nextId} 增量模块变化，刷新下游`);
             scheduleMsgBottom('suffix', mesId);
+            // ⚠️ 含非 after_body 增量模块 → 影响后续楼层正文内（force 后缀重渲染）
+            const affectInfo = resolveModuleChangeAffect(after);
+            if (affectInfo.inline) {
+                const suffixIds = [];
+                document.querySelectorAll('#chat .mes').forEach(el => {
+                    const id = Number(el.getAttribute('mesid'));
+                    if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
+                });
+                if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+            }
         } else {
             scheduleMsgBottom('single', mesId);
         }
@@ -1080,6 +1091,16 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
                 if (incrementalModulesChanged(beforeModuleText, afterModuleText)) {
                     infoLog(LOG_TAG, `消息 ${mesId} 删除版本 ${delSwipe} 后模块文本变化，刷新下游`);
                     scheduleMsgBottom('suffix', mesId);
+                    // ⚠️ 含非 after_body 增量模块 → 影响后续楼层正文内（force 后缀重渲染）
+                    const affectInfo = resolveModuleChangeAffect(afterModuleText);
+                    if (affectInfo.inline) {
+                        const suffixIds = [];
+                        document.querySelectorAll('#chat .mes').forEach(el => {
+                            const id = Number(el.getAttribute('mesid'));
+                            if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
+                        });
+                        if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+                    }
                 }
             }
             infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 删除版本 ${delSwipe}`);
@@ -1130,6 +1151,17 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
                 if (incrementalModulesChanged(before, text)) {
                     infoLog(LOG_TAG, `消息 ${mesId} 增量模块文本变化，刷新下游`);
                     scheduleMsgBottom('suffix', mesId);
+                    // ⚠️ 若变化内容含非 after_body 增量模块（embedded/body 系）→ 影响后续楼层正文内：
+                    // force 后缀重渲染（后续楼层正文内模块 raw 可能已被样式替换，需重建原文再替换）。
+                    const affectInfo = resolveModuleChangeAffect(text);
+                    if (affectInfo.inline) {
+                        const suffixIds = [];
+                        document.querySelectorAll('#chat .mes').forEach(el => {
+                            const id = Number(el.getAttribute('mesid'));
+                            if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
+                        });
+                        if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+                    }
                 } else {
                     scheduleMsgBottom('single', mesId);
                 }

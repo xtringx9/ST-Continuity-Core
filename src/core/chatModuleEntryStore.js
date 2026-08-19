@@ -130,11 +130,26 @@ export function updateChatModuleEntry(id, patch = {}) {
         return entry;
     }
 
+    const floor = Math.min(oldFloor, entry.messageIndex);
+
+    // ⚠️ 开关（enabled）变化 = 该条内容「出现/消失」，语义等价于新增/删除该条 →
+    // 影响范围按「该条内容的影响范围」判断（suffix + inline），不能用 incrementalModulesChanged
+    //（那只对比 content 文本，开关不改变文本会误判为 single）。
+    if (enabledChanged) {
+        const affectInfo = resolveModuleChangeAffect(entry.content);
+        persist(cfg, {
+            floor,
+            affect: affectInfo.affect,
+            inline: affectInfo.inline,
+        });
+        debugLog(`[chatModuleEntryStore] 开关条目 ${entry.id} → ${entry.enabled} affect=${affectInfo.affect} inline=${affectInfo.inline}`);
+        return entry;
+    }
+
     // ⚠️ 增量模块文本未变化（只改了非增量模块 / name 等）→ 不触发跨层刷新。
     // 复用原有 _incrementalModulesChanged 逻辑（incrementalModuleCompare.js）。
-    const floor = Math.min(oldFloor, entry.messageIndex);
     if (!incrementalModulesChanged(oldContent, entry.content)) {
-        // 增量模块文本没变：即使楼层/开关变了，也只刷该层（不跨层累积影响）
+        // 增量模块文本没变：即使楼层变了，也只刷该层（不跨层累积影响）
         persist(cfg, {
             floor,
             affect: 'single',
@@ -193,8 +208,13 @@ export function deleteChatModuleEntry(id) {
 export function clearChatModuleEntries() {
     const cfg = getChatModuleEntryConfig();
     if (cfg.entries.length === 0) return false;
+    // 清空前判断是否含非 after_body 增量模块（影响正文内）
+    let inline = false;
+    for (const e of cfg.entries) {
+        if (resolveModuleChangeAffect(e.content).inline) { inline = true; break; }
+    }
     cfg.entries = [];
-    persist(cfg, { floor: undefined, affect: 'full' });
+    persist(cfg, { floor: undefined, affect: 'full', inline });
     debugLog('[chatModuleEntryStore] 清空全部条目');
     return true;
 }
@@ -207,8 +227,14 @@ export function clearChatModuleEntries() {
 export function setChatModuleEntriesEnabled(enabled) {
     const cfg = getChatModuleEntryConfig();
     cfg.enabled = !!enabled;
-    persist(cfg, { floor: undefined, affect: 'full' });
-    debugLog(`[chatModuleEntryStore] 条目开关 → ${cfg.enabled}`);
+    // ⚠️ 总开关 = 全部条目出现/消失 → full；若任一条含非 after_body 增量模块
+    //（embedded/body 系）→ 影响正文内（inline:true），全量正文内 force 重渲染。
+    let inline = false;
+    for (const e of cfg.entries) {
+        if (resolveModuleChangeAffect(e.content).inline) { inline = true; break; }
+    }
+    persist(cfg, { floor: undefined, affect: 'full', inline });
+    debugLog(`[chatModuleEntryStore] 条目开关 → ${cfg.enabled} inline=${inline}`);
     return cfg.enabled;
 }
 
