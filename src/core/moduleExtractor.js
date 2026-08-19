@@ -1,7 +1,6 @@
 // 模块提取器 - 用于从聊天记录中提取模块数据
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { chat } from '../../../../../../script.js';
-import { getCurrentCharBooksModuleEntries } from '../utils/worldBookUtils.js';
 import configManager from '../singleton/configManager.js';
 import { processTextForMatching } from '../utils/textConverter.js';
 
@@ -103,67 +102,14 @@ export function extractModulesFromChat(startIndex = 0, endIndex = null, moduleFi
             }
         }
 
-        // 2. 从世界书条目中提取模块
-        debugLog('[MODULE EXTRACTOR]开始从世界书条目中提取模块数据');
-        try {
-            const worldBookEntries = getCurrentCharBooksModuleEntries();
-            debugLog(`[MODULE EXTRACTOR]获取到${worldBookEntries.length}个世界书条目`);
-
-            for (const entry of worldBookEntries) {
-                if (entry.content) {
-                    const modules = parseNestedModules(entry.content);
-
-                    modules.forEach(moduleObj => {
-                        // 如果有模块过滤条件，检查模块名是否匹配
-                        if (moduleFilters && moduleFilters.length > 0) {
-                            // 使用模块对象中的模块名进行过滤
-                            const moduleName = moduleObj.moduleName;
-                            // 检查模块名是否在任意一个过滤条件中匹配
-                            const matchesAnyFilter = moduleFilters.some(moduleFilter => {
-                                return moduleFilter.name === moduleName ||
-                                    (moduleFilter.compatibleModuleNames &&
-                                        moduleFilter.compatibleModuleNames.includes(moduleName));
-                            });
-                            // 如果不匹配任何过滤条件，跳过这个模块
-                            if (!matchesAnyFilter) {
-                                return;
-                            }
-                        }
-
-                        const moduleData = {
-                            raw: moduleObj.raw,
-                            messageIndex: -1, // 世界书条目统一设置为-1
-                            isUserMessage: false, // 世界书条目不是用户消息
-                            speakerName: 'worldbook', // 标记为世界书来源
-                            timestamp: new Date().toISOString(),
-                            source: 'worldbook', // 标记来源为世界书条目
-                            // 嵌套关系信息
-                            nestedInfo: {
-                                level: moduleObj.level,
-                                isNested: moduleObj.isNested,
-                                isContainer: moduleObj.isContainer,
-                                parentModule: moduleObj.parent ? moduleObj.parent.moduleName : null,
-                                childrenCount: moduleObj.children.length,
-                                childrenModules: moduleObj.children.map(child => child.moduleName),
-                                nestedVariables: moduleObj.nestedVariables // 包含嵌套模块的变量名数组
-                            }
-                            // worldBookEntry: {
-                            //     uid: entry.uid,
-                            //     name: entry.name,
-                            //     comment: entry.comment
-                            // }
-                        };
-
-                        extractedModules.push(moduleData);
-                        debugLog(`[MODULE EXTRACTOR]在世界书条目${entry.comment}中发现模块:`, moduleData);
-                    });
-                }
-            }
-        } catch (worldBookError) {
-            errorLog('[MODULE EXTRACTOR]从世界书条目中提取模块数据失败:', worldBookError);
-        }
-
-        infoLog(`[MODULE EXTRACTOR]总共成功提取了${extractedModules.length}个模块（聊天记录: ${extractedModules.filter(m => m.source === 'chat').length}个, 世界书: ${extractedModules.filter(m => m.source === 'worldbook').length}个）`);
+        // 2. ⚠️ 世界书模块内容提取已移除（2026-08-19，用户决策）：
+        //    世界书中的模块内容不再参与 extract 累积链——由「工具箱 → 搬迁世界书模块内容到聊天级条目」
+        //    按钮一次性复制到聊天级条目（messageIndex=-1），之后世界书不再被扫描。
+        //    理由：世界书条目变更事件（WORLDINFO_UPDATED 等）不带具体楼层，无法精确做 occurrence
+        //    缓存失效；搬迁到聊天级条目后，失效统一走 CHAT_MODULE_ENTRIES_UPDATED_EVENT（锚定层）。
+        //    搬迁逻辑保留在 Toolbox（复用 getCurrentCharBooksModuleEntries）。
+        //    如需恢复旧行为（继续扫世界书），恢复下方逻辑 + moduleDataSources 的 chatMeta 负数层
+        //    共享即可（世界书固定 messageIndex=-1）。
     } catch (error) {
         errorLog('[MODULE EXTRACTOR]解析模块数据失败:', error);
     }

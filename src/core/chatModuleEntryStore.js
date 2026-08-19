@@ -15,6 +15,7 @@ import * as chatFileBridge from '../shared/chatFileBridge.js';
 import { debugLog } from '../utils/logger.js';
 import { resolveModuleChangeAffect } from './pipeline/resolveModuleChangeAffect.js';
 import { incrementalModulesChanged } from './pipeline/incrementalModuleCompare.js';
+import { getCurrentCharBooksModuleEntries } from '../utils/worldBookUtils.js';
 
 /** chat_metadata.ccore 内的存储 key */
 export const CHAT_MODULE_ENTRIES_KEY = 'chatModuleEntries';
@@ -248,4 +249,32 @@ export function notifyChatModuleEntriesUpdated() {
     } catch (e) {
         // ignore
     }
+}
+
+/**
+ * 搬迁世界书模块内容到聊天级条目（2026-08-19 用户决策）。
+ * 背景：世界书中的模块内容不再参与 extract 累积链（见 moduleExtractor 注释）——
+ * 世界书条目变更事件不带具体楼层，无法精确做 occurrence 缓存失效。
+ * 本函数：读取当前角色世界书中「模块内容条目」（getCurrentCharBooksModuleEntries，
+ * 即 comment 含 ccore 的启用条目），**一条世界书条目对应一个聊天级条目**
+ * （整体 content 复制，messageIndex=-1 起始态，name=条目 comment）。
+ * 保留条目内多模块结构（聊天级条目 content 支持多行多块，与 floor 同格式）。
+ * 世界书条目本身保留原样（复制不移动）。
+ * ⚠️ 每次调用会重复复制（不查重）——调用前提示用户；可考虑后续加「已搬迁」标记。
+ * @returns {number} 搬迁的条目数
+ */
+export function migrateWorldBookModulesToChatEntries() {
+    const entries = getCurrentCharBooksModuleEntries();
+    let count = 0;
+    for (const entry of entries) {
+        if (!entry?.content || typeof entry.content !== 'string' || !entry.content.trim()) continue;
+        addChatModuleEntry({
+            name: entry.comment || `worldbook_${count}`,
+            content: entry.content.trim(),
+            messageIndex: -1, // 起始态（与旧世界书 messageIndex=-1 对齐）
+        });
+        count++;
+    }
+    debugLog(`[chatModuleEntryStore] 世界书模块内容搬迁到聊天级条目完成，共复制 ${count} 条`);
+    return count;
 }

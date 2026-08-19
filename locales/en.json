@@ -137,6 +137,7 @@
     "ccore_btn_debug_state": "Print Editor State",
     "ccore_btn_debug_clean_config": "Clean Deprecated Keys",
     "ccore_btn_debug_pipeline_profile": "Pipeline Profile",
+    "ccore_btn_migrate_worldbook_chat": "Migrate Worldbook Modules to Chat Entries",
     "ccore_placeholder_latest": "Latest",
     "ccore_title_prompt_preview": "Prompt Preview",
     "ccore_label_preview_mode": "Preview Mode",

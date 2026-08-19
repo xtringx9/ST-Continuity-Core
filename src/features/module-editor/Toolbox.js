@@ -16,6 +16,7 @@ import { generateFormalPrompt, generateModuleOrderPrompt, generateUsageGuide, ge
 import { runModulePipeline } from '../../core/pipeline/runModulePipeline.js';
 import { getActiveSources } from '../../core/pipeline/moduleDataSources.js';
 import { processAutoModules, buildModulesString } from '../../core/pipeline/output.js';
+import { migrateWorldBookModulesToChatEntries } from '../../core/chatModuleEntryStore.js';
 
 /**
  * 渲染工具箱界面

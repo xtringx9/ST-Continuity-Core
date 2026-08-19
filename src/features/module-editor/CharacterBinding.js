@@ -26,6 +26,7 @@ import {
     deleteChatModuleEntry,
     setChatModuleEntriesEnabled,
     setChatModuleEntryEnabled,
+    migrateWorldBookModulesToChatEntries,
 } from '../../core/chatModuleEntryStore.js';
 
 // 全局文档引用（指向 iframe 的 document）
@@ -399,6 +400,9 @@ async function renderDetail() {
             <div class="form-section-title">${translate('ccore_binding_section_chatops')}</div>
             <div class="binding-section-body">
                 <p style="color:var(--text-muted);">${translate('ccore_binding_section_chatops_hint')}</p>
+                ${selected.scope === 'chat' ? `
+                <button class="btn-secondary chat-op-migrate-wb" style="padding:4px 10px;font-size:12px;margin-top:6px;">${translate('ccore_btn_migrate_worldbook_chat')}</button>
+                ` : ''}
             </div>
         </div>
     `;
@@ -437,6 +441,20 @@ async function renderDetail() {
     }
     bindModuleBlocks();
     bindChatModuleEntries();
+    bindChatOpMigrateButton();
+}
+
+/** 绑定「聊天操作」区的搬迁世界书模块按钮（仅聊天级 scope 显示） */
+function bindChatOpMigrateButton() {
+    const btn = detailEl.querySelector('.chat-op-migrate-wb');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const count = migrateWorldBookModulesToChatEntries();
+        if (typeof toastr !== 'undefined') {
+            toastr.success(`${translate('ccore_btn_migrate_worldbook_chat')} 完成，复制 ${count} 条到当前聊天`);
+        }
+        renderDetail(); // 刷新条目列表显示新搬迁的条目
+    });
 }
 
 /**
@@ -511,7 +529,7 @@ function renderChatModuleEntriesSection(isChatScope) {
             <span style="color:var(--text-secondary);font-size:12px;">${translate('ccore_chat_entries_enable')}</span>
             <button class="btn-secondary chat-entry-add" style="margin-left:auto;padding:3px 10px;font-size:12px;">＋ ${translate('ccore_chat_entries_add')}</button>
         </div>
-        <div class="chat-entry-list" style="max-height:300px;overflow:auto;">${listHtml}</div>
+        <div class="chat-entry-list">${listHtml}</div>
         <p style="color:var(--text-muted);font-size:11px;margin-top:6px;">${translate('ccore_chat_entries_hint').replace('{floor}', String(defaultFloor))}</p>
     `);
 }

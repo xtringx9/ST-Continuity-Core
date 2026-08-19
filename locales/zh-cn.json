@@ -137,6 +137,7 @@
     "ccore_btn_debug_state": "打印新旧配置数据",
     "ccore_btn_debug_clean_config": "清理废弃配置键",
     "ccore_btn_debug_pipeline_profile": "管线性能采样",
+    "ccore_btn_migrate_worldbook_chat": "搬迁世界书模块到聊天级条目",
     "ccore_placeholder_latest": "最新",
     "ccore_title_prompt_preview": "提示词预览",
     "ccore_label_preview_mode": "预览模式",
