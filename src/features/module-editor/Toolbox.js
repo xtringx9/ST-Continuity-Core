@@ -14,6 +14,9 @@ import {
 import perMessageStorage from '../../services/perMessageStorage.js';
 import { generateFormalPrompt, generateModuleOrderPrompt, generateUsageGuide, generateModuleDataPrompt, generateSingleChatModuleData } from '../../modules/promptGenerator.js';
 import { runModulePipeline } from '../../core/pipeline/runModulePipeline.js';
+import { chat } from '../../../../../../../script.js';
+import { getActiveSources } from '../../core/pipeline/moduleDataSources.js';
+import { processAutoModules, buildModulesString } from '../../core/pipeline/output.js';
 
 /**
  * 渲染工具箱界面
@@ -336,6 +339,62 @@ function bindPreviewEvents(doc) {
     updatePreview();
 }
 
+/**
+ * 管线性能采样（F 二期快照前置实测）
+ * 对当前聊天从 0 到多个 endIndex 全量跑管线各阶段，输出各阶段耗时占比，
+ * 用于判断性能大头在 extract 还是 process（决定快照系统投入方向）。
+ * 结果输出到 console（infoLog + console.table）。
+ */
+async function profilePipelineStages() {
+    if (!chat || !Array.isArray(chat) || chat.length === 0) {
+        warnLog('[Perf] 当前无聊天数据，无法采样');
+        return;
+    }
+    const chatLen = chat.length;
+    // 采样档位：50/100/200/500/1000/2000/5000…（不超过聊天长度）+ 全量
+    const ends = [];
+    const SIZES = [50, 100, 200, 500, 1000, 2000, 5000];
+    for (const s of SIZES) {
+        const end = Math.min(s - 1, chatLen - 1);
+        if (end >= 0 && !ends.includes(end)) ends.push(end);
+    }
+    if (!ends.includes(chatLen - 1)) ends.push(chatLen - 1);
+
+    const rows = [];
+    for (const end of ends) {
+        const t0 = performance.now();
+        // 1. extract（多源合并，与 runModulePipeline 一致）
+        let rawCount = 0;
+        const rawModules = [];
+        for (const { impl } of getActiveSources()) {
+            const part = impl.getRawModules({ start: 0, end, filters: null });
+            if (Array.isArray(part)) {
+                rawModules.push(...part);
+                rawCount += part.length;
+            }
+        }
+        const t1 = performance.now();
+        // 2. process（normalize+dedup+time+sort+level+merge）
+        const structured = processAutoModules(rawModules);
+        const t2 = performance.now();
+        // 3. build（模块字符串构建）
+        buildModulesString(structured, false, false, false, false);
+        const t3 = performance.now();
+
+        rows.push({
+            '楼层数': end + 1,
+            'raw数': rawCount,
+            'extract_ms': +(t1 - t0).toFixed(2),
+            'process_ms': +(t2 - t1).toFixed(2),
+            'build_ms': +(t3 - t2).toFixed(2),
+            'total_ms': +(t3 - t0).toFixed(2),
+        });
+    }
+    infoLog('[Perf] 管线阶段耗时采样（每档 = 从楼层 0 到 end 全量跑）：', rows);
+    console.table(rows);
+    return rows;
+}
+
 function bindDebugButtons(doc) {
     const serverDebugDir = '_debug';
     const serverDebugFile = `${serverDebugDir}/server-api-test.json`;
@@ -381,6 +440,30 @@ function bindDebugButtons(doc) {
     }
 
     // 1.5 生成记录面板：已废弃调试面板（测试），无独立测试入口（生成记录面板由生成流程直接打开）
+
+    // 1.7 管线性能采样（F 二期快照前置实测：判断 extract/process 耗时占比）
+    const btnProfile = doc.getElementById('btn-debug-pipeline-profile');
+    if (btnProfile) {
+        const newBtn = btnProfile.cloneNode(true);
+        newBtn.textContent = translate('ccore_btn_debug_pipeline_profile');
+        btnProfile.parentNode.replaceChild(newBtn, btnProfile);
+        newBtn.addEventListener('click', async () => {
+            newBtn.disabled = true;
+            try {
+                await profilePipelineStages();
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(translate('ccore_btn_debug_pipeline_profile') + ' 完成，结果见控制台');
+                }
+            } catch (err) {
+                errorLog('[Perf] 性能采样失败:', err);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(err.message);
+                }
+            } finally {
+                newBtn.disabled = false;
+            }
+        });
+    }
 
     // 2. 打印配置数据
     const btnDebugConfig = doc.getElementById('btn-debug-config');

@@ -571,20 +571,25 @@ export function checkUItoMsgBottom() {
     scheduleMsgBottom('full');
 }
 
-export function checkRenderCurrentMessageContext() {
+export function checkRenderCurrentMessageContext(mesid) {
     if (!configManager.isLoaded) return false;
-    debugLog('[UI EVENTS]RenderUI: 开始渲染当前消息上下文');
+    debugLog('[UI EVENTS]RenderUI: 开始渲染当前消息上下文', mesid);
     if (configManager.isExtensionEnabled()) {
         if (!isInChatPage()) {
             debugLog('[PAGE_CHECK] 当前不在聊天页面，不渲染UI');
             return false;
         }
 
+        // mesid 有效 → 只渲染该层（事件来源：MESSAGE_SWIPED/RENDERED/UPDATED 等）
+        // mesid 无效 → 全量渲染（CHAT_CHANGED / MORE_MESSAGES_LOADED 等）
+        const target = (mesid !== undefined && mesid !== null && mesid !== '') ? Number(mesid) : null;
+        const mesIds = Number.isNaN(target) || target === null ? null : [target];
+
         if (!isUpdatingRenderUI) {
             isUpdatingRenderUI = true;
             (async () => {
                 try {
-                    await renderCurrentMessageContext();
+                    await renderCurrentMessageContext(mesIds);
                 } finally {
                     isUpdatingRenderUI = false;
                 }
@@ -598,6 +603,8 @@ export function checkRenderCurrentMessageContext() {
         // removeUIfromContextBottom();
     }
 }
+
+
 
 /**
  * 以弹窗形式打开模块汇总（替代原底部固定容器）
