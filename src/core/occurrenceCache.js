@@ -140,31 +140,10 @@ export function getOccurrenceStats() {
 }
 
 /**
- * 调试：打印当前 occurrence 缓存完整结构（仿 moduleCacheManager.outputCache）。
- * 输出：chatKey → source → floor → { 模块数, 模块名列表, 首条 raw 样例 }。
- * 供诊断按钮查看「已处理完缓存完」的内容。
+ * 调试：直接打印当前 occurrence 缓存的原始 Map（chatKey → source → floor → raw 数组）。
+ * 不做任何汇总/加工——原原本本输出缓存内容，可在控制台展开查看任意层的模块文本。
  */
 export function outputOccurrenceCache() {
-    const out = {};
-    for (const [chatKey, srcMap] of cache) {
-        out[chatKey] = {};
-        for (const [source, floorMap] of srcMap) {
-            out[chatKey][source] = {};
-            for (const [floor, raws] of floorMap) {
-                const names = raws.map(r => {
-                    const raw = r?.raw;
-                    if (typeof raw !== 'string') return '?';
-                    const pipeIdx = raw.indexOf('|');
-                    return pipeIdx > 0 ? raw.slice(1, pipeIdx).trim() : raw;
-                });
-                out[chatKey][source][floor] = {
-                    count: raws.length,
-                    modules: [...new Set(names)],
-                    sample: raws[0]?.raw,
-                };
-            }
-        }
-    }
-    console.log('[OccurrenceCache] 当前缓存结构:', out);
-    return out;
+    console.log('[OccurrenceCache] 当前缓存（原始）:', cache);
+    return cache;
 }
