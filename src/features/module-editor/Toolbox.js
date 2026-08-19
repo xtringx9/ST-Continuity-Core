@@ -14,7 +14,6 @@ import {
 import perMessageStorage from '../../services/perMessageStorage.js';
 import { generateFormalPrompt, generateModuleOrderPrompt, generateUsageGuide, generateModuleDataPrompt, generateSingleChatModuleData } from '../../modules/promptGenerator.js';
 import { runModulePipeline } from '../../core/pipeline/runModulePipeline.js';
-import { chat } from '../../../../../../../script.js';
 import { getActiveSources } from '../../core/pipeline/moduleDataSources.js';
 import { processAutoModules, buildModulesString } from '../../core/pipeline/output.js';
 
@@ -346,6 +345,7 @@ function bindPreviewEvents(doc) {
  * 结果输出到 console（infoLog + console.table）。
  */
 async function profilePipelineStages() {
+    const chat = getContext()?.chat;
     if (!chat || !Array.isArray(chat) || chat.length === 0) {
         warnLog('[Perf] 当前无聊天数据，无法采样');
         return;

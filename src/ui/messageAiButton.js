@@ -10,7 +10,7 @@ import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom } from '../core/contextBottomUI.js';
 import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
-import { parseNestedModules } from '../core/moduleExtractor.js';
+import { incrementalModulesChanged } from '../core/pipeline/incrementalModuleCompare.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 import { CONTEXT_MSG_CONTAINER_ID } from '../core/context-ui/containerManager.js';
 
@@ -494,7 +494,7 @@ function switchGeneratorVersion(mesId, genName, direction) {
         const before = readFloorModules(mesId, outerSwipeId);
         setActiveGeneratorSwipe(mesId, genName, outerSwipeId, nextId);
         const after = readFloorModules(mesId, outerSwipeId);
-        if (_incrementalModulesChanged(before, after)) {
+        if (incrementalModulesChanged(before, after)) {
             infoLog(LOG_TAG, `切模块版本 ${active}→${nextId} 增量模块变化，刷新下游`);
             scheduleMsgBottom('suffix', mesId);
         } else {
@@ -1077,7 +1077,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             // 模块：删除导致 active 回退 → 对比删除前后模块文本，增量变化则刷下游
             if (isModule) {
                 const afterModuleText = readFloorModules(mesId, outerSwipeId);
-                if (_incrementalModulesChanged(beforeModuleText, afterModuleText)) {
+                if (incrementalModulesChanged(beforeModuleText, afterModuleText)) {
                     infoLog(LOG_TAG, `消息 ${mesId} 删除版本 ${delSwipe} 后模块文本变化，刷新下游`);
                     scheduleMsgBottom('suffix', mesId);
                 }
@@ -1127,7 +1127,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             $iframe.show();
             // 模块：对比编辑前后「增量模块文本」→ 变化则刷下游（suffix），否则只刷该条（single）
             if (isModule) {
-                if (_incrementalModulesChanged(before, text)) {
+                if (incrementalModulesChanged(before, text)) {
                     infoLog(LOG_TAG, `消息 ${mesId} 增量模块文本变化，刷新下游`);
                     scheduleMsgBottom('suffix', mesId);
                 } else {
@@ -1242,55 +1242,6 @@ function setupChatObserver() {
     // 只监听 #chat 直接子元素（.mes）的添加/删除/替换
     // 不监听 subtree，避免流式生成时频繁触发
     chatObserver.observe(chatEl, { childList: true });
-}
-
-/**
- * 判断当前模块配置是否启用了增量模块（outputMode === 'incremental'）
- */
-function _hasIncrementalModule() {
-    return (configManager.getModules() || []).some(m => m.outputMode === 'incremental');
-}
-
-/**
- * 提取文本中所有模块块（形如 [模块名|...]）。
- * 复用 moduleExtractor 的栈式嵌套解析，返回含嵌套在内的全部模块 raw。
- * @param {string} content
- * @returns {string[]}
- */
-function _extractModuleBlocks(content) {
-    if (typeof content !== 'string' || !content) return [];
-    return parseNestedModules(content).map(m => m.raw);
-}
-
-/**
- * 判断编辑前后「增量模块文本」是否发生变化。
- * 仅对比增量模块的 [模块|...] 块文本（存在≠变化，需文本不同才算变）。
- * @param {string} before 编辑前内容
- * @param {string} after 编辑后内容
- * @returns {boolean}
- */
-function _incrementalModulesChanged(before, after) {
-    if (!_hasIncrementalModule()) return false;
-    const incNames = new Set((configManager.getModules() || [])
-        .filter(m => m.outputMode === 'incremental')
-        .map(m => m.name));
-
-    const pickInc = (content) => _extractModuleBlocks(content)
-        .filter(block => {
-            const pipeIdx = block.indexOf('|');
-            const name = pipeIdx > 0 ? block.slice(1, pipeIdx).trim() : '';
-            return incNames.has(name);
-        });
-
-    const beforeInc = pickInc(before);
-    const afterInc = pickInc(after);
-
-    // 集合文本对比：长度不同或任一块不同 → 变了
-    if (beforeInc.length !== afterInc.length) return true;
-    for (let i = 0; i < beforeInc.length; i++) {
-        if (beforeInc[i] !== afterInc[i]) return true;
-    }
-    return false;
 }
 
 /**

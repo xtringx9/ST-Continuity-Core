@@ -205,6 +205,9 @@ export async function updateUItoMsgBottom(targetMesIds = null) {
                 finalString += containerStyles.replace('${customStyles}', internalString);
             }
             finalString = finalString.replace('${mesid}', messageIndex);
+            // 嵌套子模块二次替换：父模块 customStyles 内嵌的 [file|...] 原文 → 子模块样式
+            // （消息底部区块只拼接 customStyles，不做嵌套替换，这里统一补上）
+            finalString = replaceNestedRawWithStyles(finalString, modulesForThisMessage);
             injectHtmlToIframe(container, finalString);
         }
 
@@ -267,6 +270,56 @@ function renderSingleMessageContextBottomUI(messages, container) {
         errorLog('renderSingleMessageContext: 渲染单个消息上下文失败:', error);
         return { externalString: '', internalString: '' };
     }
+}
+
+/**
+ * 消息底部区块的嵌套子模块二次替换。
+ * 背景：消息底部区块只把各条目的 customStyles 拼接输出（renderSingleMessageContextBottomUI），
+ * 不处理嵌套——父模块（如 msg）的 customStyles 模板里内嵌的 `[file|...]` 原文不会被替换成
+ * file 的样式（用户看到的还是原文）。这里在注入 iframe 前，对该层全部条目的
+ * 「raw → customStyles」做字符串替换：父样式内部的子模块原文 → 子模块样式。
+ *
+ * ⚠️ 父模块自己的 raw 通常已不在 finalString（父样式已注入，raw 被 consume），
+ * 找不到的 raw 不替换，安全。子模块 raw 在父样式内部，会被命中。
+ * @param {string} html 注入前的 HTML
+ * @param {Array} messages 该层的模块条目（含 raw + customStyles）
+ * @returns {string}
+ */
+function replaceNestedRawWithStyles(html, messages) {
+    if (!html || !Array.isArray(messages) || messages.length === 0) return html;
+
+    // ⚠️ 只替换「文本位置」的原文，跳过 HTML 属性值（如 data-raw="..."）。
+    // 否则属性值里的 [file|...] 会被替换成含双引号的样式 HTML，破坏整个结构（爆样式代码）。
+    // 实现：先把所有属性值用占位 token 保护起来 → 做文本替换 → 还原属性值。
+    const attrPlaceholders = [];
+    const PROTECT_RE = /([\w-]+=")([^"]*)(")/g;
+    const protect = (str) => str.replace(PROTECT_RE, (m, pre, val, post) => {
+        const token = `\u0000CCATTR${attrPlaceholders.length}\u0000`;
+        attrPlaceholders.push(val);
+        return pre + token + post;
+    });
+    const restore = (str) => str.replace(/\u0000CCATTR(\d+)\u0000/g, (m, i) => attrPlaceholders[Number(i)] ?? '');
+
+    // 第一遍：把 HTML 里的属性值保护起来
+    let result = protect(html);
+
+    for (const entry of messages) {
+        if (!entry?.moduleData?.raw || typeof entry.moduleData.raw !== 'string' || entry.moduleData.raw.trim() === '') continue;
+        if (!entry.customStyles || typeof entry.customStyles !== 'string' || entry.customStyles.trim() === '') continue;
+        const raw = entry.moduleData.raw;
+        if (result.includes(raw)) {
+            result = result.split(raw).join(entry.customStyles);
+        } else {
+            // 兜底：ST 可能把 ... 渲染为 …
+            const normalized = raw.replace(/\.\.\./g, '…');
+            if (normalized !== raw && result.includes(normalized)) {
+                result = result.split(normalized).join(entry.customStyles);
+            }
+        }
+    }
+
+    // 还原属性值（注意：还原在替换之后，样式 HTML 里自身的属性不会被误伤）
+    return restore(result);
 }
 
 // 防止重复插入的标记
@@ -583,10 +636,18 @@ export function checkRenderCurrentMessageContext(mesid) {
             return false;
         }
 
-        // mesid 有效 → 只渲染该层（事件来源：MESSAGE_SWIPED/RENDERED/UPDATED 等）
-        // mesid 无效 → 全量渲染（CHAT_CHANGED / MORE_MESSAGES_LOADED 等）
-        const target = (mesid !== undefined && mesid !== null && mesid !== '') ? Number(mesid) : null;
-        const mesIds = Number.isNaN(target) || target === null ? null : [target];
+        // mesid 支持三种形态：
+        //   - 数组 [a,b] → 渲染这些层（条目后缀刷新等）
+        //   - 单个数字 '5' → 只渲染该层（MESSAGE_SWIPED/RENDERED/UPDATED 等）
+        //   - undefined/null/'' → 全量渲染（CHAT_CHANGED / MORE_MESSAGES_LOADED 等）
+        let mesIds;
+        if (Array.isArray(mesid)) {
+            mesIds = mesid.map(Number).filter(n => Number.isFinite(n));
+            if (mesIds.length === 0) mesIds = null;
+        } else {
+            const target = (mesid !== undefined && mesid !== null && mesid !== '') ? Number(mesid) : null;
+            mesIds = Number.isNaN(target) || target === null ? null : [target];
+        }
 
         const doRender = async () => {
             if (isUpdatingRenderUI) {

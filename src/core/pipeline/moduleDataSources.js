@@ -15,6 +15,7 @@ import { chat } from '../../../../../../../script.js';
 import { extractModulesFromChat } from '../moduleExtractor.js';
 import configManager from '../../singleton/configManager.js';
 import { readFloorModules } from '../floorModuleStore.js';
+import { getChatModuleEntryConfig, getChatModuleEntries } from '../chatModuleEntryStore.js';
 import { debugLog } from '../../utils/logger.js';
 import { processTextForMatching } from '../../utils/textConverter.js';
 
@@ -33,14 +34,20 @@ export function registerModuleDataSource(name, impl) {
 /**
  * 当前激活的数据源数组（源头判断单点）。
  * 同步模式=[chatText]；异步模式=[chatText, asyncChat]（正文内模块仍从正文扫，正文后模块从 floor 读）。
+ * 聊天级模块条目（chatMeta）同步/异步都启用——它是聊天级事实，与 async 无关。
+ * 顺序：chatText > asyncChat > chatMeta（同层冲突并存，排序靠注册顺序，见 HANDOFF-F2-CHAT-MODULE-ENTRIES）。
  * @returns {string[]}
  */
 export function getActiveSourceNames() {
     const asyncCfg = configManager.getModuleDomainConfig().asyncModule;
+    const names = ['chatText'];
     if (asyncCfg?.enabled && sources.has('asyncChat')) {
-        return ['chatText', 'asyncChat'];
+        names.push('asyncChat');
     }
-    return ['chatText'];
+    if (sources.has('chatMeta')) {
+        names.push('chatMeta');
+    }
+    return names;
 }
 
 /**
@@ -152,6 +159,91 @@ registerModuleDataSource('asyncChat', {
         }
 
         debugLog(`[asyncChatSource] 提取到 ${extracted.length} 个 floor 模块块（楼层 ${effectiveStartIndex}-${effectiveEndIndex}）`);
+        return extracted;
+    },
+});
+
+// ============================================================
+// chatMetaSource：读聊天级模块内容条目（F 二期，第三数据源）
+// ============================================================
+// 数据落点：chat_metadata.ccore.chatModuleEntries（chatModuleEntryStore）。
+// 语义（用户拍板）：
+//   - 条目楼层号(messageIndex)只是锚点；消息删/切 swipe 与条目无关。
+//   - messageIndex >= 0：锚定楼层，随 [start,end] 过滤（与正文/floor 同层并存）。
+//   - messageIndex < 0（-1/更前）：起始状态（第 0 层之前），不受 range 过滤，始终参与。
+//   - 顺序：chatText > asyncChat > chatMeta（本源最后注册，getActiveSources 按序合并）。
+// 产出与 chatText/asyncChat 同构，供 runModulePipeline 合并 + deduplicateModules 去重。
+registerModuleDataSource('chatMeta', {
+    /**
+     * @param {{start:number, end:number|null, filters:Array|null}} opts
+     * @returns {Array<{raw, messageIndex, source, isUserMessage, speakerName}>}
+     */
+    getRawModules({ start, end, filters }) {
+        const extracted = [];
+        // 整体开关：enabled === false 时整个聊天级条目源停用（与 entry.enabled 独立）
+        if (getChatModuleEntryConfig().enabled === false) return extracted;
+        const entries = getChatModuleEntries();
+        if (!Array.isArray(entries) || entries.length === 0) return extracted;
+
+        // 提取模块名（含兼容名）判定集合，与其它源 filters 语义对齐
+        const filterNames = new Set();
+        if (Array.isArray(filters)) {
+            for (const f of filters) {
+                if (f?.name) filterNames.add(f.name);
+                if (Array.isArray(f?.compatibleModuleNames)) {
+                    for (const cn of f.compatibleModuleNames) filterNames.add(cn);
+                }
+            }
+        }
+        const matchesFilter = (moduleName) => {
+            if (filters === null || filterNames.size === 0) return true;
+            return filterNames.has(moduleName);
+        };
+
+        for (const entry of entries) {
+            // 条目独立开关：enabled === false 的条目不参与提取（缺省视为启用）
+            if (entry?.enabled === false) continue;
+            const rawText = entry?.content;
+            if (!rawText || typeof rawText !== 'string' || rawText.trim() === '') continue;
+
+            const messageIndex = Number(entry.messageIndex);
+            const isStartState = messageIndex < 0;
+            // 非负楼层按 range 过滤；负数起始态始终参与
+            if (!isStartState) {
+                if (start !== undefined && start !== null && messageIndex < start) continue;
+                if (end !== null && end !== undefined && messageIndex > end) continue;
+            }
+
+            // 按换行拆成单个模块 raw（与 asyncChatSource 一致）
+            const blocks = rawText.split('\n');
+            for (const block of blocks) {
+                const trimmed = block.trim();
+                if (!trimmed) continue;
+                if (!trimmed.startsWith('[') || !trimmed.includes('|')) continue;
+                const moduleName = trimmed.slice(1, trimmed.indexOf('|')).trim();
+                if (!matchesFilter(moduleName)) continue;
+                extracted.push({
+                    raw: trimmed,
+                    processedRaw: processTextForMatching(trimmed) || trimmed,
+                    messageIndex,
+                    isUserMessage: false,
+                    speakerName: 'chatmeta',
+                    timestamp: new Date().toISOString(),
+                    source: 'chatmeta',
+                    nestedInfo: {
+                        level: 0,
+                        isNested: false,
+                        isContainer: false,
+                        parentModule: null,
+                        childrenCount: 0,
+                        childrenModules: [],
+                        nestedVariables: [],
+                    },
+                });
+            }
+        }
+
+        debugLog(`[chatMetaSource] 提取到 ${extracted.length} 个聊天级条目模块块`);
         return extracted;
     },
 });

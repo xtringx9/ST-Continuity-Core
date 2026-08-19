@@ -15,7 +15,18 @@ import { translate } from '../../../../../../i18n.js';
 import configManager from '../../singleton/configManager.js';
 import { IframeDialog } from '../../shared/IframeDialog.js';
 // 直接 import SillyTavern 的 getContext（同目录 Toolbox.js 已验证可用：iframe 内可经此拿到实时角色/聊天上下文）
+// ⚠️ getContext() 返回对象含 chat 数组（st-context.js:96）——iframe 内不要 import script.js（404），
+// 一律走 getContext().chat 拿实时聊天数组。
 import { getContext } from '../../../../../../extensions.js';
+import {
+    getChatModuleEntryConfig,
+    getChatModuleEntries,
+    addChatModuleEntry,
+    updateChatModuleEntry,
+    deleteChatModuleEntry,
+    setChatModuleEntriesEnabled,
+    setChatModuleEntryEnabled,
+} from '../../core/chatModuleEntryStore.js';
 
 // 全局文档引用（指向 iframe 的 document）
 let doc = null;
@@ -367,6 +378,7 @@ async function renderDetail() {
             <select class="binding-chat-select" id="binding-chat-select">
                 ${scopeOptions}
             </select>
+            ${buildCurrentChatJumpBtn()}
         </div>
         <div class="binding-detail-body" id="binding-detail-body">
             <div class="form-section-title binding-section-head">
@@ -383,6 +395,7 @@ async function renderDetail() {
                         : `<p style="color:var(--text-muted);">${translate('ccore_binding_empty')}</p>`}
                 </div>
             </div>
+            ${renderChatModuleEntriesSection(selected.scope === 'chat')}
             <div class="form-section-title">${translate('ccore_binding_section_chatops')}</div>
             <div class="binding-section-body">
                 <p style="color:var(--text-muted);">${translate('ccore_binding_section_chatops_hint')}</p>
@@ -405,7 +418,102 @@ async function renderDetail() {
         if (v === '') selectNode('character', selected.charName, null);
         else selectNode('chat', selected.charName, v);
     });
+    const jumpBtn = detailEl.querySelector('#binding-current-chat-btn');
+    if (jumpBtn) {
+        jumpBtn.addEventListener('click', () => {
+            const current = getCurrentChat();
+            if (!current.charName) return;
+            const isOnCurrentChat = selected.scope === 'chat' && selected.charName === current.charName && selected.chatFile === current.chatFile;
+            if (isOnCurrentChat) {
+                // 已在当前聊天聊天级 → 跳回角色级
+                selectNode('character', current.charName, null);
+            } else {
+                // 跳转到当前聊天的聊天级（需确保该角色在树中存在）
+                const realNames = new Set(getRealCharacters().map(c => c.name));
+                const targetChar = realNames.has(current.charName) ? current.charName : selected.charName;
+                selectNode('chat', targetChar, current.chatFile);
+            }
+        });
+    }
     bindModuleBlocks();
+    bindChatModuleEntries();
+}
+
+/**
+ * 当前聊天快捷跳转按钮。
+ * - 当前选中的不是「当前聊天的聊天级」→ 显示「🎯 当前聊天」，点击跳到当前聊天的聊天级配置
+ * - 当前已是「当前聊天的聊天级」→ 显示「⬅ 角色级」，点击跳回角色级
+ * 解决：聊天级模块条目藏在角色树的聊天节点里，手动找麻烦；这个按钮一键到位。
+ */
+function buildCurrentChatJumpBtn() {
+    const current = getCurrentChat();
+    if (!current.charName || !current.chatFile) return '';
+    const isOnCurrentChat = selected.scope === 'chat' && selected.charName === current.charName && selected.chatFile === current.chatFile;
+    return `<button class="btn-secondary binding-current-chat-btn" id="binding-current-chat-btn" style="padding:3px 10px;font-size:12px;flex-shrink:0;"
+        title="${isOnCurrentChat ? translate('ccore_binding_jump_char') : translate('ccore_binding_jump_chat')}">
+        ${isOnCurrentChat ? '⬅ ' + translate('ccore_binding_jump_char') : '🎯 ' + translate('ccore_binding_jump_chat')}
+    </button>`;
+}
+
+/**
+ * 渲染「聊天级模块内容条目」区块。
+ * 仅聊天级节点（selected.scope === 'chat'）显示；角色级显示提示「切到具体聊天配置」。
+ * 数据存 chat_metadata.ccore.chatModuleEntries（聊天级共享，条目独立于消息生命周期）。
+ */
+function renderChatModuleEntriesSection(isChatScope) {
+    const section = (content) => `
+        <div class="form-section-title">${translate('ccore_chat_entries_title')}</div>
+        <div class="binding-section-body">${content}</div>
+    `;
+
+    if (!isChatScope) {
+        return section(`<p style="color:var(--text-muted);">${translate('ccore_chat_entries_scope_hint')}</p>`);
+    }
+
+    const entries = getChatModuleEntries();
+    const currentChat = getContext()?.chat;
+    const defaultFloor = (currentChat && Array.isArray(currentChat)) ? currentChat.length - 1 : 0;
+
+    let listHtml = '';
+    if (entries.length === 0) {
+        listHtml = `<p style="color:var(--text-muted);">${translate('ccore_chat_entries_empty')}</p>`;
+    } else {
+        listHtml = entries.map((e, idx) => {
+            const entryEnabled = e.enabled !== false;
+            return `
+            <div class="chat-entry-row" data-entry-id="${escapeAttr(e.id)}" style="border:1px solid var(--border-light);border-radius:4px;padding:6px 8px;margin-bottom:6px;${entryEnabled ? '' : 'opacity:0.55;'}"
+                ${entryEnabled ? '' : 'data-disabled="1"'}>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <label class="toggle-switch binding-toggle-override" style="margin:0;flex-shrink:0;" title="${translate('ccore_chat_entries_enable_one')}">
+                        <input type="checkbox" class="chat-entry-enabled" ${entryEnabled ? 'checked' : ''}>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="chat-entry-idx" style="color:var(--text-muted);font-size:11px;">#${idx + 1}</span>
+                    <input type="text" class="chat-entry-name" value="${escapeAttr(e.name)}" placeholder="${translate('ccore_chat_entries_name_ph')}"
+                        style="flex:1;min-width:0;padding:3px 6px;border-radius:3px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-input);font-size:12px;">
+                    <input type="number" class="chat-entry-floor" value="${e.messageIndex}" title="${translate('ccore_chat_entries_floor_title')}"
+                        style="width:64px;padding:3px 6px;border-radius:3px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-input);font-size:12px;text-align:center;">
+                    <button class="btn-secondary chat-entry-del" title="${translate('ccore_binding_delete')}" style="padding:2px 8px;font-size:12px;">✕</button>
+                </div>
+                <textarea class="chat-entry-content" rows="3" placeholder="${translate('ccore_chat_entries_content_ph')}"
+                    style="width:100%;margin-top:4px;padding:4px 6px;border-radius:3px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-input);font-size:12px;resize:vertical;box-sizing:border-box;">${escapeHtml(e.content)}</textarea>
+            </div>
+        `;
+        }).join('');
+    }
+
+    return section(`
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <label class="toggle-switch binding-toggle-override" style="margin:0;">
+                <input type="checkbox" class="chat-entries-enabled" ${getChatModuleEntryConfig().enabled ? 'checked' : ''}>
+                <span class="slider round"></span>
+            </label>
+            <span style="color:var(--text-secondary);font-size:12px;">${translate('ccore_chat_entries_enable')}</span>
+            <button class="btn-secondary chat-entry-add" style="margin-left:auto;padding:3px 10px;font-size:12px;">＋ ${translate('ccore_chat_entries_add')}</button>
+        </div>
+        <div class="chat-entry-list" style="max-height:300px;overflow:auto;">${listHtml}</div>
+        <p style="color:var(--text-muted);font-size:11px;margin-top:6px;">${translate('ccore_chat_entries_hint').replace('{floor}', String(defaultFloor))}</p>
+    `);
 }
 
 function renderModuleBlock(modName) {
@@ -513,6 +621,75 @@ function bindModuleBlocks() {
             deleteVarOverride(mod, e.target.dataset.delVar);
         });
     });
+}
+
+/**
+ * 绑定「聊天级模块内容条目」区块事件。
+ * - 总开关 → setChatModuleEntriesEnabled
+ * - 新增 → 默认楼层号 = chat.length-1，追加空条目
+ * - 删除 → deleteChatModuleEntry
+ * - 名称/内容/楼层号 input → 防抖 updateChatModuleEntry
+ */
+function bindChatModuleEntries() {
+    const root = detailEl.querySelector('.chat-entry-list');
+    if (!root) return; // 角色级（非聊天）无条目区块，无事件可绑
+
+    const enabledSwitch = detailEl.querySelector('.chat-entries-enabled');
+    if (enabledSwitch) {
+        enabledSwitch.addEventListener('change', e => {
+            setChatModuleEntriesEnabled(e.target.checked);
+        });
+    }
+
+    const addBtn = detailEl.querySelector('.chat-entry-add');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            const currentChat = getContext()?.chat;
+            const defaultFloor = (currentChat && Array.isArray(currentChat)) ? currentChat.length - 1 : 0;
+            addChatModuleEntry({ name: '', content: '', messageIndex: defaultFloor });
+            renderDetail();
+        });
+    }
+
+    root.querySelectorAll('.chat-entry-del').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const row = btn.closest('.chat-entry-row');
+            const id = row?.dataset?.entryId;
+            if (!id) return;
+            deleteChatModuleEntry(id);
+            renderDetail();
+        });
+    });
+
+    // 条目独立开关（与世界书条目 disable 语义对齐）
+    root.querySelectorAll('.chat-entry-enabled').forEach(sw => {
+        sw.addEventListener('change', e => {
+            const row = e.target.closest('.chat-entry-row');
+            const id = row?.dataset?.entryId;
+            if (!id) return;
+            setChatModuleEntryEnabled(id, e.target.checked);
+            // 立即反馈置灰状态（不整页重渲，避免失焦丢失正在编辑的内容）
+            row.style.opacity = e.target.checked ? '' : '0.55';
+            if (e.target.checked) row.removeAttribute('data-disabled');
+            else row.setAttribute('data-disabled', '1');
+        });
+    });
+
+    // 名称 / 内容 / 楼层号：失焦保存（简单可靠；不做防抖输入，避免复杂化）
+    const bindField = (selector, apply) => {
+        root.querySelectorAll(selector).forEach(el => {
+            const row = el.closest('.chat-entry-row');
+            const id = row?.dataset?.entryId;
+            if (!id) return;
+            el.addEventListener('change', () => {
+                updateChatModuleEntry(id, apply(el));
+            });
+        });
+    };
+    bindField('.chat-entry-name', el => ({ name: el.value }));
+    bindField('.chat-entry-content', el => ({ content: el.value }));
+    bindField('.chat-entry-floor', el => ({ messageIndex: Number(el.value) }));
 }
 
 // 删除某个悬空变量覆盖（变量已改名/不存在）

@@ -10,6 +10,7 @@ import { addAiButtonToMessage, addAiButtonsToAllMessages } from "../ui/messageAi
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
+import { CHAT_MODULE_ENTRIES_UPDATED_EVENT } from "./chatModuleEntryStore.js";
 import { taskRegistry } from "./taskRegistry.js";
 
 /** 构造 taskRegistry 的 chatKey（与 moduleAiGenerator._getChatKey 一致：角色名::聊天文件名） */
@@ -294,6 +295,12 @@ export class EventHandler {
                 this.floorModulesUpdatedHandler = null;
             }
 
+            // F 二期：移除聊天级模块条目变更监听
+            if (this.chatModuleEntriesUpdatedHandler) {
+                window.removeEventListener(CHAT_MODULE_ENTRIES_UPDATED_EVENT, this.chatModuleEntriesUpdatedHandler);
+                this.chatModuleEntriesUpdatedHandler = null;
+            }
+
             this.isInitialized = false;
             infoLog('[EVENTS]事件处理器已销毁，所有事件监听器已移除');
         } catch (error) {
@@ -390,6 +397,45 @@ export class EventHandler {
         };
         window.addEventListener(FLOOR_MODULES_UPDATED_EVENT, this.floorModulesUpdatedHandler);
         infoLog(`[EVENTS]已监听楼层模块数据变更事件 ${FLOOR_MODULES_UPDATED_EVENT}`);
+
+        // F 二期：聊天级模块条目变更 → 刷新模块缓存 + 按影响范围刷新
+        // info = { floor, affect:'single'|'suffix'|'full'|'none', inline:boolean }
+        //   single → 只刷该层消息底部
+        //   suffix → 从该层到末尾消息底部（增量模块跨层累积）；inline=true 时同时触发正文内后缀渲染
+        //   full   → 全量（负数起始态条目 / 整体开关 / 清空）
+        //   none   → 渲染相关字段无变化，跳过
+        this.chatModuleEntriesUpdatedHandler = (e) => {
+            const { floor, affect, inline } = e?.detail || {};
+            debugLog('[Module Cache]聊天级模块条目变更，刷新缓存', { floor, affect, inline });
+            if (affect === 'none') return;
+            moduleCacheManager.updateModuleCacheDebounced(true);
+            const isFloorValid = typeof floor === 'number' && Number.isFinite(floor) && floor >= 0;
+            if (affect === 'single') {
+                if (isFloorValid) scheduleMsgBottom('single', floor);
+            } else if (affect === 'suffix') {
+                if (isFloorValid) {
+                    scheduleMsgBottom('suffix', floor);
+                    // inline=true：该条包含非 after_body 增量模块 → 影响后续楼层的正文内
+                    if (inline) {
+                        // 收集 floor..end 的 DOM 楼层（仅渲染存在的消息）
+                        const suffixIds = [];
+                        document.querySelectorAll('#chat .mes').forEach(el => {
+                            const id = Number(el.getAttribute('mesid'));
+                            if (!Number.isNaN(id) && id >= floor) suffixIds.push(id);
+                        });
+                        if (suffixIds.length > 0) {
+                            checkRenderCurrentMessageContext(suffixIds);
+                        }
+                    }
+                }
+            } else {
+                scheduleMsgBottom('full');
+                // full 且 inline（负数起始态条目含非 after_body 增量）→ 全量正文内渲染
+                if (inline) checkRenderCurrentMessageContext();
+            }
+        };
+        window.addEventListener(CHAT_MODULE_ENTRIES_UPDATED_EVENT, this.chatModuleEntriesUpdatedHandler);
+        infoLog(`[EVENTS]已监听聊天级模块条目变更事件 ${CHAT_MODULE_ENTRIES_UPDATED_EVENT}`);
     }
 }
 
