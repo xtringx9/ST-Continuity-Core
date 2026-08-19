@@ -11,7 +11,11 @@ import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
 import { CHAT_MODULE_ENTRIES_UPDATED_EVENT } from "./chatModuleEntryStore.js";
+import { incrementalModulesChanged } from "./pipeline/incrementalModuleCompare.js";
 import { taskRegistry } from "./taskRegistry.js";
+
+/** 编辑前文本缓存：mesId → 编辑框打开时的 chat[mesId].mes（MESSAGE_UPDATED 前对比增量用） */
+const _editTextCache = new Map();
 
 /** 构造 taskRegistry 的 chatKey（与 moduleAiGenerator._getChatKey 一致：角色名::聊天文件名） */
 function _taskChatKey() {
@@ -83,8 +87,38 @@ export class EventHandler {
                 // 切聊天时更新 taskRegistry 当前聊天 key（小 Cc 楼层计数/按钮态据此过滤）
                 taskRegistry.setCurrentChatKey(_taskChatKey());
                 scheduleMsgBottom('full');
+                // 编辑缓存按聊天隔离，切聊天清空
+                _editTextCache.clear();
             });
-            this.registerEvent(event_types.MESSAGE_UPDATED, (mesid) => scheduleMsgBottom('suffix', mesid));// 从EDITED改成UPDATED
+            // ⚠️ 监听 ST 编辑框打开（document 委托 .mes_edit 点击）缓存该层旧文本：
+            // ST 无编辑开始事件、MESSAGE_UPDATED 触发时 chat 已是新文本，拿不到 before。
+            // 这里在编辑框打开瞬间（chat 仍是旧值）缓存，MESSAGE_UPDATED 时用 incrementalModulesChanged 对比。
+            this._mesEditOpenHandler = (e) => {
+                const btn = e.target?.closest?.('.mes_edit');
+                if (!btn) return;
+                const mesEl = btn.closest('.mes');
+                const mesid = mesEl?.getAttribute('mesid');
+                if (mesid == null) return;
+                const idx = Number(mesid);
+                if (Number.isNaN(idx) || !chat[idx]) return;
+                _editTextCache.set(String(idx), chat[idx].mes ?? '');
+            };
+            document.addEventListener('click', this._mesEditOpenHandler);
+
+            this.registerEvent(event_types.MESSAGE_UPDATED, (mesid) => {
+                const x = Number(mesid);
+                if (Number.isNaN(x)) { scheduleMsgBottom('suffix', mesid); return; }
+                const before = _editTextCache.get(String(x));
+                _editTextCache.delete(String(x));
+                const after = chat[x]?.mes ?? '';
+                // 有缓存 → 增量模块文本判断：变了 suffix，没变 single（前面楼层不动）
+                // 无缓存（非 .mes_edit 触发，如程序化编辑）→ 兜底 suffix（保守）
+                if (before !== undefined && !incrementalModulesChanged(before, after)) {
+                    scheduleMsgBottom('single', x);
+                } else {
+                    scheduleMsgBottom('suffix', x);
+                }
+            });
             this.registerEvent(event_types.MESSAGE_SWIPED, (mesid) => scheduleMsgBottom('single', mesid));
             this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, (mesid) => scheduleMsgBottom('single', mesid));
             // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, (mesid) => scheduleMsgBottom('full')); // 暂不注册
@@ -96,7 +130,28 @@ export class EventHandler {
             this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkRenderCurrentMessageContext);
             // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkRenderCurrentMessageContext);
             this.registerEvent(event_types.MORE_MESSAGES_LOADED, checkRenderCurrentMessageContext);
-            this.registerEvent(event_types.MESSAGE_UPDATED, checkRenderCurrentMessageContext);
+            // 编辑消息正文：正文内从该层到末尾（后缀）渲染，而非只该层/全量。
+            // ⚠️ force：后续楼层正文的模块原文已被样式替换，普通路径找不到原文会跳过；
+            // 增量模块变化影响后续楼层正文内 → 需 force 重建原文再替换。
+            this.registerEvent(event_types.MESSAGE_UPDATED, (mesid) => {
+                const x = Number(mesid);
+                if (Number.isNaN(x)) { checkRenderCurrentMessageContext(); return; }
+                const before = _editTextCache.get(String(x));
+                _editTextCache.delete(String(x));
+                const after = chat[x]?.mes ?? '';
+                // 与消息底部一致的增量判断：增量模块文本没变 → 只刷该层；变了 → 本层到末尾（force）
+                if (before !== undefined && !incrementalModulesChanged(before, after)) {
+                    checkRenderCurrentMessageContext(x);
+                } else {
+                    const suffixIds = [];
+                    document.querySelectorAll('#chat .mes').forEach(el => {
+                        const id = Number(el.getAttribute('mesid'));
+                        if (!Number.isNaN(id) && id >= x) suffixIds.push(id);
+                    });
+                    if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+                    else checkRenderCurrentMessageContext(null, true);
+                }
+            });
             // infoLog('[EVENTS]UI相关事件处理器注册成功');
         } catch (error) {
             errorLog('[EVENTS]注册UI相关事件处理器失败:', error);
@@ -301,6 +356,13 @@ export class EventHandler {
                 this.chatModuleEntriesUpdatedHandler = null;
             }
 
+            // 移除 .mes_edit 编辑框缓存监听（关闭插件时一并去掉）+ 清空缓存
+            if (this._mesEditOpenHandler) {
+                document.removeEventListener('click', this._mesEditOpenHandler);
+                this._mesEditOpenHandler = null;
+            }
+            _editTextCache.clear();
+
             this.isInitialized = false;
             infoLog('[EVENTS]事件处理器已销毁，所有事件监听器已移除');
         } catch (error) {
@@ -390,9 +452,13 @@ export class EventHandler {
             const mesId = e?.detail?.mesId;
             debugLog('[Module Cache]楼层模块数据变更，刷新缓存:', e?.detail);
             moduleCacheManager.updateModuleCacheDebounced(true);
-            // 同步刷新该楼层的消息底部模块展示区（空保存/编辑走 scheduleMsgBottom 会更新，这里统一收口）
             if (typeof mesId === 'number') {
+                // 同步刷新该楼层的消息底部模块展示区（空保存/编辑走 scheduleMsgBottom 会更新，这里统一收口）
                 scheduleMsgBottom('single', mesId);
+                // ⚠️ 嵌入模块（outputPosition==='embedded'）的 floor 内容变化会影响「正文内」样式注入
+                // （正文内渲染把正文里的模块 raw 替换成样式，样式基于累积状态）。
+                // force：该层正文内模块原文可能已被替换成样式，需重建原文再替换。
+                checkRenderCurrentMessageContext(mesId, true);
             }
         };
         window.addEventListener(FLOOR_MODULES_UPDATED_EVENT, this.floorModulesUpdatedHandler);

@@ -3,14 +3,18 @@ import { groupProcessResultByMessageIndex } from '../moduleProcessor.js';
 import { getCurrentMessageContainer } from './containerManager.js';
 import { getRenderUIFilteredModuleConfigs } from './moduleFilters.js';
 import { buildStyledProcessResult } from './processResultBuilder.js';
+import { chat, messageFormatting } from '../../../../../../../script.js';
 
 /**
  * 渲染消息正文内的模块样式。
  * @param {number[]|null} [mesIds] 指定只渲染这些 mesid；null = 渲染全部消息。
+ * @param {boolean} [force=false] 强制重渲染：即使该层已渲染过（renderSwipe 命中），
+ * 也先重建 `.mes_text` 原文再替换。用于「模块内容变化后」的增量刷新——已渲染层
+ * 的原文已被样式替换，普通路径找不到原文会跳过。
  * 数据层始终全量提取（快照未实现前，runModulePipeline 无按层增量），
  * 优化点在 DOM 渲染范围：只对指定层做文本节点定位与替换。
  */
-export function renderCurrentMessageContext(mesIds = null) {
+export function renderCurrentMessageContext(mesIds = null, force = false) {
     try {
         if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
             errorLog('jQuery未加载，无法使用选择器');
@@ -53,6 +57,29 @@ export function renderCurrentMessageContext(mesIds = null) {
             const messageText = message.find('.mes_text');
             const messageIndex = message.attr('mesid');
             const modulesForThisMessage = groupedByMessageIndex[messageIndex] || [];
+
+            // force 重渲染：已渲染层原文已被样式替换，普通路径找不到原文会跳过。
+            // 仅当该层已渲染过（renderSwipe === swipeId）才重建——用 messageFormatting
+            // 重建 `.mes_text` 原文（与 ST 渲染一致），并清掉 renderSwipe 重新走替换。
+            if (force) {
+                const renderSwipe = message.attr('renderSwipe');
+                const swipeId = message.attr('swipeid');
+                if (renderSwipe === swipeId) {
+                    const idx = Number(messageIndex);
+                    if (!Number.isNaN(idx) && chat[idx]) {
+                        try {
+                            const m = chat[idx];
+                            const text = m.extra?.display_text || m.mes || '';
+                            messageText.html(messageFormatting(
+                                text, m.name, !!m.is_system, !!m.is_user, idx, {}, false,
+                            ));
+                            message.removeAttr('renderSwipe');
+                        } catch (err) {
+                            errorLog(`[RENDER] force 重建楼层 ${messageIndex} 失败:`, err);
+                        }
+                    }
+                }
+            }
 
             renderSingleMessageContext(modulesForThisMessage, messageText, message);
         }

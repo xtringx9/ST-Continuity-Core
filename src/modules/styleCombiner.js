@@ -385,10 +385,13 @@ function escapeHtmlText(str) {
 
 /**
  * 切换变量显示状态
- * @param {string} id 容器元素ID
+ * @param {HTMLElement|string} el 点击的容器元素（onclick 传 this）或 id（旧格式兼容）
+ * ⚠️ 用元素而非 getElementById：嵌套嵌入的样式可能 id 重复（同一份 customStyles 模板
+ * 在 data-cabin / render-target 等多处使用），getElementById 只取第一个（隐藏舱），
+ * 点击可见节点时切换的是隐藏节点 → 视觉无反应。传 this 直接操作点击的节点。
  */
-function toggleVariableDisplay(id) {
-    const container = document.getElementById(id);
+function toggleVariableDisplay(el) {
+    const container = (typeof el === 'string') ? document.getElementById(el) : el;
     if (!container) return;
 
     const currentSpan = container.querySelector('.cc-variable-change-current');
@@ -432,7 +435,7 @@ function generateVariableChangeHTML(lastString, currentString) {
         // 颜色跟随 ST 主题变量：新值用引用色 --SmartThemeQuoteColor（亮眼琥珀），旧值用正文色 --SmartThemeBodyColor。
         // 初始 tip 直接展示旧值内容（初始显示的是新值，悬停提示将切换到的旧值）。
         const attrEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        resultString = `<span id="${uniqueId}" class="cc-variable-change" style="display: inline-flex; align-items: flex-start; gap: 4px; cursor: pointer; user-select: none;" onclick="toggleVariableDisplay('${uniqueId}')" title="点击显示旧值：${attrEsc(lastString)}"><span class="cc-variable-change-current" style="color: var(--SmartThemeQuoteColor); font-weight: 600; white-space: pre-wrap; display: inline;">${escapeHtmlText(currentString)}</span><span class="cc-variable-change-last" style="color: var(--SmartThemeBodyColor); text-decoration: line-through; opacity: 0.7; font-weight: 500; white-space: pre-wrap; display: none;">${escapeHtmlText(lastString)}</span></span>`;
+        resultString = `<span id="${uniqueId}" class="cc-variable-change" style="display: inline-flex; align-items: flex-start; gap: 4px; cursor: pointer; user-select: none;" onclick="toggleVariableDisplay(this)" title="点击显示旧值：${attrEsc(lastString)}"><span class="cc-variable-change-current" style="color: var(--SmartThemeQuoteColor); font-weight: 600; white-space: pre-wrap; display: inline;">${escapeHtmlText(currentString)}</span><span class="cc-variable-change-last" style="color: var(--SmartThemeBodyColor); text-decoration: line-through; opacity: 0.7; font-weight: 500; white-space: pre-wrap; display: none;">${escapeHtmlText(lastString)}</span></span>`;
     } else {
         resultString = `<span class="cc-variable-change-current" style="
                                         color: var(--SmartThemeQuoteColor);

@@ -627,9 +627,9 @@ export function checkUItoMsgBottom() {
 /** 增量渲染延迟定时器（等待缓存 debounce 刷新完成，见 checkRenderCurrentMessageContext） */
 let _renderDebounceTimer = null;
 
-export function checkRenderCurrentMessageContext(mesid) {
+export function checkRenderCurrentMessageContext(mesid, force = false) {
     if (!configManager.isLoaded) return false;
-    debugLog('[UI EVENTS]RenderUI: 开始渲染当前消息上下文', mesid);
+    debugLog('[UI EVENTS]RenderUI: 开始渲染当前消息上下文', mesid, force ? '(force)' : '');
     if (configManager.isExtensionEnabled()) {
         if (!isInChatPage()) {
             debugLog('[PAGE_CHECK] 当前不在聊天页面，不渲染UI');
@@ -656,7 +656,7 @@ export function checkRenderCurrentMessageContext(mesid) {
             }
             isUpdatingRenderUI = true;
             try {
-                await renderCurrentMessageContext(mesIds);
+                await renderCurrentMessageContext(mesIds, force);
             } finally {
                 isUpdatingRenderUI = false;
             }
@@ -711,8 +711,8 @@ export function openContextBottomAsModal() {
     // interactionScript：toggle 变量显示功能（与 injectHtmlToIframe 一致）
     const interactionScript = `
     <script>
-        window.toggleVariableDisplay = function(id) {
-            const container = document.getElementById(id);
+        window.toggleVariableDisplay = function(el) {
+            const container = (typeof el === 'string') ? document.getElementById(el) : el;
             if (!container) return;
             const currentSpan = container.querySelector('.cc-variable-change-current');
             const lastSpan = container.querySelector('.cc-variable-change-last');

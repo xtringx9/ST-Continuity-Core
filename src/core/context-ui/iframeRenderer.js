@@ -9,11 +9,13 @@ import { syncStThemeToIframe } from '../../shared/iframeThemeSync.js';
 // 稳定的内容挂载点：首次 srcdoc 创建，后续只替换其内部 HTML，避免整文档重建
 const CONTENT_ROOT_ID = 'cc-iframe-content-root';
 
-// iframe 基础交互脚本（body 同级，首次 srcdoc 注入一次，增量路径由 ensureBaseScripts 补齐）
+// iframe 基础交互脚本（纯 JS，无 <script> 包裹）。
+// ⚠️ ensureBaseScripts 的 run() 用 script.textContent 赋值执行，若常量带 <script> 包裹
+// 会作为 JS 语法错误执行失败 → toggleVariableDisplay 永不定义 → 点击新旧值无反应。
+// srcdoc 首次注入时由调用方手动包 <script> 标签。
 const interactionScript = `
-    <script>
-        window.toggleVariableDisplay = function(id) {
-            const container = document.getElementById(id);
+        window.toggleVariableDisplay = function(el) {
+            const container = (typeof el === 'string') ? document.getElementById(el) : el;
             if (!container) return;
 
             const currentSpan = container.querySelector('.cc-variable-change-current');
@@ -34,10 +36,9 @@ const interactionScript = `
                 setTimeout(window.updateHeight, 0);
             }
         };
-    </script>`;
+`;
 
 const resizeScript = `
-    <script>
         window.updateHeight = function() {
             const html = document.documentElement;
             const height = html.offsetHeight;
@@ -54,7 +55,7 @@ const resizeScript = `
             window.addEventListener('load', window.updateHeight);
             window.addEventListener('resize', window.updateHeight);
         }
-    </script>`;
+`;
 
 /**
  * innerHTML 赋值不会自动执行其中的 <script>。模块自定义交互脚本在增量更新后需手动重跑。
@@ -131,7 +132,7 @@ export function injectHtmlToIframe(container, htmlString) {
 <!DOCTYPE html>
 <html>
 <head><link rel="stylesheet" href="./scripts/extensions/third-party/ST-Continuity-Core/assets/css/context-bottom-ui.css"></head>
-<body style="margin:0;padding:0;background:transparent;"><div id="${CONTENT_ROOT_ID}">${htmlString}</div>${interactionScript}${resizeScript}</body>
+<body style="margin:0;padding:0;background:transparent;"><div id="${CONTENT_ROOT_ID}">${htmlString}</div><script>${interactionScript}</script><script>${resizeScript}</script></body>
 </html>`;
 
     // 继承 ST 主题（消息内 iframe 保持透明背景，不继承 ST body 背景）
