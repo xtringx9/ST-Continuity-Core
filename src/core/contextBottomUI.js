@@ -571,6 +571,9 @@ export function checkUItoMsgBottom() {
     scheduleMsgBottom('full');
 }
 
+/** 增量渲染延迟定时器（等待缓存 debounce 刷新完成，见 checkRenderCurrentMessageContext） */
+let _renderDebounceTimer = null;
+
 export function checkRenderCurrentMessageContext(mesid) {
     if (!configManager.isLoaded) return false;
     debugLog('[UI EVENTS]RenderUI: 开始渲染当前消息上下文', mesid);
@@ -585,18 +588,31 @@ export function checkRenderCurrentMessageContext(mesid) {
         const target = (mesid !== undefined && mesid !== null && mesid !== '') ? Number(mesid) : null;
         const mesIds = Number.isNaN(target) || target === null ? null : [target];
 
-        if (!isUpdatingRenderUI) {
+        const doRender = async () => {
+            if (isUpdatingRenderUI) {
+                debugLog('渲染当前消息上下文操作正在进行中，跳过重复调用');
+                return;
+            }
             isUpdatingRenderUI = true;
-            (async () => {
-                try {
-                    await renderCurrentMessageContext(mesIds);
-                } finally {
-                    isUpdatingRenderUI = false;
-                }
-            })();
-        }
-        else {
-            debugLog('渲染当前消息上下文操作正在进行中，跳过重复调用');
+            try {
+                await renderCurrentMessageContext(mesIds);
+            } finally {
+                isUpdatingRenderUI = false;
+            }
+        };
+
+        if (mesIds === null) {
+            // 全量渲染（CHAT_CHANGED 等）：立即执行
+            doRender();
+        } else {
+            // ⚠️ 增量渲染（swipe 等）：moduleCacheManager 缓存 key 不含 swipe_id，
+            // 切 swipe 后旧缓存仍命中 → 立即渲染会读到旧 swipe 内容，DOM 已是新内容
+            // → 匹配失败不渲染。MESSAGE_SWIPED 事件已排队 80ms debounce 缓存刷新
+            // （其 handler 在 initializeModuleCache 先注册，timer 先排队），
+            // 这里把渲染延迟到 120ms（>80ms）之后执行，缓存已刷新 → 渲染读新内容。
+            // 不主动跑全量，零额外开销；连续事件（swipe+render 等）被 clearTimeout 合并。
+            clearTimeout(_renderDebounceTimer);
+            _renderDebounceTimer = setTimeout(doRender, 120);
         }
     } else {
         // debugLog("[UI EVENTS][CHAT_CHANGED]插件已禁用，移除UI");
