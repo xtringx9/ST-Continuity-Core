@@ -522,6 +522,15 @@ export function validateConfig(config) {
                 warnings.push(`${modulePrefix}: retainLayers字段应为数字`);
             }
 
+            const validRetainModes = ['floor', 'count'];
+            if (module.retainMode && !validRetainModes.includes(module.retainMode)) {
+                warnings.push(`${modulePrefix}: retainMode应为 ${validRetainModes.join(', ')} 之一`);
+            }
+
+            if (module.retainCount !== undefined && typeof module.retainCount !== 'number') {
+                warnings.push(`${modulePrefix}: retainCount字段应为数字`);
+            }
+
             if (module.timeReferenceStandard !== undefined && typeof module.timeReferenceStandard !== 'boolean') {
                 warnings.push(`${modulePrefix}: timeReferenceStandard字段应为布尔值`);
             }
@@ -639,6 +648,8 @@ export function normalizeConfig(config, extension_config = null) {
             outputPosition: module.outputPosition || 'after_body',
             outputMode: module.outputMode || 'full',
             retainLayers: module.retainLayers !== undefined ? Number(module.retainLayers) : -1,
+            retainMode: module.retainMode || 'floor', // 'floor' 按层数裁剪 | 'count' 按去重后条目数裁剪
+            retainCount: module.retainCount !== undefined ? Number(module.retainCount) : -1,
             rangeMode: module.rangeMode || 'specified',
             itemMin: typeof module.itemMin === 'number' ? module.itemMin : 0,
             itemMax: typeof module.itemMax === 'number' ? module.itemMax : 1,

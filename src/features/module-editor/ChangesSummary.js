@@ -343,6 +343,8 @@ const moduleKeyToI18nKey = {
     'outputMode': 'label_output_mode',
     'rangeMode': 'label_range_mode',
     'retainLayers': 'label_retain_layers',
+    'retainMode': 'label_retain_mode',
+    'retainCount': 'label_retain_count',
     'timeReferenceStandard': 'label_time_ref',
     'isExternalDisplay': 'label_external',
     'compatibleModuleNames': 'label_compatible_modules',

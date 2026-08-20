@@ -116,8 +116,15 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
                     </div>
 
                     <div class="form-group">
-                        <label>${translate('ccore_label_retain_layers')}</label>
-                        <input type="number" id="edit-retain-layers" value="${module.retainLayers !== undefined ? module.retainLayers : -1}">
+                        <label>${translate('ccore_label_retain_mode')}</label>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="edit-retain-mode" style="flex: 1; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px;">
+                                <option value="floor" ${module.retainMode !== 'count' ? 'selected' : ''}>${translate('ccore_option_retain_floor')}</option>
+                                <option value="count" ${module.retainMode === 'count' ? 'selected' : ''}>${translate('ccore_option_retain_count')}</option>
+                            </select>
+                            <input type="number" id="edit-retain-layers" value="${module.retainLayers !== undefined ? module.retainLayers : -1}" placeholder="${translate('ccore_label_retain_layers')}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
+                            <input type="number" id="edit-retain-count" value="${module.retainCount !== undefined ? module.retainCount : -1}" placeholder="${translate('ccore_label_retain_count')}" style="width: 70px; padding: 8px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-input); border-radius: 4px; display: none;">
+                        </div>
                     </div>
 
                     <!-- 提示词设置 -->
@@ -213,6 +220,8 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
     // 处理 Output Mode 联动
     const outputModeSelect = doc.getElementById('edit-output-mode');
     const retainLayersInput = doc.getElementById('edit-retain-layers');
+    const retainModeSelect = doc.getElementById('edit-retain-mode');
+    const retainCountInput = doc.getElementById('edit-retain-count');
 
     const updateRangeInputs = () => {
         const mode = rangeModeSelect.value;
@@ -225,12 +234,19 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
         positionPromptInput.style.display = pos === 'specific_position' ? 'block' : 'none';
     };
 
+    const updateRetainModeInputs = () => {
+        const isCount = retainModeSelect.value === 'count';
+        retainLayersInput.style.display = isCount ? 'none' : 'block';
+        retainCountInput.style.display = isCount ? 'block' : 'none';
+    };
+
     const updateOutputModeInputs = () => {
         const mode = outputModeSelect.value;
-        const group = retainLayersInput.closest('.form-group');
-        if (group) {
-            group.style.display = mode === 'full' ? '' : 'none';
-        }
+        // retain 相关（mode/layers/count）只在 full 模式显示；隐藏时无需再切 layers/count
+        const modeGroup = retainModeSelect.closest('.form-group');
+        if (modeGroup) modeGroup.style.display = mode === 'full' ? '' : 'none';
+        if (mode !== 'full') return;
+        updateRetainModeInputs();
     };
 
     updateRangeInputs();
@@ -240,6 +256,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
     rangeModeSelect.addEventListener('change', updateRangeInputs);
     outputPosSelect.addEventListener('change', updateOutputPosInputs);
     outputModeSelect.addEventListener('change', updateOutputModeInputs);
+    retainModeSelect.addEventListener('change', updateRetainModeInputs);
 
     // === 实时数据更新逻辑 ===
     const updateModuleData = () => {
@@ -254,6 +271,9 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
         module.itemMax = parseInt(doc.getElementById('edit-item-max').value) || 1;
         const retainLayers = parseInt(doc.getElementById('edit-retain-layers').value);
         module.retainLayers = Number.isNaN(retainLayers) ? -1 : retainLayers;
+        module.retainMode = doc.getElementById('edit-retain-mode').value;
+        const retainCount = parseInt(doc.getElementById('edit-retain-count').value);
+        module.retainCount = Number.isNaN(retainCount) ? -1 : retainCount;
 
         module.isExternalDisplay = doc.getElementById('btn-edit-external').classList.contains('active');
         module.timeReferenceStandard = doc.getElementById('btn-edit-time-reference-standard').classList.contains('active');

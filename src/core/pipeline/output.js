@@ -514,22 +514,36 @@ export function processFullModules(modules) {
 
         debugLog(`处理模块：${moduleName}`);
 
+        const retainMode = moduleConfig.retainMode || 'floor';
         const retainLayers = moduleConfig.retainLayers === undefined ? -1 : parseInt(moduleConfig.retainLayers, 10);
-        debugLog(`retainLayers值：${retainLayers}`);
+        debugLog(`retainMode=${retainMode} retainLayers值：${retainLayers}`);
 
         let filteredModules = allModulesOfName;
         debugLog(`原始模块数量：${allModulesOfName.length}`);
         debugLog(`模块messageIndex列表：${allModulesOfName.map(m => m.messageIndex).join(', ')}`);
         const maxMessageIndex = Math.max(...allModulesOfName.map(m => m.messageIndex));
         debugLog(`最大messageIndex：${maxMessageIndex}`);
-        filteredModules.forEach(module => {
-            module.shouldHide = false;
-            if (retainLayers === 0) {
-                module.shouldHide = true;
-            } else if (retainLayers > 0) {
-                module.shouldHide = module.messageIndex < maxMessageIndex - retainLayers;
+        if (retainMode === 'count') {
+            // 按「去重后条目数」裁剪：按 messageIndex 降序保留最近 retainCount 条；0=全隐藏；负=全保留
+            const retainCount = moduleConfig.retainCount === undefined ? -1 : parseInt(moduleConfig.retainCount, 10);
+            if (retainCount === 0) {
+                filteredModules.forEach(m => { m.shouldHide = true; });
+            } else if (retainCount > 0) {
+                const sorted = [...filteredModules].sort((a, b) => b.messageIndex - a.messageIndex);
+                sorted.forEach((m, i) => { m.shouldHide = i >= retainCount; });
+            } else {
+                filteredModules.forEach(m => { m.shouldHide = false; });
             }
-        });
+        } else {
+            filteredModules.forEach(module => {
+                module.shouldHide = false;
+                if (retainLayers === 0) {
+                    module.shouldHide = true;
+                } else if (retainLayers > 0) {
+                    module.shouldHide = module.messageIndex < maxMessageIndex - retainLayers;
+                }
+            });
+        }
 
         const moduleGroups = groupModulesByIdentifier(filteredModules);
 
