@@ -190,41 +190,50 @@ export function runModulePipeline(opts = {}) {
         // ---- 提取（数据源路由，F 一期支持多源合并）----
         // 同步模式=[chatText]；异步模式=[chatText, asyncChat]（正文内 + 正文后）。
         // 各源产出同构 raw 数组，合并后交给 normalize 的 dedup 去重（同模块名+同变量值合并）。
-        const sources = getActiveSources();
-        if (!sources || sources.length === 0) {
-            throw new Error('无可用模块数据源');
-        }
-        const rawModules = [];
-        if (USE_OCCURRENCE_CACHE) {
-            // 阶段 1：occurrence 缓存（每层全量缓存 + 下游按 filters 过滤）。
-            // ⚠️ 负数层（聊天级条目起始态）在 chatMeta 单层提取时自动并入每层缓存；
-            // 其变更需全量失效（见 eventHandler）。
-            const chatKey = getChatCacheKey();
-            const from = Math.max(0, start);
-            const to = end !== null ? Math.min(end, chat.length - 1) : chat.length - 1;
-            for (const { name, impl } of sources) {
-                for (let f = from; f <= to; f++) {
-                    const raws = getLayerRawsCached(chatKey, name, impl, f);
-                    rawModules.push(...raws);
+        // ⚠️ useSnapshot+auto 快照续算不用 rawModules（rebuildFrom 内部自己读 occurrence 缓存逐层重算），
+        //    这里跳过整段提取，省掉 250 层 clone + 过滤的陪跑成本。其余模式仍需 extract。
+        const skipExtract = useSnapshot && processType === 'auto';
+        let extractMs = 0;
+        let rawModules = [];
+        if (!skipExtract) {
+            const tExtract0 = performance.now();
+            const sources = getActiveSources();
+            if (!sources || sources.length === 0) {
+                throw new Error('无可用模块数据源');
+            }
+            rawModules = [];
+            if (USE_OCCURRENCE_CACHE) {
+                // 阶段 1：occurrence 缓存（每层全量缓存 + 下游按 filters 过滤）。
+                // ⚠️ 负数层（聊天级条目起始态）在 chatMeta 单层提取时自动并入每层缓存；
+                // 其变更需全量失效（见 eventHandler）。
+                const chatKey = getChatCacheKey();
+                const from = Math.max(0, start);
+                const to = end !== null ? Math.min(end, chat.length - 1) : chat.length - 1;
+                for (const { name, impl } of sources) {
+                    for (let f = from; f <= to; f++) {
+                        const raws = getLayerRawsCached(chatKey, name, impl, f);
+                        rawModules.push(...raws);
+                    }
                 }
+                // 过滤（全量缓存 → 按 effectiveFilters 筛）
+                const filtered = filterRawByModuleNames(rawModules, effectiveFilters);
+                rawModules.length = 0;
+                rawModules.push(...filtered);
+                debugLog(`[runModulePipeline] occurrence 提取：${rawModules.length} 个（源：${sources.map(s => s.name).join(',')}，层 ${from}-${to}）`);
+            } else {
+                for (const { impl } of sources) {
+                    const part = impl.getRawModules({ start, end, filters: effectiveFilters });
+                    if (Array.isArray(part)) rawModules.push(...part);
+                }
+                debugLog(`[runModulePipeline] 多源合并 raw 模块：${rawModules.length} 个（源：${sources.map(s => s.name).join(',')}）`);
             }
-            // 过滤（全量缓存 → 按 effectiveFilters 筛）
-            const filtered = filterRawByModuleNames(rawModules, effectiveFilters);
-            rawModules.length = 0;
-            rawModules.push(...filtered);
-            debugLog(`[runModulePipeline] occurrence 提取：${rawModules.length} 个（源：${sources.map(s => s.name).join(',')}，层 ${from}-${to}）`);
-        } else {
-            for (const { impl } of sources) {
-                const part = impl.getRawModules({ start, end, filters: effectiveFilters });
-                if (Array.isArray(part)) rawModules.push(...part);
-            }
-            debugLog(`[runModulePipeline] 多源合并 raw 模块：${rawModules.length} 个（源：${sources.map(s => s.name).join(',')}）`);
+            extractMs = performance.now() - tExtract0;
         }
 
         // ---- 处理 ----
         let resultContent = '';
         let displayTitle = '';
-        let resultPerf = null; // 快照续算耗时分布（useSnapshot 时填充）
+        let resultPerf = null; // 快照续算耗时分布（useSnapshot 时填充）+ extract 总耗时
         switch (processType) {
             case 'extract': {
                 const r = processExtractModules(rawModules, selectedModuleNames);
@@ -246,10 +255,31 @@ export function runModulePipeline(opts = {}) {
                     const dirty = getSnapshotDirtyFloor();
                     const rebuild = rebuildFrom(dirty ?? 0, false);
                     resetSnapshotDirty();
-                    resultContent = buildStructuredResult(rebuild.snapshot.groupModules, configManager.getModules() || [], selectedModuleNames);
-                    // 携带本次快照续算耗时分布（供 Verify 性能表格；生产调用不依赖）
+                    const tBuild0 = performance.now();
+                    // 增量 build：仅重算 touched 组，未变组复用缓存（末层失效时可大幅降低 build 成本）
+                    resultContent = buildStructuredResult(
+                        rebuild.snapshot.groupModules,
+                        configManager.getModules() || [],
+                        selectedModuleNames,
+                        rebuild.chatKey,
+                        rebuild.touched,
+                    );
+                    const buildMs = performance.now() - tBuild0;
+                    // 携带本次快照续算耗时分布（供 Verify 性能表格；生产调用不依赖）。
+                    // ⚠️ rebuild 里已含 read/dedup/time/group/snapshot 分段；extract=本调用在 switch 前无条件抽取的耗时，
+                    // 快照路径其实不需要它（是纯浪费）。build=构建 structuredResult 耗时。
                     resultPerf = rebuild.perf
-                        ? { layers: rebuild.perf.layers, dedup: rebuild.perf.dedup, time: rebuild.perf.time, group: rebuild.perf.group, rebuild: rebuild.totalMs }
+                        ? {
+                            layers: rebuild.perf.layers,
+                            extract: extractMs,
+                            rebuild: rebuild.totalMs,
+                            read: rebuild.perf.read,
+                            dedup: rebuild.perf.dedup,
+                            time: rebuild.perf.time,
+                            group: rebuild.perf.group,
+                            snapshot: rebuild.perf.snapshot,
+                            build: buildMs,
+                        }
                         : null;
                     displayTitle = '自动处理模块结果(快照)';
                 } else {
@@ -277,8 +307,15 @@ export function runModulePipeline(opts = {}) {
 
         // ---- buildString ----
         let contentString = resultContent;
+        let buildStringMs = 0;
         if (typeof resultContent !== 'string') {
+            const tBS0 = performance.now();
             contentString = buildModulesString(resultContent, showModuleNames, showProcessInfo, showRule, skipEmpty);
+            buildStringMs = performance.now() - tBS0;
+        }
+        // 把 buildModulesString 耗时并入 resultPerf（补齐「总耗时-各分段」缺口）
+        if (resultPerf && resultPerf.build !== null && resultPerf.build !== undefined) {
+            resultPerf.build += buildStringMs;
         }
 
         const result = {

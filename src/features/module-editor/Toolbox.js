@@ -17,7 +17,7 @@ import { runModulePipeline } from '../../core/pipeline/runModulePipeline.js';
 import { getActiveSources } from '../../core/pipeline/moduleDataSources.js';
 import { processAutoModules, buildModulesString } from '../../core/pipeline/output.js';
 import { migrateWorldBookModulesToChatEntries } from '../../core/chatModuleEntryStore.js';
-import { getOccurrenceStats, getChatCacheKey, hasOccurrence, outputOccurrenceCache } from '../../core/occurrenceCache.js';
+import { getOccurrenceStats, getChatCacheKey, outputOccurrenceCache, getOccurrence, setOccurrence } from '../../core/occurrenceCache.js';
 import { rebuildFrom } from '../../core/rebuildProcessor.js';
 import { outputSnapshots, getSnapshotStats, clearSnapshots } from '../../core/snapshotStore.js';
 
@@ -523,10 +523,14 @@ async function verifySnapshotRebuild() {
             '失效层': `冷启动`,
             '层数': coldRun?.perf?.layers ?? '-',
             '总耗时_ms': +tSnap.toFixed(1),
+            'extract_ms': coldRun?.perf ? +coldRun.perf.extract.toFixed(1) : null,
             'rebuild_ms': coldRun?.perf ? +coldRun.perf.rebuild.toFixed(1) : null,
+            'read_ms': coldRun?.perf ? +coldRun.perf.read.toFixed(1) : null,
             'dedup_ms': coldRun?.perf ? +coldRun.perf.dedup.toFixed(1) : null,
             'time_ms': coldRun?.perf ? +coldRun.perf.time.toFixed(1) : null,
             'group_ms': coldRun?.perf ? +coldRun.perf.group.toFixed(1) : null,
+            'snapshot_ms': coldRun?.perf ? +coldRun.perf.snapshot.toFixed(1) : null,
+            'build_ms': coldRun?.perf ? +coldRun.perf.build.toFixed(1) : null,
         }];
         for (const f of floors) {
             snapMod.markSnapshotDirty(f);
@@ -536,16 +540,20 @@ async function verifySnapshotRebuild() {
                 '失效层': f,
                 '层数': r?.perf?.layers ?? '-',
                 '总耗时_ms': +(performance.now() - t).toFixed(1),
+                'extract_ms': r?.perf ? +r.perf.extract.toFixed(1) : null,
                 'rebuild_ms': r?.perf ? +r.perf.rebuild.toFixed(1) : null,
+                'read_ms': r?.perf ? +r.perf.read.toFixed(1) : null,
                 'dedup_ms': r?.perf ? +r.perf.dedup.toFixed(1) : null,
                 'time_ms': r?.perf ? +r.perf.time.toFixed(1) : null,
                 'group_ms': r?.perf ? +r.perf.group.toFixed(1) : null,
+                'snapshot_ms': r?.perf ? +r.perf.snapshot.toFixed(1) : null,
+                'build_ms': r?.perf ? +r.perf.build.toFixed(1) : null,
             });
         }
         snapMod.resetSnapshotDirty();
         infoLog(`[快照性能] 全量=${tFull.toFixed(1)}ms 冷启动=${tSnap.toFixed(1)}ms`);
         console.table(rows);
-        infoLog('[快照性能-表格] 各失效层耗时分布见上方 console.table；rebuild=快照续算主体，dedup/time/group 为其中分段。');
+        infoLog('[快照性能-表格] extract=多余抽取，rebuild=快照续算（含其下 read/dedup/time/group/snapshot），build=构建structuredResult。');
     } catch (e) {
         errorLog('[快照性能] 失败:', e);
     }
@@ -558,8 +566,10 @@ async function verifySnapshotRebuild() {
  * 对当前聊天从 0 到多个 endIndex 全量跑管线各阶段，输出各阶段耗时占比，
  * 用于判断性能大头在 extract 还是 process（决定快照系统投入方向）。
  * 结果输出到 console（infoLog + console.table）。
+ *
+ * @param {boolean} useCache true=走 occurrence 缓存逐层读取（贴近生产路径）；false=直抽（最纯净）
  */
-async function profilePipelineStages() {
+async function profilePipelineStages(useCache = false) {
     const chat = getContext()?.chat;
     if (!chat || !Array.isArray(chat) || chat.length === 0) {
         warnLog('[Perf] 当前无聊天数据，无法采样');
@@ -575,17 +585,30 @@ async function profilePipelineStages() {
     }
     if (!ends.includes(chatLen - 1)) ends.push(chatLen - 1);
 
+    const chatKey = getChatCacheKey();
     const rows = [];
     for (const end of ends) {
         const t0 = performance.now();
         // 1. extract（多源合并，与 runModulePipeline 一致）
         let rawCount = 0;
         const rawModules = [];
-        for (const { impl } of getActiveSources()) {
-            const part = impl.getRawModules({ start: 0, end, filters: null });
-            if (Array.isArray(part)) {
-                rawModules.push(...part);
-                rawCount += part.length;
+        if (useCache) {
+            // 走 occurrence 缓存：逐层读取 + 深拷贝（贴近生产 getLayerRawsCached 路径）
+            for (const { name, impl } of getActiveSources()) {
+                for (let f = 0; f <= end; f++) {
+                    const raws = getLayerRawsCachedToolbox(chatKey, name, impl, f);
+                    rawModules.push(...raws);
+                    rawCount += raws.length;
+                }
+            }
+        } else {
+            // 直抽：一次性批量抽取（最纯净，无深拷贝）
+            for (const { impl } of getActiveSources()) {
+                const part = impl.getRawModules({ start: 0, end, filters: null });
+                if (Array.isArray(part)) {
+                    rawModules.push(...part);
+                    rawCount += part.length;
+                }
             }
         }
         const t1 = performance.now();
@@ -605,9 +628,19 @@ async function profilePipelineStages() {
             'total_ms': +(t3 - t0).toFixed(2),
         });
     }
-    infoLog('[Perf] 管线阶段耗时采样（每档 = 从楼层 0 到 end 全量跑）：', rows);
+    infoLog(`[Perf] 管线阶段耗时采样（${useCache ? '走缓存' : '直抽'}，每档 = 从楼层 0 到 end 全量跑）：`, rows);
     console.table(rows);
     return rows;
+}
+
+/** 读取某层 occurrence 缓存（未命中则抽取并回填），行为对齐 runModulePipeline 的 getLayerRawsCached */
+function getLayerRawsCachedToolbox(chatKey, sourceName, impl, floor) {
+    const cached = getOccurrence(chatKey, sourceName, floor);
+    if (cached) return cached;
+    const part = impl.getRawModules({ start: floor, end: floor, filters: null });
+    const raws = Array.isArray(part) ? part : [];
+    setOccurrence(chatKey, sourceName, floor, raws);
+    return raws;
 }
 
 function bindDebugButtons(doc) {
@@ -656,7 +689,7 @@ function bindDebugButtons(doc) {
 
     // 1.5 生成记录面板：已废弃调试面板（测试），无独立测试入口（生成记录面板由生成流程直接打开）
 
-    // 1.7 管线性能采样（F 二期快照前置实测：判断 extract/process 耗时占比）
+    // 1.7 管线性能采样（直抽版，测纯 extract/process 成本）
     const btnProfile = doc.getElementById('btn-debug-pipeline-profile');
     if (btnProfile) {
         const newBtn = btnProfile.cloneNode(true);
@@ -665,12 +698,36 @@ function bindDebugButtons(doc) {
         newBtn.addEventListener('click', async () => {
             newBtn.disabled = true;
             try {
-                await profilePipelineStages();
+                await profilePipelineStages(false);
                 if (typeof toastr !== 'undefined') {
                     toastr.success(translate('ccore_btn_debug_pipeline_profile') + ' 完成，结果见控制台');
                 }
             } catch (err) {
                 errorLog('[Perf] 性能采样失败:', err);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(err.message);
+                }
+            } finally {
+                newBtn.disabled = false;
+            }
+        });
+    }
+
+    // 1.7b 管线性能采样（走缓存版：逐层 occurrence 读取，贴近生产路径）
+    const btnProfileCache = doc.getElementById('btn-debug-pipeline-profile-cache');
+    if (btnProfileCache) {
+        const newBtn = btnProfileCache.cloneNode(true);
+        newBtn.textContent = translate('ccore_btn_debug_pipeline_profile_cache');
+        btnProfileCache.parentNode.replaceChild(newBtn, btnProfileCache);
+        newBtn.addEventListener('click', async () => {
+            newBtn.disabled = true;
+            try {
+                await profilePipelineStages(true);
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(translate('ccore_btn_debug_pipeline_profile_cache') + ' 完成，结果见控制台');
+                }
+            } catch (err) {
+                errorLog('[Perf] 性能采样(走缓存)失败:', err);
                 if (typeof toastr !== 'undefined') {
                     toastr.error(err.message);
                 }

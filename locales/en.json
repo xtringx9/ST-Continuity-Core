@@ -137,6 +137,7 @@
     "ccore_btn_debug_state": "Print Editor State",
     "ccore_btn_debug_clean_config": "Clean Deprecated Keys",
     "ccore_btn_debug_pipeline_profile": "Pipeline Profile",
+    "ccore_btn_debug_pipeline_profile_cache": "Pipeline Profile (cached)",
     "ccore_btn_debug_occurrence_diag": "Diagnose Occurrence Cache",
     "ccore_btn_verify_snapshot_rebuild": "Verify Snapshot Rebuild",
     "ccore_btn_migrate_worldbook_chat": "Migrate Worldbook Modules to Chat Entries",

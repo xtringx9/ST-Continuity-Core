@@ -42,6 +42,16 @@ const timeParsers = { parseTimeDetailed, completeTimeDataWithStandard };
 
 // ⚠️ 每层耗时分段在 rebuildFrom 每次调用内独立计时（perf 对象），避免跨调用叠加污染。
 
+// 增量 build 缓存：chatKey → moduleName → structuredResult 的 entry。
+// 末层失效时，未新增模块的组直接复用缓存，只重算 touched 组（大幅降低 build 成本）。
+// 冷启动/失效靠前时 touchedNames 覆盖全组 → 全量重算并刷新缓存，无需主动失效。
+const _buildCache = new Map();
+
+/** 清空 build 增量缓存（切聊天 / 插件禁用）。 */
+export function clearBuildCache() {
+    _buildCache.clear();
+}
+
 /**
  * 处理一层：标准化该层 raw → dedup 续传 → 更新 groupModules（累积去重全集，不 sort/id/compress）。
  * ⚠️ 就地修改 state（groupModules / dedup / time 累积）。
@@ -57,10 +67,12 @@ function processFloor(state, floor, chatKey, perf) {
     const modulesData = configManager.getModules() || [];
     const layerRaws = [];
     // 该层所有源 raw（occurrence 缓存；负数起始态已并入第 0 层缓存）
+    const tR0 = performance.now();
     for (const { name } of getActiveSources()) {
         const raws = getOccurrence(chatKey, name, floor);
         if (Array.isArray(raws)) layerRaws.push(...raws);
     }
+    perf.read += performance.now() - tR0;
     if (layerRaws.length === 0) return; // 该层无模块
 
     // 1. 标准化 + dedup 续传（逐模块）。
@@ -96,6 +108,11 @@ function processFloor(state, floor, chatKey, perf) {
         state.groupModules.get(m.moduleName).push(m);
     }
     perf.group += performance.now() - tG0;
+    // 记录本批新增模块名（touched 组），供 build 增量判断哪些组合并需重算
+    for (const m of added) {
+        if (!perf.touched) perf.touched = new Set();
+        perf.touched.add(m.moduleName);
+    }
     perf.layers++;
 }
 
@@ -109,18 +126,32 @@ function processFloor(state, floor, chatKey, perf) {
  * 各班在【副本】上跑：sort 不改对象，但 idCompletionStep 就地改 variables.id、compressLevelToState
  * 就地改 visibility/timeline —— 在副本上跑避免污染累积态 groupModules / 快照 / 重复 build 的叠加。
  *
+ * ⚠️ 增量 build（末层失效优化）：传入 chatKey + touchedNames 时，本次【未新增任何模块】的组直接复用
+ * 上次缓存结果（groupModules 内容未变 → 结果必相同），只重算 touched 组。否则全量 build。
+ *
  * @param {Map<string, Array>} groupModules 累积的组内模块（去重+time，未 sort/id/compress）
  * @param {Array} modulesData 模块配置
  * @param {string[]} [selectedModuleNames] 选中的模块名白名单（空/未传=全部），对齐 processAutoModules 的 selected 过滤
+ * @param {string} [chatKey] 增量缓存 key（有值且 touchedNames 有值时才走增量）
+ * @param {Set<string>|null} [touchedNames] 本次新增的模块名集合；null=全量 build
  * @returns {Object}
  */
-export function buildStructuredResult(groupModules, modulesData, selectedModuleNames) {
+export function buildStructuredResult(groupModules, modulesData, selectedModuleNames, chatKey, touchedNames) {
     const structuredResult = {};
+    // 增量判断：仅当请求了增量（chatKey+touchedNames）且未做 selected 过滤时才可复用（过滤会改变结果集）
+    const incremental = chatKey && touchedNames && (!selectedModuleNames || selectedModuleNames.length === 0);
+    const cacheMap = incremental ? (_buildCache.get(chatKey) ?? new Map()) : null;
     for (const [moduleName, group] of groupModules) {
         if (selectedModuleNames && selectedModuleNames.length && !selectedModuleNames.includes(moduleName)) continue;
         const moduleConfig = modulesData.find(c => c.name === moduleName);
         if (!moduleConfig) continue;
         const processType = moduleConfig.outputMode || 'full';
+
+        // 增量复用：本组未 touched 且缓存命中 → 直接沿用上次结果
+        if (incremental && !touchedNames.has(moduleName) && cacheMap?.has(moduleName)) {
+            structuredResult[moduleName] = cacheMap.get(moduleName);
+            continue;
+        }
 
         // 副本：避免 id/compress 就地改污染累积态 groupModules（compress 会改 visibility/timeline，重复必叠加）。
         const working = group.map(m => ({ ...m, variables: { ...m.variables }, timeline: m.timeline ? [].concat(m.timeline) : undefined }));
@@ -156,7 +187,7 @@ export function buildStructuredResult(groupModules, modulesData, selectedModuleN
             const maxIds = resultData.map(item => item.maxId).filter(id => id !== null && id !== undefined);
             if (maxIds.length > 0) maxId = Math.max(...maxIds);
         }
-        structuredResult[moduleName] = {
+        const entry = {
             processType,
             data: resultData,
             moduleCount,
@@ -164,6 +195,12 @@ export function buildStructuredResult(groupModules, modulesData, selectedModuleN
             isIncremental: processType === 'incremental',
             maxId,
         };
+        // 更新/写入增量缓存（含 touched 组刷新）
+        if (cacheMap) {
+            cacheMap.set(moduleName, entry);
+            _buildCache.set(chatKey, cacheMap);
+        }
+        structuredResult[moduleName] = entry;
     }
     return structuredResult;
 }
@@ -171,8 +208,9 @@ export function buildStructuredResult(groupModules, modulesData, selectedModuleN
 /**
  * 从最近 checkpoint 增量重建到 end。
  * @param {number} targetFloor 失效起点（改动的层）；从最近的未失效 checkpoint（≤targetFloor）增量到 end
- * @returns {{ snapshot: Object, results: Array<{floor:number, content:Object}> }}
- *   snapshot：最终累积态；results：每层 structuredResult（供 buildModulesString / groupByMessage）
+ * @param {boolean} [needResults=true] 是否每层产出中间 structuredResult（false 只求末层 snapshot）
+ * @returns {{ snapshot: Object, results: Array<{floor:number, content:Object}>, perf: Object, touched: Set<string>, chatKey: string, totalMs: number }}
+ *   snapshot：最终累积态；results：每层 structuredResult；perf：各阶段耗时；touched：本次新增模块名集合（增量 build 用）
  */
 export function rebuildFrom(targetFloor, needResults = true) {
     const chatKey = getChatCacheKey();
@@ -181,7 +219,8 @@ export function rebuildFrom(targetFloor, needResults = true) {
     debugLog(`[rebuildFrom] target=${targetFloor} 起点 checkpoint=${C} 起始状态=${C >= 0 ? `快照${C}` : '空'}`);
 
     // ⚠️ 每次调用独立计时：per-call perf（旧实现里 _perf 是模块级累积，多档验证会叠加污染）。
-    const perf = { layers: 0, dedup: 0, time: 0, group: 0 };
+    // 独立计时：extract（occurrence 读取）+ rebuild 的分段。perf 每次调用内自持。
+    const perf = { layers: 0, read: 0, dedup: 0, time: 0, group: 0, snapshot: 0 };
     const tTotal0 = performance.now();
 
     const end = chatLength() - 1;
@@ -200,7 +239,9 @@ export function rebuildFrom(targetFloor, needResults = true) {
     for (let f = startFloor; f <= end; f++) {
         processFloor(state, f, chatKey, perf);
         if (isCheckpointFloor(f)) {
+            const tS0 = performance.now();
             putSnapshot(f, state);
+            perf.snapshot += performance.now() - tS0;
         }
         // 每层产出 structuredResult（基于累积 groupModules）——仅调用方需要中间结果时才构建（如验证）；
         // 生产取数（useSnapshot）只要末层 snapshot，逐层 build 中间结果是 O(层×组) 的纯浪费。
@@ -209,8 +250,8 @@ export function rebuildFrom(targetFloor, needResults = true) {
         }
     }
     const avg = (n) => (perf.layers ? (perf[n] / perf.layers).toFixed(3) : '0');
-    console.log(`[cc-perf] layers=${perf.layers} dedup=${perf.dedup.toFixed(1)}ms(${avg('dedup')}/层) time=${perf.time.toFixed(1)}(${avg('time')}) group=${perf.group.toFixed(1)}(${avg('group')})`);
-    return { snapshot: state, results, perf, totalMs: performance.now() - tTotal0 };
+    console.log(`[cc-perf] layers=${perf.layers} read=${perf.read.toFixed(1)}(+${avg('read')}/层) dedup=${perf.dedup.toFixed(1)}(+${avg('dedup')}) time=${perf.time.toFixed(1)}(+${avg('time')}) group=${perf.group.toFixed(1)}(+${avg('group')}) snapshot=${perf.snapshot.toFixed(1)}(+${avg('snapshot')})`);
+    return { snapshot: state, results, perf, touched: perf.touched ?? new Set(), chatKey, totalMs: performance.now() - tTotal0 };
 }
 
 /** chat 长度（getContext().chat，iframe/父窗口通用） */

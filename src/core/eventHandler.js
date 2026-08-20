@@ -14,6 +14,7 @@ import { CHAT_MODULE_ENTRIES_UPDATED_EVENT } from "./chatModuleEntryStore.js";
 import { incrementalModulesChanged } from "./pipeline/incrementalModuleCompare.js";
 import { getChatCacheKey, invalidateOccurrence, invalidateSourceAll, clearOccurrenceCache } from "./occurrenceCache.js";
 import { markSnapshotDirty, resetSnapshotDirty } from "./snapshotStore.js";
+import { clearBuildCache } from "./rebuildProcessor.js";
 import { taskRegistry } from "./taskRegistry.js";
 
 /** 编辑前文本缓存：mesId → 编辑框打开时的 chat[mesId].mes（MESSAGE_UPDATED 前对比增量用） */
@@ -96,6 +97,8 @@ export class EventHandler {
                 clearOccurrenceCache();
                 // 快照 dirty 会话：切聊天复位（新聊天从干净开始）
                 resetSnapshotDirty();
+                // build 增量缓存按聊天隔离，切聊天清空
+                clearBuildCache();
             });
             // ⚠️ 监听 ST 编辑框打开（document 委托 .mes_edit 点击）缓存该层旧文本：
             // ST 无编辑开始事件、MESSAGE_UPDATED 触发时 chat 已是新文本，拿不到 before。
