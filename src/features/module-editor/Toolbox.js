@@ -18,6 +18,8 @@ import { getActiveSources } from '../../core/pipeline/moduleDataSources.js';
 import { processAutoModules, buildModulesString } from '../../core/pipeline/output.js';
 import { migrateWorldBookModulesToChatEntries } from '../../core/chatModuleEntryStore.js';
 import { getOccurrenceStats, getChatCacheKey, hasOccurrence, outputOccurrenceCache } from '../../core/occurrenceCache.js';
+import { rebuildFrom } from '../../core/rebuildProcessor.js';
+import { outputSnapshots, getSnapshotStats, clearSnapshots } from '../../core/snapshotStore.js';
 
 /**
  * 渲染工具箱界面
@@ -389,6 +391,102 @@ async function diagnoseOccurrenceCache() {
 }
 
 /**
+ * 验证快照重建 == 全量管线（阶段 2）。
+ * 对比 rebuildFrom(0)（全增量）最后层的结果 vs runModulePipeline(auto, 全段) 的 content。
+ * 输出：两者 moduleCount / 每模块 data 数，是否一致。
+ */
+async function verifySnapshotRebuild() {
+    // ⚠️ 清空旧 checkpoint：getModules(true)→getModules() 修复前攒下的旧快照含膨胀的 sum，
+    // 复用会掩盖修复效果。验证必须从空 checkpoint 全量重建。
+    clearSnapshots();
+    // 全量参考
+    const full = runModulePipeline({
+        range: { start: 0, end: null },
+        modules: null,
+        processType: 'auto',
+        cache: 'none',
+    });
+    // 全增量重建
+    const { results, snapshot } = rebuildFrom(0);
+    const last = results.length > 0 ? results[results.length - 1].content : {};
+
+    // ⚠️ 诊断：对比全量 normalizeModules 与 rebuild 的去重结果（sum 组）
+    try {
+        const configManagerMod = (await import('../../singleton/configManager.js')).default;
+        const normalizeMod = (await import('../../core/pipeline/normalize.js'));
+        // 用 occurrence 全量 raw（与 rebuild 同源）
+        const occRaw = [];
+        const { getActiveSources: getSrc } = await import('../../core/pipeline/moduleDataSources.js');
+        for (const { name, impl } of getSrc()) {
+            const part = impl.getRawModules({ start: 0, end: null, filters: null });
+            if (Array.isArray(part)) occRaw.push(...part);
+        }
+        // ⚠️ 诊断：occRaw 里 sum 的原始条数（按 messageIndex 分组）——分辨「原始就 184」vs「rebuild 多读」
+        const rawSum = occRaw.filter(r => {
+            const pipe = r.raw?.indexOf('|');
+            const name = pipe > 0 ? r.raw.slice(1, pipe).trim() : '';
+            return name === 'sum';
+        });
+        const rawSumByFloor = {};
+        for (const r of rawSum) {
+            rawSumByFloor[r.messageIndex] = (rawSumByFloor[r.messageIndex] || 0) + 1;
+        }
+        infoLog('[快照验证-诊断] occRaw sum 原始条数:', rawSum.length, '| 分布(前10层):', Object.entries(rawSumByFloor).slice(0, 10).map(([f, c]) => `#${f}:${c}`).join(' '));
+        // ⚠️ 诊断：occurrence 缓存里 sum 的总量（rebuild 实际读的）
+        const { getChatCacheKey: getKey, getOccurrence: getOcc } = await import('../../core/occurrenceCache.js');
+        const { getActiveSources: getSrc2 } = await import('../../core/pipeline/moduleDataSources.js');
+        const k = getKey();
+        let cacheSum = 0;
+        let cacheSumBySrc = {};
+        const chatLen = getContext()?.chat?.length || 0;
+        for (const { name } of getSrc2()) {
+            let c = 0;
+            for (let f = 0; f < chatLen; f++) {
+                const raws = getOcc(k, name, f);
+                if (!Array.isArray(raws)) continue;
+                for (const r of raws) {
+                    const pipe = r.raw?.indexOf('|');
+                    if (pipe > 0 && r.raw.slice(1, pipe).trim() === 'sum') c++;
+                }
+            }
+            cacheSumBySrc[name] = c;
+            cacheSum += c;
+        }
+        infoLog('[快照验证-诊断] occurrence 缓存 sum 总量:', cacheSum, '| 各源:', cacheSumBySrc);
+        const normGroups = normalizeMod.normalizeModules(occRaw, undefined);
+        const normSum = normGroups['sum'] || [];
+        const rebSum = (snapshot.groupModules?.get('sum')) || [];
+        infoLog('[快照验证-诊断] normalizeModules sum 组:', normSum.length, '| rebuild groupModules sum:', rebSum.length, '| rebuild dedup sum:', Array.from(snapshot.dedup?.moduleMap?.values() || []).filter(m => m.moduleName === 'sum').length);
+        infoLog('[快照验证-诊断] normalize sum 组前2:', normSum.slice(0, 2).map(m => ({ mi: m.messageIndex, id: m.variables.id, level: m.variables.level })));
+        infoLog('[快照验证-诊断] rebuild sum 组前2:', rebSum.slice(0, 2).map(m => ({ mi: m.messageIndex, id: m.variables.id, level: m.variables.level })));
+    } catch (err) {
+        errorLog('[快照验证-诊断] 对比失败:', err);
+    }
+
+    infoLog('[快照验证] 全量 content keys:', Object.keys(full.content || {}));
+    infoLog('[快照验证] rebuild content keys:', Object.keys(last));
+    infoLog('[快照验证] 全量 moduleCount:', full.moduleCount, '| rebuild 各模块 count:', Object.fromEntries(Object.entries(last).map(([k, v]) => [k, v.moduleCount])));
+
+    // 对比每个模块的可见模块数（moduleCount），而非 data.length——
+    // data 可能是 processFullModules 按变量/key 展开后的数组，长度不代表模块数（env 245 却 occurrence 仅 222）。
+    const mismatch = [];
+    for (const key of Object.keys(full.content || {})) {
+        const fullData = full.content[key]?.data;
+        const rbData = last[key]?.data;
+        const fullMC = full.content[key]?.moduleCount ?? (Array.isArray(fullData) ? fullData.length : 0);
+        const rbMC = last[key]?.moduleCount ?? (Array.isArray(rbData) ? rbData.length : 0);
+        if (fullMC !== rbMC) mismatch.push({ module: key, full: fullMC, rebuild: rbMC });
+    }
+    if (mismatch.length === 0) {
+        infoLog('[快照验证] ✅ 各模块 data 数量一致');
+    } else {
+        errorLog('[快照验证] ❌ 不一致:', mismatch);
+    }
+    outputSnapshots();
+    infoLog('[快照验证] checkpoint 统计:', getSnapshotStats());
+}
+
+/**
  * 管线性能采样（F 二期快照前置实测）
  * 对当前聊天从 0 到多个 endIndex 全量跑管线各阶段，输出各阶段耗时占比，
  * 用于判断性能大头在 extract 还是 process（决定快照系统投入方向）。
@@ -530,6 +628,30 @@ function bindDebugButtons(doc) {
                 }
             } catch (err) {
                 errorLog('[Occurrence诊断] 失败:', err);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(err.message);
+                }
+            } finally {
+                newBtn.disabled = false;
+            }
+        });
+    }
+
+    // 1.9 快照重建验证（阶段 2：rebuildFrom vs 全量管线）
+    const btnVerify = doc.getElementById('btn-verify-snapshot-rebuild');
+    if (btnVerify) {
+        const newBtn = btnVerify.cloneNode(true);
+        newBtn.textContent = translate('ccore_btn_verify_snapshot_rebuild');
+        btnVerify.parentNode.replaceChild(newBtn, btnVerify);
+        newBtn.addEventListener('click', async () => {
+            newBtn.disabled = true;
+            try {
+                await verifySnapshotRebuild();
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(translate('ccore_btn_verify_snapshot_rebuild') + ' 完成，结果见控制台');
+                }
+            } catch (err) {
+                errorLog('[快照验证] 失败:', err);
                 if (typeof toastr !== 'undefined') {
                     toastr.error(err.message);
                 }
