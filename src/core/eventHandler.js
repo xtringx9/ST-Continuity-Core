@@ -136,7 +136,12 @@ export class EventHandler {
             this.registerEvent(event_types.MESSAGE_SWIPED, (mesid) => {
                 const x = Number(mesid);
                 if (!Number.isNaN(x)) {
+                    // 正文（chatText）按 swipe 版本变 → 失效该层正文提取缓存
                     invalidateOccurrence(getChatCacheKey(), 'chatText', x);
+                    // ⚠️ floor 模块（asyncChat）也按正文 swipe 分组（readFloorModules 按 swipe_id 读
+                    // generators['modules'][outerSwipe]），切 swipe 需一并失效，否则 occurrence 缓存残留
+                    // 旧 swipe 的 floor 模块 → 消息底部/正文内刷新时仍读到旧内容（bug：swipe 后渲染不变）。
+                    invalidateOccurrence(getChatCacheKey(), 'asyncChat', x);
                     // 快照 dirty：切 swipe 只影响该层（正文 swipe_id 变）→ 增量续算
                     markSnapshotDirty(x);
                 }
