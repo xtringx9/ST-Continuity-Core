@@ -869,7 +869,7 @@ export function initMessageScrollToTop() {
         eventSource.on(event_types.CHAT_CHANGED, chatChangedListener);
     }
     addScrollTopButtonsToAllMessages();
-    infoLog(LOG_TAG, '消息滚动/跳转按钮已启用');
+    debugLog(LOG_TAG, '消息滚动/跳转按钮已启用');
 }
 
 /**

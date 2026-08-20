@@ -32,9 +32,16 @@ export function readCache(ctx) {
         checkEndIndex = chat?.length - 1;
     }
 
-    if (!moduleCacheManager.hasCurrentChatData(start, checkEndIndex)) return null;
+    // ⚠️ 诊断（B 缓存命中情况）：cache 层 vs occurrence 层的命中分布
+    debugLog(`[cacheLayer.B] readCache 尝试 范围=${start}-${checkEndIndex} isAllModule=${isAllModule} modules=${moduleFilters ? moduleFilters.map(m => m.name).join(',') : 'null'} force=${force}`);
+
+    if (!moduleCacheManager.hasCurrentChatData(start, checkEndIndex)) {
+        debugLog(`[cacheLayer.B] MISS 范围=${start}-${checkEndIndex}（无缓存键）`);
+        return null;
+    }
 
     const cachedData = moduleCacheManager.getCurrentChatData(start, checkEndIndex);
+    debugLog(`[cacheLayer.B] HIT  范围=${start}-${checkEndIndex} isAllModule=${isAllModule} modules=${moduleFilters ? moduleFilters.map(m => m.name).join(',') : 'null'}`);
 
     // 按 selectedModuleNames 过滤缓存内容（原 53-67 行）
     let content = {};

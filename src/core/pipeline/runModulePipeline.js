@@ -81,11 +81,15 @@ function filterRawByModuleNames(rawModules, filters) {
  */
 function getLayerRawsCached(chatKey, sourceName, impl, floor) {
     const cached = getOccurrence(chatKey, sourceName, floor);
-    if (cached) return cached;
+    if (cached) {
+        debugLog(`[occurrence.A] HIT  ${sourceName} 层${floor}（${cached.length}条）`);
+        return cached;
+    }
     // 单层全量提取（filters=null → 不过滤）
     const part = impl.getRawModules({ start: floor, end: floor, filters: null });
     const raws = Array.isArray(part) ? part : [];
     setOccurrence(chatKey, sourceName, floor, raws);
+    debugLog(`[occurrence.A] MISS ${sourceName} 层${floor} → 抽取 ${raws.length} 条`);
     return raws;
 }
 

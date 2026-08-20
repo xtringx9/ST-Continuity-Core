@@ -197,7 +197,7 @@ function _markPendingStatus(generatorName, mesId, recordId, status, note = '') {
         let count = 0;
         pendingResults.forEach(arr => { count += arr.length; });
         if (count > 0) {
-            infoLog(LOG_TAG, `从 sessionStorage 恢复 ${count} 条生成记录`);
+            debugLog(LOG_TAG, `从 sessionStorage 恢复 ${count} 条生成记录`);
         }
     } catch (e) {
         // 忽略解析错误

@@ -500,7 +500,7 @@ class ConfigManager {
         // 执行所有注册的加载完成回调
         this.executeLoadCallbacks();
 
-        infoLog("♥️ Continuity Core 配置已手动加载");
+        infoLog("♥️ Continuity Core 配置已加载");
     }
 
     isExtensionEnabled() {

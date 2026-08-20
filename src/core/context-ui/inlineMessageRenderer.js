@@ -1,4 +1,4 @@
-import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
+import { debugLog, errorLog } from '../../utils/logger.js';
 import { groupProcessResultByMessageIndex } from '../moduleProcessor.js';
 import { getCurrentMessageContainer } from './containerManager.js';
 import { getRenderUIFilteredModuleConfigs } from './moduleFilters.js';
@@ -234,7 +234,8 @@ export function renderSingleMessageContext(messages, container, mes, anchorIndex
             if (n > 0) {
                 replacedCount += n;
             } else {
-                infoLog(`messageIndex: ${mes.attr('mesid')} renderSingleMessageContext: 未找到匹配的原文内容，跳过替换`, {
+                // ⚠️ 正常情况（该消息正文未含此 raw / 增量模块已换原文），非错误，降级为 debug 避免外显刷屏
+                debugLog(`messageIndex: ${mes.attr('mesid')} renderSingleMessageContext: 未找到匹配的原文内容，跳过替换`, {
                     entry,
                     raw: entry.moduleData.raw,
                 });

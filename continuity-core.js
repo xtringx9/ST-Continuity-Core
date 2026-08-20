@@ -114,7 +114,7 @@ jQuery(async function () {
     // ── 模块核心功能（受全局 enabled 控制）──
     // 检查全局开关状态
     if (!configManager.extensionConfig.enabled) {
-        infoLog("♥️ Continuity Core 已禁用，事件监听器和宏已注册但不会处理事件");
+        infoLog("♥️ Continuity Core 已禁用");//事件监听器和宏已注册但不会处理事件
         return;
     }
     infoLog("♥️ Continuity Core 已启用");
