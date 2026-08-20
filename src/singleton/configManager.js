@@ -284,6 +284,14 @@ class ConfigManager {
                         debugLog('补充迁移：旧 asyncModule.customApi 已并入 asyncConfig.customApi');
                     }
                 }
+                // 加载时整体规范化（就地，幂等：每次保存已 normalize 过）：
+                // 补齐新增字段默认值（summaryMode/keepFull 等），旧配置缺失的字段不再以 undefined 出现，
+                // 否则 ChangesSummary 对新增字段会显示 "N/A → 值"（旧值 undefined）。
+                // ⚠️ 必须在 asyncConfig 迁移之后执行，否则 normalizeAsyncConfig 会填充默认值，
+                //    导致上方「asyncConfig === undefined / 缺 customApi」的迁移判定失效。
+                // ⚠️ 用 Object.assign 就地替换而非直接赋值，保持 this.moduleConfig 与
+                //    extension_settings[KEY] 为同一引用（赋值新对象会造成两者脱节）。
+                Object.assign(this.moduleConfig, normalizeConfig(this.moduleConfig));
                 debugLog('模块配置已从扩展设置加载到内存缓存:', this.moduleConfig);
                 return;
             }
