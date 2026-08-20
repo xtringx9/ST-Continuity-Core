@@ -3,7 +3,48 @@ import { EXTENSION_CONFIG_KEY, extensionName } from "../singleton/configManager.
 import { extension_settings } from "../../../../../extensions.js";
 
 /**
- * 检查调试日志是否启用
+ * 调试日志分组（预定义，按功能域组织文件）。
+ * debugLog 输出条件 = debug.global 总开关 && （命中「已启用分组」 或 「不属于任何分组」）：
+ *   - 勾选某分组 → 只显示该分组文件的 debugLog（未勾选分组文件不显示）
+ *   - 无任何勾选 → 只显示「不属于任何分组」的文件（工具类/UI 组件），核心功能文件需勾选分组才显示
+ * 匹配用 getCallerInfo 提取的文件名（不含路径，项目内文件名唯一）。
+ */
+export const DEBUG_GROUPS = [
+    { id: 'pipeline', label: '管线/缓存', files: [
+        'runModulePipeline.js', 'cacheLayer.js', 'output.js', 'normalize.js', 'normalizeRawStep.js',
+        'deduplicate.js', 'deduplicateStep.js', 'groupByMessage.js', 'idCompletionStep.js',
+        'incrementalModuleCompare.js', 'levelCompressionStep.js', 'mergeStep.js', 'moduleDataSources.js',
+        'resolveModuleChangeAffect.js', 'sort.js', 'time.js', 'timeCompletionStep.js',
+        'occurrenceCache.js', 'snapshotStore.js', 'rebuildProcessor.js', 'moduleProcessor.js',
+        'moduleExtractor.js', 'moduleCacheManager.js', 'generatedContentCache.js',
+    ] },
+    { id: 'event', label: '事件/生命周期', files: [
+        'eventHandler.js', 'macroManager.js', 'taskRegistry.js', 'generationContext.js', 'promptInjector.js',
+    ] },
+    { id: 'render', label: '渲染/UI', files: [
+        'contextBottomUI.js', 'inlineMessageRenderer.js', 'iframeRenderer.js', 'containerManager.js',
+        'moduleFilters.js', 'nestedModuleAnchors.js', 'processResultBuilder.js',
+        'messageAiButton.js', 'EntryButton.js', 'ModuleEditor.js', 'generationRecordsPanel.js',
+        'Toolbox.js', 'GlobalSettings.js', 'AsyncSettings.js', 'ChangesSummary.js', 'CharacterBinding.js',
+        'DragHandler.js', 'ImportExport.js', 'ModuleDetailRenderer.js', 'VariableListRenderer.js',
+    ] },
+    { id: 'generator', label: '生成器', files: [
+        'moduleAiGenerator.js', 'aiCaller.js', 'backendService.js', 'continuityCoreServerApi.js',
+    ] },
+    { id: 'storage', label: '存储', files: [
+        'floorModuleStore.js', 'chatModuleEntryStore.js', 'floorBridge.js', 'chatFileBridge.js',
+        'variableBridge.js', 'perMessageStorage.js', 'storageKeyBuilder.js',
+    ] },
+    { id: 'config', label: '配置/工具', files: [
+        'configManager.js', 'moduleConfigService.js', 'regexUtils.js', 'worldBookUtils.js',
+        'variableReplacer.js', 'textConverter.js', 'stringUtils.js', 'numberParser.js',
+        'timeParser.js', 'identifierParser.js', 'depthCalculator.js', 'moduleParser.js',
+        'promptGenerator.js', 'styleCombiner.js',
+    ] },
+];
+
+/**
+ * 检查调试日志是否启用（全局总开关 debug.global）。
  * @returns {boolean} 调试日志是否启用
  */
 export function isDebugLogsEnabled() {
@@ -16,6 +57,23 @@ export function isDebugLogsEnabled() {
     // 原因：configManager.js 在初始化早期（load 阶段）就会调用 debugLog/errorLog，
     // 若 logger 反向依赖 configManager 会形成循环依赖，导致 configManager is not defined。
     return settings?.debug?.global === true;
+}
+
+/**
+ * 按调用文件名判断是否应输出该 debugLog（细分分组门控，见 DEBUG_GROUPS）。
+ * @param {string} fileName 调用文件名
+ * @returns {boolean}
+ */
+function isGroupLogEnabled(fileName) {
+    const settings = extension_settings?.[extensionName]?.[EXTENSION_CONFIG_KEY];
+    const logGroups = settings?.debug?.logGroups || {};
+    // 命中已启用分组 → 显示
+    for (const g of DEBUG_GROUPS) {
+        if (logGroups[g.id] === true && g.files.includes(fileName)) return true;
+    }
+    // 属于某分组但未启用 → 不显示；不属于任何分组（工具/UI 组件）→ 随全局总开关显示
+    const belongsToAny = DEBUG_GROUPS.some(g => g.files.includes(fileName));
+    return !belongsToAny;
 }
 
 /**
@@ -72,10 +130,11 @@ function getCallerInfo() {
  * @param {...any} args 日志参数
  */
 export function debugLog(...args) {
-    if (isDebugLogsEnabled()) {
-        const callerInfo = getCallerInfo();
-        console.log("[Continuity]", `[${callerInfo}]`, ...args);
-    }
+    if (!isDebugLogsEnabled()) return;
+    const callerInfo = getCallerInfo();
+    const fileName = callerInfo.split(':')[0];
+    if (!isGroupLogEnabled(fileName)) return;
+    console.log("[Continuity]", `[${callerInfo}]`, ...args);
 }
 
 /**

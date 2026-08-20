@@ -2,7 +2,7 @@
 
 import configManager, { extensionFolderPath } from "../singleton/configManager.js";
 import moduleCacheManager from "../singleton/moduleCacheManager.js";
-import { infoLog, errorLog, debugLog } from "../utils/logger.js";
+import { infoLog, errorLog, debugLog, DEBUG_GROUPS } from "../utils/logger.js";
 import { removeUIfromContextBottom } from "../core/contextBottomUI.js";
 import { addAiButtonsToAllMessages, removeAllAiButtons } from "../ui/messageAiButton.js";
 import {
@@ -49,6 +49,7 @@ export function loadSettingsToUI() {
     $("#continuity_backend_url").val(extensionConfig.server?.url);
     $("#continuity_debug_logs").prop("checked", extensionConfig.debug?.global === true);
     $("#continuity_debug_intercept_send").prop("checked", extensionConfig.debug?.interceptSend === true);
+    renderDebugLogGroups();
     $("#continuity_button_type").val(extensionConfig.module?.buttonType || "embedded");
     $("#continuity_message_range_view").prop("checked", extensionConfig.stFeatureEnhance?.messageRangeView !== false);
     $("#continuity_quick_reply_optimize").prop("checked", Boolean(extensionConfig.stFeatureEnhance?.quickReplyOptimize));
@@ -111,6 +112,51 @@ export function onDebugLogsToggle(event) {
     const extensionConfig = configManager.getExtensionConfig();
     extensionConfig.debug = extensionConfig.debug || {};
     extensionConfig.debug.global = debugLogs;
+    configManager.setExtensionConfig(extensionConfig);
+    // 全局关闭时细分分组不可勾选（disabled 联动）
+    updateDebugGroupStates();
+}
+
+/**
+ * 渲染调试日志细分分组 checkbox（DEBUG_GROUPS 定义见 utils/logger.js）。
+ * 作为「显示调试日志」卡片的子项（.setting-extra 缩进），不展示文件列表。
+ */
+export function renderDebugLogGroups() {
+    const container = document.getElementById('ccore_debug_groups');
+    if (!container) return;
+    const extensionConfig = configManager.getExtensionConfig();
+    const logGroups = extensionConfig.debug?.logGroups || {};
+    container.innerHTML = DEBUG_GROUPS.map(g => {
+        const checked = logGroups[g.id] === true ? 'checked' : '';
+        return `<label class="ccore-debug-group-item">
+            <input type="checkbox" data-group-id="${g.id}" ${checked} />
+            <span>${g.label}</span>
+        </label>`;
+    }).join('');
+    updateDebugGroupStates();
+    container.querySelectorAll('input[type="checkbox"]').forEach(input => {
+        input.addEventListener('input', (e) => onDebugLogGroupToggle(e.target.dataset.groupId, e.target.checked));
+    });
+}
+
+/** 全局「显示调试日志」未勾选时，禁用细分分组勾选。 */
+export function updateDebugGroupStates() {
+    const globalOn = configManager.getExtensionConfig().debug?.global === true;
+    document.querySelectorAll('#ccore_debug_groups input[type="checkbox"]').forEach(input => {
+        input.disabled = !globalOn;
+    });
+}
+
+/**
+ * 切换调试日志细分分组开关（写 debug.logGroups）。
+ * @param {string} groupId DEBUG_GROUPS 分组 id
+ * @param {boolean} enabled
+ */
+export function onDebugLogGroupToggle(groupId, enabled) {
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.debug = extensionConfig.debug || {};
+    extensionConfig.debug.logGroups = extensionConfig.debug.logGroups || {};
+    extensionConfig.debug.logGroups[groupId] = Boolean(enabled);
     configManager.setExtensionConfig(extensionConfig);
 }
 

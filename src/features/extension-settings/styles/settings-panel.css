@@ -262,6 +262,24 @@
     padding-left: 24px;
 }
 
+/* 调试日志细分分组子项（「显示调试日志」卡片内缩进） */
+.ccore-debug-group-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    color: var(--SmartThemeBodyColor);
+    cursor: pointer;
+    margin: 2px 0;
+}
+.ccore-debug-group-item input[type="checkbox"] {
+    margin: 0;
+}
+.ccore-debug-group-item:has(input:disabled) {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* 卡片内表单行（去除外层冗余间距） */
 .continuity-setting-card .continuity-form-row {
     margin-top: 2px;
