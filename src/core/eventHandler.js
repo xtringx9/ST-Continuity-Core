@@ -13,7 +13,7 @@ import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
 import { CHAT_MODULE_ENTRIES_UPDATED_EVENT } from "./chatModuleEntryStore.js";
 import { incrementalModulesChanged } from "./pipeline/incrementalModuleCompare.js";
 import { getChatCacheKey, invalidateOccurrence, invalidateSourceAll, clearOccurrenceCache } from "./occurrenceCache.js";
-import { markSnapshotDirty, resetSnapshotDirty } from "./snapshotStore.js";
+import { markSnapshotDirty, resetSnapshotDirty, clearSnapshots } from "./snapshotStore.js";
 import { clearBuildCache } from "./rebuildProcessor.js";
 import { taskRegistry } from "./taskRegistry.js";
 
@@ -99,7 +99,7 @@ export class EventHandler {
                 resetSnapshotDirty();
                 // build 增量缓存按聊天隔离，切聊天清空
                 clearBuildCache();
-            });
+            }, false, "", true);
             // ⚠️ 监听 ST 编辑框打开（document 委托 .mes_edit 点击）缓存该层旧文本：
             // ST 无编辑开始事件、MESSAGE_UPDATED 触发时 chat 已是新文本，拿不到 before。
             // 这里在编辑框打开瞬间（chat 仍是旧值）缓存，MESSAGE_UPDATED 时用 incrementalModulesChanged 对比。
@@ -132,7 +132,7 @@ export class EventHandler {
                 } else {
                     scheduleMsgBottom('suffix', x);
                 }
-            });
+            }, false, "", true);
             this.registerEvent(event_types.MESSAGE_SWIPED, (mesid) => {
                 const x = Number(mesid);
                 if (!Number.isNaN(x)) {
@@ -141,17 +141,17 @@ export class EventHandler {
                     markSnapshotDirty(x);
                 }
                 scheduleMsgBottom('single', mesid);
-            });
-            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, (mesid) => scheduleMsgBottom('single', mesid));
+            }, false, "", true);
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, (mesid) => scheduleMsgBottom('single', mesid), false, "", true);
             // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, (mesid) => scheduleMsgBottom('full')); // 暂不注册
-            this.registerEvent(event_types.MORE_MESSAGES_LOADED, () => scheduleMsgBottom('full'));
+            this.registerEvent(event_types.MORE_MESSAGES_LOADED, () => scheduleMsgBottom('full'), false, "", true);
 
-            this.registerEvent(event_types.CHAT_CHANGED, checkRenderCurrentMessageContext);
+            this.registerEvent(event_types.CHAT_CHANGED, checkRenderCurrentMessageContext, false, "", true);
             // this.registerEvent(event_types.MESSAGE_EDITED, checkRenderCurrentMessageContext);
-            this.registerEvent(event_types.MESSAGE_SWIPED, checkRenderCurrentMessageContext);
-            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkRenderCurrentMessageContext);
+            this.registerEvent(event_types.MESSAGE_SWIPED, checkRenderCurrentMessageContext, false, "", true);
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkRenderCurrentMessageContext, false, "", true);
             // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkRenderCurrentMessageContext);
-            this.registerEvent(event_types.MORE_MESSAGES_LOADED, checkRenderCurrentMessageContext);
+            this.registerEvent(event_types.MORE_MESSAGES_LOADED, checkRenderCurrentMessageContext, false, "", true);
             // 编辑消息正文：正文内从该层到末尾（后缀）渲染，而非只该层/全量。
             // ⚠️ force：后续楼层正文的模块原文已被样式替换，普通路径找不到原文会跳过；
             // 增量模块变化影响后续楼层正文内 → 需 force 重建原文再替换。
@@ -173,7 +173,7 @@ export class EventHandler {
                     if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
                     else checkRenderCurrentMessageContext(null, true);
                 }
-            });
+            }, false, "", true);
             // infoLog('[EVENTS]UI相关事件处理器注册成功');
         } catch (error) {
             errorLog('[EVENTS]注册UI相关事件处理器失败:', error);
@@ -189,16 +189,16 @@ export class EventHandler {
      */
     initializeMessageAiButton() {
         try {
-            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, addAiButtonToMessage);
-            this.registerEvent(event_types.USER_MESSAGE_RENDERED, addAiButtonToMessage);
-            this.registerEvent(event_types.MESSAGE_RECEIVED, addAiButtonToMessage);
-            this.registerEvent(event_types.MESSAGE_SENT, addAiButtonToMessage);
-            this.registerEvent(event_types.MORE_MESSAGES_LOADED, addAiButtonsToAllMessages);
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, addAiButtonToMessage, false, "", true);
+            this.registerEvent(event_types.USER_MESSAGE_RENDERED, addAiButtonToMessage, false, "", true);
+            this.registerEvent(event_types.MESSAGE_RECEIVED, addAiButtonToMessage, false, "", true);
+            this.registerEvent(event_types.MESSAGE_SENT, addAiButtonToMessage, false, "", true);
+            this.registerEvent(event_types.MORE_MESSAGES_LOADED, addAiButtonsToAllMessages, false, "", true);
 
             // 生成结束（含失败/中止）：兜底重新添加按钮
             this.registerEvent(event_types.GENERATION_ENDED, () => {
                 setTimeout(addAiButtonsToAllMessages, 100);
-            });
+            }, false, "", true);
         } catch (error) {
             errorLog('[EVENTS]注册消息AI按钮事件失败:', error);
         }
@@ -306,19 +306,28 @@ export class EventHandler {
             } catch (err) {
                 errorLog('[EVENTS]自动触发模块生成异常:', err);
             }
-        });
+        }, false, "", true);
     }
 
     /**
      * 通用UI事件注册方法（支持同一事件类型注册多个处理器）
+     * @param {string} eventType 事件类型
+     * @param {Function} func 处理器
+     * @param {boolean} [printEvent=false] 触发时打印调试日志
+     * @param {string} [printKey=""] printEvent 时的日志前缀
+     * @param {boolean} [requireEnabled=false] 是否受全局 enabled 开关控制：
+     *   true → 插件禁用时跳过执行（运行期动态判断，切换开关即时生效）。
+     *   核心功能（缓存维护 / 消息底部 UI / Cc 按钮 / 自动生成）统一声明 true，
+     *   避免禁用状态仍跑缓存/管线逻辑；内部已自行门控的（宏、世界书、正则）无需重复声明。
      */
-    registerEvent(eventType, func, printEvent = false, printKey = "") {
+    registerEvent(eventType, func, printEvent = false, printKey = "", requireEnabled = false) {
         try {
             let handler = func;
-            if (printEvent) {
-                handler = () => {
-                    debugLog(`${printKey ? `[${printKey}]` : ""}触发事件: ${eventType}`);
-                    func();
+            if (printEvent || requireEnabled) {
+                handler = (...args) => {
+                    if (requireEnabled && !configManager.isExtensionEnabled()) return;
+                    if (printEvent) debugLog(`${printKey ? `[${printKey}]` : ""}触发事件: ${eventType}`);
+                    func(...args);
                 }
             }
             // 检查是否已经注册过相同的事件处理器，避免重复注册
@@ -386,6 +395,17 @@ export class EventHandler {
             }
             _editTextCache.clear();
 
+            // ⚠️ 清理各层缓存（occurrence / B 层 / 快照 / build 增量 / 生成内容）。
+            // 现状：本方法暂无调用点——registerEvent 已按全局 enabled 门控（requireEnabled），
+            // 禁用时事件不执行、缓存逻辑不跑，无需此处清理。此段作为「将来运行期
+            // 重新启用/销毁重建」的清理钩子保留：确保缓存从干净状态重建，避免跨会话残留。
+            clearOccurrenceCache();
+            moduleCacheManager.clearAllCache();
+            clearSnapshots();
+            resetSnapshotDirty();
+            clearBuildCache();
+            generatedContentCache.clear();
+
             this.isInitialized = false;
             infoLog('[EVENTS]事件处理器已销毁，所有事件监听器已移除');
         } catch (error) {
@@ -438,17 +458,17 @@ export class EventHandler {
      * 初始化Regex扩展集成
      */
     initializeRegexIntegration() {
-        this.registerEvent(event_types.EXTENSION_SETTINGS_LOADED, registerContinuityRegexPattern);
+        this.registerEvent(event_types.EXTENSION_SETTINGS_LOADED, registerContinuityRegexPattern, false, "", true);
     }
 
     /**
      * 初始化世界书集成
      */
     initializeWorldBookIntegration() {
-        this.registerEvent(event_types.EXTENSION_SETTINGS_LOADED, checkAndInitializeWorldBook);
-        this.registerEvent(event_types.WORLDINFO_SETTINGS_UPDATED, updateCurrentCharWorldBookCache);
-        this.registerEvent(event_types.WORLDINFO_UPDATED, updateCurrentCharWorldBookCache);
-        this.registerEvent(event_types.CHARACTER_EDITOR_OPENED, updateCurrentCharWorldBookCache);
+        this.registerEvent(event_types.EXTENSION_SETTINGS_LOADED, checkAndInitializeWorldBook, false, "", true);
+        this.registerEvent(event_types.WORLDINFO_SETTINGS_UPDATED, updateCurrentCharWorldBookCache, false, "", true);
+        this.registerEvent(event_types.WORLDINFO_UPDATED, updateCurrentCharWorldBookCache, false, "", true);
+        this.registerEvent(event_types.CHARACTER_EDITOR_OPENED, updateCurrentCharWorldBookCache, false, "", true);
     }
 
     initializeModuleCache() {
@@ -459,19 +479,21 @@ export class EventHandler {
         this.registerEvent(event_types.CHAT_CHANGED, () => {
             moduleCacheManager.clearAllCache();
             moduleCacheManager.updateModuleCacheImmediate(false);
-        }, true, "Module Cache");
-        this.registerEvent(event_types.CHAT_CHANGED, () => generatedContentCache.clear(), true, "Generated Content Cache");
-        this.registerEvent(event_types.MESSAGE_SENT, () => moduleCacheManager.updateModuleCacheImmediate(true), true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_RECEIVED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_EDITED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_DELETED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_SWIPED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_SWIPE_DELETED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
-        this.registerEvent(event_types.MESSAGE_UPDATED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache");
-        this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, () => moduleCacheManager.updateModuleCacheDebounced(false), true, "Module Cache");
+        }, true, "Module Cache", true);
+        this.registerEvent(event_types.CHAT_CHANGED, () => generatedContentCache.clear(), true, "Generated Content Cache", true);
+        this.registerEvent(event_types.MESSAGE_SENT, () => moduleCacheManager.updateModuleCacheImmediate(true), true, "Module Cache", true);
+        this.registerEvent(event_types.MESSAGE_RECEIVED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache", true);
+        this.registerEvent(event_types.MESSAGE_EDITED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache", true);
+        this.registerEvent(event_types.MESSAGE_DELETED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache", true);
+        this.registerEvent(event_types.MESSAGE_SWIPED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache", true);
+        this.registerEvent(event_types.MESSAGE_SWIPE_DELETED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache", true);
+        this.registerEvent(event_types.MESSAGE_UPDATED, () => moduleCacheManager.updateModuleCacheDebounced(true), true, "Module Cache", true);
+        this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, () => moduleCacheManager.updateModuleCacheDebounced(false), true, "Module Cache", true);
 
         // F 一期：floor 模块数据变更 → 刷新模块缓存 + 刷新该楼层 UI（机制 A，写侧只发事件，收口在此）
         this.floorModulesUpdatedHandler = (e) => {
+            // 受全局 enabled 控制（window 监听不走 registerEvent，此处手动门控）
+            if (!configManager.isExtensionEnabled()) return;
             const mesId = e?.detail?.mesId;
             debugLog('[Module Cache]楼层模块数据变更，刷新缓存:', e?.detail);
             moduleCacheManager.updateModuleCacheDebounced(true);
@@ -498,6 +520,8 @@ export class EventHandler {
         //   full   → 全量（负数起始态条目 / 整体开关 / 清空）
         //   none   → 渲染相关字段无变化，跳过
         this.chatModuleEntriesUpdatedHandler = (e) => {
+            // 受全局 enabled 控制（window 监听不走 registerEvent，此处手动门控）
+            if (!configManager.isExtensionEnabled()) return;
             const { floor, affect, inline } = e?.detail || {};
             debugLog('[Module Cache]聊天级模块条目变更，刷新缓存', { floor, affect, inline });
             if (affect === 'none') return;
