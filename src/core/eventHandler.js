@@ -279,10 +279,11 @@ export class EventHandler {
                 };
 
                 infoLog(`[EVENTS]消息接收完毕，自动触发楼层 ${lastIdx} 的模块异步生成`);
-                // ⚠️ Bug 修复：GENERATION_ENDED 发射时 ST 尚未执行 showSwipeButtons()（在 hideStopButton → emit 之后），
-                //   若同步启动 generate → _callPipeline 立即 chat.push 临时生成指令消息（is_user:true），
-                //   污染 chat[last] → ST 的 showSwipeButtons 读到 is_user 直接 return → 该消息 swipe 箭头消失。
-                //   延迟到下一帧（ST 已恢复 UI）再启动；lastIdx 用延迟后的 chat.length-1（避免期间消息变化）。
+                // ⚠️ 必须延迟启动（bce35d7 已定位根因）：GENERATION_ENDED 发射时 ST 尚未执行
+                //   showSwipeButtons()（在 hideStopButton → emit 之后）。若同步启动 generate →
+                //   pipeline 模式会 chat.push 临时 is_user:true 指令消息（aiCaller.js push 模式）→ 污染
+                //   chat[last] → ST showSwipeButtons 读到 is_user 直接 return → 该消息 swipe 箭头消失。
+                //   延迟到下一帧再启动，让 ST 先跑完 showSwipeButtons；lastIdx 用延迟后 chat.length-1。
                 setTimeout(() => {
                     try {
                         const runIdx = chat.length - 1;

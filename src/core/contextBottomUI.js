@@ -660,6 +660,17 @@ let _renderDebounceTimer = null;
 
 export function checkRenderCurrentMessageContext(mesid, force = false) {
     if (!configManager.isLoaded) return false;
+    // ⚠️ 权宜之计（2026-08-20 排查 JS-Slash-Runner 渲染冲突）：正文内刷新暂不使用 force。
+    //   根因：force 分支用 messageText.html(messageFormatting(...)) 整体重建 `.mes_text`，会把
+    //   JS-Slash-Runner 已挂载在 `.mes_text` 内的 <pre>/<div.TH-render>/<iframe> 一并清掉，
+    //   且 JS-Slash 在 MESSAGE_UPDATED 只移除旧 runtime 不主动重挂 → 只剩 HTML 源码不渲染。
+    //   先统一强制 single（non-force，走 Range 精确替换，不触碰 .mes_text 内其它节点）。
+    //
+    //   ⚠️ 权衡：这牺牲了「已渲染层原文已被替换时 force 的强制刷新能力」（该场景下 non-force
+    //   因 DOM 中已找不到原文会跳过）。后续若要根治，应改为：给 inject 的样式节点加 data-cc-inline
+    //   标记，force 时只移除这些节点、保留 JS-Slash 的 iframe，而不是整体 messageText.html() 覆盖。
+    //   下方 renderCurrentMessageContext 的 force 逻辑出于排查需要暂未删除。
+    force = false;
     debugLog('[UI EVENTS]RenderUI: 开始渲染当前消息上下文', mesid, force ? '(force)' : '');
     if (configManager.isExtensionEnabled()) {
         if (!isInChatPage()) {
