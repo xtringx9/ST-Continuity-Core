@@ -28,6 +28,7 @@ import {
     getMsgUIFilteredModuleConfigs,
 } from './context-ui/moduleFilters.js';
 import { buildStyledProcessResult } from './context-ui/processResultBuilder.js';
+import { buildNestedAnchorIndex, replaceNestedByAnchors } from './context-ui/nestedModuleAnchors.js';
 import { renderCurrentMessageContext } from './context-ui/inlineMessageRenderer.js';
 import { IframeModal } from '../shared/IframeModal.js';
 
@@ -145,6 +146,8 @@ export async function updateUItoMsgBottom(targetMesIds = null) {
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, false, false);
+        // 内容锚点索引：按「模块名+主键值」索引全部条目（含增量 timeline 版本），供循环内嵌套兜底
+        const anchorIndex = buildNestedAnchorIndex(processResult);
         debugLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         // 仅选取需要重注入样式的消息容器（Q1：精准/后缀刷新，避免对全部消息重建 iframe）
@@ -208,6 +211,8 @@ export async function updateUItoMsgBottom(targetMesIds = null) {
             // 嵌套子模块二次替换：父模块 customStyles 内嵌的 [file|...] 原文 → 子模块样式
             // （消息底部区块只拼接 customStyles，不做嵌套替换，这里统一补上）
             finalString = replaceNestedRawWithStyles(finalString, modulesForThisMessage);
+            // 内容锚点兜底：全文匹配失败时按「模块名+主键」解析内嵌片段替换（增量 file 变化也能命中）
+            finalString = replaceNestedByAnchors(finalString, anchorIndex);
             injectHtmlToIframe(container, finalString);
         }
 
@@ -322,6 +327,28 @@ function replaceNestedRawWithStyles(html, messages) {
     return restore(result);
 }
 
+/**
+ * 汇总（上下文底部 / 弹窗）的嵌套子模块二次替换准备：
+ * 把 processResult 全部内容模块的 data 条目收集成 { moduleData:{raw}, customStyles } 列表，
+ * 与消息底部区块 replaceNestedRawWithStyles 的用法一致（父样式内嵌的子模块原文 → 子模块样式）。
+ */
+function collectStyledEntriesForNestedReplace(processResult) {
+    const entries = [];
+    Object.keys(processResult?.content || {}).forEach(moduleName => {
+        const md = processResult.content[moduleName];
+        const data = md?.data;
+        if (!Array.isArray(data)) return;
+        data.forEach(item => {
+            if (!item?.customStyles) return;
+            const raw = item.moduleData?.raw ?? item.raw;
+            if (typeof raw === 'string' && raw.trim()) {
+                entries.push({ moduleData: { raw }, customStyles: item.customStyles });
+            }
+        });
+    });
+    return entries;
+}
+
 // 防止重复插入的标记
 let isUpdatingContextBottomUI = false;
 
@@ -393,6 +420,10 @@ export async function updateUItoContextBottom() {
         const resultString = getModulesDataAndStyles(processResult);
         let finalString = configManager.getGlobalSettings().bottomStyles || '<!-- 上下文底部UI模板 - 竖向按钮版本 -->\n            <div id="continuity-context-bottom-container" class="context-bottom-wrapper">\n                <details class="bottom-summary">\n                    <summary class="summary-title">Modules</summary>\n                    <div class="modules-content-container">${customStyles}</div>\n                </details>\n            </div>';
         finalString = finalString.replace('${customStyles}', resultString);
+        // 嵌套子模块二次替换：汇总只拼接 containerStyles，不处理嵌套——父样式内嵌的子模块原文 → 子模块样式
+        finalString = replaceNestedRawWithStyles(finalString, collectStyledEntriesForNestedReplace(processResult));
+        // 内容锚点兜底：全文匹配失败时按「模块名+主键」解析内嵌片段替换（增量 file 变化也能命中）
+        finalString = replaceNestedByAnchors(finalString, buildNestedAnchorIndex(processResult));
         // container.innerHTML = finalString;
         injectHtmlToIframe(container, finalString);
 
@@ -707,6 +738,10 @@ export function openContextBottomAsModal() {
     let bodyContent = configManager.getGlobalSettings().bottomStyles ||
         '<div id="continuity-context-bottom-container" class="context-bottom-wrapper"><details class="bottom-summary"><summary class="summary-title">Modules</summary><div class="modules-content-container">${customStyles}</div></details></div>';
     bodyContent = bodyContent.replace('${customStyles}', resultString);
+    // 嵌套子模块二次替换：弹窗汇总同样只拼接 containerStyles，父样式内嵌的子模块原文 → 子模块样式
+    bodyContent = replaceNestedRawWithStyles(bodyContent, collectStyledEntriesForNestedReplace(processResult));
+    // 内容锚点兜底：全文匹配失败时按「模块名+主键」解析内嵌片段替换（增量 file 变化也能命中）
+    bodyContent = replaceNestedByAnchors(bodyContent, buildNestedAnchorIndex(processResult));
 
     // interactionScript：toggle 变量显示功能（与 injectHtmlToIframe 一致）
     const interactionScript = `

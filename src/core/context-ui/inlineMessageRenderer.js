@@ -3,6 +3,7 @@ import { groupProcessResultByMessageIndex } from '../moduleProcessor.js';
 import { getCurrentMessageContainer } from './containerManager.js';
 import { getRenderUIFilteredModuleConfigs } from './moduleFilters.js';
 import { buildStyledProcessResult } from './processResultBuilder.js';
+import { buildNestedAnchorIndex, replaceNestedAnchorInDom } from './nestedModuleAnchors.js';
 import { chat, messageFormatting } from '../../../../../../../script.js';
 
 /**
@@ -50,6 +51,8 @@ export function renderCurrentMessageContext(mesIds = null, force = false) {
         }
 
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, true, true);
+        // 内容锚点索引：按「模块名+主键值」索引全部条目（含增量 timeline 版本），供正文内嵌套兜底
+        const anchorIndex = buildNestedAnchorIndex(processResult);
         debugLog('[CUSTOM STYLES]按messageIndex分组前后的模块数据:', processResult, groupedByMessageIndex);
 
         for (let i = containers.length - 1; i >= 0; i--) {
@@ -81,7 +84,7 @@ export function renderCurrentMessageContext(mesIds = null, force = false) {
                 }
             }
 
-            renderSingleMessageContext(modulesForThisMessage, messageText, message);
+            renderSingleMessageContext(modulesForThisMessage, messageText, message, anchorIndex);
         }
 
         return true;
@@ -186,7 +189,7 @@ function replaceRawWithStyles(root, raw, customStylesHtml) {
     return matches.length;
 }
 
-export function renderSingleMessageContext(messages, container, mes) {
+export function renderSingleMessageContext(messages, container, mes, anchorIndex) {
     try {
         if (!messages || !container || container.length === 0) {
             debugLog('renderSingleMessageContext: 参数无效，跳过渲染');
@@ -238,6 +241,17 @@ export function renderSingleMessageContext(messages, container, mes) {
             }
         });
 
+        if (replacedCount > 0) {
+            mes.attr('renderSwipe', swipeId);
+        }
+        // 内容锚点兜底：raw 全文未命中的嵌套子模块片段（增量变化的 file 等），
+        // 按「模块名+主键」定位到原始片段并替换成对应样式。
+        if (anchorIndex && anchorIndex.size) {
+            const { segments, fullText } = collectTextSegments(domNode);
+            if (fullText) {
+                replacedCount += replaceNestedAnchorInDom({ segments, fullText, buildRangeForOffset }, anchorIndex);
+            }
+        }
         if (replacedCount > 0) {
             mes.attr('renderSwipe', swipeId);
         }
