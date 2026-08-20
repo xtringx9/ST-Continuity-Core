@@ -195,6 +195,10 @@ export function renderVariableList(module, container, doc, checkForChanges, allM
                         <input type="checkbox" ${variable.isNoNormalize ? 'checked' : ''}>
                         ${translate('ccore_label_var_no_normalize')}
                     </button>
+                    <button class="btn-text-toggle var-keep-full ${variable.keepFull ? 'active' : ''}">
+                        <input type="checkbox" ${variable.keepFull ? 'checked' : ''}>
+                        ${translate('ccore_label_var_keep_full')}
+                    </button>
                 </div>
                 <div class="form-group">
                     <label>${translate('ccore_label_var_description')}</label>
@@ -227,6 +231,7 @@ export function renderVariableList(module, container, doc, checkForChanges, allM
             variable.isIdentifier = item.querySelector('.var-identifier').classList.contains('active');
             variable.isBackupIdentifier = item.querySelector('.var-backup-identifier').classList.contains('active');
             variable.isNoNormalize = item.querySelector('.var-no-normalize').classList.contains('active');
+            variable.keepFull = item.querySelector('.var-keep-full').classList.contains('active');
             variable.isHideCondition = item.querySelector('.var-hide-condition').classList.contains('active');
             variable.hideConditionValues = item.querySelector('.var-hide-values').value.split(',').map(s => s.trim()).filter(s => s);
             variable.compatibleVariableNames = item.querySelector('.var-compatible-names').value.split(',').map(s => s.trim()).filter(s => s);

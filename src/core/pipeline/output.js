@@ -175,6 +175,11 @@ export function buildModuleString(moduleData, moduleConfig, isIncremental = fals
                 includedVariables.add(variable.name);
             });
 
+            // 摘要模式：完整保留变量始终包含（即使本轮未变），保持索引完整
+            if (moduleConfig.summaryMode === true) {
+                moduleConfig.variables.filter(v => v.keepFull === true).forEach(v => includedVariables.add(v.name));
+            }
+
             changedKeys.forEach(key => {
                 includedVariables.add(key);
             });
@@ -189,7 +194,13 @@ export function buildModuleString(moduleData, moduleConfig, isIncremental = fals
                 }
             });
         } else {
-            moduleConfig.variables.forEach(variable => {
+            const variables = moduleConfig.variables || [];
+            // 摘要模式：只输出主键/标识 + 完整保留变量（省 token，让 MODULE_DATA 自身成索引）；
+            // 其余变量省略，需要完整值可用引用语法 [[模块名|主键|字段]] 召回
+            const included = moduleConfig.summaryMode === true
+                ? variables.filter(v => v.isIdentifier || v.isBackupIdentifier || v.keepFull === true)
+                : variables;
+            included.forEach(variable => {
                 let value = String(moduleData.variables[variable.name] !== undefined ? moduleData.variables[variable.name] : '') || '';
                 if (variable.name === 'id') {
                     value = formatIdValue(value);

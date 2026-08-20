@@ -328,6 +328,7 @@ const variableKeyToI18nKey = {
     'hideConditionValues': 'label_var_hide_values',
     'isNoNormalize': 'label_var_no_normalize',
     'customStyles': 'label_var_custom_styles',
+    'keepFull': 'label_var_keep_full',
     'compatibleVariableNames': 'label_compatible_variables'
 };
 
@@ -346,6 +347,7 @@ const moduleKeyToI18nKey = {
     'retainMode': 'label_retain_mode',
     'retainCount': 'label_retain_count',
     'timeReferenceStandard': 'label_time_ref',
+    'summaryMode': 'label_summary_mode',
     'isExternalDisplay': 'label_external',
     'compatibleModuleNames': 'label_compatible_modules',
     'timingPrompt': 'label_prompt_timing',

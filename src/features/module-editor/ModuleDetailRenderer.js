@@ -72,6 +72,10 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
                             <input type="checkbox" ${module.timeReferenceStandard ? 'checked' : ''}>
                             ${translate('ccore_label_time_ref')}
                         </button>
+                        <button id="btn-edit-summary-mode" class="btn-text-toggle ${module.summaryMode ? 'active' : ''}">
+                            <input type="checkbox" ${module.summaryMode ? 'checked' : ''}>
+                            ${translate('ccore_label_summary_mode')}
+                        </button>
                     </div>
 
                     <!-- 行为设置 -->
@@ -278,6 +282,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
         module.isExternalDisplay = doc.getElementById('btn-edit-external').classList.contains('active');
         module.timeReferenceStandard = doc.getElementById('btn-edit-time-reference-standard').classList.contains('active');
         module.includeInModuleData = doc.getElementById('btn-edit-include-in-module-data').classList.contains('active');
+        module.summaryMode = doc.getElementById('btn-edit-summary-mode').classList.contains('active');
 
         module.prompt = doc.getElementById('edit-prompt').value;
         module.timingPrompt = doc.getElementById('edit-prompt-timing').value;
@@ -315,6 +320,11 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
         updateModuleData();
     });
     doc.getElementById('btn-edit-include-in-module-data').addEventListener('click', function () {
+        this.classList.toggle('active');
+        const cb = this.querySelector('input'); if (cb) cb.checked = this.classList.contains('active');
+        updateModuleData();
+    });
+    doc.getElementById('btn-edit-summary-mode').addEventListener('click', function () {
         this.classList.toggle('active');
         const cb = this.querySelector('input'); if (cb) cb.checked = this.classList.contains('active');
         updateModuleData();
@@ -407,6 +417,7 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
             usagePrompt: '',
             isIdentifier: false,
             isBackupIdentifier: false,
+            keepFull: false,
             isHideCondition: false,
             hideConditionValues: [],
             isNoNormalize: false,

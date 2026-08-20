@@ -558,6 +558,7 @@ function createNewModule(name) {
         timeReferenceStandard: false,
         isExternalDisplay: false,
         includeInModuleData: true,
+        summaryMode: false,
         externalStyles: '',
         containerStyles: '',
         customStyles: '',
@@ -638,13 +639,14 @@ function handleSmartAdd(inputValue) {
                             outputMode: 'full',
                             retainLayers: -1,
                             retainMode: 'floor',
-                            retainCount: 10,
+                            retainCount: -1,
                             rangeMode: 'specified',
                             itemMin: 0,
                             itemMax: 1,
                             timeReferenceStandard: false,
                             isExternalDisplay: false,
                             includeInModuleData: true,
+                            summaryMode: false,
                             externalStyles: '',
                             containerStyles: '',
                             customStyles: '',
@@ -653,7 +655,8 @@ function handleSmartAdd(inputValue) {
                                 displayName: v.displayName || v.name,
                                 description: v.description || '',
                                 enabled: true,
-                                isIdentifier: false
+                                isIdentifier: false,
+                                keepFull: false
                             }))
                         };
                         currentModules.push(newModule);

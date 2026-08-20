@@ -531,6 +531,10 @@ export function validateConfig(config) {
                 warnings.push(`${modulePrefix}: retainCount字段应为数字`);
             }
 
+            if (module.summaryMode !== undefined && typeof module.summaryMode !== 'boolean') {
+                warnings.push(`${modulePrefix}: summaryMode字段应为布尔值`);
+            }
+
             if (module.timeReferenceStandard !== undefined && typeof module.timeReferenceStandard !== 'boolean') {
                 warnings.push(`${modulePrefix}: timeReferenceStandard字段应为布尔值`);
             }
@@ -575,6 +579,10 @@ export function validateConfig(config) {
 
                     if (variable.isBackupIdentifier !== undefined && typeof variable.isBackupIdentifier !== 'boolean') {
                         warnings.push(`${varPrefix}: isBackupIdentifier字段应为布尔值`);
+                    }
+
+                    if (variable.keepFull !== undefined && typeof variable.keepFull !== 'boolean') {
+                        warnings.push(`${varPrefix}: keepFull字段应为布尔值`);
                     }
 
                     if (variable.isHideCondition !== undefined && typeof variable.isHideCondition !== 'boolean') {
@@ -656,6 +664,7 @@ export function normalizeConfig(config, extension_config = null) {
             timeReferenceStandard: module.timeReferenceStandard || false,
             isExternalDisplay: module.isExternalDisplay || false,
             includeInModuleData: module.includeInModuleData !== undefined ? module.includeInModuleData : true,
+            summaryMode: module.summaryMode === true, // 摘要模式：MODULE_DATA 只输出主键+完整保留变量（省 token）
             externalStyles: module.externalStyles || '',
             containerStyles: module.containerStyles || '',
             customStyles: module.customStyles || '',
@@ -677,6 +686,7 @@ export function normalizeConfig(config, extension_config = null) {
                     // defaultValue: variable.defaultValue || '',
                     isIdentifier: variable.isIdentifier || false,
                     isBackupIdentifier: variable.isBackupIdentifier || false,
+                    keepFull: variable.keepFull === true, // 完整保留：摘要模式下也完整发送该变量
                     isHideCondition: variable.isHideCondition || false,
                     hideConditionValues: variable.hideConditionValues || '',
                     isNoNormalize: variable.isNoNormalize || false,
