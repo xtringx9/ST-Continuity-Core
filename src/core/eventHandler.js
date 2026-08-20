@@ -278,7 +278,7 @@ export class EventHandler {
                     pipelineModifier: defaultPrompt,
                 };
 
-                infoLog(`[EVENTS]消息接收完毕，自动触发楼层 ${lastIdx} 的模块异步生成`);
+                debugLog(`[EVENTS]消息接收完毕，自动触发楼层 ${lastIdx} 的模块异步生成`);
                 // ⚠️ 必须延迟启动（bce35d7 已定位根因）：GENERATION_ENDED 发射时 ST 尚未执行
                 //   showSwipeButtons()（在 hideStopButton → emit 之后）。若同步启动 generate →
                 //   pipeline 模式会 chat.push 临时 is_user:true 指令消息（aiCaller.js push 模式）→ 污染
@@ -317,7 +317,7 @@ export class EventHandler {
             let handler = func;
             if (printEvent) {
                 handler = () => {
-                    infoLog(`${printKey ? `[${printKey}]` : ""}触发事件: ${eventType}`);
+                    debugLog(`${printKey ? `[${printKey}]` : ""}触发事件: ${eventType}`);
                     func();
                 }
             }

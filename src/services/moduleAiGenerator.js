@@ -873,7 +873,7 @@ export const moduleAiGenerator = {
                         if (newId >= 0) {
                             storedCount = 1;
                             if (!isModule) generatedContentCache.set(msg.mesId, generatorName, storeText);
-                            infoLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor，innerSwipe=${newId}）`);
+                            debugLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor，innerSwipe=${newId}）`);
                         } else {
                             errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据写入失败（楼层可能已不存在）`);
                             toastr.error(`楼层 ${msg.mesId} ${generatorName} 数据写入失败`);
@@ -893,10 +893,10 @@ export const moduleAiGenerator = {
                         if (savedCount < messages.length) {
                             toastr.error(`部分楼层 ${generatorName} 数据写入失败（成功 ${savedCount}/${messages.length}）`);
                         }
-                        infoLog(LOG_TAG, `${savedCount}/${messages.length} 条消息 ${generatorName} 数据已存储（floor）`);
+                        debugLog(LOG_TAG, `${savedCount}/${messages.length} 条消息 ${generatorName} 数据已存储（floor）`);
                     }
                 } else {
-                    infoLog(LOG_TAG, `AI 回复中未提取到 ${generatorName} 数据`);
+                    debugLog(LOG_TAG, `AI 回复中未提取到 ${generatorName} 数据`);
                 }
             }
 

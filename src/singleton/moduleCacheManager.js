@@ -1,7 +1,7 @@
 import configManager from "./configManager.js";
 import { chat, chat_metadata, saveSettingsDebounced } from "../../../../../../script.js";
 import { getContext, extension_settings } from "../../../../../extensions.js";
-import { infoLog, errorLog, debugLog } from "../utils/logger.js";
+import { errorLog, debugLog } from "../utils/logger.js";
 import { runModulePipeline } from "../core/pipeline/runModulePipeline.js";
 
 // Tier 2：缓存更新防抖状态（模块级单例状态）
@@ -17,7 +17,7 @@ class ModuleCacheManager {
         this.cache = new Map();
         this.charWorldBookCache = new Map();
 
-        console.log("[Module Cache]ModuleCacheManager 初始化完成");
+        debugLog("[Module Cache]ModuleCacheManager 初始化完成");
     }
 
     /**
@@ -57,7 +57,7 @@ class ModuleCacheManager {
             moduleCacheManager.setCurrentChatData(0, null, result);
         }
 
-        infoLog("[Module Cache]updateModuleCache 执行完成, isForce:", isForce);
+        debugLog("[Module Cache]updateModuleCache 执行完成, isForce:", isForce);
     }
 
     /**
@@ -213,7 +213,7 @@ class ModuleCacheManager {
         }
 
         chatCache.set(rangeKey, data);
-        infoLog(`[Module Cache]${haveData ? '更新缓存' : '存入缓存'},缓存数据已设置：chatIdHash=${chatIdHash}, range=${rangeKey}`, data);
+        debugLog(`[Module Cache]${haveData ? '更新缓存' : '存入缓存'},缓存数据已设置：chatIdHash=${chatIdHash}, range=${rangeKey}`, data);
     }
 
     /**
@@ -306,7 +306,7 @@ class ModuleCacheManager {
 
 
     outputCache() {
-        infoLog("[Module Cache]打印当前缓存数据:", moduleCacheManager.cache, moduleCacheManager.charWorldBookCache);
+        debugLog("[Module Cache]打印当前缓存数据:", moduleCacheManager.cache, moduleCacheManager.charWorldBookCache);
     }
 }
 
