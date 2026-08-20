@@ -2,14 +2,19 @@
 // 为每条消息添加模块操作按钮（Cc 菜单触发器 + 展开的多框菜单）
 // Cc 点击 → 同行右侧展开：[模块框: 重新生成 编辑 版本切换] [各 generator 框: 重新生成 编辑 版本切换] ...
 
-import { chat, eventSource, event_types } from '../../../../../../script.js';
+import { chat, eventSource, event_types, saveChatDebounced } from '../../../../../../script.js';
 import { Popup, POPUP_TYPE, POPUP_RESULT } from '../../../../../popup.js';
 import { debugLog, infoLog, errorLog } from '../utils/logger.js';
 import { moduleAiGenerator, hasPendingResult, reopenPendingDebugPanel, getPendingCountForMes, getRunningCountForMes } from '../services/moduleAiGenerator.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom, checkRenderCurrentMessageContext } from '../core/contextBottomUI.js';
-import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
+import { renderCurrentMessageContext } from '../core/context-ui/inlineMessageRenderer.js';
+import { showToast } from '../shared/Toast.js';
+import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
+import { parseNestedModules } from '../core/moduleExtractor.js';
+import { getChatCacheKey, invalidateOccurrence } from '../core/occurrenceCache.js';
+import { markSnapshotDirty } from '../core/snapshotStore.js';
 import { incrementalModulesChanged } from '../core/pipeline/incrementalModuleCompare.js';
 import { resolveModuleChangeAffect } from '../core/pipeline/resolveModuleChangeAffect.js';
 import { taskRegistry } from '../core/taskRegistry.js';
@@ -294,11 +299,12 @@ function createInlineMenu(triggerButton, mesId) {
     const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
     const asyncEnabled = !!asyncModule.enabled;
 
-    // 1. 模块框：重新生成 + 编辑（+ 版本切换，无 label；「模块汇总」已隐藏——大 Cc 按钮已有）
+    // 1. 模块框：重新生成 + 编辑 + 归位 after_body（+ 版本切换，无 label；「模块汇总」已隐藏——大 Cc 按钮已有）
     const moduleRegenIcon = hasPendingResult('modules', mesId) ? 'fa-hourglass-half' : 'fa-arrows-rotate';
     const moduleActions = [
         { action: 'regenerate', icon: moduleRegenIcon, title: '生成模块', needAsync: true },
         { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块', needAsync: true },
+        { action: 'relocateAfterBody', icon: 'fa-arrow-down', title: '转移', needAsync: true },
     ];
     menu.append(createMenuBox(moduleActions, asyncEnabled, triggerButton, mesId, null, 'modules'));
 
@@ -649,10 +655,83 @@ async function onMenuAction(action, triggerButton, mesId, clickedBtn) {
         case 'edit':
             onEditModules(mesId);
             break;
+        case 'relocateAfterBody':
+            onRelocateAfterBodyToFloor(mesId);
+            break;
         case 'summary':
             onSummaryPanel();
             break;
     }
+}
+
+/**
+ * 「归位 after_body 到 floor」：把当前楼层正文中 outputPosition==='after_body' 的模块原文
+ * 从正文删除（真移动，需保存 chat），写入 floor generators['modules'][当前outerSwipe]：
+ *   无版本 → appendGeneratorContent 新增（自动激活）；有版本 → 追加到当前激活版本底部。
+ * 走 floorModuleStore 写操作收口触发 FLOOR_MODULES_UPDATED_EVENT 刷新 UI/缓存。
+ * @param {number} mesId
+ */
+function onRelocateAfterBodyToFloor(mesId) {
+    const message = chat[mesId];
+    if (!message) return;
+    const text = message.mes || message.content || '';
+    if (!text) return;
+
+    // 1. 解析正文模块，筛顶层 outputPosition==='after_body'
+    const parsed = parseNestedModules(text);
+    if (!parsed || parsed.length === 0) {
+        showToast(`#${mesId} 正文中未检测到模块`, 'warning');
+        return;
+    }
+    const cfgByName = new Map((configManager.getModules() || []).map(m => [m.name, m]));
+    // 只处理顶层（level===0）after_body 模块；嵌套子模块属于父模块内部，不单独移
+    const targets = parsed
+        .filter(m => m.level === 0 && cfgByName.get(m.moduleName)?.outputPosition === 'after_body')
+        .sort((a, b) => a.startIndex - b.startIndex);
+    if (targets.length === 0) {
+        showToast(`#${mesId} 未检测到 after_body 模块`, 'warning');
+        return;
+    }
+
+    // 2. 从正文删除（从后往前删，前部索引不受后部删除影响）
+    const movedRaw = targets.map(t => text.substring(t.startIndex, t.endIndex + 1));
+    let newText = text;
+    for (let i = targets.length - 1; i >= 0; i--) {
+        const t = targets[i];
+        newText = newText.slice(0, t.startIndex) + newText.slice(t.endIndex + 1);
+    }
+    if (newText === text) {
+        showToast(`#${mesId} 未能从正文移除 after_body 模块`, 'warning');
+        return; // 无实际删除
+    }
+
+    // 3. 更新正文 + 保存聊天
+    message.mes = newText;
+    saveChatDebounced();
+
+    // 4. 写入 floor：无版本→新增；有版本→追加到当前激活版本底部
+    const outerSwipeId = message.swipe_id ?? 0;
+    const newRaw = movedRaw.join('\n');
+    const versions = readAllGeneratorContents(mesId, 'modules', outerSwipeId, { includeEmpty: true });
+    if (versions && Object.keys(versions).length > 0) {
+        const active = getActiveGeneratorSwipe(mesId, 'modules', outerSwipeId);
+        const existing = readGeneratorContent(mesId, 'modules', outerSwipeId, active) || '';
+        overwriteGeneratorContent(mesId, 'modules', outerSwipeId, existing.replace(/\s+$/, '') + '\n' + newRaw);
+    } else {
+        appendGeneratorContent(mesId, 'modules', outerSwipeId, newRaw);
+    }
+
+    // 5. 正文变更补充失效（floor 写入已由 FLOOR_MODULES_UPDATED_EVENT 刷新该层）
+    invalidateOccurrence(getChatCacheKey(), 'chatText', mesId);
+    markSnapshotDirty(mesId);
+
+    // 6. ⚠️ 已注释：renderCurrentMessageContext(mesId, true) 强制重建该层正文会带来别的问题
+    //（force 重建 .mes_text 影响 JS-Slash 等挂载节点）。正文删除模块原文的更新
+    // 依赖后续事件/刷新自然覆盖；floor 写入已由 FLOOR_MODULES_UPDATED_EVENT 刷新该层消息底部。
+    // try { renderCurrentMessageContext(mesId, true); } catch (err) { errorLog(...); }
+
+    infoLog(LOG_TAG, `楼层 ${mesId} 转移 ${targets.length} 个 after_body 模块到 floor`);
+    showToast(`已转移 #${mesId} 的 after_body 模块到 floor（${targets.length} 个）`, 'success');
 }
 
 /**

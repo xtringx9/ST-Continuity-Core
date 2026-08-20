@@ -14,6 +14,10 @@ import { debugLog, errorLog } from '../utils/logger.js';
 import { getContext } from '../../../../../extensions.js';
 import { groupProcessResultByMessageIndex } from './moduleProcessor.js';
 import configManager from '../singleton/configManager.js';
+import moduleCacheManager from '../singleton/moduleCacheManager.js';
+import { clearOccurrenceCache } from './occurrenceCache.js';
+import { clearSnapshots, resetSnapshotDirty } from './snapshotStore.js';
+import { clearBuildCache } from './rebuildProcessor.js';
 import {
     CONTEXT_BOTTOM_CONTAINER_ID,
     CONTEXT_MSG_CONTAINER_ID,
@@ -143,6 +147,7 @@ export async function updateUItoMsgBottom(targetMesIds = null) {
             errorLog('更新上下文底部UI失败');
             return false;
         }
+
         // debugLog('按messageIndex分组前的模块数据:', processResult);
         // 按messageIndex分组处理模块数据
         const groupedByMessageIndex = groupProcessResultByMessageIndex(processResult, false, false);
@@ -653,6 +658,23 @@ export function checkUItoContextBottom() {
  */
 export function checkUItoMsgBottom() {
     scheduleMsgBottom('full');
+}
+
+/**
+ * 模块配置变化统一刷新（全局 / 角色级 / 聊天级覆盖共用入口）。
+ * 模块配置（outputPosition/outputMode/retainLayers/enabled/样式等）变化会影响
+ * moduleKey → dedup/压缩/累积结果，故清全部数据缓存 + 全量刷新渲染。
+ * ⚠️ 配置变化低频、保存时难以低成本区分改了什么字段 → 统一清缓存（成本可接受）。
+ * 纯样式字段本可只刷渲染，但统一清缓存更稳妥。
+ */
+export function refreshOnModuleConfigChange() {
+    moduleCacheManager.clearAllCache();   // B 层整段缓存
+    clearOccurrenceCache();               // occurrence 每层提取缓存
+    clearSnapshots();                     // 快照 checkpoint
+    resetSnapshotDirty();                 // 快照 dirty 会话
+    clearBuildCache();                    // build 增量缓存
+    scheduleMsgBottom('full');            // 消息底部全量刷新（内部重新提取重建缓存）
+    checkRenderCurrentMessageContext(null); // 正文内全量刷新
 }
 
 /** 增量渲染延迟定时器（等待缓存 debounce 刷新完成，见 checkRenderCurrentMessageContext） */

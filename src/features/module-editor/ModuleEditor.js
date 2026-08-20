@@ -5,10 +5,11 @@
 
 import { translate } from '../../../../../../i18n.js';
 import configManager from '../../singleton/configManager.js';
-import { debugLog, infoLog } from '../../utils/logger.js';
+import { debugLog, infoLog, errorLog } from '../../utils/logger.js';
 import { renderGlobalSettings } from './GlobalSettings.js';
 import { renderAsyncSettings } from './AsyncSettings.js';
 import { addAiButtonsToAllMessages } from '../../ui/messageAiButton.js';
+import { refreshOnModuleConfigChange } from '../../core/contextBottomUI.js';
 import { renderToolbox } from './Toolbox.js';
 import { initCharacterBinding } from './CharacterBinding.js';
 import { parseModuleString, validateModuleString } from '../../modules/moduleParser.js';
@@ -958,6 +959,14 @@ function saveAll() {
     }
     configManager.saveModuleConfigNow();
     infoLog("[ModuleEditor] 所有配置已保存");
+
+    // ⚠️ 模块配置变化（全局）：清全部数据缓存 + 全量刷新渲染（消息底部 + 正文内）。
+    // 提前到保存完成后立即执行 + try-catch，避免后续 UI 操作（改名迁移/重渲列表）异常中断导致不刷新
+    try {
+        refreshOnModuleConfigChange();
+    } catch (err) {
+        errorLog('[ModuleEditor] 配置变化刷新失败:', err);
+    }
 
     // 异步开关变化：刷新每条消息小 Cc 按钮显隐（与 settings-panel 原 onAsyncEnabledToggle 行为一致）
     if ((originalAsyncModule.enabled || false) !== (currentAsyncModule.enabled || false)) {

@@ -13,6 +13,7 @@
 
 import { translate } from '../../../../../../i18n.js';
 import configManager from '../../singleton/configManager.js';
+import { refreshOnModuleConfigChange } from '../../core/contextBottomUI.js';
 import { IframeDialog } from '../../shared/IframeDialog.js';
 // 直接 import SillyTavern 的 getContext（同目录 Toolbox.js 已验证可用：iframe 内可经此拿到实时角色/聊天上下文）
 // ⚠️ getContext() 返回对象含 chat 数组（st-context.js:96）——iframe 内不要 import script.js（404），
@@ -717,6 +718,8 @@ function deleteVarOverride(modName, varName) {
     const entry = b.modules.find(m => m.name === modName);
     if (entry?.variableOverrides) delete entry.variableOverrides[varName];
     configManager.upsertBinding(b);
+    // 模块/变量覆盖变化 → 清缓存 + 全量刷新（数据层结果变化）
+    refreshOnModuleConfigChange();
     renderDetail();
 }
 
@@ -725,6 +728,7 @@ function toggleModule(modName, newVal) {
     const entry = ensureModuleEntry(b, modName);
     entry.moduleOverride = !!newVal; // 始终钉死当前值（去 Delta：不再因等于默认而删除）
     configManager.upsertBinding(b); // 自动保存（debounce）
+    refreshOnModuleConfigChange(); // 模块覆盖变化 → 清缓存 + 全量刷新
     renderDetail();
 }
 
@@ -734,6 +738,8 @@ function toggleVar(modName, varName, newVal) {
     if (!entry.variableOverrides) entry.variableOverrides = {};
     entry.variableOverrides[varName] = !!newVal; // 始终钉死当前值
     configManager.upsertBinding(b);
+    // 模块/变量覆盖变化 → 清缓存 + 全量刷新（数据层结果变化）
+    refreshOnModuleConfigChange();
     renderDetail();
 }
 
@@ -742,6 +748,8 @@ function deleteModuleEntry(modName) {
     if (!b) return;
     b.modules = b.modules.filter(m => m.name !== modName);
     configManager.upsertBinding(b);
+    // 模块/变量覆盖变化 → 清缓存 + 全量刷新（数据层结果变化）
+    refreshOnModuleConfigChange();
     renderDetail();
 }
 
@@ -761,6 +769,7 @@ function onReset() {
                     if (b) {
                         b.modules = [];
                         configManager.upsertBinding(b);
+                        refreshOnModuleConfigChange(); // 覆盖清空 → 清缓存 + 全量刷新
                     }
                     expandedMods.clear();
                     d.close();
@@ -816,6 +825,7 @@ function openAddModuleDialog() {
                         }
                     });
                     configManager.upsertBinding(nb);
+                    refreshOnModuleConfigChange(); // 新增覆盖 → 清缓存 + 全量刷新
                     expandedMods.clear();
                     d.close();
                     renderDetail();
