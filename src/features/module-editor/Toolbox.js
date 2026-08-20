@@ -482,6 +482,73 @@ async function verifySnapshotRebuild() {
     } else {
         errorLog('[快照验证] ❌ 不一致:', mismatch);
     }
+    // ⚠️ 3.1 等价接入验证：runModulePipeline(useSnapshot:true) 应产出与正常全段一致的 content
+    try {
+        const snapRun = runModulePipeline({
+            range: { start: 0, end: null },
+            modules: null,
+            processType: 'auto',
+            cache: 'none',
+            useSnapshot: true,
+        });
+        const diff = [];
+        for (const key of Object.keys(full.content || {})) {
+            const a = full.content[key]?.moduleCount;
+            const b = snapRun.content?.[key]?.moduleCount;
+            if (a !== b) diff.push({ module: key, full: a, snap: b });
+        }
+        if (diff.length === 0) {
+            infoLog('[快照验证-3.1] ✅ useSnapshot 与全量 moduleCount 一致');
+        } else {
+            errorLog('[快照验证-3.1] ❌ useSnapshot 不一致:', diff);
+        }
+    } catch (e) {
+        errorLog('[快照验证-3.1] 失败:', e);
+    }
+    // ⚠️ 3.2 性能对比（临时验证，非产品代码）：全量 vs 快照冷启动 vs 多档失效层增量
+    try {
+        const snapMod = await import('../../core/snapshotStore.js');
+        const t0 = performance.now();
+        runModulePipeline({ range: { start: 0, end: null }, modules: null, processType: 'auto', cache: 'none' });
+        const tFull = performance.now() - t0;
+
+        const t1 = performance.now();
+        const coldRun = runModulePipeline({ range: { start: 0, end: null }, modules: null, processType: 'auto', cache: 'none', useSnapshot: true });
+        const tSnap = performance.now() - t1;
+
+        // 不同失效层：失效点越靠后（只改末尾），增量续算应越省；失效点=0 则近似全段重算。
+        const len = getContext()?.chat?.length || 1;
+        const floors = [0, Math.max(1, Math.floor(len / 3)), Math.max(1, Math.floor((2 * len) / 3)), len - 1];
+        const rows = [{
+            '失效层': `冷启动`,
+            '层数': coldRun?.perf?.layers ?? '-',
+            '总耗时_ms': +tSnap.toFixed(1),
+            'rebuild_ms': coldRun?.perf ? +coldRun.perf.rebuild.toFixed(1) : null,
+            'dedup_ms': coldRun?.perf ? +coldRun.perf.dedup.toFixed(1) : null,
+            'time_ms': coldRun?.perf ? +coldRun.perf.time.toFixed(1) : null,
+            'group_ms': coldRun?.perf ? +coldRun.perf.group.toFixed(1) : null,
+        }];
+        for (const f of floors) {
+            snapMod.markSnapshotDirty(f);
+            const t = performance.now();
+            const r = runModulePipeline({ range: { start: 0, end: null }, modules: null, processType: 'auto', cache: 'none', useSnapshot: true });
+            rows.push({
+                '失效层': f,
+                '层数': r?.perf?.layers ?? '-',
+                '总耗时_ms': +(performance.now() - t).toFixed(1),
+                'rebuild_ms': r?.perf ? +r.perf.rebuild.toFixed(1) : null,
+                'dedup_ms': r?.perf ? +r.perf.dedup.toFixed(1) : null,
+                'time_ms': r?.perf ? +r.perf.time.toFixed(1) : null,
+                'group_ms': r?.perf ? +r.perf.group.toFixed(1) : null,
+            });
+        }
+        snapMod.resetSnapshotDirty();
+        infoLog(`[快照性能] 全量=${tFull.toFixed(1)}ms 冷启动=${tSnap.toFixed(1)}ms`);
+        console.table(rows);
+        infoLog('[快照性能-表格] 各失效层耗时分布见上方 console.table；rebuild=快照续算主体，dedup/time/group 为其中分段。');
+    } catch (e) {
+        errorLog('[快照性能] 失败:', e);
+    }
     outputSnapshots();
     infoLog('[快照验证] checkpoint 统计:', getSnapshotStats());
 }

@@ -21,6 +21,8 @@ import { insertCombinedStylesToDetails } from '../../modules/styleCombiner.js';
 import { groupProcessResultByMessageIndex } from './groupByMessage.js';
 import { getActiveSources } from './moduleDataSources.js';
 import { readCache, writeCache } from './cacheLayer.js';
+import { rebuildFrom, buildStructuredResult } from '../rebuildProcessor.js';
+import { getSnapshotDirtyFloor, resetSnapshotDirty } from '../snapshotStore.js';
 import {
     getChatCacheKey,
     getOccurrence,
@@ -32,6 +34,15 @@ import {
  * 开启后 extract 走「每层全量缓存 + 下游按 filters 过滤」。
  */
 const USE_OCCURRENCE_CACHE = true;
+
+/**
+ * 3.2 快照管线开关（代码级，源头控制）：
+ *   true  → 生产取数（auto 分支）默认走「快照续算」（rebuildFrom → buildStructuredResult）；
+ *          未失效时依赖快照 checkpoint 增量、失效后只续算 dirty..end。
+ *   false → 与以前一样走全量 processAutoModules（现状安全默认）。
+ * 显式传 opts.useSnapshot 时优先于本开关（如 verify 对比）。
+ */
+const USE_SNAPSHOT_PIPELINE = false;
 
 /**
  * 按 filters 过滤全量 raw 模块（从 raw 解析模块名，匹配 name + compatibleModuleNames）。
@@ -120,6 +131,9 @@ export function runModulePipeline(opts = {}) {
             showProcessInfo = false,
             showRule = false,
             skipEmpty = false,
+            // 3.1 等价接入：true 时 auto 分支走快照续算（rebuildFrom → buildStructuredResult），
+            // 与 processAutoModules 全段重算等价；默认 false 走原路径。3.2 再由运行期快照接管省成本。
+            useSnapshot = opts.useSnapshot !== undefined ? opts.useSnapshot : USE_SNAPSHOT_PIPELINE,
         } = opts;
 
         const start = range.start ?? 0;
@@ -210,6 +224,7 @@ export function runModulePipeline(opts = {}) {
         // ---- 处理 ----
         let resultContent = '';
         let displayTitle = '';
+        let resultPerf = null; // 快照续算耗时分布（useSnapshot 时填充）
         switch (processType) {
             case 'extract': {
                 const r = processExtractModules(rawModules, selectedModuleNames);
@@ -224,8 +239,23 @@ export function runModulePipeline(opts = {}) {
                 break;
             }
             case 'auto': {
-                resultContent = processAutoModules(rawModules, selectedModuleNames);
-                displayTitle = '自动处理模块结果';
+                if (useSnapshot) {
+                    // 3.1/3.2：快照续算得到累积 groupModules → buildStructuredResult 产出与 processAutoModules 同构 content。
+                    // 3.2：用 dirty 起点（失效楼层）增量续算——从最近 checkpoint 续算 dirty..end，省 dirty 前的累积态重算；
+                    // 干净（dirty=null）时从 0（冷启动走 checkpoint 加速）。续算成功置干净。
+                    const dirty = getSnapshotDirtyFloor();
+                    const rebuild = rebuildFrom(dirty ?? 0, false);
+                    resetSnapshotDirty();
+                    resultContent = buildStructuredResult(rebuild.snapshot.groupModules, configManager.getModules() || [], selectedModuleNames);
+                    // 携带本次快照续算耗时分布（供 Verify 性能表格；生产调用不依赖）
+                    resultPerf = rebuild.perf
+                        ? { layers: rebuild.perf.layers, dedup: rebuild.perf.dedup, time: rebuild.perf.time, group: rebuild.perf.group, rebuild: rebuild.totalMs }
+                        : null;
+                    displayTitle = '自动处理模块结果(快照)';
+                } else {
+                    resultContent = processAutoModules(rawModules, selectedModuleNames);
+                    displayTitle = '自动处理模块结果';
+                }
                 break;
             }
             default:
@@ -258,6 +288,8 @@ export function runModulePipeline(opts = {}) {
             displayTitle,
             moduleCount: count,
             hasContent,
+            // 快照续算耗时分布（仅 useSnapshot 有值；供 Verify 性能表格）
+            perf: resultPerf,
         };
 
         // ---- style（可选）----

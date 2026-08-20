@@ -15,22 +15,18 @@
 // 每层快照 = 阶段 0 各 step 的纯函数状态 + 未压缩组内模块集合：
 //   {
 //     dedup: DedupState,            // deduplicateStep.createDedupState
-//     idCompletion: IdState,        // idCompletionStep.createIdCompletionState
 //     time: TimeState,              // timeCompletionStep.createTimeState
-//     groupModules: Map<moduleName, Array<module>>,  // 去重+id+time 后未压缩（levelCompression 输入）
-//     merged: Map<groupKey, MergeStepState>,         // mergeStep 累积态（incremental 模块）
+//     groupModules: Map<moduleName, Array<module>>,  // 去重+time 后未压缩（sort→补id→levelCompression 延后到 build 时）
 //   }
 //
-// ⚠️ 所有状态必须【深拷贝】存取：下游 process 会就地修改 module/状态对象，
-// 快照必须是「某层处理完的纯净快照」（同 occurrenceCache 教训）。
+// ⚠️ 所有状态必须【深拷贝】存取：快照必须是「某层处理完的纯净快照」（同 occurrenceCache 教训），
+// 避免下游 process 就地修改 module/状态对象污染累积态。
 //
 // ⚠️ 失效是【后缀】：process 有跨楼层累积（incremental/level/timeline），
 // 改 X 层 → X..end 全部重算 → invalidateFrom(floor) 删 checkpoints[floor..end]。
 
 import { createDedupState } from './pipeline/deduplicateStep.js';
-import { createIdCompletionState } from './pipeline/idCompletionStep.js';
 import { createTimeState } from './pipeline/timeCompletionStep.js';
-import { createMergeStepState } from './pipeline/mergeStep.js';
 
 /** checkpoint 间隔 */
 export const CHECKPOINT_INTERVAL = 10;
@@ -54,10 +50,8 @@ function clone(v) {
 export function createEmptySnapshot() {
     return {
         dedup: createDedupState([]),
-        idCompletion: createIdCompletionState(),
         time: createTimeState([]),
         groupModules: new Map(),
-        merged: new Map(),
     };
 }
 
@@ -113,6 +107,29 @@ export function invalidateFrom(floor) {
     for (const key of checkpoints.keys()) {
         if (Number(key) >= floor) checkpoints.delete(key);
     }
+}
+
+// ⚠️ 3.2：运行期 dirty 会话。
+// 记录「自哪层起累积态已失效（需续算）」。null = 当前快照到 end 有效（干净）。
+// 事件失效时 mark 该层；续算成功（runModulePipeline useSnapshot）后 reset。
+// 供「失效后增量续算」（从最近 checkpoint 续算 dirty..end），而非每次全段重算。
+let dirtyFrom = null;
+
+/** 标记自某层起失效（取更小楼层）。负数起始态 → 0。 */
+export function markSnapshotDirty(floor) {
+    const f = Math.max(0, Number(floor) || 0);
+    if (dirtyFrom === null) dirtyFrom = f;
+    else dirtyFrom = Math.min(dirtyFrom, f);
+}
+
+/** 复位 dirty（续算到 end 后调用 / 切聊天）。 */
+export function resetSnapshotDirty() {
+    dirtyFrom = null;
+}
+
+/** 获取 dirty 起点；null=干净。 */
+export function getSnapshotDirtyFloor() {
+    return dirtyFrom;
 }
 
 /** 清空全部快照（切聊天/插件禁用）。 */

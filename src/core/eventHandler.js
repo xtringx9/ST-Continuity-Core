@@ -13,6 +13,7 @@ import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
 import { CHAT_MODULE_ENTRIES_UPDATED_EVENT } from "./chatModuleEntryStore.js";
 import { incrementalModulesChanged } from "./pipeline/incrementalModuleCompare.js";
 import { getChatCacheKey, invalidateOccurrence, invalidateSourceAll, clearOccurrenceCache } from "./occurrenceCache.js";
+import { markSnapshotDirty, resetSnapshotDirty } from "./snapshotStore.js";
 import { taskRegistry } from "./taskRegistry.js";
 
 /** 编辑前文本缓存：mesId → 编辑框打开时的 chat[mesId].mes（MESSAGE_UPDATED 前对比增量用） */
@@ -93,6 +94,8 @@ export class EventHandler {
                 // occurrence 缓存：切聊天清空全部（CHAT_CHANGED 触发时已是新聊天 key，
                 // 旧聊天缓存无法定位，全清无妨——切聊天频率低）
                 clearOccurrenceCache();
+                // 快照 dirty 会话：切聊天复位（新聊天从干净开始）
+                resetSnapshotDirty();
             });
             // ⚠️ 监听 ST 编辑框打开（document 委托 .mes_edit 点击）缓存该层旧文本：
             // ST 无编辑开始事件、MESSAGE_UPDATED 触发时 chat 已是新文本，拿不到 before。
@@ -114,6 +117,8 @@ export class EventHandler {
                 if (Number.isNaN(x)) { scheduleMsgBottom('suffix', mesid); return; }
                 // occurrence 缓存：编辑正文只失效该层 chatText（extract 逐层独立）
                 invalidateOccurrence(getChatCacheKey(), 'chatText', x);
+                // 快照 dirty：正文变更自该层起累积态失效→增量续算
+                markSnapshotDirty(x);
                 const before = _editTextCache.get(String(x));
                 _editTextCache.delete(String(x));
                 const after = chat[x]?.mes ?? '';
@@ -129,6 +134,8 @@ export class EventHandler {
                 const x = Number(mesid);
                 if (!Number.isNaN(x)) {
                     invalidateOccurrence(getChatCacheKey(), 'chatText', x);
+                    // 快照 dirty：切 swipe 只影响该层（正文 swipe_id 变）→ 增量续算
+                    markSnapshotDirty(x);
                 }
                 scheduleMsgBottom('single', mesid);
             });
@@ -467,6 +474,8 @@ export class EventHandler {
             if (typeof mesId === 'number') {
                 // occurrence 缓存：floor generators 变更只失效该层 asyncChat（floorModuleStore 所有写操作统一收口此事件）
                 invalidateOccurrence(getChatCacheKey(), 'asyncChat', mesId);
+                // 快照 dirty：floor 内容变更自该层起累积态失效
+                markSnapshotDirty(mesId);
                 // 同步刷新该楼层的消息底部模块展示区（空保存/编辑走 scheduleMsgBottom 会更新，这里统一收口）
                 scheduleMsgBottom('single', mesId);
                 // ⚠️ 嵌入模块（outputPosition==='embedded'）的 floor 内容变化会影响「正文内」样式注入
@@ -494,11 +503,14 @@ export class EventHandler {
             const chatKey = getChatCacheKey();
             if (affect === 'full') {
                 invalidateOccurrence(chatKey, 'chatMeta', 0);
+                markSnapshotDirty(0);
             } else if (typeof floor === 'number' && Number.isFinite(floor) && floor >= 0) {
                 invalidateOccurrence(chatKey, 'chatMeta', floor);
+                markSnapshotDirty(floor);
             } else if (typeof floor === 'number' && Number.isFinite(floor) && floor < 0) {
                 // 负数条目变更：内容在第 0 层缓存里 → 只失效第 0 层
                 invalidateOccurrence(chatKey, 'chatMeta', 0);
+                markSnapshotDirty(0);
             }
             moduleCacheManager.updateModuleCacheDebounced(true);
             const isFloorValid = typeof floor === 'number' && Number.isFinite(floor) && floor >= 0;

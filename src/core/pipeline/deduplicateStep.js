@@ -33,6 +33,7 @@ export function createDedupState(moduleConfigs) {
 export function dedupStep(state, module) {
     const { moduleMap, moduleConfigs } = state;
     let { duplicateCount } = state;
+    const added = [];
 
     const moduleConfig = moduleConfigs.find(config => config.name === module.moduleName);
     const isIncrementalModule = moduleConfig && moduleConfig.outputMode === 'incremental';
@@ -108,19 +109,21 @@ export function dedupStep(state, module) {
                 // 无效条目，不存储
             } else if (hasValidVariable) {
                 moduleMap.set(moduleKey, module);
+                added.push(module);
             } else {
                 // 无效变量，不存储
             }
         } else {
             // 第一次遇到这个模块，直接存储
             moduleMap.set(moduleKey, module);
+            added.push(module);
         }
         if (!module.messageIndexHistory) {
             module.messageIndexHistory = [module.messageIndex];
         }
     }
 
-    return { moduleMap, duplicateCount, moduleConfigs };
+    return { moduleMap, duplicateCount, moduleConfigs, added };
 }
 
 /**
