@@ -250,7 +250,7 @@ export function rebuildFrom(targetFloor, needResults = true) {
         }
     }
     const avg = (n) => (perf.layers ? (perf[n] / perf.layers).toFixed(3) : '0');
-    console.log(`[cc-perf] layers=${perf.layers} read=${perf.read.toFixed(1)}(+${avg('read')}/层) dedup=${perf.dedup.toFixed(1)}(+${avg('dedup')}) time=${perf.time.toFixed(1)}(+${avg('time')}) group=${perf.group.toFixed(1)}(+${avg('group')}) snapshot=${perf.snapshot.toFixed(1)}(+${avg('snapshot')})`);
+    debugLog(`[cc-perf] layers=${perf.layers} read=${perf.read.toFixed(1)}(+${avg('read')}/层) dedup=${perf.dedup.toFixed(1)}(+${avg('dedup')}) time=${perf.time.toFixed(1)}(+${avg('time')}) group=${perf.group.toFixed(1)}(+${avg('group')}) snapshot=${perf.snapshot.toFixed(1)}(+${avg('snapshot')})`);
     return { snapshot: state, results, perf, touched: perf.touched ?? new Set(), chatKey, totalMs: performance.now() - tTotal0 };
 }
 
