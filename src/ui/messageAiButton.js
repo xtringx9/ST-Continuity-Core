@@ -11,7 +11,7 @@ import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom, checkRenderCurrentMessageContext } from '../core/contextBottomUI.js';
 import { renderCurrentMessageContext } from '../core/context-ui/inlineMessageRenderer.js';
 import { showToast } from '../shared/Toast.js';
-import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
+import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, deleteOuterSwipeNode, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
 import { parseNestedModules } from '../core/moduleExtractor.js';
 import { getChatCacheKey, invalidateOccurrence } from '../core/occurrenceCache.js';
 import { markSnapshotDirty } from '../core/snapshotStore.js';
@@ -319,7 +319,104 @@ function createInlineMenu(triggerButton, mesId) {
         menu.append(createMenuBox(genActions, asyncEnabled, triggerButton, mesId, gen.displayName, gen.name));
     }
 
+    // 3. 独立删除框（菜单末位）：删除当前外层 swipe 的「全部 generator」节点并前移（清理孤儿外层 swipe）
+    menu.append(createDeleteOuterSwipeBox(triggerButton, mesId));
+
     return menu;
+}
+
+/**
+ * 创建独立删除框：删除当前外层 swipe 的所有 generator（modules + 各 gen）节点，并把后续外层 key 前移。
+ * @param {jQuery} triggerButton
+ * @param {number} mesId
+ * @returns {jQuery}
+ */
+function createDeleteOuterSwipeBox(triggerButton, mesId) {
+    const box = $('<div>').css({
+        display: 'inline-flex',
+        alignItems: 'center',
+        border: '2px solid var(--smart-border-color, rgba(128,128,128,0.5))',
+        borderRadius: '6px',
+        padding: '0',
+        height: '22px',
+        boxSizing: 'border-box',
+        gap: '0',
+    });
+    const btn = $('<div>')
+        .attr('title', '删除当前外层 swipe 的所有生成节点并前移')
+        .attr('role', 'button')
+        .attr('tabindex', '0')
+        .addClass('mes_button interactable')
+        .css({
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '18px',
+            height: '18px',
+            padding: '0 !important',
+            boxSizing: 'border-box',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            opacity: 0.7,
+            color: 'var(--crimson, #e74c3c)',
+        })
+        .html('<i class="fa-solid fa-trash-can"></i>');
+    btn.hover(
+        function () { $(this).css('opacity', 1); },
+        function () { $(this).css('opacity', 0.7); }
+    );
+    btn.on('click', (e) => {
+        e.stopPropagation();
+        onDeleteOuterSwipeAll(mesId);
+    });
+    box.append(btn);
+    return box;
+}
+
+/**
+ * 删除当前外层 swipe 的所有 generator 节点并前移（独立删除框动作）。
+ * 弹确认 → 删除并退出菜单。
+ * @param {number} mesId
+ */
+async function onDeleteOuterSwipeAll(mesId) {
+    const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
+    try {
+        const $body = $('<div>').append(
+            $('<p>').text(`确定删除本消息 swipe #${Number(outerSwipeId) + 1} 的所有生成节点吗？`),
+            $('<p style="opacity:0.7;font-size:0.9em;">').text('将删除该外层 swipe 的全部 generator 节点（模块/角色心理等），并把后续外层 swipe 节点 key 前移对齐。此操作不可恢复。'),
+        );
+        const result = await new Popup($body, POPUP_TYPE.CONFIRM, '', {
+            okButton: '删除',
+            cancelButton: '取消',
+        }).show();
+        if (result !== POPUP_RESULT.AFFIRMATIVE) return;
+        const ok = deleteOuterSwipeNode(mesId, outerSwipeId);
+        if (!ok) {
+            toastr.warning('未找到该外层 swipe 节点，或已不存在');
+            return;
+        }
+        infoLog(LOG_TAG, `消息 ${mesId} 删除外层 swipe ${outerSwipeId} 全部 generator 节点并前移`);
+        closeInlineMenu();
+        scheduleMsgBottom('single', mesId);
+        generatedContentCache.delete(mesId);
+        // ⚠️ 失效该层正文与异步 floor 模块提取缓存，避免读旧外层数据
+        invalidateOccurrence(getChatCacheKey(), 'chatText', mesId);
+        invalidateOccurrence(getChatCacheKey(), 'asyncChat', mesId);
+        // 模块：增量变化则刷新下游（suffix）/正文内
+        const affectInfo = resolveModuleChangeAffect(readFloorModules(mesId, outerSwipeId));
+        if (affectInfo.inline) {
+            const suffixIds = [];
+            document.querySelectorAll('#chat .mes').forEach(el => {
+                const id = Number(el.getAttribute('mesid'));
+                if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
+            });
+            if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+        }
+        toastr.success(`已删除 swipe #${Number(outerSwipeId) + 1} 的全部生成节点`);
+    } catch (err) {
+        errorLog(LOG_TAG, '删除外层 swipe 节点失败:', err);
+        toastr.error(`删除外层 swipe 节点失败：${err.message}`);
+    }
 }
 
 /**
@@ -657,6 +754,9 @@ async function onMenuAction(action, triggerButton, mesId, clickedBtn) {
             break;
         case 'relocateAfterBody':
             onRelocateAfterBodyToFloor(mesId);
+            break;
+        case 'deleteOuterSwipeAll':
+            onDeleteOuterSwipeAll(mesId);
             break;
         case 'summary':
             onSummaryPanel();
@@ -1022,12 +1122,43 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
         $message.append($container);
     }
 
-    // 已有编辑区则不重复创建
-    if ($container.find('.ccore-edit-area').length) return;
-
-    // 隐藏现有 iframe
+    // 已有编辑区：若属同一 generator → 不重复创建，直接返回（已在编辑该 generator）
+    // 若属其他 generator/模块 → 替换为先：若有未保存改动，先确认丢弃，再替换成新的编辑区
+    // 先引用 iframe（后续保存/取消/替换都需它）
     const $iframe = $container.find('iframe');
-    $iframe.hide();
+    const $existing = $container.find('.ccore-edit-area');
+    if ($existing.length) {
+        const existingGen = $existing.attr('data-ccore-gen');
+        if (existingGen === generatorName) return;
+        // 判断已有编辑框是否有未保存改动（textarea 值 ≠ 其当前显示版本的值）
+        const hasDirty = (() => {
+            const ta = $existing.find('.ccore-edit-textarea');
+            const curVal = String(ta.val() || '');
+            // 记录在某版本上；若该版本存在且值不同则视为未保存
+            const savedVal = $existing.find('.ccore-edit-textarea').data('saved-value');
+            return curVal !== String(savedVal ?? '');
+        })();
+        if (hasDirty) {
+            try {
+                const $body = $('<div>').append(
+                    $('<p>').text('当前编辑器有未保存的改动，切换编辑器将丢弃该改动。是否继续？'),
+                );
+                const result = await new Popup($body, POPUP_TYPE.CONFIRM, '', {
+                    okButton: '丢弃并切换',
+                    cancelButton: '取消',
+                }).show();
+                if (result !== POPUP_RESULT.AFFIRMATIVE) return;
+            } catch (err) {
+                errorLog(LOG_TAG, '替换编辑器确认弹窗失败:', err);
+                return;
+            }
+        }
+        $existing.remove();
+        $iframe.hide();
+    } else {
+        // 无既有编辑区：隐藏 iframe
+        $iframe.hide();
+    }
 
     const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
 
@@ -1058,7 +1189,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
     //（ST 编辑态逻辑会连坐控制 .mes_edit_buttons 显隐，script.js 点编辑显示、取消隐藏，会误伤我们的按钮）。
     // 内联覆盖小尺寸：缩小 padding / font-size，保持版本栏细高。
     const $editArea = $(`
-        <div class="ccore-edit-area" style="position:relative;margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
+        <div class="ccore-edit-area" data-ccore-gen="${generatorName}" data-ccore-mesid="${mesId}" data-ccore-old-outer="${outerSwipeId}" style="position:relative;margin:5px 0;padding:5px;border:1px solid var(--smart-border-color,rgba(128,128,128,0.5));border-radius:5px;">
             <div class="ccore-edit-versionbar" style="display:flex;align-items:center;gap:4px;margin-bottom:4px;font-size:12px;color:var(--smart-body-text-color,inherit);min-height:24px;">
                 <span class="ccore-edit-ver-outer" style="opacity:0.6;margin-right:auto;">#${mesId} · ${outerSwipeDisplay}</span>
                 <span class="ccore-edit-ver-prev" style="cursor:pointer;font-weight:bold;padding:0 2px;" title="上一个版本">‹</span>
@@ -1083,6 +1214,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
         if (ids.length === 0) {
             currentIndex = -1;
             $textarea.val('');
+            $textarea.data('saved-value', '');
             $verLabel.text(`0\u200b/\u200b0`);
             $editArea.find('.ccore-edit-ver-prev, .ccore-edit-ver-next').css('visibility', 'hidden');
             return;
@@ -1091,6 +1223,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
         if (idx >= ids.length) idx = ids.length - 1;
         currentIndex = idx;
         $textarea.val(versions[ids[idx]] || '');
+        $textarea.data('saved-value', versions[ids[idx]] || '');
         $verLabel.text(`${idx + 1}\u200b/\u200b${ids.length}`);
         $editArea.find('.ccore-edit-ver-prev, .ccore-edit-ver-next').css('visibility', ids.length > 1 ? 'visible' : 'hidden');
     };
@@ -1312,8 +1445,9 @@ export function initMessageAiButton() {
     //   已展开菜单的版本切换控件（读 outerSwipeId）是打开时快照 → 需重建（否则切到有内容的 swipe 也不显示版本数）。
     //   注：ST 切 swipe 会重建 .mes，浮动按钮/菜单本身可能被清除；若菜单还在则重建其版本控件。
     eventSource.on(event_types.MESSAGE_SWIPED, () => {
-        if (!currentMenu) return;
-        refreshMenuVersionSwitchers();
+        if (currentMenu) refreshMenuVersionSwitchers();
+        // 3a：切正文 swipe 时，若已有打开的编辑框，弹确认并关闭（编辑的是旧 outerSwipe 数据）
+        confirmAndCloseOpenEditorsOnSwipe();
     });
 
     // 为当前已加载的消息添加按钮
@@ -1331,6 +1465,96 @@ export function initMessageAiButton() {
  */
 let chatObserver = null;
 let refreshDebounceTimer = null;
+
+/**
+ * 3a：正文 swipe 切换后，处理所有仍打开的编辑框。
+ * 编辑框绑定的是打开时的 outerSwipeId（旧数据），切 swipe 后正文已指向新外层节点，
+ * 故编辑框内容语义失效：无未保存改动 → 直接关闭还原；有未保存 → 弹确认再关闭。
+ */
+function confirmAndCloseOpenEditorsOnSwipe() {
+    document.querySelectorAll('.ccore-edit-area').forEach(($el) => {
+        if (!($el instanceof HTMLElement)) return;
+        const $ta = $($el).find('.ccore-edit-textarea');
+        const curVal = String($ta.val() || '');
+        const savedVal = String($ta.data('saved-value') ?? '');
+        const hasDirty = curVal !== savedVal;
+        const close = () => {
+            const container = $el.closest('.mes');
+            if (container) {
+                const iframe = container.querySelector('iframe');
+                if (iframe) iframe.style.display = '';
+            }
+            $el.remove();
+        };
+        if (!hasDirty) {
+            close();
+            return;
+        }
+        const $body = $('<div>').append(
+            $('<p>').text('切换正文 swipe 前，该编辑器有未保存的改动，可保存或丢弃后关闭。'),
+        );
+        new Popup($body, POPUP_TYPE.CONFIRM, '', {
+            okButton: '保存并关闭',
+            cancelButton: '丢弃并关闭',
+        }).show().then(res => {
+            if (res === POPUP_RESULT.AFFIRMATIVE) {
+                const mesId = Number($($el).attr('data-ccore-mesid'));
+                const genName = $($el).attr('data-ccore-gen') || 'modules';
+                saveEditorContentSafe($el, mesId, genName, true);
+            } else {
+                close();
+            }
+        });
+    });
+}
+
+/**
+ * 尝试从给定编辑框读取当前文本并保存（供 MESSAGE_SWIPED 的「保存并关闭」使用）。
+ * @param {HTMLElement} el 编辑框根元素
+ * @param {number} mesId
+ * @param {string} generatorName
+ * @param {boolean} closeAfter 保存后关闭编辑框
+ */
+async function saveEditorContentSafe(el, mesId, generatorName, closeAfter) {
+    const isModule = generatorName === 'modules';
+    const close = () => {
+        if (!closeAfter) return;
+        const container = el.closest('.mes');
+        if (container) {
+            const iframe = container.querySelector('iframe');
+            if (iframe) iframe.style.display = '';
+        }
+        el.remove();
+    };
+    try {
+        const $ta = $(el).find('.ccore-edit-textarea');
+        const text = String($ta.val() || '');
+        // ⚠️ 用编辑框记录的原外层（data-ccore-old-outer），而非 chat 当前 swipe ——
+        // MESSAGE_SWIPED 触发时 chat 已切到新外层，若用 chat[mesId].swipe_id 会保存错位。
+        const rawOuter = $(el).attr('data-ccore-old-outer');
+        const outerSwipeId = rawOuter !== undefined ? Number(rawOuter) : (chat[mesId]?.swipe_id ?? 0);
+        // 有激活版本则覆盖激活版本，否则新建并激活
+        const versions = readAllGeneratorContents(mesId, generatorName, outerSwipeId, { includeEmpty: true });
+        const ids = Object.keys(versions).map(Number).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+        if (ids.length === 0) {
+            const id = appendGeneratorContent(mesId, generatorName, outerSwipeId, text);
+            infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 保存并关闭（新建版本 ${id}）`);
+        } else {
+            const active = getActiveGeneratorSwipe(mesId, generatorName, outerSwipeId);
+            writeGeneratorContent(mesId, generatorName, outerSwipeId, active, text);
+            infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 保存并关闭（写回版本 ${active}）`);
+        }
+        if (!isModule) {
+            generatedContentCache.set(mesId, generatorName, text);
+        } else {
+            scheduleMsgBottom('single', mesId);
+        }
+        close();
+    } catch (err) {
+        errorLog(LOG_TAG, '保存并关闭编辑框失败:', err);
+        close();
+    }
+}
 
 function setupChatObserver() {
     const chatEl = document.getElementById('chat');

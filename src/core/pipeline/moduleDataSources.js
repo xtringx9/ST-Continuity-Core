@@ -86,7 +86,7 @@ registerModuleDataSource('chatText', {
 // ============================================================
 // asyncChatSource：读 floor 的正文后模块 raw（F 一期 + 二期多版本）
 // ============================================================
-// 数据落点见 floorModuleStore：chat[floor].extra.ccore.generators['modules'][outerSwipe][activeInnerSwipe]。
+// 数据落点见 floorModuleStore：chat[floor].ccore.generators['modules'][outerSwipe][activeInnerSwipe]（顶层独立键）。
 // readFloorModules 自动读当前激活版本。产出与 chatText 同构（{raw, messageIndex, ...}），供 runModulePipeline 合并。
 registerModuleDataSource('asyncChat', {
     /**

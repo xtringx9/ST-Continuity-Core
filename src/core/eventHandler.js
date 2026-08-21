@@ -10,6 +10,7 @@ import { addAiButtonToMessage, addAiButtonsToAllMessages } from "../ui/messageAi
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
+import { migrateAllLegacyFloorData } from "../shared/floorBridge.js";
 import { CHAT_MODULE_ENTRIES_UPDATED_EVENT } from "./chatModuleEntryStore.js";
 import { incrementalModulesChanged } from "./pipeline/incrementalModuleCompare.js";
 import { getChatCacheKey, invalidateOccurrence, invalidateSourceAll, clearOccurrenceCache } from "./occurrenceCache.js";
@@ -63,6 +64,10 @@ export class EventHandler {
             this.initializeMessageAiButton();
             this.initializeAutoModuleGenerate();
 
+            // ⚠️ 立即迁移当前已加载聊天的楼层数据落点（extra.ccore → 顶层 chat[mesId].ccore）。
+            // 迁移已写入 CHAT_CHANGED；此处再对「当前已打开的聊天」补一次，避免仅切聊天才触发、
+            // 而刷新扩展时当前聊天已有旧数据却不迁移。
+            try { migrateAllLegacyFloorData(); } catch (e) { errorLog('[EVENTS]楼层数据落点迁移失败:', e); }
 
             this.isInitialized = true;
             infoLog('[EVENTS]事件处理器初始化完成');
@@ -90,6 +95,10 @@ export class EventHandler {
                 // 切聊天时更新 taskRegistry 当前聊天 key（小 Cc 楼层计数/按钮态据此过滤）
                 taskRegistry.setCurrentChatKey(_taskChatKey());
                 scheduleMsgBottom('full');
+                // ⚠️ 楼层数据落点迁移（extra.ccore → 顶层 chat[mesId].ccore）：
+                // 旧版本每 swipe 会把 ccore 深拷进 swipe_info，切 swipe 还会回滚顶层，故搬到顶层独立键。
+                // 切聊天加载时对整份 chat 迁移一次（幂等，bagOf 读时也兜底迁移）。
+                migrateAllLegacyFloorData();
                 // 编辑缓存按聊天隔离，切聊天清空
                 _editTextCache.clear();
                 // occurrence 缓存：切聊天清空全部（CHAT_CHANGED 触发时已是新聊天 key，

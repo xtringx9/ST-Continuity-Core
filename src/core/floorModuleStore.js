@@ -1,7 +1,7 @@
 // floorModuleStore.js
 // 异步模式生成内容的楼层级存取收口（F 一期 + swipe 套 swipe 二期）。
 //
-// 数据落点：chat[floor].extra.ccore
+// 数据落点：chat[floor].ccore（**消息顶层独立键**，经 floorBridge；历史曾用 extra.ccore）
 //   结构：
 //     generators[genName][outerSwipeId] = {
 //         swipe_id: innerSwipeId,                  // 当前激活的生成内容版本（内层 swipe）
@@ -13,6 +13,8 @@
 //     - active 指针内嵌在 swipe 节点内（方案 A：随消息/复制迁移不悬空）
 //     - swipes 沿用 ST 概念（ST 正文即 chat[floor].swipes），语义对齐
 //     - 复用 floorBridge（FLOOR_NS='ccore'），不直接操作 extra。
+//     - 落点在顶层键而非 extra.ccore：ST 只对 extra 做 swipe 深拷/覆盖，不触碰 chat[floor].ccore，
+//       使模块数据成为单一事实源，不随 swipe_info 复制、不被切 swipe 回滚。
 //
 // 本模块是写侧唯一入口：任何写入/删除后都应调用 notifyFloorModulesUpdated(mesId)，
 // eventHandler 统一监听并刷新模块缓存（机制 A，收口一处）。
@@ -384,6 +386,53 @@ export function readAllFloorModules(mesId) {
 export function deleteFloorModules(mesId, swipeId) {
     const active = getActiveGeneratorSwipe(mesId, 'modules', swipeId);
     deleteGeneratorContent(mesId, 'modules', swipeId, active);
+}
+
+/**
+ * 删除某楼层某一「外层 swipe 索引（whole outer swipe）」在所有 generator 下的节点，并把后续外层节点 **key 前移**上来。
+ * 用途：正文删除了某个 swipe 后，floor 里对应的 outerSwipeId 节点成为孤儿（不止 modules，整个 generators 袋都受影响），
+ * 手动清理该索引节点，并把原 index>target 的节点 key 减 1 对齐（deletedIdx 后续补位）。
+ * 只作用于 floor 内部（各 gen 的 node 整体移动），不触碰正文 swipes。
+ * @param {number} mesId
+ * @param {number|string} targetOuterSwipeId 要删除的外层 swipe 索引
+ * @param {{notify?: boolean}} [opts]
+ * @returns {boolean} 是否至少删除了一个节点
+ */
+export function deleteOuterSwipeNode(mesId, targetOuterSwipeId, { notify = true } = {}) {
+    const bag = floorBridge.get(mesId, GENERATORS_KEY);
+    if (!bag || typeof bag !== 'object') { debugLog(`[deleteOuterSwipeNode] 楼层 ${mesId} 无 generators 袋`); return false; }
+    const tIdx = Number(targetOuterSwipeId);
+    let removed = false;
+    const newBag = {};
+    debugLog(`[deleteOuterSwipeNode] 楼层 ${mesId} 目标外层 ${tIdx}，删除前 bag keys:`, Object.keys(bag));
+    // 遍历所有 generator：各自删除目标索引节点 + 后续 key 前移
+    for (const [genName, gen] of Object.entries(bag)) {
+        if (!gen || typeof gen !== 'object') { newBag[genName] = gen; continue; }
+        const outerKeys = Object.keys(gen)
+            .map(Number).filter(n => Number.isFinite(n) && hasOwn(gen, String(n)))
+            .sort((a, b) => a - b);
+        debugLog(`[deleteOuterSwipeNode] ${genName} outer keys:`, outerKeys);
+        if (!outerKeys.includes(tIdx)) { newBag[genName] = gen; continue; } // 该 gen 无此节点，保持
+        removed = true;
+        const newGen = {};
+        for (const ok of outerKeys) {
+            if (ok === tIdx) continue; // 删除目标
+            const newKey = ok > tIdx ? ok - 1 : ok;
+            newGen[String(newKey)] = gen[String(ok)];
+        }
+        debugLog(`[deleteOuterSwipeNode] ${genName} 删除 ${tIdx} 后 keys:`, Object.keys(newGen));
+        newBag[genName] = newGen;
+    }
+    if (!removed) { debugLog(`[deleteOuterSwipeNode] 无 generator 含目标外层 ${tIdx}，未删除`); return false; }
+    floorBridge.set(mesId, GENERATORS_KEY, newBag);
+    debugLog(`[deleteOuterSwipeNode] 写回后 bag keys:`, Object.keys(newBag));
+    if (notify) notifyFloorModulesUpdated(mesId);
+    return true;
+}
+
+/** Object.prototype.hasOwnProperty 简化 */
+function hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
 /**
