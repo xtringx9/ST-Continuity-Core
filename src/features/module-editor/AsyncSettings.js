@@ -65,7 +65,8 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
                     <input type="password" id="async-custom-api-key" value="${escapeHtml(customApi.key || '')}" placeholder="sk-...">
                     <label style="margin-top:8px;">${translate('ccore_settings_fetch_models')}:</label>
                     <div style="display:flex; gap:6px; align-items:center;">
-                        <input type="text" id="async-custom-api-model" value="${escapeHtml(customApi.model || '')}" placeholder="gpt-4o-mini" style="flex:1;">
+                        <select id="async-custom-api-model" style="flex:1;"></select>
+                        <input type="text" id="async-custom-api-model-custom" value="${escapeHtml(customApi.model || '')}" placeholder="${translate('ccore_settings_custom_api_model_manual')}" style="flex:1; display:none;">
                         <button type="button" id="async-custom-api-fetch" class="btn-secondary">${translate('ccore_settings_fetch_models')}</button>
                     </div>
                     <label style="margin-top:8px;">${translate('ccore_settings_custom_api_source')}:</label>
@@ -184,6 +185,36 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         onChange?.();
     });
 
+    // === 模型下拉：select + 「手动输入」 兜底 ===
+    const modelSel = container.querySelector('#async-custom-api-model');
+    const modelCustom = container.querySelector('#async-custom-api-model-custom');
+    const MANUAL = '__manual__';
+    let fetchedModels = []; // 本次拉取到的模型清单（渲染期内缓存，避免重复劫持）
+    const syncModelCustomVisibility = () => {
+        modelCustom.style.display = modelSel.value === MANUAL ? '' : 'none';
+    };
+    const currentModel = String(customApi.model || '').trim();
+    // 初始渲染：选项 = [手动输入, 已存模型…]；已存模型在列表中则选中，否则保持「手动输入」
+    const renderModelOptions = () => {
+        const values = new Set(fetchedModels);
+        // 未拉取时把已存模型也列入选项（通常就是那个用户手填的模型），方便直接看到/选中
+        if (!fetchedModels.length && currentModel && !values.has(currentModel)) values.add(currentModel);
+        const html = [`<option value="${MANUAL}">${translate('ccore_settings_custom_api_model_manual')}</option>`]
+            + [...values].map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        modelSel.innerHTML = html;
+        // 已存模型存在且不是手动输入 → 选中它；否则落到手动输入并回填自定义框
+        if (currentModel && !fetchedModels.length) {
+            modelSel.value = currentModel; // 但 currentModel 已被加入 values，可选中
+        } else if (currentModel && fetchedModels.includes(currentModel)) {
+            modelSel.value = currentModel;
+        } else {
+            modelSel.value = MANUAL;
+            syncModelCustomVisibility();
+        }
+        syncModelCustomVisibility();
+    };
+    renderModelOptions();
+
     // === 联动显隐：raw 显示 raw 配置块；独立 API 开关显示 customApi 配置块；preset 仅 pipeline 有效 ===
     const updateModeVisibility = () => {
         const mode = container.querySelector('#async-generation-mode').value;
@@ -208,7 +239,10 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         const ca = asyncConfig.customApi = asyncConfig.customApi || {};
         ca.apiurl = container.querySelector('#async-custom-api-url').value;
         ca.key = container.querySelector('#async-custom-api-key').value;
-        ca.model = container.querySelector('#async-custom-api-model').value;
+        // 模型：select 选中「手动输入」时读自定义输入框，否则读下拉值
+        const modelSel = container.querySelector('#async-custom-api-model');
+        const modelCustom = container.querySelector('#async-custom-api-model-custom');
+        ca.model = modelSel.value === '__manual__' ? modelCustom.value.trim() : modelSel.value;
         ca.source = container.querySelector('#async-custom-api-source').value;
         ca.temperature = parseFloat(container.querySelector('#async-custom-api-temperature').value) || 0.3;
         ca.max_tokens = parseInt(container.querySelector('#async-custom-api-max-tokens').value, 10) || 0;
@@ -219,7 +253,7 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
     };
 
     // 只绑定基础字段（提示词组由各组自身监听处理，避免重复标脏）
-    container.querySelectorAll('#async-enabled, #async-auto-generate, #async-generation-mode, #async-preset-name, #async-raw-system-prompt, #async-raw-user-prompt, #async-use-independent-api, #async-show-debug, #async-custom-api-url, #async-custom-api-key, #async-custom-api-model, #async-custom-api-source, #async-custom-api-temperature, #async-custom-api-max-tokens').forEach(el => {
+    container.querySelectorAll('#async-enabled, #async-auto-generate, #async-generation-mode, #async-preset-name, #async-raw-system-prompt, #async-raw-user-prompt, #async-use-independent-api, #async-show-debug, #async-custom-api-url, #async-custom-api-key, #async-custom-api-source, #async-custom-api-temperature, #async-custom-api-max-tokens').forEach(el => {
         el.addEventListener('input', collect);
         el.addEventListener('change', () => {
             collect();
@@ -255,10 +289,18 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
             if (Array.isArray(data.data)) models = data.data.map(m => m.id).filter(Boolean);
             else if (Array.isArray(data.models)) models = data.models.map(m => m.id || m.name).filter(Boolean);
             if (models.length === 0) throw new Error('响应中未找到模型列表');
-            const modelEl = container.querySelector('#async-custom-api-model');
-            const current = modelEl.value;
-            modelEl.outerHTML = `<input type="text" id="async-custom-api-model" list="async-model-list" value="${escapeHtml(current)}" style="flex:1;">` +
-                `<datalist id="async-model-list">${models.map(m => `<option value="${escapeHtml(m)}">`).join('')}</datalist>`;
+            // 用 select 填充（保留「手动输入」兜底）；当前选中的模型若在新列表里则保持选中
+            fetchedModels = models;
+            const prev = modelSel.value === MANUAL ? modelCustom.value.trim() : modelSel.value;
+            renderModelOptions();
+            if (fetchedModels.includes(prev)) {
+                modelSel.value = prev;
+            } else if (prev) {
+                // 当前值不在列表里 → 落到手动输入框并回填，用户可自行选用
+                modelSel.value = MANUAL;
+                modelCustom.value = prev;
+            }
+            syncModelCustomVisibility();
             toastr.success(`拉取到 ${models.length} 个模型`);
         } catch (err) {
             errorLog('[AsyncSettings] 拉取模型失败:', err);
@@ -267,6 +309,14 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
             btn.textContent = originalText;
         }
     });
+
+    // select 切换「手动输入」时同步自定义框显隐；option 变化走底部通用绑定触发 collect
+    modelSel.addEventListener('change', () => {
+        syncModelCustomVisibility();
+        collect();
+        updateModeVisibility();
+    });
+    modelCustom.addEventListener('input', collect);
 }
 
 /** 简单 HTML 转义（防注入） */

@@ -470,6 +470,7 @@
     "ccore_settings_custom_api_key": "API Key",
     "ccore_settings_custom_api_model": "Model",
     "ccore_settings_custom_api_source": "API Type:",
+    "ccore_settings_custom_api_model_manual": "Type model name…",
     "ccore_settings_custom_api_temperature": "Temperature",
     "ccore_settings_custom_api_max_tokens": "Max Tokens",
     "ccore_history_title": "Generation History",

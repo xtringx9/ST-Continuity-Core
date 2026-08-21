@@ -470,6 +470,7 @@
     "ccore_settings_custom_api_key": "API Key",
     "ccore_settings_custom_api_model": "模型",
     "ccore_settings_custom_api_source": "API 类型:",
+    "ccore_settings_custom_api_model_manual": "手动输入模型名…",
     "ccore_settings_custom_api_temperature": "Temperature",
     "ccore_settings_custom_api_max_tokens": "Max Tokens",
     "ccore_history_title": "生成历史",
