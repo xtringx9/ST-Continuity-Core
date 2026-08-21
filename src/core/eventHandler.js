@@ -64,11 +64,6 @@ export class EventHandler {
             this.initializeMessageAiButton();
             this.initializeAutoModuleGenerate();
 
-            // ⚠️ 立即迁移当前已加载聊天的楼层数据落点（extra.ccore → 顶层 chat[mesId].ccore）。
-            // 迁移已写入 CHAT_CHANGED；此处再对「当前已打开的聊天」补一次，避免仅切聊天才触发、
-            // 而刷新扩展时当前聊天已有旧数据却不迁移。
-            try { migrateAllLegacyFloorData(); } catch (e) { errorLog('[EVENTS]楼层数据落点迁移失败:', e); }
-
             this.isInitialized = true;
             infoLog('[EVENTS]事件处理器初始化完成');
         } catch (error) {
