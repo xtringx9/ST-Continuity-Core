@@ -796,7 +796,7 @@ async function _askPromptBeforeGenerate(defaultPrompt, promptGroups = []) {
     const $body = $('<div>').append(
         $('<p>').text('提示词组 / 消息角色：').css({ margin: '0 0 4px 0' }),
         $selectRow,
-        $('<p>').text('本次生成的提示词（支持 {{module_data}} 宏注入该楼层模块数据，留空则使用默认）：').css({ margin: '0 0 6px 0' }),
+        $('<p>').text('本次生成的提示词（支持 {{ccore_msg_module}} 宏注入该楼层模块数据，留空则使用默认）：').css({ margin: '0 0 6px 0' }),
         $textarea,
     );
     try {

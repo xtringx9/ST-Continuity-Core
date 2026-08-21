@@ -9,12 +9,19 @@ import { aiCaller } from './aiCaller.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
-import { expandPrompts } from '../utils/variableReplacer.js';
+import { expandPrompts, setMsgModuleResolver } from '../utils/variableReplacer.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { readFloorModules, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, getActiveGeneratorSwipe } from '../core/floorModuleStore.js';
 import { setGenerationContextEndFloor, setGenerationContextMode, clearGenerationContext } from '../core/generationContext.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 import { showToast } from '../shared/Toast.js';
+import { generateChatModuleDataForFloor } from '../modules/promptGenerator.js';
+
+// 注册 {{ccore_msg_module}} 自有宏的解析器 → generateChatModuleDataForFloor（管线现算，与 CONTINUITY_MSG_MODULE_X 同源）。
+// 固定传 async-alone：该宏用于取「当前楼层正文后(after_body)模块数据」注入提示词。
+// ⚠️ expandPrompts 在 pipeline 里、生成上下文 mode 置为 async-alone 之前即展开，
+//    此刻 getPromptMode() 可能返回 async-body → 触发空返回且过滤掉 after_body，故显式指定。
+setMsgModuleResolver(mesId => generateChatModuleDataForFloor(mesId, 'async-alone'));
 
 const LOG_TAG = 'ModuleAiGenerator';
 
@@ -55,7 +62,7 @@ function _extractTopLevelModules(text) {
 */
 
 /**
- * 展开生成提示词中的宏（2026-08-18 升级为通用）：先自家宏（{{module_data}}）再 ST 全套宏。
+ * 展开生成提示词中的宏（2026-08-18 升级为通用；2026-08-21 自有宏改名 {{ccore_msg_module}}）：先自家宏再 ST 全套宏。
  * 委托 utils/variableReplacer.expandPrompts（保留此薄封装，调用点不变）。
  * @param {string} text 提示词文本
  * @param {number} mesId 目标楼层
@@ -728,7 +735,7 @@ export const moduleAiGenerator = {
                 return { success: false, text: '', debug: null, storedCount: 0 };
             }
 
-            // 生成指令作为最后一条 user 消息（先展开简单宏，如 {{module_data}} → 该楼层 floor 的模块数据）
+            // 生成指令作为最后一条 user 消息（先展开简单宏，如 {{ccore_msg_module}} → 该楼层正文现算的模块数据）
             const quietPrompt = _expandPromptMacros(effectivePipelineModifier, truncateToMesId);
 
             // 开关：true=push 进 chat 作为最后 user 消息（{{lastUserMessage}} 可取）；false=经 quietPrompt（system 角色末尾）

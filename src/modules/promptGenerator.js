@@ -877,13 +877,78 @@ function getContextBottomFilteredModuleConfigs() {
     return moduleFilters;
 }
 
+/**
+ * 运行一次「正文模块现算」管线，返回管线结果与构建所需信息。
+ * 供 {{CONTINUITY_MSG_MODULE_X}}（倒序 index）与 {{ccore_msg_module}}（直接楼层 mesId）共用。
+ * @param {number} endIndex 管线 range 截止楼层
+ * @param {string} mode 三态模式（不传则按 getPromptMode 推导）
+ */
+function runChatModulePipeline(endIndex, mode) {
+    const moduleUpdateTag = configManager.getGlobalSettings().moduleUpdateTag || "module_update";
+    const effectiveMode = mode || getPromptMode();
+    // 三态：按 mode 过滤 getChatFilteredModuleConfigs 的结果（embedded 三态都含）
+    const baseFilters = getChatFilteredModuleConfigs();
+    const modulesData = configManager.getModules() || [];
+    const modeFilteredNames = new Set(filterModulesByMode(modulesData, effectiveMode).map(m => m.name));
+    const moduleFilters = baseFilters.filter(f => modeFilteredNames.has(f.name));
+    const selectedModuleNames = moduleFilters.map(config => config.name);
+    // 一次性获取所有模块数据
+    const processResult = runModulePipeline({
+        range: { start: 0, end: endIndex },
+        modules: moduleFilters,
+        processType: 'auto',
+        selectedModuleNames,
+        groupByMessage: true,
+    });
+    return { processResult, modulesData, moduleUpdateTag };
+}
+
+/**
+ * 从管线结果按楼层分组中挑出 targetIndex 层，构建带 <module_update> 包裹的字符串。
+ * @param {Object} processResult runModulePipeline 结果（含 byMessage 分组）
+ * @param {number} targetIndex 目标楼层
+ * @param {Array} modulesData 全部模块配置
+ * @param {string} moduleUpdateTag 包裹标签名
+ */
+function buildChatModuleString(processResult, targetIndex, modulesData, moduleUpdateTag) {
+    const groupedByMessageIndex = processResult.byMessage || {};
+    const modulesForThisMessage = groupedByMessageIndex[targetIndex] || [];
+    let resultString = '';
+    if (modulesForThisMessage.length > 0) {
+        let lastModuleName = '';
+        modulesForThisMessage.forEach((entry, index) => {
+            // 判断模块名是否连续一致
+            if (index === 0 || entry.moduleName !== lastModuleName) {
+                if (lastModuleName !== '') {
+                    resultString += '\n';
+                }
+                // 第一条或模块名不同时，输出模块名标题
+                resultString += `${configManager.MODULE_TITLE_LEFT}${entry.moduleName}${configManager.MODULE_TITLE_RIGHT}\n`;
+            }
+            // 获取当前entry的模块配置
+            const moduleConfig = modulesData.find(module => module.name === entry.moduleName);
+            let shouldFilter = false;
+            let retainLayers = moduleConfig.retainLayers * 2;
+            if (retainLayers >= 0) {
+                if (index > retainLayers) {
+                    shouldFilter = true;
+                }
+            }
+            if (!shouldFilter) {
+                resultString += entry.moduleString + '\n';
+            }
+            lastModuleName = entry.moduleName;
+        });
+    }
+    return `<${moduleUpdateTag}>\n${resultString}\n</${moduleUpdateTag}>`;
+}
+
 export function generateSingleChatModuleData(index, mode) {
     try {
         debugLog('[MACRO] 模块内容索引:', index);
 
         const moduleUpdateTag = configManager.getGlobalSettings().moduleUpdateTag || "module_update";
-        const promptTag = `${moduleUpdateTag}`;
-        if (!chat || chat.length < 1) return `<${promptTag}>\n</${promptTag}>`;
+        if (!chat || chat.length < 1) return `<${moduleUpdateTag}>\n</${moduleUpdateTag}>`;
 
         // 异步跟随正文：MSG_MODULE_X 输出的是正文后模块（<module_update>），async-body 场景用不上 → 完全空
         const effectiveMode = mode || getPromptMode();
@@ -895,78 +960,47 @@ export function generateSingleChatModuleData(index, mode) {
         const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
         const endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
 
-        // 三态：按 mode 过滤 getChatFilteredModuleConfigs 的结果（embedded 三态都含）
-        const baseFilters = getChatFilteredModuleConfigs();
-        const modulesData = configManager.getModules() || [];
-        const modeFilteredNames = new Set(filterModulesByMode(modulesData, effectiveMode).map(m => m.name));
-        const moduleFilters = baseFilters.filter(f => modeFilteredNames.has(f.name));
-
-        // 提取全部聊天记录的所有模块数据（一次性获取）
-        const extractParams = {
-            startIndex: 0,
-            endIndex: endIndex, // null表示提取到最新楼层
-            moduleFilters: moduleFilters
-        };
-
-        const selectedModuleNames = extractParams.moduleFilters.map(config => config.name);
-
-
-        // 一次性获取所有模块数据
-        const processResult = runModulePipeline({
-            range: { start: extractParams.startIndex, end: extractParams.endIndex },
-            modules: extractParams.moduleFilters,
-            processType: 'auto',
-            selectedModuleNames,
-            groupByMessage: true,
-        });
-        // debugLog('[MACRO] 模块提取结果:', processResult);
+        const { processResult, modulesData } = runChatModulePipeline(endIndex, effectiveMode);
 
         const curIndex = chat.length - 1 - (isUserMessage ? index : index + 1);
-        const groupedByMessageIndex = processResult.byMessage || {};
-        const modulesForThisMessage = groupedByMessageIndex[curIndex] || [];
-        debugLog(`[MACRO] 当前聊天索引为${curIndex}模块index分组结果:`, groupedByMessageIndex);
-        // debugLog(`[MACRO] 聊天索引${curIndex}模块结果:`, modulesForThisMessage);
-
-        let resultString = '';
-        if (modulesForThisMessage.length > 0) {
-            // modulesData 已在函数开头声明（三态过滤用），此处复用
-            let lastModuleName = '';
-            modulesForThisMessage.forEach((entry, index) => {
-                // 判断模块名是否连续一致
-                if (index === 0 || entry.moduleName !== lastModuleName) {
-                    if (lastModuleName !== '') {
-                        resultString += '\n';
-                    }
-                    // 第一条或模块名不同时，输出模块名标题
-                    resultString += `${configManager.MODULE_TITLE_LEFT}${entry.moduleName}${configManager.MODULE_TITLE_RIGHT}\n`;
-                }
-                // 获取当前entry的模块配置
-                const moduleConfig = modulesData.find(module => module.name === entry.moduleName);
-                let shouldFilter = false;
-                let retainLayers = moduleConfig.retainLayers * 2;
-                if (retainLayers >= 0) {
-                    if (index > retainLayers) {
-                        shouldFilter = true;
-                    }
-                }
-                // if (!entry.shouldHide) {
-                if (!shouldFilter) {
-                    resultString += entry.moduleString + '\n';
-                }
-                // }
-                lastModuleName = entry.moduleName;
-            });
-        }
-
-        debugLog(`[MACRO] 当前聊天索引为${curIndex}模块输出:`, resultString);
-
-        const prompt = `<${promptTag}>\n${resultString}\n</${promptTag}>`;
+        const prompt = buildChatModuleString(processResult, curIndex, modulesData, moduleUpdateTag);
         // 替换提示词中的变量
-        const replacedPrompt = replaceVariables(prompt.trim());
-        return replacedPrompt;
+        return replaceVariables(prompt.trim());
 
     } catch (error) {
         errorLog(`生成聊天消息 ${index} 的模块数据提示词失败:`, error);
+        return "";
+    }
+}
+
+/**
+ * 生成指定楼层 msId 的模块数据提示词（{{ccore_msg_module}} 自有宏，生成期专用）。
+ * 逻辑与 generateSingleChatModuleData 完全同源（runModulePipeline 正文现算 + <module_update> 包裹），
+ * 差异仅在定位：CONTINUITY_MSG_MODULE_X 按「从最新倒序」index 定位；本函数直接按 mesId 楼层定位。
+ * 由 moduleAiGenerator 通过 setMsgModuleResolver 注入到 variableReplacer，避免循环依赖。
+ * @param {number} mesId 目标楼层
+ * @param {string} [mode] 三态模式（不传按 getPromptMode）
+ * @returns {string}
+ */
+export function generateChatModuleDataForFloor(mesId, mode) {
+    try {
+        const moduleUpdateTag = configManager.getGlobalSettings().moduleUpdateTag || "module_update";
+        if (!chat || chat.length < 1) return `<${moduleUpdateTag}>\n</${moduleUpdateTag}>`;
+
+        const effectiveMode = mode || getPromptMode();
+        if (effectiveMode === 'async-body') {
+            debugLog('[MACRO] async-body 模式不输出 ccore_msg_module（正文后模块不在此宏）');
+            return '';
+        }
+
+        // 管线截止到 mesId 层，取 mesId 层分组（反映该层正文已提交的模块数据）
+        const endIndex = Math.max(0, Math.min(mesId, chat.length - 1));
+        const { processResult, modulesData } = runChatModulePipeline(endIndex, effectiveMode);
+        const prompt = buildChatModuleString(processResult, endIndex, modulesData, moduleUpdateTag);
+        return replaceVariables(prompt.trim());
+
+    } catch (error) {
+        errorLog(`生成楼层 ${mesId} 的模块数据提示词失败:`, error);
         return "";
     }
 }

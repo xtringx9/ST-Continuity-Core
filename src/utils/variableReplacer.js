@@ -5,9 +5,18 @@
 
 import { debugLog, errorLog } from './logger.js';
 // ST 官方宏展开（script.js 导出，父窗口可用）
-import { substituteParams, chat } from '../../../../../../script.js';
-// {{module_data}} 宏：读该楼层 floor 的模块数据（无循环依赖：floorModuleStore 不依赖本模块）
-import { readFloorModules } from '../core/floorModuleStore.js';
+import { substituteParams } from '../../../../../../script.js';
+
+// {{ccore_msg_module}} 宏：由 moduleAiGenerator 通过 setMsgModuleResolver 注入解析器，
+// 避免 variableReplacer 反向依赖 promptGenerator（promptGenerator → variableReplacer 已存在）。
+let msgModuleResolver = null;
+/**
+ * 注册 {{ccore_msg_module}} 宏的解析器（生成期专用，注入 generateChatModuleDataForFloor）。
+ * @param {(mesId:number)=>string} fn
+ */
+export function setMsgModuleResolver(fn) {
+    msgModuleResolver = fn;
+}
 
 // 导入SillyTavern的getContext函数
 let getContext;
@@ -203,27 +212,32 @@ export function replaceVariables(prompt) {
 }
 
 /**
- * 通用提示词宏展开（2026-08-18 新增）：先展开「自家自定义宏」，再交给 ST 全套宏展开。
- * 目前自家宏：{{module_data}} → 该楼层 floor 的模块数据（readFloorModules）。
- * 用于提示词组/弹窗等生成的 quietPrompt——使其既支持 module_data 又支持 ST 标准宏
+ * 通用提示词宏展开（2026-08-18 新增；2026-08-21 自有宏改名为 {{ccore_msg_module}} 并改为管线现算）：
+ * 先展开「自家自定义宏」，再交给 ST 全套宏展开。
+ * 目前自家宏：{{ccore_msg_module}} → 指定楼层 mesId 的模块数据（经注入的解析器现算，与
+ * {{CONTINUITY_MSG_MODULE_X}} 同源管线）。未注入解析器时回退为空（保持兼容）。
+ * 用于提示词组/弹窗等生成的 quietPrompt——使其既支持模块宏又支持 ST 标准宏
  * （{{user}}/{{char}}/{{time}} 等），且不依赖 ST 组装路径（组装失败自建数组时同样生效）。
  * @param {string} text 原始提示词
- * @param {number} mesId 目标楼层（{{module_data}} 注入用）
+ * @param {number} mesId 目标楼层（{{ccore_msg_module}} 注入用）
  * @returns {string}
  */
 export function expandPrompts(text, mesId) {
     if (!text || typeof text !== 'string') return text;
     // 1. 自家宏
     let out = text;
-    if (out.includes('{{module_data}}')) {
+    if (out.includes('{{ccore_msg_module}}')) {
         try {
-            const message = chat?.[mesId];
-            const swipeId = message?.swipe_id ?? 0;
-            const moduleData = readFloorModules(mesId, swipeId) || '';
-            out = out.split('{{module_data}}').join(moduleData);
-            debugLog(`变量替换器: {{module_data}} → ${moduleData.length} 字符（楼层 ${mesId}）`);
+            let moduleData = '';
+            if (msgModuleResolver) {
+                moduleData = msgModuleResolver(mesId) || '';
+            } else {
+                debugLog('变量替换器: {{ccore_msg_module}} 解析器未注入，跳过（生成期模块宏需经 moduleAiGenerator 注册）');
+            }
+            out = out.split('{{ccore_msg_module}}').join(moduleData);
+            debugLog(`变量替换器: {{ccore_msg_module}} → ${moduleData.length} 字符（楼层 ${mesId}）`);
         } catch (e) {
-            debugLog("变量替换器: {{module_data}} 展开失败", e);
+            debugLog("变量替换器: {{ccore_msg_module}} 展开失败", e);
         }
     }
     // 2. ST 全套宏
