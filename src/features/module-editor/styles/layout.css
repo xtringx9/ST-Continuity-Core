@@ -39,10 +39,21 @@
     grid-template-columns: 200px 1fr;
 }
 
-/* 两栏视图：仅激活时(grid 才覆盖 shell 的 .view-section.active flex)，
-   非激活时由 .view-section{display:none} 正确隐藏（避免之前无条件和 grid 导致切不了 tab） */
+/* 生成内容视图（合并自 generator-editor）：复用 module-list-panel / module-detail-panel */
+#view-generators {
+    grid-template-columns: 200px 1fr;
+}
+
+/* 顶栏按钮组（模块三键 / 生成保存），按当前视图显隐 */
+.header-action-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
 #view-modules.active,
-#view-profiles.active {
+#view-profiles.active,
+#view-generators.active {
     display: grid;
 }
 
@@ -359,6 +370,101 @@
 .var-binding-row[data-disabled="1"] .var-binding-name,
 .var-binding-row[data-disabled="1"] .var-binding-value {
     opacity: 0.8;
+}
+
+/* ===== 生成内容视图（合并自 generator-editor）===== */
+
+/* prompts 编辑区 */
+.prompts-section {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 15px;
+    background: var(--bg-card);
+}
+
+.prompts-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 5px;
+}
+
+.prompt-item {
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    background: var(--bg-input);
+}
+
+.prompt-item .prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+    gap: 8px;
+}
+
+.prompt-item .prompt-label-input {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-app);
+    color: var(--text-input);
+    font-size: 13px;
+}
+
+.prompt-item textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-app);
+    color: var(--text-input);
+    font-size: 13px;
+    font-family: var(--font-mono);
+    resize: vertical;
+}
+
+.btn-add-prompt {
+    cursor: pointer;
+    padding: 6px;
+    text-align: center;
+    border: 1px dashed var(--border-color);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 5px;
+}
+
+.btn-add-prompt:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.btn-delete-prompt {
+    cursor: pointer;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 12px;
+    background: var(--bg-app);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.btn-delete-prompt:hover {
+    background: var(--danger-color);
+    color: #fff;
+    border-color: var(--danger-color);
 }
 
 /* 半灰(继承默认) / 实心(已覆盖) */
@@ -720,6 +826,10 @@ section.module-detail-panel {
     #view-modules {
         grid-template-columns: 1fr;
         /* 单列 */
+    }
+
+    #view-generators {
+        grid-template-columns: 1fr;
     }
 
     .mobile-only {

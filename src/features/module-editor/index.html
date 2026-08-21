@@ -20,11 +20,18 @@
             <small style="opacity: 0.6; font-weight: normal;">v1.0</small>
         </div>
         <div class="header-actions">
-            <button id="header-import-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;"
-                data-i18n="ccore_btn_import">导入</button>
-            <button id="header-export-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;"
-                data-i18n="ccore_btn_export">导出</button>
-            <button id="header-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;" data-i18n="ccore_btn_save">保存</button>
+            <span id="module-header-actions" class="header-action-group">
+                <button id="header-import-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;"
+                    data-i18n="ccore_btn_import">导入</button>
+                <button id="header-export-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;"
+                    data-i18n="ccore_btn_export">导出</button>
+                <button id="header-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;"
+                    data-i18n="ccore_btn_save">保存</button>
+            </span>
+            <span id="generator-header-actions" class="header-action-group" style="display:none;">
+                <button id="header-gen-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;"
+                    data-i18n="ccore_btn_save">保存</button>
+            </span>
             <button id="close-btn"
                 style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
         </div>
@@ -33,7 +40,7 @@
     <div class="app-container">
         <!-- 1. 主导航栏 (Sidebar) -->
         <nav class="main-nav">
-            <div class="nav-item active" data-target="view-modules">
+            <div class="nav-item" data-target="view-modules">
                 <span class="nav-icon">📦</span>
                 <span class="nav-text" data-i18n="ccore_nav_modules">模块定义</span>
             </div>
@@ -44,6 +51,10 @@
             <div class="nav-item" data-target="view-settings">
                 <span class="nav-icon">⚙️</span>
                 <span class="nav-text" data-i18n="ccore_nav_settings">全局设置</span>
+            </div>
+            <div class="nav-item" data-target="view-generators">
+                <span class="nav-icon">🎬</span>
+                <span class="nav-text" data-i18n="ccore_nav_generators">生成内容</span>
             </div>
             <div class="nav-item" data-target="view-async">
                 <span class="nav-icon">⚡</span>
@@ -85,7 +96,28 @@
                 </section>
             </div>
 
-            <!-- 视图 B: 角色绑定（左栏角色树 + 右栏编辑器） -->
+            <!-- 视图 B: 生成内容（合并自 generator-editor，Master-Detail） -->
+            <div id="view-generators" class="view-section">
+                <!-- 左侧：生成内容列表 -->
+                <aside class="module-list-panel">
+                    <div class="list-toolbar">
+                        <input type="text" data-i18n-placeholder="ccore_search_generator" placeholder="搜索生成内容..."
+                            style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
+                        <button id="btn-add-generator" style="padding: 6px 10px; cursor: pointer;">+</button>
+                    </div>
+                    <div class="list-content" id="gen-list">
+                        <!-- 列表项将由 GeneratorSettings.js 生成 -->
+                    </div>
+                </aside>
+                <!-- 右侧：生成内容详情 -->
+                <section class="module-detail-panel">
+                    <div class="detail-content" id="gen-detail">
+                        <!-- 详情由 GeneratorSettings.js 生成 -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- 视图 C: 角色绑定（左栏角色树 + 右栏编辑器） -->
             <div id="view-profiles" class="view-section">
                 <aside class="binding-tree-panel">
                     <div class="list-toolbar">

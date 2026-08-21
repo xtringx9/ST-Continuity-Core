@@ -1,10 +1,12 @@
-// src/features/generator-editor/GeneratorEditor.js
-// 生成内容配置编辑器（小剧场、角色心理等）
-// 用 iframe.src 加载 index.html，复用 module-editor 的 themes.css + layout.css
-// 主题同步：读 localStorage.st_continuity_theme，由 index.html 的 <link> 引入 themes.css
+// GeneratorSettings.js
+// 生成内容配置编辑器（合并自 generator-editor，现作为 module-editor 的导航视图「生成内容」）。
+// 数据经 configManager.getGeneratorConfig() / setGeneratorConfig / saveGeneratorConfigNow 存取。
+// 生成配置的保存与 module 配置**完全分离**：本视图自带「保存」按钮，独立校验/落盘，
+// 不触碰 ModuleEditor 的模块保存流程（saveAll / checkForChanges / header-save-btn）。
 
 import configManager from '../../singleton/configManager.js';
 import { showToast } from '../../shared/Toast.js';
+import { IframeDialog } from '../../shared/IframeDialog.js';
 import { infoLog, errorLog } from '../../utils/logger.js';
 import { translate } from '../../../../../../i18n.js';
 import { openai_setting_names } from '../../../../../../openai.js';
@@ -15,115 +17,52 @@ let selectedGenId = null;
 let savedGeneratorsJson = ''; // 保存后的 JSON 字符串（用于 hasChanges 检测）
 
 /**
- * iframe 内静态文本 i18n（与 module-editor 一致）
- * ST 的 MutationObserver 在 iframe 内不运行，需手动遍历翻译
+ * 初始化「生成内容」视图。由 ModuleEditor.initModuleEditor 调用。
+ * @param {Document} iframeDocument iframe 的文档对象
  */
-function applyI18nToStaticElements(doc) {
-    doc.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        const translated = translate(key);
-        if (translated && translated !== key) {
-            el.textContent = translated;
-        }
-    });
-    doc.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-        const key = el.getAttribute('data-i18n-placeholder');
-        const translated = translate(key);
-        if (translated && translated !== key) {
-            el.placeholder = translated;
-        }
-    });
-}
-
-/**
- * 初始化生成内容配置编辑器
- * 由 EntryButton 在 iframe onLoad 回调中调用（与 initModuleEditor 一致）
- * @param {Document} iframeDocument Iframe 的文档对象
- */
-export function initGeneratorEditor(iframeDocument) {
+export function initGeneratorSettings(iframeDocument) {
     doc = iframeDocument;
 
-    // === 主题同步（与 module-editor 一致）===
-    const savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
-    doc.documentElement.setAttribute('data-theme', savedTheme);
-
-    const headerTitle = doc.querySelector('.header-title');
-    if (headerTitle) {
-        headerTitle.style.cursor = 'pointer';
-        headerTitle.title = translate('ccore_title_toggle_theme');
-        headerTitle.addEventListener('click', () => {
-            const current = doc.documentElement.getAttribute('data-theme') || 'light';
-            const next = current === 'light' ? 'dark' : 'light';
-            doc.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('st_continuity_theme', next);
-            window.dispatchEvent(new CustomEvent('continuity-theme-change'));
-        });
-    }
-
-    // === i18n 静态文本 ===
-    applyI18nToStaticElements(doc);
-
-    // === 加载数据（深拷贝避免直接修改引用）===
+    // 加载数据（深拷贝避免直接修改引用）
     const config = configManager.getGeneratorConfig();
     currentGenerators = JSON.parse(JSON.stringify(config.generators || []));
     savedGeneratorsJson = JSON.stringify(currentGenerators);
+    selectedGenId = currentGenerators.length > 0 ? currentGenerators[0].id : null;
 
-    // 选中第一个（如果有）
-    if (currentGenerators.length > 0) {
-        selectedGenId = currentGenerators[0].id;
-    }
-
-    // === 渲染 ===
+    // 渲染
     renderGeneratorList();
     renderGeneratorDetail();
-    checkForChanges();
 
-    // === 绑定新增按钮 ===
+    // 绑定新增按钮
     const addBtn = doc.getElementById('btn-add-generator');
     if (addBtn) {
         addBtn.addEventListener('click', addGenerator);
     }
 
-    // === 绑定保存按钮（顶部 header 内，与 module-editor 一致）===
-    const saveBtn = doc.getElementById('header-save-btn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', () => {
-            if (saveGenerators()) {
-                // saved 绿色状态反馈（与 module-editor 一致）
-                saveBtn.dataset.saving = 'true';
-                saveBtn.textContent = translate('ccore_msg_saved');
-                saveBtn.classList.add('saved');
-                setTimeout(() => {
-                    saveBtn.textContent = translate('ccore_btn_save');
-                    saveBtn.dataset.saving = 'false';
-                    saveBtn.classList.remove('saved');
-                    checkForChanges();
-                }, 1000);
-            }
-        });
+    // 绑定顶栏独立「保存」按钮（仅生成内容 tab 显示；不触碰 module 保存）。
+    // 顶栏按钮常驻 DOM，仅在 init 绑定一次即可（detail 重渲不会重建它）。
+    const headerSaveBtn = doc.getElementById('header-gen-save-btn');
+    if (headerSaveBtn) {
+        headerSaveBtn.addEventListener('click', saveGenerators);
     }
 
-    infoLog('[GeneratorEditor] 初始化完成，共', currentGenerators.length, '个生成内容');
+    checkForChanges();
 }
 
 /**
- * 检测变更，更新保存按钮状态（与 module-editor 一致）
+ * 检测变更，更新生成内容顶栏「保存」按钮状态（独立于 module 保存按钮）。
  */
 function checkForChanges() {
-    collectCurrentDetail();
-    const currentJson = JSON.stringify(currentGenerators);
-    const hasChanges = currentJson !== savedGeneratorsJson;
-
-    const saveBtn = doc.getElementById('header-save-btn');
-    if (saveBtn) {
-        saveBtn.disabled = !hasChanges;
-        if (hasChanges) {
-            saveBtn.classList.remove('btn-secondary');
-            saveBtn.classList.add('btn-primary');
-        } else {
-            saveBtn.classList.remove('btn-primary');
-            saveBtn.classList.add('btn-secondary');
-        }
+    const saveBtn = doc.getElementById('header-gen-save-btn');
+    if (!saveBtn) return;
+    const hasChanges = JSON.stringify(currentGenerators) !== savedGeneratorsJson;
+    saveBtn.disabled = !hasChanges;
+    if (hasChanges) {
+        saveBtn.classList.remove('btn-secondary');
+        saveBtn.classList.add('btn-primary');
+    } else {
+        saveBtn.classList.remove('btn-primary');
+        saveBtn.classList.add('btn-secondary');
     }
 }
 
@@ -147,7 +86,6 @@ function renderGeneratorList() {
         if (gen.enabled === false) item.classList.add('disabled');
         item.dataset.genId = gen.id;
 
-        // 列表项结构（与 module-editor 一致：content + actions）
         item.innerHTML = `
             <div class="module-item-content">
                 <div class="module-item-header">
@@ -169,13 +107,13 @@ function renderGeneratorList() {
             selectedGenId = gen.id;
             renderGeneratorList();
             renderGeneratorDetail();
-            // 移动端适配：点击后切换到详情视图（与 module-editor 一致）
+            // 移动端适配：点击后切换到详情视图
             if (window.innerWidth <= 768) {
-                doc.body.classList.add('mobile-view-detail');
+                doc.body.classList.add('mobile-view-detail-module');
             }
         });
 
-        // 绑定启用/禁用开关事件（与 module-editor 一致）
+        // 绑定启用/禁用开关事件
         const toggle = item.querySelector('.gen-enable-toggle');
         toggle.addEventListener('click', (e) => {
             gen.enabled = e.target.checked;
@@ -184,12 +122,10 @@ function renderGeneratorList() {
             checkForChanges();
         });
 
-        // 阻止开关容器的点击冒泡，防止触发列表项选中（与 module-editor 一致）
+        // 阻止开关容器的点击冒泡，防止触发列表项选中
         const actions = item.querySelector('.module-item-actions');
         if (actions) {
-            actions.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
+            actions.addEventListener('click', (e) => e.stopPropagation());
         }
 
         listEl.appendChild(item);
@@ -197,9 +133,7 @@ function renderGeneratorList() {
 }
 
 /**
- * 渲染右侧详情（复用 settings-container / form-grid / form-group class）
- * 加 module-detail-view class 使 form-group 保持行布局（与 module-editor 详情页一致）
- * 顶部 sticky-title-group 含 displayName + 🗑️ 删除按钮（与 module-editor 一致）
+ * 渲染右侧详情（复用 settings-container / detail-tabs / form-grid / form-group class）
  */
 function renderGeneratorDetail() {
     const detailEl = doc.getElementById('gen-detail');
@@ -274,11 +208,11 @@ function renderGeneratorDetail() {
         deleteGenBtn.addEventListener('click', () => deleteGenerator(gen.id));
     }
 
-    // 移动端返回按钮（与 module-editor 一致）
+    // 移动端返回按钮
     const backBtn = doc.getElementById('btn-back-to-list');
     if (backBtn) {
         backBtn.addEventListener('click', () => {
-            doc.body.classList.remove('mobile-view-detail');
+            doc.body.classList.remove('mobile-view-detail-module');
         });
     }
 }
@@ -323,9 +257,8 @@ function renderPrompts(gen) {
 }
 
 /**
- * 从当前详情表单收集数据到 currentGenerators
- * 切换选中或保存前调用
- * 注意：启用状态由左侧列表 toggle-switch 管理，不在详情区收集
+ * 从当前详情表单收集数据到 currentGenerators。
+ * 注意：启用状态由左侧列表 toggle-switch 管理，不在详情区收集。
  */
 function collectCurrentDetail() {
     const gen = currentGenerators.find(g => g.id === selectedGenId);
@@ -374,27 +307,36 @@ function addGenerator() {
     renderGeneratorList();
     renderGeneratorDetail();
     checkForChanges();
-
-    infoLog('[GeneratorEditor] 新增生成内容, id:', newGen.id);
 }
 
 /**
- * 删除 generator
+ * 删除 generator（IframeDialog 确认）
  */
 function deleteGenerator(genId) {
-    if (!confirm(translate('ccore_gen_confirm_delete'))) return;
-
-    currentGenerators = currentGenerators.filter(g => g.id !== genId);
-    selectedGenId = currentGenerators.length > 0 ? currentGenerators[0].id : null;
-
-    renderGeneratorList();
-    renderGeneratorDetail();
-    checkForChanges();
-
-    // 移动端：删除后返回列表视图（与 module-editor 一致）
-    doc.body.classList.remove('mobile-view-detail');
-
-    infoLog('[GeneratorEditor] 删除生成内容, id:', genId);
+    const dlg = new IframeDialog(doc);
+    const d = dlg;
+    dlg.open({
+        title: translate('ccore_binding_delete'),
+        content: `<div>${translate('ccore_gen_confirm_delete')}</div>`,
+        buttons: [
+            {
+                text: translate('ccore_btn_confirm'),
+                className: 'btn-secondary',
+                style: 'background-color: var(--red, #ff4444); color: white;',
+                onClick: () => {
+                    currentGenerators = currentGenerators.filter(g => g.id !== genId);
+                    selectedGenId = currentGenerators.length > 0 ? currentGenerators[0].id : null;
+                    renderGeneratorList();
+                    renderGeneratorDetail();
+                    checkForChanges();
+                    // 移动端：删除后返回列表视图
+                    doc.body.classList.remove('mobile-view-detail-module');
+                    d.close();
+                },
+            },
+            { text: translate('ccore_btn_cancel'), className: 'btn-primary', onClick: (dialog) => dialog.close() },
+        ],
+    });
 }
 
 /**
@@ -428,7 +370,7 @@ function deletePrompt(index) {
 }
 
 /**
- * 保存到 configManager
+ * 保存生成内容配置到 configManager（独立保存，不触碰 module 配置）。
  * @returns {boolean} 是否保存成功
  */
 function saveGenerators() {
@@ -464,10 +406,11 @@ function saveGenerators() {
         configManager.setGeneratorConfig(config);
         configManager.saveGeneratorConfigNow();
         savedGeneratorsJson = JSON.stringify(currentGenerators);
-        infoLog('[GeneratorEditor] 保存成功，共', currentGenerators.length, '个生成内容');
+        checkForChanges();
+        infoLog('[GeneratorSettings] 生成内容保存成功，共', currentGenerators.length, '个');
         return true;
     } catch (err) {
-        errorLog('[GeneratorEditor] 保存失败:', err);
+        errorLog('[GeneratorSettings] 保存失败:', err);
         showToast(doc, translate('ccore_gen_error_save_failed') + ': ' + err.message, 'error');
         return false;
     }
@@ -481,15 +424,4 @@ function escapeHtml(text) {
     const div = doc.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-/**
- * 每次打开抽屉时重新读取主题（keepAlive 模式下 onLoad 只跑一次，
- * 重开抽屉不会重新初始化，因此需在显示时补取一次 localStorage 主题）。
- * @param {Document} iframeDocument Iframe 的文档对象
- */
-export function syncGeneratorTheme(iframeDocument) {
-    if (!iframeDocument) return;
-    const savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
-    iframeDocument.documentElement.setAttribute('data-theme', savedTheme);
 }

@@ -17,6 +17,7 @@ import { IframeDialog } from '../../shared/IframeDialog.js';
 import { generateChangesSummary } from './ChangesSummary.js';
 import { handleExport, handleImport } from './ImportExport.js';
 import { renderModuleDetail } from './ModuleDetailRenderer.js';
+import { initGeneratorSettings } from './GeneratorSettings.js';
 import { generateModuleFormat } from '../../modules/promptGenerator.js';
 import { handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd } from './DragHandler.js';
 import { persistScroll, restoreScroll } from '../../shared/scrollPersistence.js';
@@ -141,6 +142,9 @@ export function initModuleEditor(iframeDocument) {
     renderGlobalSettings(doc, currentGlobalSettings, checkForChanges);
     renderAsyncSettings(doc, currentAsyncConfig, currentAsyncModule, checkForChanges);
 
+    // 生成内容视图（合并自 generator-editor）
+    initGeneratorSettings(doc);
+
     // 初始化角色绑定页（左栏角色树 + 右栏编辑器骨架）
     initCharacterBinding(doc);
 
@@ -181,6 +185,9 @@ export function initModuleEditor(iframeDocument) {
 
     // 控制"清空模块"按钮的初始显示/隐藏
     doc.getElementById('header-clear-btn').style.display = (activeViewSectionId === 'view-modules') ? 'inline-block' : 'none';
+
+    // 初始化顶栏按钮组显隐（模块三键仅 模块配置/全局设置/异步配置；生成保存仅 生成内容）
+    updateHeaderActionsForView(activeViewSectionId);
 
     // 初始化保存按钮状态
     checkForChanges();
@@ -257,6 +264,24 @@ export function syncModuleTheme(iframeDocument) {
     iframeDocument.documentElement.setAttribute('data-theme', savedTheme);
 }
 
+/**
+ * 强制把主编辑器切换到指定导航视图（供入口菜单直达某视图，如「生成内容」）。
+ * @param {string} viewId 视图 id（如 'view-generators'）
+ */
+export function focusModuleEditorView(viewId) {
+    if (!doc || !doc.getElementById) return;
+    const navItems = doc.querySelectorAll('.nav-item');
+    const sections = doc.querySelectorAll('.view-section');
+    navItems.forEach(n => n.classList.remove('active'));
+    sections.forEach(s => s.classList.remove('active'));
+    const nav = doc.querySelector(`.nav-item[data-target="${viewId}"]`);
+    const section = doc.getElementById(viewId);
+    if (nav) nav.classList.add('active');
+    if (section) section.classList.add('active');
+    activeViewSectionId = viewId;
+    localStorage.setItem('continuity_editor_last_tab', viewId);
+}
+
 function bindDebugStateButton() {
     const btn = doc.getElementById('btn-debug-state');
     if (btn) {
@@ -306,8 +331,25 @@ function bindNavigationEvents() {
                 // 假设 'view-modules' 是模块列表页面的 ID
                 clearBtn.style.display = (targetId === 'view-modules') ? 'inline-block' : 'none';
             }
+
+            // 按当前视图切换顶部按钮组：模块三键仅 模块配置/全局设置/异步配置；生成保存仅 生成内容
+            updateHeaderActionsForView(targetId);
         });
     });
+}
+
+/** 模块三键（导入/导出/保存）仅在这些视图显示 */
+const MODULE_HEADER_VIEWS = new Set(['view-modules', 'view-settings', 'view-async']);
+
+/**
+ * 按当前激活视图切换顶栏按钮组显隐。
+ * @param {string} viewId 目标视图 id
+ */
+function updateHeaderActionsForView(viewId) {
+    const moduleActions = doc.getElementById('module-header-actions');
+    const genActions = doc.getElementById('generator-header-actions');
+    if (moduleActions) moduleActions.style.display = MODULE_HEADER_VIEWS.has(viewId) ? 'inline-flex' : 'none';
+    if (genActions) genActions.style.display = viewId === 'view-generators' ? 'inline-flex' : 'none';
 }
 
 function bindSidebarEvents() {

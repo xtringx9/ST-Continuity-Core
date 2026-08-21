@@ -1,8 +1,10 @@
 {
     "ccore_nav_modules": "Modules",
+    "ccore_nav_generators": "Generators",
     "ccore_nav_profiles": "Profiles",
     "ccore_nav_tools": "Tools",
     "ccore_nav_settings": "Settings",
+    "ccore_search_generator": "Search generators...",
     "ccore_tag_external": "External",
     "ccore_tag_time_ref": "Time Ref",
     "ccore_tag_disabled": "Disabled",

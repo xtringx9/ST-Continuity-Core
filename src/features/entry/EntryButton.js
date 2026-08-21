@@ -1,7 +1,6 @@
 import { IframeModal } from '../../shared/IframeModal.js';
 import configManager from '../../singleton/configManager.js';
 import { initModuleEditor, syncModuleTheme } from '../module-editor/ModuleEditor.js';
-import { initGeneratorEditor, syncGeneratorTheme } from '../generator-editor/GeneratorEditor.js';
 import { initNaiPresetSwitcher, syncNaiTheme, syncNaiPresetData } from '../nai-preset-switcher/NaiPresetSwitcher.js';
 import { initChatReader, syncChatReaderTheme } from '../chat-reader/ChatReader.js';
 import { warnLog } from '../../utils/logger.js';
@@ -431,7 +430,6 @@ export class EntryButton {
 
         const items = [
             { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },
-            { action: 'generator-editor', icon: 'fa-wand-magic-sparkles', title: '生成内容配置' },
             { action: 'history', icon: 'fa-clock-rotate-left', title: '生成记录' },
             { action: 'reader', icon: 'fa-book-open', title: '图文阅读器' },
             { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
@@ -527,9 +525,9 @@ export class EntryButton {
         this._activeMenu.querySelectorAll('.continuity-entry-menu-item').forEach(btn => {
             const action = btn.dataset.action;
             const title = btn.dataset.title || '';
-            // 全局工具（不受聊天页限制）：editor / generator-editor / nai-preset / reader / history。
+            // 全局工具（不受聊天页限制）：editor / nai-preset / reader / history。
             // reader 有首页（角色→聊天选择）；history 是全局生成记录，均无需先打开聊天。
-            const disabled = !inChat && action !== 'editor' && action !== 'generator-editor' && action !== 'nai-preset' && action !== 'reader' && action !== 'history';
+            const disabled = !inChat && action !== 'editor' && action !== 'nai-preset' && action !== 'reader' && action !== 'history';
             btn.dataset.disabled = disabled ? 'true' : 'false';
             if (disabled) {
                 btn.style.opacity = '0.4';
@@ -572,28 +570,6 @@ export class EntryButton {
             case 'editor':
                 this._handleClick();
                 break;
-            case 'generator-editor': {
-                this._ensureOnlyOneModal('generator');
-                const pageUrl = `${this.extensionPath}/src/features/generator-editor/index.html`;
-                this.generatorModal.open(pageUrl, '生成内容配置', {
-                    variant: 'drawer-left',
-                    keepAlive: true,
-                    onLoad: (iframe) => {
-                        this.generatorIframe = iframe;
-                        const doc = iframe.contentDocument;
-                        if (doc) {
-                            initGeneratorEditor(doc);
-                            const closeBtn = doc.getElementById('close-btn');
-                            if (closeBtn) {
-                                closeBtn.addEventListener('click', () => this.generatorModal.close());
-                            }
-                        }
-                    }
-                });
-                // keepAlive 重开不重新 onLoad，补取一次主题让抽屉与当前设置一致
-                syncGeneratorTheme(this.generatorIframe?.contentDocument);
-                break;
-            }
             case 'reader': {
                 this._ensureOnlyOneModal('reader');
                 const pageUrl = `${this.extensionPath}/src/features/chat-reader/index.html`;

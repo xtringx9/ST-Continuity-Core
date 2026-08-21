@@ -1,8 +1,10 @@
 {
     "ccore_nav_modules": "模块配置",
+    "ccore_nav_generators": "生成内容",
     "ccore_nav_profiles": "角色绑定",
     "ccore_nav_tools": "工具箱",
     "ccore_nav_settings": "全局设置",
+    "ccore_search_generator": "搜索生成内容...",
     "ccore_tag_external": "外部显示",
     "ccore_tag_time_ref": "时间基准",
     "ccore_tag_disabled": "已禁用",
