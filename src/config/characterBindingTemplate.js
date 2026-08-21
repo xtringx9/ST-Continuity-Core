@@ -27,6 +27,14 @@ export const CHARACTER_BINDING_TEMPLATE = {
                     variableOverrides: { type: 'object', default: {}, description: '变量启停覆盖 {变量名: bool}' },
                 }
             ],
+            variables: [
+                {
+                    enabled: { type: 'boolean', default: true, description: '本层是否参与(写入)该变量；关=让位下层' },
+                    name: { type: 'string', required: true, description: 'ST 原生变量名（chat_metadata.variables 键，供 {{getvar}} 读取）' },
+                    value: { type: 'string', default: '', description: '写入的变量值（字符串；ST 数字读时会被强转 Number）' },
+                    comment: { type: 'string', default: '', description: '备注/备用区（仅存档，不参与写入；方便复制粘贴备用内容）' },
+                }
+            ],
         }
     ],
 };
@@ -82,6 +90,21 @@ export function createEmptyBoundModule(name) {
 }
 
 /**
+ * 创建一个空"绑定变量"条目（会员制：显式存储；enabled=false 表示本层不参与、让位下层）
+ * @param {string} [name]
+ * @param {string} [value]
+ * @param {string} [comment]
+ */
+export function createEmptyBoundVariable(name = '', value = '', comment = '') {
+    return {
+        enabled: true,
+        name,
+        value,
+        comment,
+    };
+}
+
+/**
  * 验证角色绑定配置
  * @param {Object} config
  * @returns {Object} { isValid, errors, warnings }
@@ -118,6 +141,17 @@ export function validateCharacterBindingConfig(config) {
                 else mseen.add(m.name);
             });
         }
+
+        if (Array.isArray(b.variables)) {
+            const vseen = new Set();
+            b.variables.forEach((v, k) => {
+                const vp = `${prefix} 变量${k + 1}`;
+                const vname = String(v.name || '');
+                if (!vname) errors.push(`${vp}: 缺少name`);
+                else if (vseen.has(vname)) errors.push(`${vp}: 变量 ${vname} 重复`);
+                else vseen.add(vname);
+            });
+        }
     });
 
     return { isValid: errors.length === 0, errors, warnings };
@@ -151,6 +185,12 @@ export function normalizeCharacterBindingConfig(config) {
                 variableOverrides: m.variableOverrides && typeof m.variableOverrides === 'object'
                     ? { ...m.variableOverrides }
                     : {},
+            })) : [],
+            variables: Array.isArray(b.variables) ? b.variables.map(v => ({
+                enabled: v.enabled !== false,
+                name: String(v.name || ''),
+                value: v.value == null ? '' : String(v.value),
+                comment: v.comment == null ? '' : String(v.comment),
             })) : [],
         }));
     }

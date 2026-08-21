@@ -29,6 +29,8 @@ import {
     setChatModuleEntryEnabled,
     migrateWorldBookModulesToChatEntries,
 } from '../../core/chatModuleEntryStore.js';
+import { createEmptyBoundVariable } from '../../config/characterBindingTemplate.js';
+import { applyCurrentVariables } from '../variable-binding/variableBindingState.js';
 
 // 全局文档引用（指向 iframe 的 document）
 let doc = null;
@@ -256,7 +258,7 @@ function getModuleDef(modName) {
 function getNodeBinding() {
     let b = configManager.findBinding(selected.scope, selected.charName, selected.chatFile);
     if (!b) {
-        b = { scope: selected.scope, charName: selected.charName, chatFile: selected.scope === 'chat' ? selected.chatFile : null, modules: [] };
+        b = { scope: selected.scope, charName: selected.charName, chatFile: selected.scope === 'chat' ? selected.chatFile : null, modules: [], variables: [] };
     }
     return b;
 }
@@ -397,6 +399,7 @@ async function renderDetail() {
                         : `<p style="color:var(--text-muted);">${translate('ccore_binding_empty')}</p>`}
                 </div>
             </div>
+            ${renderVarBindingSection()}
             ${renderChatModuleEntriesSection(selected.scope === 'chat')}
             <div class="form-section-title">${translate('ccore_binding_section_chatops')}</div>
             <div class="binding-section-body">
@@ -442,6 +445,7 @@ async function renderDetail() {
     }
     bindModuleBlocks();
     bindChatModuleEntries();
+    bindVarBinding();
     bindChatOpMigrateButton();
 }
 
@@ -480,13 +484,25 @@ function buildCurrentChatJumpBtn() {
  * 数据存 chat_metadata.ccore.chatModuleEntries（聊天级共享，条目独立于消息生命周期）。
  */
 function renderChatModuleEntriesSection(isChatScope) {
-    const section = (content) => `
-        <div class="form-section-title">${translate('ccore_chat_entries_title')}</div>
-        <div class="binding-section-body">${content}</div>
-    `;
+    // 标题行右侧动作（聊天级：启用开关 + 新增按钮，编排同「模块覆盖」）
+    const headActions = isChatScope ? `
+        <div class="binding-section-head-actions">
+            <label class="toggle-switch binding-toggle-override" style="margin:0;" title="${translate('ccore_chat_entries_enable')}">
+                <input type="checkbox" class="chat-entries-enabled" ${getChatModuleEntryConfig().enabled ? 'checked' : ''}>
+                <span class="slider round"></span>
+            </label>
+            <button class="btn-secondary chat-entry-add">＋ ${translate('ccore_chat_entries_add')}</button>
+        </div>` : '';
+
+    const sectionHead = `
+        <div class="form-section-title${isChatScope ? ' binding-section-head' : ''}">
+            <span>${translate('ccore_chat_entries_title')}</span>
+            ${headActions}
+        </div>`;
 
     if (!isChatScope) {
-        return section(`<p style="color:var(--text-muted);">${translate('ccore_chat_entries_scope_hint')}</p>`);
+        return `${sectionHead}
+            <div class="binding-section-body"><p style="color:var(--text-muted);">${translate('ccore_chat_entries_scope_hint')}</p></div>`;
     }
 
     const entries = getChatModuleEntries();
@@ -521,18 +537,163 @@ function renderChatModuleEntriesSection(isChatScope) {
         }).join('');
     }
 
-    return section(`
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-            <label class="toggle-switch binding-toggle-override" style="margin:0;">
-                <input type="checkbox" class="chat-entries-enabled" ${getChatModuleEntryConfig().enabled ? 'checked' : ''}>
-                <span class="slider round"></span>
-            </label>
-            <span style="color:var(--text-secondary);font-size:12px;">${translate('ccore_chat_entries_enable')}</span>
-            <button class="btn-secondary chat-entry-add" style="margin-left:auto;padding:3px 10px;font-size:12px;">＋ ${translate('ccore_chat_entries_add')}</button>
+    return `
+        ${sectionHead}
+        <div class="binding-section-body">
+            <div class="chat-entry-list">${listHtml}</div>
+            <p style="color:var(--text-muted);font-size:11px;margin-top:6px;">${translate('ccore_chat_entries_hint').replace('{floor}', String(defaultFloor))}</p>
+        </div>`;
+}
+
+/* ===================== C 变量绑定 区块（角色级/聊天级都显示） ===================== */
+
+/** 当前节点绑定的 variables 数组（无则空） */
+function nodeVarBindings() {
+    return getNodeBinding().variables || [];
+}
+
+/** 渲染「变量设置」区块 */
+function renderVarBindingSection() {
+    const vars = nodeVarBindings();
+    const rows = vars.length
+        ? vars.map((v, i) => renderVarBindingRow(v, i)).join('')
+        : `<p style="color:var(--text-muted);">${translate('ccore_var_binding_empty')}</p>`;
+    return `
+        <div class="form-section-title binding-section-head">
+            <span>${translate('ccore_var_binding_title')}</span>
+            <div class="binding-section-head-actions">
+                <button class="btn-secondary var-binding-add">＋ ${translate('ccore_var_binding_add')}</button>
+            </div>
         </div>
-        <div class="chat-entry-list">${listHtml}</div>
-        <p style="color:var(--text-muted);font-size:11px;margin-top:6px;">${translate('ccore_chat_entries_hint').replace('{floor}', String(defaultFloor))}</p>
-    `);
+        <div class="binding-section-body">
+            <div class="var-binding-list">${rows}</div>
+        </div>`;
+}
+
+function renderVarBindingRow(v, idx) {
+    const fallback = fallbackHint(v);
+    return `
+        <div class="var-binding-row" data-var-idx="${idx}" ${v.enabled ? '' : 'data-disabled="1"'}>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <label class="toggle-switch binding-toggle-override" style="margin:0;flex-shrink:0;" title="${translate('ccore_var_binding_enable_title')}">
+                    <input type="checkbox" class="var-binding-enabled" ${v.enabled ? 'checked' : ''}>
+                    <span class="slider round"></span>
+                </label>
+                <input type="text" class="var-binding-name" value="${escapeAttr(v.name)}" placeholder="${translate('ccore_var_binding_name_ph')}"
+                style="flex:1;min-width:0;padding:3px 6px;border-radius:3px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-input);font-size:12px;">
+                ${fallback}
+                <button class="btn-secondary var-binding-del" title="${translate('ccore_binding_delete')}" style="padding:2px 8px;font-size:12px;">✕</button>
+            </div>
+            <textarea class="var-binding-value" rows="2" placeholder="${translate('ccore_var_binding_value_ph')}"
+                style="width:100%;margin-top:4px;padding:4px 6px;border-radius:3px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-input);font-size:12px;resize:vertical;box-sizing:border-box;">${escapeHtml(v.value)}</textarea>
+            <textarea class="var-binding-comment" rows="2" placeholder="${translate('ccore_var_binding_comment_ph')}"
+                style="width:100%;margin-top:4px;padding:4px 6px;border-radius:3px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-input);font-size:12px;resize:vertical;box-sizing:border-box;">${escapeHtml(v.comment)}</textarea>
+        </div>`;
+}
+
+/** 聊天级·开关关 且 角色级同名 enabled → 提示「回退角色级」徽标 */
+function fallbackHint(v) {
+    if (selected.scope !== 'chat' || v.enabled) return '';
+    const charV = configManager.findBinding('character', selected.charName, null)?.variables?.find(x => x.name === v.name);
+    if (charV && charV.enabled !== false) {
+        return `<span class="binding-inherited-badge">${translate('ccore_var_binding_fallback_char')}</span>`;
+    }
+    return '';
+}
+
+function bindVarBinding() {
+    const root = detailEl.querySelector('.var-binding-list');
+    if (!root) return;
+
+    const addBtn = detailEl.querySelector('.var-binding-add');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            const b = getNodeBinding();
+            if (!Array.isArray(b.variables)) b.variables = [];
+            b.variables.push(createEmptyBoundVariable());
+            configManager.upsertBinding(b);
+            renderDetail();
+        });
+    }
+
+    root.querySelectorAll('.var-binding-del').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const row = btn.closest('.var-binding-row');
+            const idx = Number(row?.dataset?.varIdx);
+            if (Number.isNaN(idx)) return;
+            const dlg = new IframeDialog(doc);
+            const d = dlg;
+            dlg.open({
+                title: translate('ccore_binding_delete'),
+                content: `<div>${translate('ccore_var_binding_delete_confirm')}</div>`,
+                buttons: [
+                    { text: translate('ccore_btn_confirm'), className: 'btn-secondary', style: 'background-color: var(--red, #ff4444); color: white;', onClick: () => {
+                        removeVarBinding(idx);
+                        d.close();
+                        renderDetail();
+                    } },
+                    { text: translate('ccore_btn_cancel'), className: 'btn-primary', onClick: (dialog) => dialog.close() },
+                ],
+            });
+        });
+    });
+
+    root.querySelectorAll('.var-binding-enabled').forEach(sw => {
+        sw.addEventListener('change', e => {
+            const row = e.target.closest('.var-binding-row');
+            const idx = Number(row?.dataset?.varIdx);
+            if (Number.isNaN(idx)) return;
+            updateVarBinding(idx, v => { v.enabled = e.target.checked; });
+            // 同步置灰态（不整页重渲，避免失焦丢失正在编辑的备注/值）
+            row.style.opacity = e.target.checked ? '' : '0.55';
+            if (e.target.checked) row.removeAttribute('data-disabled');
+            else row.setAttribute('data-disabled', '1');
+            maybeApplyToCurrent();
+        });
+    });
+
+    const bindField = (selector, apply) => {
+        root.querySelectorAll(selector).forEach(el => {
+            const row = el.closest('.var-binding-row');
+            const idx = Number(row?.dataset?.varIdx);
+            if (Number.isNaN(idx)) return;
+            el.addEventListener('change', () => {
+                updateVarBinding(idx, v => apply(v, el.value));
+                maybeApplyToCurrent();
+            });
+        });
+    };
+    bindField('.var-binding-name', (v, val) => { v.name = val; });
+    bindField('.var-binding-value', (v, val) => { v.value = val; });
+    bindField('.var-binding-comment', (v, val) => { v.comment = val; });
+}
+
+/** 按索引更新当前节点绑定的一个变量（回调后保存） */
+function updateVarBinding(idx, mutate) {
+    const b = getNodeBinding();
+    const vars = Array.isArray(b.variables) ? b.variables : (b.variables = []);
+    const v = vars[idx];
+    if (!v) return;
+    mutate(v);
+    configManager.upsertBinding(b);
+}
+
+/** 按索引删除当前节点绑定的一个变量 */
+function removeVarBinding(idx) {
+    const b = configManager.findBinding(selected.scope, selected.charName, selected.chatFile);
+    if (!b) return;
+    if (Array.isArray(b.variables)) b.variables.splice(idx, 1);
+    configManager.upsertBinding(b);
+}
+
+/** 若当前编辑的节点即「当前聊天」生效节点，重放运行时变量（让 {{getvar}} 立即反映） */
+function maybeApplyToCurrent() {
+    const cur = getCurrentChat();
+    if (!cur.charName) return;
+    if (selected.charName !== cur.charName) return;
+    if (selected.scope === 'chat' && selected.chatFile !== cur.chatFile) return;
+    applyCurrentVariables();
 }
 
 function renderModuleBlock(modName) {
@@ -676,8 +837,20 @@ function bindChatModuleEntries() {
             const row = btn.closest('.chat-entry-row');
             const id = row?.dataset?.entryId;
             if (!id) return;
-            deleteChatModuleEntry(id);
-            renderDetail();
+            const dlg = new IframeDialog(doc);
+            const d = dlg;
+            dlg.open({
+                title: translate('ccore_binding_delete'),
+                content: `<div>${translate('ccore_chat_entries_delete_confirm')}</div>`,
+                buttons: [
+                    { text: translate('ccore_btn_confirm'), className: 'btn-secondary', style: 'background-color: var(--red, #ff4444); color: white;', onClick: () => {
+                        deleteChatModuleEntry(id);
+                        d.close();
+                        renderDetail();
+                    } },
+                    { text: translate('ccore_btn_cancel'), className: 'btn-primary', onClick: (dialog) => dialog.close() },
+                ],
+            });
         });
     });
 

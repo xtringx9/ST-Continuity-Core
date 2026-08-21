@@ -41,6 +41,11 @@ import {
     initPresetBinding,
 } from "./src/features/preset-binding/presetBinding.js";
 
+// C 变量绑定（角色级/聊天级配置 ST 原生变量 {{getvar}}，运行时经 variableBridge 写入）
+import {
+    initVariableBinding,
+} from "./src/features/variable-binding/variableBinding.js";
+
 // 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
 import {
     initPromptEntryActions,
@@ -124,4 +129,7 @@ jQuery(async function () {
 
     // 初始化消息 AI 生成按钮
     initMessageAiButton();
+
+    // C 变量绑定：把角色级/聊天级配置的 ST 原生变量写入当前聊天（核心功能，随扩展启用）
+    initVariableBinding();
 });

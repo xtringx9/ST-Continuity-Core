@@ -1737,6 +1737,41 @@ class ConfigManager {
     }
 
     /**
+     * 计算某「聊天」的「有效变量集」（Model A：角色级 < 聊天级，逐 name 覆盖，各层 enabled 门控）。
+     * - enabled=false（或该层无此变量）→ 本层不参与，让位下层（角色级无则视为「不管理」）。
+     * - 返回 { name: { value, enabled } }，enabled 表示该变量最终是否被本功能管理并写入。
+     * @param {string} charName 角色名
+     * @param {string} [chatFile] 聊天文件名；为空则只看角色级
+     * @returns {Object<string, {value: string, enabled: boolean}>}
+     */
+    getEffectiveVariables(charName, chatFile = '') {
+        const result = {};
+        const layers = [
+            { binding: this.findBinding('character', charName, null), idx: 0 },
+            { binding: chatFile ? this.findBinding('chat', charName, chatFile) : null, idx: 1 },
+        ];
+        const varLayers = {}; // name -> [{ idx, value, enabled }]
+        layers.forEach(({ binding, idx }) => {
+            (binding?.variables || []).forEach(v => {
+                const name = String(v.name || '');
+                if (!name) return;
+                (varLayers[name] = varLayers[name] || []).push({
+                    idx,
+                    value: String(v.value ?? ''),
+                    enabled: v.enabled !== false,
+                });
+            });
+        });
+        // 每个 name：取「层级最高且 enabled」的条目；若所有层都 disabled → 不管理（enabled=false）
+        for (const name in varLayers) {
+            varLayers[name].sort((a, b) => b.idx - a.idx); // 聊天级(1) > 角色级(0)
+            const winner = varLayers[name].find(e => e.enabled) || varLayers[name][0];
+            result[name] = { value: winner.enabled ? winner.value : '', enabled: winner.enabled };
+        }
+        return result;
+    }
+
+    /**
      * 写入或更新一个绑定（按 scope+charName+chatFile 去重）
      * @param {Object} binding { scope, charName, chatFile, modules }
      */
@@ -1753,6 +1788,12 @@ class ConfigManager {
             charName: binding.charName,
             chatFile: file,
             modules: Array.isArray(binding.modules) ? binding.modules : [],
+            variables: Array.isArray(binding.variables) ? binding.variables.map(v => ({
+                enabled: v.enabled !== false,
+                name: String(v.name || ''),
+                value: v.value == null ? '' : String(v.value),
+                comment: v.comment == null ? '' : String(v.comment),
+            })) : [],
         };
         if (idx !== -1) config.bindings[idx] = normalized;
         else config.bindings.push(normalized);

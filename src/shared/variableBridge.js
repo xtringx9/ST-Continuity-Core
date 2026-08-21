@@ -15,9 +15,9 @@ import {
     getGlobalVariable,
     setGlobalVariable,
 } from '../../../../../../scripts/variables.js';
-import { chat_metadata } from '../../../../../../script.js';
-import { extension_settings } from '../../../../../../extensions.js';
-import { saveMetadataDebounced, saveSettingsDebounced } from '../../../../../../extensions.js';
+import { chat_metadata, saveSettingsDebounced } from '../../../../../../script.js';
+import { extension_settings } from '../../../../../extensions.js';
+import { saveMetadataDebounced } from '../../../../../extensions.js';
 
 /**
  * 读取变量。

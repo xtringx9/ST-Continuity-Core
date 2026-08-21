@@ -129,7 +129,9 @@
 }
 
 .form-section-title.binding-section-head .binding-reset-btn,
-.form-section-title.binding-section-head .binding-add-btn {
+.form-section-title.binding-section-head .binding-add-btn,
+.form-section-title.binding-section-head .var-binding-add,
+.form-section-title.binding-section-head .chat-entry-add {
     font-size: 12px;
     padding: 2px 8px;
     font-weight: 400;
@@ -334,6 +336,29 @@
     font-size: 12px;
     color: var(--text-muted);
     padding: 4px 0 4px 28px;
+}
+
+/* C 变量绑定 区块（角色级/聊天级变量配置，仿「聊天级模块内容条目」） */
+.var-binding-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.var-binding-row {
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: var(--bg-panel);
+}
+
+.var-binding-row[data-disabled="1"] {
+    opacity: 0.55;
+}
+
+.var-binding-row[data-disabled="1"] .var-binding-name,
+.var-binding-row[data-disabled="1"] .var-binding-value {
+    opacity: 0.8;
 }
 
 /* 半灰(继承默认) / 实心(已覆盖) */
