@@ -11,7 +11,7 @@ import generatedContentCache from '../singleton/generatedContentCache.js';
 import { isInChatPage, openContextBottomAsModal, scheduleMsgBottom, checkRenderCurrentMessageContext } from '../core/contextBottomUI.js';
 import { renderCurrentMessageContext } from '../core/context-ui/inlineMessageRenderer.js';
 import { showToast } from '../shared/Toast.js';
-import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, deleteOuterSwipeNode, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
+import { readFloorModules, readAllGeneratorContents, getActiveGeneratorSwipe, setActiveGeneratorSwipe, writeGeneratorContent, deleteGeneratorContent, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, deleteOuterSwipeNode, insertOuterSwipeNode, FLOOR_MODULES_UPDATED_EVENT } from '../core/floorModuleStore.js';
 import { parseNestedModules } from '../core/moduleExtractor.js';
 import { getChatCacheKey, invalidateOccurrence } from '../core/occurrenceCache.js';
 import { markSnapshotDirty } from '../core/snapshotStore.js';
@@ -319,19 +319,19 @@ function createInlineMenu(triggerButton, mesId) {
         menu.append(createMenuBox(genActions, asyncEnabled, triggerButton, mesId, gen.displayName, gen.name));
     }
 
-    // 3. 独立删除框（菜单末位）：删除当前外层 swipe 的「全部 generator」节点并前移（清理孤儿外层 swipe）
-    menu.append(createDeleteOuterSwipeBox(triggerButton, mesId));
+    // 3. 独立节点管理框（菜单末位）：插入一新空白节点 / 删除当前外层节点（均对所有 generator 生效，后续 key 随之后移/前移）
+    menu.append(createOuterSwipeManageBox(triggerButton, mesId));
 
     return menu;
 }
 
 /**
- * 创建独立删除框：删除当前外层 swipe 的所有 generator（modules + 各 gen）节点，并把后续外层 key 前移。
+ * 创建节点管理框：包含「新增（插入空白节点，后面前移）」与「删除（删除当前节点，后面前移）」两个按钮。
  * @param {jQuery} triggerButton
  * @param {number} mesId
  * @returns {jQuery}
  */
-function createDeleteOuterSwipeBox(triggerButton, mesId) {
+function createOuterSwipeManageBox(triggerButton, mesId) {
     const box = $('<div>').css({
         display: 'inline-flex',
         alignItems: 'center',
@@ -342,8 +342,40 @@ function createDeleteOuterSwipeBox(triggerButton, mesId) {
         boxSizing: 'border-box',
         gap: '0',
     });
-    const btn = $('<div>')
-        .attr('title', '删除当前外层 swipe 的所有生成节点并前移')
+
+    // 新增按钮（插入空白节点到当前外层之前，后续后移）
+    const addBtn = $('<div>')
+        .attr('title', '插入一个空白Swipe，后面的后移')
+        .attr('role', 'button')
+        .attr('tabindex', '0')
+        .addClass('mes_button interactable')
+        .css({
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '18px',
+            height: '18px',
+            padding: '0 !important',
+            boxSizing: 'border-box',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            opacity: 0.7,
+            color: 'var(--success-color, #4caf50)',
+        })
+        .html('<i class="fa-solid fa-plus"></i>');
+    addBtn.hover(
+        function () { $(this).css('opacity', 1); },
+        function () { $(this).css('opacity', 0.7); }
+    );
+    addBtn.on('click', (e) => {
+        e.stopPropagation();
+        onInsertOuterSwipeAll(mesId);
+    });
+    box.append(addBtn);
+
+    // 删除按钮（删除当前外层节点，后面前移）
+    const delBtn = $('<div>')
+        .attr('title', '删除当前Swipe，后面的前移')
         .attr('role', 'button')
         .attr('tabindex', '0')
         .addClass('mes_button interactable')
@@ -361,16 +393,52 @@ function createDeleteOuterSwipeBox(triggerButton, mesId) {
             color: 'var(--crimson, #e74c3c)',
         })
         .html('<i class="fa-solid fa-trash-can"></i>');
-    btn.hover(
+    delBtn.hover(
         function () { $(this).css('opacity', 1); },
         function () { $(this).css('opacity', 0.7); }
     );
-    btn.on('click', (e) => {
+    delBtn.on('click', (e) => {
         e.stopPropagation();
         onDeleteOuterSwipeAll(mesId);
     });
-    box.append(btn);
+    box.append(delBtn);
+
     return box;
+}
+
+/**
+ * 新增：在当前外层之前插入一个空白节点，把当前及后续外层节点 key 后移一位（对所有 generator 生效）。
+ * 弹确认 → 插入并退出菜单。
+ * @param {number} mesId
+ */
+async function onInsertOuterSwipeAll(mesId) {
+    const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
+    try {
+        const $body = $('<div>').append(
+            $('<p>').text(`确定在Swipe #${Number(outerSwipeId) + 1} 之前插入一个空白位置吗？`),
+            $('<p style="opacity:0.7;font-size:0.9em;">').text('插入后，当前及后面的全部异步生成内容都会后移一位。此操作不可恢复。'),
+        );
+        const result = await new Popup($body, POPUP_TYPE.CONFIRM, '', {
+            okButton: '插入',
+            cancelButton: '取消',
+        }).show();
+        if (result !== POPUP_RESULT.AFFIRMATIVE) return;
+        const ok = insertOuterSwipeNode(mesId, outerSwipeId);
+        if (!ok) {
+            toastr.warning('插入空白节点失败');
+            return;
+        }
+        infoLog(LOG_TAG, `消息 ${mesId} 在外层 ${outerSwipeId} 之前插入空白节点并后移`);
+        closeInlineMenu();
+        scheduleMsgBottom('single', mesId);
+        generatedContentCache.delete(mesId);
+        invalidateOccurrence(getChatCacheKey(), 'chatText', mesId);
+        invalidateOccurrence(getChatCacheKey(), 'asyncChat', mesId);
+        toastr.success(`已在Swipe ${Number(outerSwipeId) + 1} 之前插入空白位置`);
+    } catch (err) {
+        errorLog(LOG_TAG, '插入外层 swipe 节点失败:', err);
+        toastr.error(`插入外层 swipe 节点失败：${err.message}`);
+    }
 }
 
 /**
@@ -382,8 +450,8 @@ async function onDeleteOuterSwipeAll(mesId) {
     const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
     try {
         const $body = $('<div>').append(
-            $('<p>').text(`确定删除本消息 swipe #${Number(outerSwipeId) + 1} 的所有生成节点吗？`),
-            $('<p style="opacity:0.7;font-size:0.9em;">').text('将删除该外层 swipe 的全部 generator 节点（模块/角色心理等），并把后续外层 swipe 节点 key 前移对齐。此操作不可恢复。'),
+            $('<p>').text(`确定删除Swipe #${Number(outerSwipeId) + 1} 的全部异步生成内容吗？`),
+            $('<p style="opacity:0.7;font-size:0.9em;">').text('将删除该Swipe的全部异步生成内容，并把后续Swipe的异步生成内容前移。此操作不可恢复。'),
         );
         const result = await new Popup($body, POPUP_TYPE.CONFIRM, '', {
             okButton: '删除',
@@ -392,7 +460,7 @@ async function onDeleteOuterSwipeAll(mesId) {
         if (result !== POPUP_RESULT.AFFIRMATIVE) return;
         const ok = deleteOuterSwipeNode(mesId, outerSwipeId);
         if (!ok) {
-            toastr.warning('未找到该外层 swipe 节点，或已不存在');
+            toastr.warning('未找到该Swipe节点，或已不存在');
             return;
         }
         infoLog(LOG_TAG, `消息 ${mesId} 删除外层 swipe ${outerSwipeId} 全部 generator 节点并前移`);
@@ -412,7 +480,7 @@ async function onDeleteOuterSwipeAll(mesId) {
             });
             if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
         }
-        toastr.success(`已删除 swipe #${Number(outerSwipeId) + 1} 的全部生成节点`);
+        toastr.success(`已删除Swipe ${Number(outerSwipeId) + 1} 的全部异步生成内容`);
     } catch (err) {
         errorLog(LOG_TAG, '删除外层 swipe 节点失败:', err);
         toastr.error(`删除外层 swipe 节点失败：${err.message}`);

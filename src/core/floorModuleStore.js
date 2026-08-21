@@ -436,6 +436,62 @@ function hasOwn(obj, key) {
 }
 
 /**
+ * 在某楼层某一「外层 swipe 索引」（whole outer swipe）之前插入一个**空白节点**，并把该索引及后续外层节点 **key 后移**一位。
+ * 用途：正文删除了某个 swipe 后，floor 里对应索引的节点缺失；手动补一个空白占位节点，
+ * 使原 index>=target 的节点 key 全部 +1 对齐（空位补到 target）。
+ * 空白节点 = { swipe_id:0, swipes:{} }（无生成内容，用户后续再生成/编辑填充）。
+ * 只作用于 floor 内部（各 gen 的 node 整体移动），不触碰正文 swipes。
+ * @param {number} mesId
+ * @param {number|string} beforeOuterSwipeId 在哪个外层索引之前插入（即插入后新节点的 key = 该索引）
+ * @param {{notify?: boolean}} [opts]
+ * @returns {boolean} 是否插入成功
+ */
+export function insertOuterSwipeNode(mesId, beforeOuterSwipeId, { notify = true } = {}) {
+    const bag = floorBridge.get(mesId, GENERATORS_KEY);
+    if (!bag || typeof bag !== 'object') {
+        // 无 generators 袋：创建一个仅含空节点的袋
+        const newBag = {};
+        const genName = 'modules'; // 至少为模块建一个空外层节点占位
+        const emptyNode = { swipe_id: 0, swipes: {} };
+        newBag[genName] = { [String(beforeOuterSwipeId)]: emptyNode };
+        floorBridge.set(mesId, GENERATORS_KEY, newBag);
+        if (notify) notifyFloorModulesUpdated(mesId);
+        return true;
+    }
+    const bIdx = Number(beforeOuterSwipeId);
+    let inserted = false;
+    const newBag = {};
+    for (const [genName, gen] of Object.entries(bag)) {
+        if (!gen || typeof gen !== 'object') { newBag[genName] = gen; continue; }
+        const outerKeys = Object.keys(gen)
+            .map(Number).filter(n => Number.isFinite(n) && hasOwn(gen, String(n)))
+            .sort((a, b) => a - b);
+        const newGen = {};
+        // 在 bIdx 之前插入空节点；原 key>=bIdx 的节点 key 全部 +1 后移
+        let insertedHere = false;
+        for (const ok of outerKeys) {
+            if (ok >= bIdx && !insertedHere) {
+                newGen[String(bIdx)] = { swipe_id: 0, swipes: {} };
+                insertedHere = true;
+            }
+            const newKey = ok >= bIdx ? ok + 1 : ok;
+            newGen[String(newKey)] = gen[String(ok)];
+        }
+        if (!insertedHere) {
+            // 该 gen 所有 key < bIdx（等 bIdx 无节点）→ 空节点插在 bIdx（等价末尾若 bIdx 最大）
+            newGen[String(bIdx)] = { swipe_id: 0, swipes: {} };
+            insertedHere = true;
+        }
+        if (insertedHere) inserted = true;
+        newBag[genName] = newGen;
+    }
+    if (!inserted) return false;
+    floorBridge.set(mesId, GENERATORS_KEY, newBag);
+    if (notify) notifyFloorModulesUpdated(mesId);
+    return true;
+}
+
+/**
  * 通知缓存层「某楼层模块数据已变更」（机制 A 收口）。
  * 将来若换机制（如直接调 moduleCacheManager），只改此函数。
  * @param {number} mesId
