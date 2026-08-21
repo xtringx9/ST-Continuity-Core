@@ -21,12 +21,20 @@
 
 import { chat } from '../../../../../../script.js';
 import { saveChatDebounced } from '../../../../../../script.js';
+import { debugLog } from '../utils/logger.js';
 
 /** 楼层数据袋在消息**顶层**的命名空间 key（勿裸写 'ccore'） */
 export const FLOOR_NS = 'ccore';
 
 /** 旧落点：extra 下的命名空间 key（迁移用，勿再新增写入） */
 const LEGACY_EXTRA_NS = 'ccore';
+
+/**
+ * 楼层数据落点迁移开关（extra.ccore → 顶层 chat[mesId].ccore + 清理 swipe_info 冗余副本）。
+ * 一次性迁移任务：默认关闭，当前聊天清理完毕后置 false 即可；需要再次清理时改为 true。
+ * ⚠️ 只是历史版本（数据存 extra）升级到顶层键的收尾，非运行期必需——bagOf 读时惰性迁移始终生效。
+ */
+const RUN_LEGACY_MIGRATION = false;
 
 /**
  * 迁移旧数据：把 chat[floor].extra.ccore 搬移到 chat[floor].ccore（顶层）。
@@ -77,12 +85,14 @@ function bagOf(floor, { create = false } = {}) {
  */
 function purgeSwipeInfoCcore(floor) {
     const mes = chat[floor];
-    if (!mes || !Array.isArray(mes.swipe_info)) return 0;
+    if (!mes || !Array.isArray(mes.swipe_info)) { debugLog(`[migrate] 楼层 ${floor} 无 swipe_info 或非数组`, mes?.swipe_info); return 0; }
     let count = 0;
-    for (const info of mes.swipe_info) {
+    for (let k = 0; k < mes.swipe_info.length; k++) {
+        const info = mes.swipe_info[k];
         if (info && typeof info === 'object' && info.extra && Object.prototype.hasOwnProperty.call(info.extra, LEGACY_EXTRA_NS)) {
             delete info.extra[LEGACY_EXTRA_NS];
             count++;
+            debugLog(`[migrate] 楼层 ${floor} swipe_info[${k}] 已清 ccore`);
         }
     }
     return count;
@@ -94,12 +104,17 @@ function purgeSwipeInfoCcore(floor) {
  * @returns {number} 迁移/清理条目数
  */
 export function migrateAllLegacyFloorData() {
+    if (!RUN_LEGACY_MIGRATION) return 0; // 迁移开关关闭（运行期由 bagOf 惰性迁移兜底）
+    debugLog('[migrate] migrateAllLegacyFloorData 被调用，chat.length =', Array.isArray(chat) ? chat.length : '非数组');
     let count = 0;
     if (!Array.isArray(chat)) return 0;
     for (let i = 0; i < chat.length; i++) {
         if (migrateLegacy(i)) count++;
-        count += purgeSwipeInfoCcore(i);
+        const purged = purgeSwipeInfoCcore(i);
+        if (purged > 0) debugLog(`[migrate] 楼层 ${i} 清理 ${purged} 条 swipe_info ccore`);
+        count += purged;
     }
+    debugLog('[migrate] 迁移/清理结束，count =', count);
     if (count > 0) saveChatDebounced();
     return count;
 }
