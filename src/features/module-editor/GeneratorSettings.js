@@ -8,6 +8,7 @@ import configManager from '../../singleton/configManager.js';
 import { showToast } from '../../shared/Toast.js';
 import { IframeDialog } from '../../shared/IframeDialog.js';
 import { infoLog, errorLog } from '../../utils/logger.js';
+import { generateGeneratorChangesSummary } from './ChangesSummary.js';
 import { translate } from '../../../../../../i18n.js';
 import { openai_setting_names } from '../../../../../../openai.js';
 
@@ -43,7 +44,7 @@ export function initGeneratorSettings(iframeDocument) {
     // 顶栏按钮常驻 DOM，仅在 init 绑定一次即可（detail 重渲不会重建它）。
     const headerSaveBtn = doc.getElementById('header-gen-save-btn');
     if (headerSaveBtn) {
-        headerSaveBtn.addEventListener('click', saveGenerators);
+        headerSaveBtn.addEventListener('click', onSaveClick);
     }
 
     checkForChanges();
@@ -370,13 +371,47 @@ function deletePrompt(index) {
 }
 
 /**
- * 保存生成内容配置到 configManager（独立保存，不触碰 module 配置）。
- * @returns {boolean} 是否保存成功
+ * 生成内容保存入口：先校验，再弹变更摘要确认，确认后才落盘（与 module 的 confirmAndSave 体验一致）。
+ * @returns {boolean} 是否进入保存确认
  */
-function saveGenerators() {
+function onSaveClick() {
     collectCurrentDetail();
 
-    // 校验
+    // 先校验，失败不弹窗直接提示
+    const errors = validateGenerators();
+    if (errors.length > 0) {
+        showToast(doc, translate('ccore_gen_error_save_failed') + '\n' + errors.join('\n'), 'error');
+        return false;
+    }
+
+    // 比对变更摘要（基线 = 上次保存的 savedGeneratorsJson）
+    let oldGens = [];
+    try { oldGens = JSON.parse(savedGeneratorsJson || '[]'); } catch (e) { oldGens = []; }
+    const summary = generateGeneratorChangesSummary(oldGens, currentGenerators);
+
+    if (!summary.hasChanges) {
+        showSavedFeedback();
+        return true;
+    }
+
+    const dlg = new IframeDialog(doc);
+    const d = dlg;
+    dlg.open({
+        title: translate('ccore_title_confirm_save'),
+        content: summary.html,
+        buttons: [
+            { text: translate('ccore_btn_cancel'), className: 'btn-secondary', onClick: (dialog) => dialog.close() },
+            { text: translate('ccore_btn_confirm_save'), className: 'btn-primary', onClick: () => {
+                d.close();
+                doSaveGenerators();
+            } },
+        ],
+    });
+    return true;
+}
+
+/** 校验生成内容配置。@returns {string[]} 错误信息数组（空 = 通过） */
+function validateGenerators() {
     const errors = [];
     const names = new Set();
     currentGenerators.forEach((gen, index) => {
@@ -394,12 +429,14 @@ function saveGenerators() {
             errors.push(`${prefix}: ${translate('ccore_gen_error_display_name_empty')}`);
         }
     });
+    return errors;
+}
 
-    if (errors.length > 0) {
-        showToast(doc, translate('ccore_gen_error_save_failed') + '\n' + errors.join('\n'), 'error');
-        return false;
-    }
-
+/**
+ * 实际写入 generator_config 并立即落盘（独立于 module 配置）。
+ */
+function doSaveGenerators() {
+    collectCurrentDetail();
     try {
         const config = configManager.getGeneratorConfig();
         config.generators = currentGenerators;
@@ -407,13 +444,25 @@ function saveGenerators() {
         configManager.saveGeneratorConfigNow();
         savedGeneratorsJson = JSON.stringify(currentGenerators);
         checkForChanges();
+        showSavedFeedback();
         infoLog('[GeneratorSettings] 生成内容保存成功，共', currentGenerators.length, '个');
-        return true;
     } catch (err) {
         errorLog('[GeneratorSettings] 保存失败:', err);
         showToast(doc, translate('ccore_gen_error_save_failed') + ': ' + err.message, 'error');
-        return false;
     }
+}
+
+/** 顶栏生成保存按钮的「已保存」临时绿态提示 */
+function showSavedFeedback() {
+    const btn = doc.getElementById('header-gen-save-btn');
+    if (!btn) return;
+    btn.textContent = translate('ccore_msg_saved');
+    btn.classList.add('saved');
+    setTimeout(() => {
+        btn.textContent = translate('ccore_btn_save');
+        btn.classList.remove('saved');
+        checkForChanges();
+    }, 1000);
 }
 
 /**

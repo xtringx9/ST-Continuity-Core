@@ -492,3 +492,137 @@ export function generateChangesSummary(originalModules, currentModules, original
 
     return { html, hasChanges };
 }
+
+/* ================= 生成内容（generator）变更摘要 ================= */
+
+/** 生成内容字段 → 展示用 locale key */
+const generatorKeyToI18nKey = {
+    'name': 'ccore_gen_label_name',
+    'displayName': 'ccore_label_display_name',
+    'promptMode': 'ccore_gen_label_prompt_mode',
+    'presetName': 'ccore_settings_generation_preset',
+    'enabled': 'ccore_label_enabled',
+    'prompts': 'ccore_gen_title_prompts',
+};
+
+function getGeneratorPropertyLabel(key) {
+    return translate(generatorKeyToI18nKey[key] || `ccore_gen_label_${key}`) || key;
+}
+
+/**
+ * 汇总提示词列表的差异（按 label 对齐）。
+ * @param {Array} p1 旧提示词
+ * @param {Array} p2 新提示词
+ * @returns {string} 差异描述（可为空串）
+ */
+function summarizePromptChanges(p1, p2) {
+    const a1 = p1 || [];
+    const a2 = p2 || [];
+    const key = (p, i) => p?.label || `#${i + 1}`;
+    const map1 = new Map(a1.map((p, i) => [key(p, i), p]));
+    const map2 = new Map(a2.map((p, i) => [key(p, i), p]));
+    const parts = [];
+    [...map2.keys()].filter(k => !map1.has(k)).forEach(k => parts.push(`${translate('ccore_msg_added')} "${k}"`));
+    [...map1.keys()].filter(k => !map2.has(k)).forEach(k => parts.push(`${translate('ccore_msg_removed')} "${k}"`));
+    [...map2.keys()].filter(k => map1.has(k)).forEach(k => {
+        if (JSON.stringify(map1.get(k)) !== JSON.stringify(map2.get(k))) parts.push(`${translate('ccore_gen_msg_prompt_changed')} "${k}"`);
+    });
+    return parts.join('; ');
+}
+
+function compareGeneratorLists(list1, list2) {
+    const map1 = new Map((list1 || []).map(g => [g.name, g]));
+    const map2 = new Map((list2 || []).map(g => [g.name, g]));
+    const added = (list2 || []).filter(g => !map1.has(g.name));
+    const deleted = (list1 || []).filter(g => !map2.has(g.name));
+    const modified = [];
+    const reordered = [];
+
+    const names1 = (list1 || []).map(g => g.name);
+    const names2 = (list2 || []).map(g => g.name);
+    const sameSet = names1.length === names2.length && names1.every(n => names2.includes(n));
+    if (sameSet && JSON.stringify(names1) !== JSON.stringify(names2)) {
+        for (let i = 0; i < names2.length; i++) {
+            if (names1[i] !== names2[i]) {
+                const g = (list2 || []).find(x => x.name === names2[i]);
+                reordered.push({ name: names2[i], displayName: g?.displayName || names2[i], oldIndex: names1.indexOf(names2[i]) + 1, newIndex: i + 1 });
+            }
+        }
+    }
+
+    for (const [name, g2] of map2) {
+        if (map1.has(name)) {
+            const g1 = map1.get(name);
+            if (JSON.stringify(g1) !== JSON.stringify(g2)) {
+                const fieldChanges = compareObjects(g1, g2, ['prompts']);
+                const p1 = g1.prompts || [];
+                const p2 = g2.prompts || [];
+                if (JSON.stringify(p1) !== JSON.stringify(p2)) {
+                    fieldChanges.push({
+                        key: 'prompts',
+                        oldValue: `${p1.length}`,
+                        newValue: `${p2.length}`,
+                        details: summarizePromptChanges(p1, p2),
+                    });
+                }
+                if (fieldChanges.length > 0) modified.push({ generator: g2, changes: fieldChanges });
+            }
+        }
+    }
+
+    return { added, deleted, modified, reordered };
+}
+
+/**
+ * 生成内容变更摘要（供生成内容保存前确认展示）。
+ * @param {Array} originalGenerators
+ * @param {Array} currentGenerators
+ * @returns {{html: string, hasChanges: boolean}}
+ */
+export function generateGeneratorChangesSummary(originalGenerators, currentGenerators) {
+    const { added, deleted, modified, reordered } = compareGeneratorLists(originalGenerators, currentGenerators);
+    let html = '';
+    let hasChanges = false;
+
+    if (reordered.length > 0) {
+        hasChanges = true;
+        html += `<h5>${translate('ccore_gen_changes_reordered')}</h5><ul>`;
+        reordered.forEach(it => { html += `<li><strong>${escapeHtml(it.displayName)}</strong>: #${it.oldIndex} → #${it.newIndex}</li>`; });
+        html += '</ul>';
+    }
+
+    if (added.length > 0) {
+        hasChanges = true;
+        html += `<h5>${translate('ccore_gen_changes_added')}</h5><ul>`;
+        added.forEach(g => { html += `<li><span class="change-new">${escapeHtml(g.displayName || g.name)}</span></li>`; });
+        html += '</ul>';
+    }
+
+    if (deleted.length > 0) {
+        hasChanges = true;
+        html += `<h5>${translate('ccore_gen_changes_deleted')}</h5><ul>`;
+        deleted.forEach(g => { html += `<li><span class="change-deleted">${escapeHtml(g.displayName || g.name)}</span></li>`; });
+        html += '</ul>';
+    }
+
+    if (modified.length > 0) {
+        hasChanges = true;
+        html += `<h5>${translate('ccore_gen_changes_modified')}</h5>`;
+        modified.forEach(mc => {
+            html += `<details><summary>${escapeHtml(mc.generator.displayName || mc.generator.name)}</summary><ul>`;
+            mc.changes.forEach(change => {
+                const label = getGeneratorPropertyLabel(change.key);
+                const oldValueFormatted = formatChangeValue(change.oldValue);
+                const newValueFormatted = formatChangeValue(change.newValue);
+                html += `<li><strong>${escapeHtml(label)}</strong>: <span class="change-old">${oldValueFormatted}</span> → <span class="change-new">${newValueFormatted}</span>`;
+                if (change.details) {
+                    html += `<div class="change-details" style="font-size: 0.9em; color: #888; margin-left: 1em; margin-top: 2px;">${escapeHtml(change.details)}</div>`;
+                }
+                html += '</li>';
+            });
+            html += '</ul></details>';
+        });
+    }
+
+    return { html, hasChanges };
+}
