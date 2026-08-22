@@ -51,6 +51,21 @@ export const GENERATOR_CONFIG_TEMPLATE = {
                 default: '',
                 description: '指定 ST OpenAI 预设（pipeline dryRun 组装时临时使用；空=用当前预设，2026-08-18）'
             },
+            customStyles: {
+                type: 'string',
+                default: '',
+                description: '单个版本的展示容器(HTML 模板, 渲染时套; 模板用 ${content} 标记生成内容插入位)'
+            },
+            multiContainerStyles: {
+                type: 'string',
+                default: '',
+                description: '多版本整体外壳(HTML 模板, 可选; 模板用 ${customStyles} 标记多个单版本样式注入位)'
+            },
+            filters: {
+                type: 'array',
+                default: [],
+                description: '过滤正则列表, 组合内容时对纯文本清洗(不改动落库原文), 每项 { pattern, flags, replacement }'
+            },
         }
     ]
 };
@@ -115,6 +130,16 @@ export function validateGeneratorConfig(config) {
         if (gen.promptMode && !validModes.includes(gen.promptMode)) {
             warnings.push(`${prefix}: promptMode应为 ${validModes.join(', ')} 之一`);
         }
+
+        if (gen.customStyles !== undefined && typeof gen.customStyles !== 'string') {
+            warnings.push(`${prefix}: customStyles字段应为字符串`);
+        }
+        if (gen.multiContainerStyles !== undefined && typeof gen.multiContainerStyles !== 'string') {
+            warnings.push(`${prefix}: multiContainerStyles字段应为字符串`);
+        }
+        if (gen.filters !== undefined && !Array.isArray(gen.filters)) {
+            warnings.push(`${prefix}: filters字段应为数组`);
+        }
     });
 
     return { isValid: errors.length === 0, errors, warnings };
@@ -153,6 +178,15 @@ export function normalizeGeneratorConfig(config) {
                 : [],
             promptMode: gen.promptMode || 'random',
             presetName: gen.presetName || '',
+            customStyles: typeof gen.customStyles === 'string' ? gen.customStyles : '',
+            multiContainerStyles: typeof gen.multiContainerStyles === 'string' ? gen.multiContainerStyles : '',
+            filters: Array.isArray(gen.filters)
+                ? gen.filters.map(f => ({
+                    pattern: f?.pattern || '',
+                    flags: f?.flags || '',
+                    replacement: typeof f?.replacement === 'string' ? f.replacement : '',
+                })).filter(f => f.pattern)
+                : [],
         }));
     }
 

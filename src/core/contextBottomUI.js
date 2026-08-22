@@ -18,6 +18,7 @@ import moduleCacheManager from '../singleton/moduleCacheManager.js';
 import { clearOccurrenceCache } from './occurrenceCache.js';
 import { clearSnapshots, resetSnapshotDirty } from './snapshotStore.js';
 import { clearBuildCache } from './rebuildProcessor.js';
+import { readAllGeneratorContents } from './floorModuleStore.js';
 import {
     CONTEXT_BOTTOM_CONTAINER_ID,
     CONTEXT_MSG_CONTAINER_ID,
@@ -122,6 +123,97 @@ export function scheduleMsgBottom(kind, mesid) {
     setTimeout(flushMsgBottom, REFRESH_DEBOUNCE_MS);
 }
 
+/* ================= 普通 generator 内容的消息底部展示 ================= */
+// 与模块共用 iframe 注入基建；generator 存储纯文本在 floor（readAllGeneratorContents），
+// 渲染时按 generate 配置：单版本套 customStyles、多版本装进 multiContainerStyles、filters 组合时清洗（不改原文）。
+
+function genEscapeHtml(text) {
+    if (text == null) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/** 顺序应用生成内容的过滤正则（只影响展示文本，不改动落库原文）。 */
+function applyGeneratorFilters(text, filters) {
+    let out = text;
+    for (const f of filters || []) {
+        if (!f || !f.pattern) continue;
+        try {
+            out = out.replace(new RegExp(f.pattern, f.flags || 'g'), f.replacement ?? '');
+        } catch (e) {
+            debugLog('[GeneratorRender] 过滤正则无效，跳过', f.pattern, e);
+        }
+    }
+    return out;
+}
+
+/** 把内容塞进样式模板（模板内用 ${content} 标记生成内容插入位置；无模板则回退普通 div）。 */
+function wrapGeneratorTemplate(template, content) {
+    if (!template || typeof template !== 'string' || !template.trim()) {
+        return `<div class="ccore-gen-plain">${content}</div>`;
+    }
+    return template.replace(/\$\{content\}/g, content);
+}
+
+/**
+ * 把多个单版本（已各自套好 customStyles）装进多版本外壳。
+ * 外壳内用 ${customStyles} 标记「多个单版本样式」的插入位置，一次性注入所有单版本 HTML。
+ * @param {string} template 多版本外壳模板
+ * @param {string[]} styledSingles 已套好单版本样式的 HTML 数组
+ * @returns {string}
+ */
+function placeSinglesInMultiTemplate(template, styledSingles) {
+    const joined = styledSingles.join('');
+    if (!template || typeof template !== 'string' || !template.trim()) {
+        return joined;
+    }
+    if (/\$\{customStyles\}/.test(template)) {
+        return template.replace(/\$\{customStyles\}/g, joined);
+    }
+    return template + joined;
+}
+
+/**
+ * 组装某消息的普通 generator 展示 HTML（不含 modules，由调用方拼进同一 iframe）。
+ * 语义：每个版本内容各自套 customStyles（${content} 为正文插入位）；
+ * 多版本时把这些已套样式的单版本整体装进 multiContainerStyles（外壳内 ${customStyles} 为注入位）。
+ * @param {number} mesId 楼层索引
+ * @returns {string} 生成内容 HTML；无内容返回 ''
+ */
+function buildGeneratorMessageHtml(mesId) {
+    try {
+        const ctx = getContext();
+        const msg = ctx?.chat?.[mesId];
+        if (!msg) return '';
+        const swipeId = msg.swipe_id ?? 0;
+        const generators = configManager.getGenerators(); // 仅启用的
+        const blocks = [];
+        for (const gen of generators) {
+            const versions = readAllGeneratorContents(mesId, gen.name, swipeId);
+            const singles = [];
+            for (const text of Object.values(versions)) {
+                const filtered = applyGeneratorFilters(text, gen.filters);
+                if (!filtered.trim()) continue;
+                singles.push(wrapGeneratorTemplate(gen.customStyles, genEscapeHtml(filtered)));
+            }
+            if (singles.length === 0) continue;
+            const hasMulti = gen.multiContainerStyles && gen.multiContainerStyles.trim();
+            const groupHtml = (singles.length > 1 || hasMulti)
+                ? placeSinglesInMultiTemplate(hasMulti ? gen.multiContainerStyles : '', singles)
+                : singles[0];
+            blocks.push(`<div class="ccore-generator-block" data-gen="${genEscapeHtml(gen.name)}">${groupHtml}</div>`);
+        }
+        return blocks.join('');
+    } catch (e) {
+        errorLog('[GeneratorRender] 组装生成内容失败', e);
+        return '';
+    }
+}
+
 /**
  * 将UI插入到mes_text下方。
  * @param {string[]|null} targetMesIds 需要重注入样式的 mesid 集合；null = 全部消息。
@@ -218,6 +310,8 @@ export async function updateUItoMsgBottom(targetMesIds = null) {
             finalString = replaceNestedRawWithStyles(finalString, modulesForThisMessage);
             // 内容锚点兜底：全文匹配失败时按「模块名+主键」解析内嵌片段替换（增量 file 变化也能命中）
             finalString = replaceNestedByAnchors(finalString, anchorIndex);
+            // 追加普通 generator 内容（无则空串，不影响模块注入）
+            finalString += buildGeneratorMessageHtml(Number(messageIndex));
             injectHtmlToIframe(container, finalString);
         }
 

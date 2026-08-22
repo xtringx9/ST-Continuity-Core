@@ -54,6 +54,8 @@ export function initGeneratorSettings(iframeDocument) {
  * 检测变更，更新生成内容顶栏「保存」按钮状态（独立于 module 保存按钮）。
  */
 function checkForChanges() {
+    // ⚠️ 先把手头表单内容写回 currentGenerators，否则改动检测不到（保存按钮将一直为灰）
+    collectCurrentDetail();
     const saveBtn = doc.getElementById('header-gen-save-btn');
     if (!saveBtn) return;
     const hasChanges = JSON.stringify(currentGenerators) !== savedGeneratorsJson;
@@ -156,30 +158,47 @@ function renderGeneratorDetail() {
                     <button id="btn-delete-gen" class="btn-delete-small" title="${escapeHtml(translate('ccore_gen_title_delete'))}">🗑️</button>
                 </div>
             </div>
-            <div class="form-section-title">${escapeHtml(translate('ccore_gen_title_basic'))}</div>
             <div class="form-grid">
-                <div class="form-group form-full-width">
+                <div class="form-section-title">${escapeHtml(translate('ccore_gen_title_basic'))}</div>
+
+                <div class="form-group">
                     <label>${escapeHtml(translate('ccore_gen_label_name'))}</label>
                     <input type="text" id="gen-name" value="${escapeHtml(gen.name || '')}" placeholder="side_scene">
                 </div>
-                <div class="form-group form-full-width">
+                <div class="form-group">
                     <label>${escapeHtml(translate('ccore_label_display_name'))}</label>
                     <input type="text" id="gen-display-name" value="${escapeHtml(gen.displayName || '')}" placeholder="${escapeHtml(translate('ccore_gen_msg_new'))}">
                 </div>
-                <div class="form-group form-full-width">
+
+                <div class="form-group">
                     <label>${escapeHtml(translate('ccore_gen_label_prompt_mode'))}</label>
                     <select id="gen-prompt-mode">
                         <option value="random" ${gen.promptMode === 'random' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_random'))}</option>
                         <option value="select" ${gen.promptMode === 'select' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_select'))}</option>
                     </select>
                 </div>
-                <div class="form-group form-full-width">
+                <div class="form-group">
                     <label>${escapeHtml(translate('ccore_settings_generation_preset'))}</label>
                     <select id="gen-preset-name">
                         <option value="">${escapeHtml(translate('ccore_settings_ai_preset_default'))}</option>
                         ${Object.keys(openai_setting_names || {}).map(name => `<option value="${escapeHtml(name)}" ${gen.presetName === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
                     </select>
                 </div>
+
+                <div class="form-section-title">${escapeHtml(translate('ccore_gen_title_container'))}</div>
+
+                <div class="form-group form-full-width">
+                    <label>${escapeHtml(translate('ccore_gen_label_custom_styles'))}</label>
+                    <textarea id="gen-custom-styles" rows="3" placeholder="${escapeHtml(translate('ccore_gen_custom_styles_ph'))}">${escapeHtml(gen.customStyles || '')}</textarea>
+                </div>
+                <div class="form-group form-full-width">
+                    <label>${escapeHtml(translate('ccore_gen_label_multi_styles'))}</label>
+                    <textarea id="gen-multi-styles" rows="3" placeholder="${escapeHtml(translate('ccore_gen_multi_styles_ph'))}">${escapeHtml(gen.multiContainerStyles || '')}</textarea>
+                </div>
+
+                <div class="form-section-title">${escapeHtml(translate('ccore_gen_title_filters'))}</div>
+                <div id="gen-filters-container" class="form-full-width"></div>
+                <div class="btn-add-prompt form-full-width" id="btn-add-filter">${escapeHtml(translate('ccore_gen_btn_add_filter'))}</div>
             </div>
             <div class="prompts-section">
                 <h3>
@@ -188,10 +207,12 @@ function renderGeneratorDetail() {
                 <div id="prompts-container"></div>
                 <div class="btn-add-prompt" id="btn-add-prompt">${escapeHtml(translate('ccore_gen_btn_add_prompt'))}</div>
             </div>
+            <div class="spacer-bottom"></div>
         </div>
     `;
 
     renderPrompts(gen);
+    renderFilterList(gen);
 
     // 绑定详情区输入事件 → checkForChanges
     detailEl.querySelectorAll('input, select, textarea').forEach(el => {
@@ -202,6 +223,11 @@ function renderGeneratorDetail() {
     const addPromptBtn = doc.getElementById('btn-add-prompt');
     if (addPromptBtn) {
         addPromptBtn.addEventListener('click', addPrompt);
+    }
+
+    const addFilterBtn = doc.getElementById('btn-add-filter');
+    if (addFilterBtn) {
+        addFilterBtn.addEventListener('click', addFilter);
     }
 
     const deleteGenBtn = doc.getElementById('btn-delete-gen');
@@ -258,6 +284,36 @@ function renderPrompts(gen) {
 }
 
 /**
+ * 渲染过滤正则列表（每条 pattern + flags + replacement）
+ */
+function renderFilterList(gen) {
+    const container = doc.getElementById('gen-filters-container');
+    if (!container) return;
+    const filters = gen.filters || [];
+    if (filters.length === 0) {
+        container.innerHTML = `<div class="empty-hint">${escapeHtml(translate('ccore_gen_no_filters'))}</div>`;
+    } else {
+        container.innerHTML = filters.map((f, index) => `
+            <div class="gen-filter-row" data-filter-idx="${index}">
+                <div class="gen-filter-fields">
+                    <input type="text" class="gen-filter-pattern" value="${escapeHtml(f.pattern || '')}" placeholder="${escapeHtml(translate('ccore_gen_filter_pattern_ph'))}">
+                    <input type="text" class="gen-filter-flags" value="${escapeHtml(f.flags || '')}" placeholder="${escapeHtml(translate('ccore_gen_filter_flags_ph'))}">
+                    <button class="btn-secondary gen-filter-del" data-filter-idx="${index}">✕</button>
+                </div>
+                <input type="text" class="gen-filter-replacement" value="${escapeHtml(f.replacement || '')}" placeholder="${escapeHtml(translate('ccore_gen_filter_replacement_ph'))}">
+            </div>
+        `).join('');
+    }
+
+    container.querySelectorAll('.gen-filter-del').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const idx = parseInt(e.target.dataset.filterIdx, 10);
+            deleteFilter(idx);
+        });
+    });
+}
+
+/**
  * 从当前详情表单收集数据到 currentGenerators。
  * 注意：启用状态由左侧列表 toggle-switch 管理，不在详情区收集。
  */
@@ -269,11 +325,15 @@ function collectCurrentDetail() {
     const displayNameEl = doc.getElementById('gen-display-name');
     const promptModeEl = doc.getElementById('gen-prompt-mode');
     const presetNameEl = doc.getElementById('gen-preset-name');
+    const customStylesEl = doc.getElementById('gen-custom-styles');
+    const multiStylesEl = doc.getElementById('gen-multi-styles');
 
     if (nameEl) gen.name = nameEl.value.trim();
     if (displayNameEl) gen.displayName = displayNameEl.value.trim();
     if (promptModeEl) gen.promptMode = promptModeEl.value;
     if (presetNameEl) gen.presetName = presetNameEl.value;
+    if (customStylesEl) gen.customStyles = customStylesEl.value;
+    if (multiStylesEl) gen.multiContainerStyles = multiStylesEl.value;
 
     const labelInputs = doc.querySelectorAll('.prompt-label-input');
     const contentTextareas = doc.querySelectorAll('textarea[data-field="content"]');
@@ -284,6 +344,46 @@ function collectCurrentDetail() {
             content: contentTextareas[i] ? contentTextareas[i].value : '',
         });
     }
+
+    const patternInputs = doc.querySelectorAll('.gen-filter-pattern');
+    const flagsInputs = doc.querySelectorAll('.gen-filter-flags');
+    const replacementInputs = doc.querySelectorAll('.gen-filter-replacement');
+    gen.filters = [];
+    for (let i = 0; i < patternInputs.length; i++) {
+        const pattern = (patternInputs[i].value || '').trim();
+        if (!pattern) continue;
+        gen.filters.push({
+            pattern,
+            flags: (flagsInputs[i].value || '').trim(),
+            replacement: replacementInputs[i] ? replacementInputs[i].value : '',
+        });
+    }
+}
+
+/**
+ * 新增过滤正则
+ */
+function addFilter() {
+    const gen = currentGenerators.find(g => g.id === selectedGenId);
+    if (!gen) return;
+    collectCurrentDetail();
+    gen.filters = gen.filters || [];
+    gen.filters.push({ pattern: '', flags: '', replacement: '' });
+    renderFilterList(gen);
+    checkForChanges();
+}
+
+/**
+ * 删除过滤正则
+ */
+function deleteFilter(index) {
+    const gen = currentGenerators.find(g => g.id === selectedGenId);
+    if (!gen) return;
+    collectCurrentDetail();
+    if (!gen.filters) return;
+    gen.filters.splice(index, 1);
+    renderFilterList(gen);
+    checkForChanges();
 }
 
 /**
@@ -301,6 +401,9 @@ function addGenerator() {
         prompts: [],
         promptMode: 'random',
         presetName: '',
+        customStyles: '',
+        multiContainerStyles: '',
+        filters: [],
     };
     currentGenerators.push(newGen);
     selectedGenId = newGen.id;

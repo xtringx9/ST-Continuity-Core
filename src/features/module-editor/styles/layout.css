@@ -467,6 +467,60 @@
     border-color: var(--danger-color);
 }
 
+/* 生成内容：过滤正则行（复用 prompt-item 视觉，去掉内联样式） */
+.empty-hint {
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 5px;
+}
+
+.gen-filter-row {
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    background: var(--bg-input);
+}
+
+.gen-filter-fields {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+}
+
+.gen-filter-fields .gen-filter-pattern {
+    flex: 1;
+}
+
+.gen-filter-fields .gen-filter-flags {
+    width: 90px;
+    flex: 0 0 auto;
+}
+
+.gen-filter-row .gen-filter-pattern,
+.gen-filter-row .gen-filter-flags,
+.gen-filter-row .gen-filter-replacement {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-app);
+    color: var(--text-input);
+    font-size: 13px;
+    font-family: var(--font-mono);
+}
+
+.gen-filter-row .gen-filter-replacement {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.gen-filter-row .gen-filter-del {
+    padding: 2px 8px;
+    font-size: 12px;
+    flex: 0 0 auto;
+}
+
 /* 半灰(继承默认) / 实心(已覆盖) */
 .binding-toggle-inherited {
     opacity: 0.45;

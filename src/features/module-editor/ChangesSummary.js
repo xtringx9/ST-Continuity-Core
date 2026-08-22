@@ -503,6 +503,9 @@ const generatorKeyToI18nKey = {
     'presetName': 'ccore_settings_generation_preset',
     'enabled': 'ccore_label_enabled',
     'prompts': 'ccore_gen_title_prompts',
+    'customStyles': 'ccore_gen_label_custom_styles',
+    'multiContainerStyles': 'ccore_gen_label_multi_styles',
+    'filters': 'ccore_gen_title_filters',
 };
 
 function getGeneratorPropertyLabel(key) {
