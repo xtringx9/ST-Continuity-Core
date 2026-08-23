@@ -590,6 +590,8 @@ export const aiCaller = {
                 debugLog(LOG_TAG, '已恢复 {{lastUserMessage}} 宏');
             }
             // 弹出临时 push 的 user 消息：仅当组装完成前尚未弹出（含异常/中止早退路径）
+            // ⚠️ 临时消息若仍在 chat，必然位于 chat[last]（push 追加到末尾后不再被移动），
+            //   用 chat[last] === pushedUserMessage 位置+引用双判断最安全，绝不误 pop 其他消息。
             if (!pushedPopped && pushedUserMessage && Array.isArray(chat) && chat[chat.length - 1] === pushedUserMessage) {
                 chat.pop();
                 pushedPopped = true;

@@ -9,7 +9,7 @@ import { checkUItoContextBottom, scheduleMsgBottom, checkRenderCurrentMessageCon
 import { addAiButtonToMessage, addAiButtonsToAllMessages } from "../ui/messageAiButton.js";
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
-import { FLOOR_MODULES_UPDATED_EVENT } from "./floorModuleStore.js";
+import { FLOOR_MODULES_UPDATED_EVENT, readAllGeneratorContents } from "./floorModuleStore.js";
 import { migrateAllLegacyFloorData } from "../shared/floorBridge.js";
 import { CHAT_MODULE_ENTRIES_UPDATED_EVENT } from "./chatModuleEntryStore.js";
 import { incrementalModulesChanged } from "./pipeline/incrementalModuleCompare.js";
@@ -299,6 +299,21 @@ export class EventHandler {
                         if (runIdx < 0) return;
                         const runMsg = chat[runIdx];
                         if (!runMsg || runMsg.is_user) return;
+                        // ⚠️ 2026-08-23 防误触发：API 报错/中断时 ST 也可能发射 GENERATION_ENDED
+                        //   （onErrorStreaming / hideStopButton 都会 emit，且无干净的『生成成功』信号）。
+                        //   报错/中断通常拿不到有效正文 → 目标楼层无非空正文时跳过，避免对空/失败楼层白跑模块生成。
+                        if (!runMsg.mes || !String(runMsg.mes).trim()) {
+                            debugLog(`[EVENTS]楼层 ${runIdx} 回复内容为空（可能生成失败/中断），跳过自动生成`);
+                            return;
+                        }
+                        // ⚠️ 2026-08-23 防重复生成：仅当目标楼层当前外层 swipe（正文 swipe_id）在 modules
+                        //   存储下「版本数为零」（从未生成过）才自动生成；已有版本则跳过，避免覆盖/浪费调用。
+                        const floorSwipeId = runMsg.swipe_id;
+                        const existingVersions = readAllGeneratorContents(runIdx, 'modules', floorSwipeId, { includeEmpty: true });
+                        if (Object.keys(existingVersions).length > 0) {
+                            debugLog(`[EVENTS]楼层 ${runIdx} 的模块 ${floorSwipeId} 已有存储版本，跳过自动生成`);
+                            return;
+                        }
                         // 防重（延迟后重新校验：期间可能已有任务开始）
                         let dupTask = false;
                         taskRegistry.forEach(t => {
