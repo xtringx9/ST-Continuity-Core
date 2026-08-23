@@ -12,6 +12,7 @@ import {
     event_types,
     chat,
     name1,
+    showSwipeButtons,
 } from '../../../../../../script.js';
 import {
     sendOpenAIRequest,
@@ -335,6 +336,9 @@ export const aiCaller = {
         let pushedPopped = false;
         let macroRestored = false;
         let presetRestored = false;
+        // ⚠️ 2026-08-23 swipe 箭头补刷状态：组装完成 pop 后已补刷则置 true，
+        //   finally 据此跳过重复补刷（避免正常路径刷两次；异常早退路径仍由 finally 兜底补刷）。
+        let swipeRefreshed = false;
         /** @type {Array<{setting:string, oldValue:*}>|null} */
         let presetBackup = null;
 
@@ -513,6 +517,16 @@ export const aiCaller = {
                 chat.pop();
                 pushedPopped = true; // 标记已弹出，finally 据此跳过（避免二次 pop）
                 debugLog(LOG_TAG, '组装完成已弹出临时 push 的生成指令 user 消息');
+                // ⚠️ pop 后立即补刷 swipe 箭头（比 finally 更早恢复，缩短污染窗口）：
+                //   is_user 指令消息已移出 chat[last]，此时 showSwipeButtons() 必通过守卫，能尽早把箭头刷回。
+            }
+            if (pushedPopped && !swipeRefreshed) {
+                try {
+                    showSwipeButtons();
+                    swipeRefreshed = true;
+                } catch (err) {
+                    debugLog(LOG_TAG, `组装完成后补刷 swipe 箭头失败（忽略）:`, err);
+                }
             }
 
             // ⚠️ 组装完成即恢复 {{lastUserMessage}} 宏：宏只在 Generate dryRun 组装期间被消费，
@@ -595,6 +609,19 @@ export const aiCaller = {
             if (!presetRestored) {
                 _restorePresetForAssembly(presetBackup);
                 presetRestored = true;
+            }
+            // ⚠️ 强制补刷 swipe 箭头（方案B，2026-08-23）：pipeline 曾临时 push 过 is_user:true 指令消息到
+            //   chat[last]（本函数 L384-386）。无论何时弹出，期间任何 showSwipeButtons() 读到 chat[last].is_user
+            //   都会让最后一条消息的 swipe 箭头消失且不恢复。此处所有清理（pop/还原楼层/宏）已完成后，
+            //   chat[last] 必然恢复为非 user → 再调一次 showSwipeButtons() 把所有箭头兜底刷回来。
+            //   仅当本次调用确实 push 过指令消息（pushedUserMessage 非空）才需要补刷，避免无谓触发 ST UI。
+            if (pushedUserMessage && !swipeRefreshed) {
+                try {
+                    showSwipeButtons();
+                    swipeRefreshed = true;
+                } catch (err) {
+                    debugLog(LOG_TAG, `补刷 swipe 箭头失败（忽略）:`, err);
+                }
             }
         }
     },
