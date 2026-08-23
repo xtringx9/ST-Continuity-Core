@@ -99,6 +99,25 @@ function _popPushedMessage(pushedUserMessage) {
 }
 
 /**
+ * 临时预设被覆盖了 prompt_order/prompts 时，强制 PromptManager 用已恢复的原数据重绘一次，
+ * 以覆盖 dryRun 组装期间延迟异步渲染可能残留的“临时预设条目”帧。
+ * 仅当确实覆盖过 prompt_order/prompts 时才重绘（避免无谓触发 ST UI）。
+ * @param {Array<{setting:string, oldValue:*}>|null} presetBackup 本次临时应用的备份数组
+ */
+function _refreshPromptManagerAfterPresetRestore(presetBackup) {
+    const touchedList = Array.isArray(presetBackup) && presetBackup.some(f => f.setting === 'prompt_order' || f.setting === 'prompts');
+    if (!touchedList) return;
+    if (!promptManager || typeof promptManager.render !== 'function') return;
+    try {
+        // afterTryGenerate=false：只重绘列表，不触发 tryGenerate/二次组装
+        promptManager.render(false);
+        debugLog(LOG_TAG, '临时预设已还原，强制 PromptManager 用原数据重绘（清除临时预设条目残留）');
+    } catch (e) {
+        debugLog(LOG_TAG, `恢复预设后刷新 PromptManager UI 失败（忽略）:`, e);
+    }
+}
+
+/**
  * 临时应用 ST OpenAI 预设到 oai_settings（dryRun 组装期间用，2026-08-18）。
  * ⚠️ 只覆盖「组装内容相关」字段：按 settingsToUpdate 映射遍历，跳过 isConnection（模型/URL/source 等
  *   连接绑定字段——组装内容无关，且发送阶段反正被 customApi 拦截覆盖）。
@@ -377,6 +396,11 @@ export const aiCaller = {
         let swipeRefreshed = false;
         /** @type {Array<{setting:string, oldValue:*}>|null} */
         let presetBackup = null;
+        // ⚠️ 2026-08-23 PromptManager UI 残留修复：临时预设覆盖了 prompt_order/prompts 时，
+        //   dryRun 组装会触发 renderPromptManager 的延迟异步重绘，可能抓到“已覆盖、未恢复”的中间态，
+        //   把临时预设的条目画出来（数据已还原、UI 残留到下一次 renderDebounced）。故在恢复预设后强制用
+        //   原数据重绘一次；此标志避免正常/异常路径重复触发。
+        let presetUiRefreshed = false;
 
         try {
         // 记录需要临时隐藏的楼层及原 is_system 值
@@ -582,6 +606,10 @@ export const aiCaller = {
                 _restorePresetForAssembly(presetBackup);
                 presetRestored = true; // 标记已恢复，finally 据此跳过（避免重复恢复）
             }
+            if (!presetUiRefreshed) {
+                _refreshPromptManagerAfterPresetRestore(presetBackup);
+                presetUiRefreshed = true;
+            }
 
             // 自己发送（customApi 拦截在 sendOpenAIRequest 内部生效；不锁 ST 发送按钮）
             // 调试拦截：提示词已组装完成（capture.prompt 已捕获），不真正发送，返回占位响应
@@ -648,6 +676,11 @@ export const aiCaller = {
             if (!presetRestored) {
                 _restorePresetForAssembly(presetBackup);
                 presetRestored = true;
+            }
+            // 异常早退路径同样强制重绘，覆盖可能残留的临时预设条目
+            if (!presetUiRefreshed) {
+                _refreshPromptManagerAfterPresetRestore(presetBackup);
+                presetUiRefreshed = true;
             }
             // ⚠️ 强制补刷 swipe 箭头（方案B，2026-08-23）：pipeline 曾临时 push 过 is_user:true 指令消息到
             //   chat[last]（本函数 L384-386）。无论何时弹出，期间任何 showSwipeButtons() 读到 chat[last].is_user
