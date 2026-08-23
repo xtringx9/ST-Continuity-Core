@@ -100,7 +100,6 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
                         <label for="async-preset-name">${translate('ccore_settings_generation_preset')}</label>
                         <select id="async-preset-name">
                             <option value="">${translate('ccore_settings_ai_preset_default')}</option>
-                            ${Object.keys(openai_setting_names || {}).map(name => `<option value="${escapeHtml(name)}" ${asyncConfig.presetName === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
@@ -184,6 +183,23 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         renderGroups();
         onChange?.();
     });
+
+    // === 生成预设下拉：点击/聚焦时实时读取 ST 当前预设列表（openai_setting_names 为实时同步的引用） ===
+    const presetSel = container.querySelector('#async-preset-name');
+    const renderPresetOptions = () => {
+        const prev = presetSel.value;
+        const names = Object.keys(openai_setting_names || {});
+        presetSel.innerHTML = '<option value="">' + translate('ccore_settings_ai_preset_default') + '</option>'
+            + names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+        // 原选中项若仍在列表中则保留，否则回落到默认
+        presetSel.value = prev && names.includes(prev) ? prev : '';
+    };
+    presetSel.addEventListener('focus', renderPresetOptions);
+    // 先按当前配置回填一次，保证初始展示正确
+    renderPresetOptions();
+    if (asyncConfig.presetName && Object.keys(openai_setting_names || {}).includes(asyncConfig.presetName)) {
+        presetSel.value = asyncConfig.presetName;
+    }
 
     // === 模型下拉：select + 「手动输入」 兜底 ===
     const modelSel = container.querySelector('#async-custom-api-model');
