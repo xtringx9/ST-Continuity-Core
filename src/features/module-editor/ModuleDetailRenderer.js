@@ -6,6 +6,8 @@
 import { translate } from '../../../../../../i18n.js';
 import { renderVariableList } from './VariableListRenderer.js';
 import { generateModuleStylesText, parseAndApplyModuleStylesText, generateModulePromptText } from '../../modules/promptGenerator.js';
+import { IframeDialog } from '../../shared/IframeDialog.js';
+import { showToast } from '../../shared/Toast.js';
 
 /**
  * 渲染模块详情页
@@ -436,65 +438,69 @@ export function renderModuleDetail(module, index, doc, checkForChanges, deleteMo
 }
 
 /**
- * 显示导入样式对话框
+ * 显示导入样式对话框（复用通用 IframeDialog，结果通过通用 Toast 提示）
  */
 function showImportStylesDialog(doc, module, checkForChanges, updateModuleData, allModules = [], refreshSidebar = null) {
-    // 移除已有对话框
-    const existing = doc.getElementById('import-styles-dialog');
-    if (existing) existing.remove();
+    const dialog = new IframeDialog(doc);
 
-    const overlay = doc.createElement('div');
-    overlay.id = 'import-styles-dialog';
-    overlay.innerHTML = `
-        <div class="import-styles-overlay"></div>
-        <div class="import-styles-dialog">
-            <div class="import-styles-title">${translate('ccore_title_import_styles')}</div>
-            <textarea class="import-styles-textarea" placeholder="${translate('ccore_placeholder_import_styles')}" rows="12"></textarea>
-            <div class="import-styles-actions">
-                <button class="import-styles-confirm">${translate('ccore_btn_import_confirm')}</button>
-                <button class="import-styles-cancel">${translate('ccore_btn_import_cancel')}</button>
-            </div>
-            <div class="import-styles-result" style="display:none;"></div>
-        </div>
-    `;
-    doc.body.appendChild(overlay);
+    dialog.open({
+        title: translate('ccore_title_import_styles'),
+        content: `<textarea class="import-styles-textarea" placeholder="${translate('ccore_placeholder_import_styles')}" rows="12"></textarea>`,
+        buttons: [
+            {
+                text: translate('ccore_btn_import_cancel'),
+                className: 'btn-secondary',
+                onClick: (d) => d.close(),
+            },
+            {
+                text: translate('ccore_btn_import_confirm'),
+                className: 'btn-primary',
+                onClick: (d) => {
+                    const textarea = d.dialogElement.querySelector('.import-styles-textarea');
+                    const text = textarea.value.trim();
+                    if (!text) {
+                        showToast(translate('ccore_msg_import_styles_empty'), 'warning');
+                        return;
+                    }
 
-    const textarea = overlay.querySelector('.import-styles-textarea');
-    const resultDiv = overlay.querySelector('.import-styles-result');
+                    const { applied, skipped } = parseAndApplyModuleStylesText(text, module);
 
-    overlay.querySelector('.import-styles-cancel').addEventListener('click', () => overlay.remove());
-    overlay.querySelector('.import-styles-overlay').addEventListener('click', () => overlay.remove());
+                    // 同步到样式编辑控件
+                    const customTa = doc.getElementById('edit-styles-custom');
+                    const containerTa = doc.getElementById('edit-styles-container');
+                    const externalTa = doc.getElementById('edit-styles-external');
+                    if (customTa) customTa.value = module.customStyles || '';
+                    if (containerTa) containerTa.value = module.containerStyles || '';
+                    if (externalTa) externalTa.value = module.externalStyles || '';
 
-    overlay.querySelector('.import-styles-confirm').addEventListener('click', () => {
-        const text = textarea.value.trim();
-        if (!text) return;
+                    // 同步变量 customStyles（重新渲染变量列表）
+                    const varListContainer = doc.getElementById('variable-list-container');
+                    if (varListContainer) renderVariableList(module, varListContainer, doc, checkForChanges, allModules, -1, refreshSidebar);
 
-        const { applied, skipped } = parseAndApplyModuleStylesText(text, module);
+                    updateModuleData();
+                    checkForChanges();
+                    d.close();
 
-        // 同步到 textarea 控件
-        const customTa = doc.getElementById('edit-styles-custom');
-        const containerTa = doc.getElementById('edit-styles-container');
-        const externalTa = doc.getElementById('edit-styles-external');
-        if (customTa) customTa.value = module.customStyles || '';
-        if (containerTa) containerTa.value = module.containerStyles || '';
-        if (externalTa) externalTa.value = module.externalStyles || '';
+                    // 结果拆分为多条 toast（纵向堆叠）：模块样式、变量样式各自一条，跳过项单独提示
+                    const moduleKeys = applied.filter(x => !x.startsWith('变量 '));
+                    const varNames = applied.filter(x => x.startsWith('变量 ')).map(x => x.replace(/^变量 (.+?) customStyles$/, '$1'));
+                    const head = translate('ccore_msg_import_styles_success_head');
+                    const lines = [];
+                    if (moduleKeys.length > 0) lines.push(head + translate('ccore_msg_import_styles_module'));
+                    if (varNames.length > 0) lines.push(head + translate('ccore_msg_import_styles_vars').replace('{list}', varNames.join('、')));
+                    if (lines.length === 0) lines.push(translate('ccore_msg_import_styles_none'));
+                    if (skipped.length > 0) lines.push(translate('ccore_msg_import_styles_skip').replace('{skipped}', String(skipped.length)));
 
-        // 同步变量 customStyles（重新渲染变量列表）
-        const varListContainer = doc.getElementById('variable-list-container');
-        if (varListContainer) renderVariableList(module, varListContainer, doc, checkForChanges, allModules, -1, refreshSidebar);
-
-        updateModuleData();
-        checkForChanges();
-
-        // 显示结果
-        let resultText = '';
-        if (applied.length > 0) resultText += `✓ ${applied.join(', ')}`;
-        if (skipped.length > 0) resultText += `\n✗ ${skipped.join(', ')}`;
-        resultDiv.textContent = resultText;
-        resultDiv.style.display = 'block';
-
-        setTimeout(() => overlay.remove(), 2000);
+                    const toastType = applied.length > 0 ? 'success' : 'warning';
+                    lines.forEach(line => showToast(line, toastType));
+                },
+            },
+        ],
     });
 
-    textarea.focus();
+    // 打开后自动聚焦到输入框
+    setTimeout(() => {
+        const textarea = dialog.dialogElement?.querySelector('.import-styles-textarea');
+        if (textarea) textarea.focus();
+    }, 50);
 }

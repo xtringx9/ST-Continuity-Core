@@ -33,7 +33,7 @@ const TOAST_ICONS = {
 const TOAST_CSS = `
 .${TOAST_CONTAINER_CLASS} {
     position: fixed;
-    top: 12px;
+    top: var(--cc-toast-top, 32px);
     left: 12px;
     z-index: 99999;
     display: flex;
