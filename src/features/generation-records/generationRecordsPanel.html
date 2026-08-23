@@ -349,6 +349,32 @@
         .ccore-records-sec-toggle:hover {
             color: var(--accent-color, #2563eb);
         }
+
+        /* 标题文本（toggle 弹开区之外固定不换行，给右侧复制按钮让位） */
+        .ccore-records-sec-title-text {
+            flex: 0 0 auto;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+        /* 各 section 专属复制按钮（吸在标题行右侧，不触发展开/折叠） */
+        .ccore-records-sec-copy {
+            margin-left: auto;
+            flex: 0 0 auto;
+            background: none;
+            border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+            border-radius: 3px;
+            color: var(--text-secondary, #666);
+            cursor: pointer;
+            font-size: 11px;
+            line-height: 1.4;
+            padding: 0 6px;
+        }
+        .ccore-records-sec-copy:hover {
+            color: var(--accent-color, #2563eb);
+            border-color: var(--accent-color, #2563eb);
+        }
         .ccore-records-sec-caret {
             font-size: 10px;
             color: var(--text-muted, #999);

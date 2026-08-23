@@ -657,7 +657,7 @@ export function updateRunningRecord(taskKey, debugData) {
     if (panelDoc && state.running?.taskKey === taskKey) {
         const bodyEl = panelDoc.getElementById('ccore-records-detail-body');
         const bottomEl = panelDoc.getElementById('ccore-records-detail-bottom');
-        renderDetailSections(bodyEl, bottomEl, { debugData: runningMap.get(taskKey) });
+        renderDetailSections(bodyEl, bottomEl, { debugData: runningMap.get(taskKey) }, { followBottom: true });
     }
 }
 
@@ -774,14 +774,15 @@ function section(title, content, opts = {}) {
     return `<div class="ccore-records-section${errCls}" data-collapsed="${collapsed ? '1' : '0'}">
         <div class="ccore-records-sec-title ccore-records-sec-toggle" title="点击折叠/展开">
             <span class="ccore-records-sec-caret">${collapsed ? '▶' : '▼'}</span>
-            ${escapeHtml(title)}
+            <span class="ccore-records-sec-title-text">${escapeHtml(title)}</span>
+            <button type="button" class="ccore-records-sec-copy" title="复制本节内容">复制</button>
         </div>
         <pre style="display:${collapsed ? 'none' : 'block'}">${escapeHtml(content)}</pre>
     </div>`;
 }
 
 /** 渲染详情上下两区并绑定折叠（showDetail/showRunningDetail/updateRunningRecord 共用） */
-function renderDetailSections(bodyEl, bottomEl, record) {
+function renderDetailSections(bodyEl, bottomEl, record, { followBottom = false } = {}) {
     if (bodyEl) {
         bodyEl.innerHTML = buildDetailBody(record);
         bindSectionToggles(bodyEl);
@@ -790,9 +791,23 @@ function renderDetailSections(bodyEl, bottomEl, record) {
         bottomEl.innerHTML = buildDetailBottom(record);
         bindSectionToggles(bottomEl);
     }
+    // 流式生成时：让「完整响应」 section 始终粘在底部 + 详情主体滚到最底，保证最新 token 可见
+    if (followBottom) scrollResponseToBottom(bodyEl);
 }
 
-/** 绑定详情 sections 的折叠/展开（在 bodyEl.innerHTML 赋值后调用） */
+/** 流式更新后把「完整响应」 section 的 pre 及详情主体滚到底部。 */
+function scrollResponseToBottom(bodyEl) {
+    if (!bodyEl) return;
+    const sec = Array.from(bodyEl.querySelectorAll('.ccore-records-section') || []).find(s => {
+        const t = s.querySelector('.ccore-records-sec-title-text');
+        return t && String(t.textContent).indexOf('完整响应') !== -1;
+    });
+    const pre = sec?.querySelector('pre');
+    if (pre && pre.style.display !== 'none') pre.scrollTop = pre.scrollHeight;
+    bodyEl.scrollTop = bodyEl.scrollHeight;
+}
+
+/** 绑定详情 sections 的折叠/展开 与 复制按钮（在 bodyEl.innerHTML 赋值后调用） */
 function bindSectionToggles(bodyEl) {
     bodyEl?.querySelectorAll('.ccore-records-sec-toggle').forEach(toggle => {
         toggle.addEventListener('click', () => {
@@ -805,6 +820,43 @@ function bindSectionToggles(bodyEl) {
             if (caret) caret.textContent = collapsed ? '▼' : '▶';
         });
     });
+    bodyEl?.querySelectorAll('.ccore-records-sec-copy').forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+            ev.stopPropagation(); // ⚠️ 不触发展开/折叠
+            const pre = btn.closest('.ccore-records-section')?.querySelector('pre');
+            copyText(pre ? pre.textContent : '', btn);
+        });
+    });
+}
+
+/** 复制文本；成功后按钮短暂变「已复制」。 */
+function copyText(text, btn) {
+    const done = () => {
+        if (!btn) return;
+        const old = btn.textContent;
+        btn.textContent = '已复制';
+        setTimeout(() => { btn.textContent = old; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else {
+        fallbackCopy(text, done);
+    }
+}
+
+/** 兼容非安全上下文的复制兜底（textarea + execCommand）。 */
+function fallbackCopy(text, done) {
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        if (ok) done();
+    } catch (e) { /* 忽略 */ }
 }
 
 function escapeHtml(text) {
