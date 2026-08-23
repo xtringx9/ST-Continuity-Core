@@ -63,6 +63,42 @@ function _buildPushedMessage(quietPrompt, name) {
 }
 
 /**
+ * 弹出临时 push 的生成指令 user 消息。只在临时消息仍存在时移除，绝不误删其他消息。
+ * ⚠️ 2026-08-23：正常路径临时消息必在 chat[last]，用「位置+引用」判断最安全（主路径）。
+ *   但异常/中断时 await Generate 等异步窗口可能被 ST 追加/重排 chat，导致临时消息不再位于
+ *   chat[last] → 仅位置判断会漏 pop、残留 is_user 脏楼层（用户复现：api 未连接时 push 没 pop）。
+ *   故加引用兜底：chat.indexOf 用 === 按对象身份匹配，只能命中本次创建的 pushedUserMessage，
+ *   命中即 splice 移除，杜绝误删其他消息。
+ * @param {object} pushedUserMessage 本次创建的临时消息对象（不存在则返回 false）
+ * @returns {boolean} 是否实际移除
+ */
+function _popPushedMessage(pushedUserMessage) {
+    if (!pushedUserMessage || !Array.isArray(chat)) return false;
+    // 1) 主路径：临时消息仍在末尾 → pop 最安全
+    if (chat[chat.length - 1] === pushedUserMessage) {
+        chat.pop();
+        return true;
+    }
+    // 2) 引用兜底：chat 元素被重排但对象未变 → 按引用定位移除（只匹配本对象）
+    const refIdx = chat.indexOf(pushedUserMessage);
+    if (refIdx !== -1) {
+        chat.splice(refIdx, 1);
+        return true;
+    }
+    // 3) 内容兜底（2026-08-23）：ST 生成期间可能对 chat 重建/深拷（swipe 机制），临时消息以
+    //    新对象复制进新数组 → 上面引用判断全失效 → 残留。末尾往前找「is_user + name===name1 +
+    //    mes 与本条指令完全一致」的消息移除；命中条件苛刻，误删他消息概率极低。
+    for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i];
+        if (m && m.is_user && m.mes === pushedUserMessage.mes && m.name === pushedUserMessage.name) {
+            chat.splice(i, 1);
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * 临时应用 ST OpenAI 预设到 oai_settings（dryRun 组装期间用，2026-08-18）。
  * ⚠️ 只覆盖「组装内容相关」字段：按 settingsToUpdate 映射遍历，跳过 isConnection（模型/URL/source 等
  *   连接绑定字段——组装内容无关，且发送阶段反正被 customApi 拦截覆盖）。
@@ -513,12 +549,14 @@ export const aiCaller = {
 
             // ⚠️ 组装完成即弹出临时 push 的生成指令消息：此后发送只用 assembledChat 数组，不再读 chat，
             //   无需让 push 消息在 chat 末尾停留整个发送期（缩短 chat 污染窗口；finally 据此跳过）。
-            if (pushedUserMessage && Array.isArray(chat) && chat[chat.length - 1] === pushedUserMessage) {
-                chat.pop();
-                pushedPopped = true; // 标记已弹出，finally 据此跳过（避免二次 pop）
-                debugLog(LOG_TAG, '组装完成已弹出临时 push 的生成指令 user 消息');
+            if (pushedUserMessage) {
+                // ⚠️ 按对象引用弹出（_popPushedMessage），正常路径走位置+引用、异常/并发改动 chat 走引用兜底，杜绝残留脏楼层；移除成功才置 pushedPopped。
+                if (_popPushedMessage(pushedUserMessage)) {
+                    pushedPopped = true;
+                    debugLog(LOG_TAG, '组装完成已弹出临时 push 的生成指令 user 消息');
+                }
                 // ⚠️ pop 后立即补刷 swipe 箭头（比 finally 更早恢复，缩短污染窗口）：
-                //   is_user 指令消息已移出 chat[last]，此时 showSwipeButtons() 必通过守卫，能尽早把箭头刷回。
+                //   is_user 指令消息已移出 chat，此时 showSwipeButtons() 必通过守卫，能尽早把箭头刷回。
             }
             if (pushedPopped && !swipeRefreshed) {
                 try {
@@ -590,10 +628,9 @@ export const aiCaller = {
                 debugLog(LOG_TAG, '已恢复 {{lastUserMessage}} 宏');
             }
             // 弹出临时 push 的 user 消息：仅当组装完成前尚未弹出（含异常/中止早退路径）
-            // ⚠️ 临时消息若仍在 chat，必然位于 chat[last]（push 追加到末尾后不再被移动），
-            //   用 chat[last] === pushedUserMessage 位置+引用双判断最安全，绝不误 pop 其他消息。
-            if (!pushedPopped && pushedUserMessage && Array.isArray(chat) && chat[chat.length - 1] === pushedUserMessage) {
-                chat.pop();
+            // ⚠️ 用 _popPushedMessage 按对象引用弹出：正常路径走位置+引用、异常路径走引用兜底，
+            //   即使 await Generate 等异步窗口导致临时消息不在 chat[last] 也能可靠移除，杜绝残留脏楼层。
+            if (!pushedPopped && _popPushedMessage(pushedUserMessage)) {
                 pushedPopped = true;
                 debugLog(LOG_TAG, '已弹出临时 push 的生成指令 user 消息');
             }

@@ -228,8 +228,19 @@ export class EventHandler {
      *   ⚠️ 模块生成走 Generate(dryRun)+自 sendOpenAIRequest，不会再次触发 GENERATION_ENDED，无死循环。
      */
     initializeAutoModuleGenerate() {
-        this.registerEvent(event_types.GENERATION_ENDED, () => {
+        // ⚠️ 2026-08-23 触发器由 GENERATION_ENDED 改为 MESSAGE_RECEIVED：
+        //   - 手动中止正文生成：onStopStreaming 直接 return，不发 MESSAGE_RECEIVED → 自动生成天然不触发，
+        //     连临时指令 user 消息都不会 push，从根源消除残留（此前 GENERATION_ENDED 在中止时也触发）。
+        //   - api 报错：onErrorStreaming 虽也发 MESSAGE_RECEIVED，但消息为空 → 下方「空正文守卫」拦截。
+        //   - 正常成功：MESSAGE_RECEIVED 正常发射 → 照常自动生成。
+        //   时序仍安全：unblockGeneration 在 MESSAGE_RECEIVED 之后的同一同步栈调用 showSwipeButtons()，
+        //   下方 setTimeout(0) 在栈退栈后运行 → 依旧晚于 showSwipeButtons，swipe 箭头不回归。
+        //   模块自动生成走 Generate('quiet', dryRun)，不发射 MESSAGE_RECEIVED，无死循环。
+        this.registerEvent(event_types.MESSAGE_RECEIVED, (_mesid, msgType) => {
             try {
+                // ⚠️ 跳过首条问候语（first_message）：该类型在「打开聊天/选中问候语」时也会发射，
+                //   非真实正文生成，避免打开聊天就自动生成模块（版本守卫兜底也挡不住首次）。
+                if (msgType === 'first_message') return;
                 const asyncModule = configManager.getModuleDomainConfig().asyncModule || {};
                 const asyncConfig = configManager.getAsyncConfig();
                 if (!asyncModule.enabled) {
