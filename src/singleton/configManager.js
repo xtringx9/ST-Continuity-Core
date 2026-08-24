@@ -47,6 +47,9 @@ export const DEFAULT_EXTENSION_CONFIG = {
         promptEntryActions: { // 提示词预设条目·扩展操作（复制 / 插入空白 / 移除）
             enabled: false,
         },
+        promptEntrySearch: { // 提示词预设条目·搜索定位（按名称/内容搜索 + 上一下一/下拉跳转 + 回顶/跳底）
+            enabled: false,
+        },
         presetBinding: { // 预设·绑定当前聊天：按打开的聊天切换 ST 当前预设（与 async 无关）
             enabled: false,
             defaultPreset: '', // 未绑定聊天的回退预设（最近一次用户手动切换的预设；init 时空则记录当前值）
@@ -413,6 +416,10 @@ class ConfigManager {
                         promptEntryActions: {
                             ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntryActions,
                             ...(migrated.stFeatureEnhance?.promptEntryActions || {}),
+                        },
+                        promptEntrySearch: {
+                            ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntrySearch,
+                            ...(migrated.stFeatureEnhance?.promptEntrySearch || {}),
                         },
                     },
                 };
@@ -890,6 +897,10 @@ class ConfigManager {
                 promptEntryActions: {
                     ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntryActions,
                     ...(migrated.stFeatureEnhance?.promptEntryActions || {}),
+                },
+                promptEntrySearch: {
+                    ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntrySearch,
+                    ...(migrated.stFeatureEnhance?.promptEntrySearch || {}),
                 },
             };
 

@@ -51,6 +51,11 @@ import {
     initPromptEntryActions,
 } from "./src/features/prompt-entry-actions/promptEntryActions.js";
 
+// 提示词预设条目·搜索定位（按名称/内容搜索 + 上一下一/下拉跳转 + 回顶/跳底）
+import {
+    initPromptEntrySearch,
+} from "./src/features/prompt-entry-search/promptEntrySearch.js";
+
 // 智绘姬文生图工作台启动器（独立模块，与 EntryButton 解耦）
 import { initChatu8Launcher } from "./src/features/chatu8-launcher/chatu8Launcher.js";
 
@@ -107,6 +112,9 @@ jQuery(async function () {
 
     // 提示词预设条目·扩展操作：复制 / 插入空白 / 移除（接管原生 Remove）
     initPromptEntryActions();
+
+    // 提示词预设条目·搜索定位：按名称/内容搜索 + 上一下一/下拉跳转 + 回顶/跳底
+    initPromptEntrySearch();
 
     // 预设·绑定当前聊天：按打开的聊天切换 ST 当前预设（未绑定聊天切回默认预设）
     initPresetBinding();
