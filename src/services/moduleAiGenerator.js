@@ -936,6 +936,7 @@ export const moduleAiGenerator = {
                 storedCount,
                 taskKey: taskKeys[0] || undefined,
                 runId,
+                endInfo: result.debug.endInfo,
             };
 
             // ⚠️ 空响应兜底：AI 调用成功但返回空文本（result.text 为空）时，
@@ -1102,6 +1103,7 @@ export const moduleAiGenerator = {
                 hasModules: false,
                 error: err.message,
                 taskKey: taskKeys[0] || undefined,
+                endInfo: errDebug.endInfo,
             };
 
             // 失败/中止也暂存为 error 记录（生成记录面板可查看失败详情），单条时创建；

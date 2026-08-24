@@ -743,6 +743,15 @@ function buildDetailBottom(record) {
         sections.push(section('错误', d.error, { collapsed: false, error: true }));
     }
 
+    // 结束状态（方案A：纯扩展外围信息，便于排查“半成品当成功”）
+    const end = d.endInfo || {};
+    const endLines = [];
+    if (end.status) endLines.push(`结果: ${end.status === 'error' ? '失败' : '成功'}`);
+    if (typeof end.durationMs === 'number') endLines.push(`耗时: ${end.durationMs}ms`);
+    if (typeof end.textLength === 'number') endLines.push(`响应长度: ${end.textLength} 字`);
+    if (typeof end.streamed === 'boolean') endLines.push(`流式: ${end.streamed ? '是' : '否'}`);
+    sections.push(section('结束状态', endLines.length ? endLines.join('\n') : '(无)', { collapsed: false }));
+
     // API 信息（贴底部信息类；默认展开）
     const api = d.apiUsed || {};
     const apiLines = [];

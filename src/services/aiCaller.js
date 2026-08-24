@@ -239,6 +239,13 @@ export const aiCaller = {
      */
     async call(options = {}) {
         const { mode, customApi, responseLength } = options;
+        const callStartedAt = Date.now();
+        // 包装 onStream：统计本次是否收到过流式数据（供“结束情况”诊断）。纯扩展，不改变现有回调语义。
+        const userOnStream = options.onStream;
+        let streamed = false;
+        if (typeof userOnStream === 'function') {
+            options.onStream = (t) => { streamed = true; userOnStream(t); };
+        }
         let result = '';
         const capture = { prompt: '' };
         let apiUsed = {};
@@ -297,6 +304,14 @@ export const aiCaller = {
             response: result,
             apiUsed,
             error: callError?.message || null,
+            // 结束外围信息（方案A：纯扩展，不依赖 ST 透传）。status: 'success'|'error'；
+            // streamed 表示本次是否收到过流式 chunk；textLength/durationMs 便于排查“半成品当成功”。
+            endInfo: {
+                status: callError ? 'error' : 'success',
+                durationMs: Date.now() - callStartedAt,
+                textLength: String(result ?? '').length,
+                streamed,
+            },
         };
 
         this._emitDebug(debugInfo);
