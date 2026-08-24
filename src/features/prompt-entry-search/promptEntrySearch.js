@@ -115,24 +115,28 @@ const STYLES = `
     color: var(--SmartThemeDimColor, #8a8a8a);
     white-space: nowrap;
 }
+/* —— 搜索工具条按钮：统一用原生 menu_button 观感 + 可见填充（ButtonFill） —— */
 #${CC_SEARCH_ID} .cc-pm-search-btn {
     cursor: pointer;
     font-size: 13px;
     line-height: 1;
-    color: var(--SmartThemeDimColor, #8a8a8a);
+    color: var(--SmartThemeBodyColor);
     width: 22px;
     height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    padding: 0;
+    margin: 0 !important;
+    background-color: var(--ButtonFill, var(--SmartThemeBlurTintColor));
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 4px;
-    background: transparent;
     flex: 0 0 auto;
-    transition: color 0.15s ease, background 0.15s ease;
 }
-#${CC_SEARCH_ID} .cc-pm-search-btn:hover { color: var(--SmartThemeQuoteColor, #6cf); background: var(--black30a); }
 #${CC_SEARCH_ID} .cc-pm-search-btn:disabled { opacity: 0.4; cursor: default; }
+#${CC_SEARCH_ID} .cc-pm-search-btn:not(:disabled):hover {
+    /* 覆盖 ST menu_button hover 的 var(--white30a)，保持可见不半透明 */
+    color: var(--SmartThemeQuoteColor, #6cf);
+    border-color: var(--SmartThemeQuoteColor, #6cf);
+    background-color: var(--ButtonFill, var(--SmartThemeBlurTintColor)) !important;
+}
 #${CC_SEARCH_ID} .cc-pm-search-results {
     display: none;
     max-height: 180px;
@@ -156,40 +160,6 @@ const STYLES = `
 }
 #${CC_SEARCH_ID} .cc-pm-search-result-item:hover { background: var(--black30a); border-left-color: var(--SmartThemeQuoteColor, #6cf); }
 #${CC_SEARCH_ID} .cc-pm-search-result-item .cc-pm-hit-badge { color: var(--SmartThemeDimColor, #8a8a8a); font-size: 11px; }
-
-/* —— 回顶 / 跳底 右缘垂直层（sticky 装饰 <li>，钉在列表右缘中部随滚动） —— */
-#completion_prompt_manager #completion_prompt_manager_list li.cc-pm-float-li {
-    display: flex !important;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 6px;
-    height: 0 !important;
-    overflow: visible !important;
-    position: sticky;
-    top: 42%;
-    align-self: flex-end;
-    width: max-content !important;
-    z-index: 8;
-    padding: 0 !important;
-    margin: 0 1px 0 0 !important;
-    border: none !important;
-    background: transparent !important;
-}
-#completion_prompt_manager #completion_prompt_manager_list li.cc-pm-float-li .cc-pm-float-btn {
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    margin: 0 !important;
-    border-radius: 0;
-    font-size: 14px;
-    line-height: 1;
-}
-#completion_prompt_manager #completion_prompt_manager_list li.cc-pm-float-li .cc-pm-float-btn:hover {
-    color: var(--SmartThemeQuoteColor, #6cf);
-}
 
 /* 列表条目高亮：命中浅色描边，当前项加深 + 背景 */
 .completion_prompt_manager_prompt.${CC_HIT_CLASS} {
@@ -229,7 +199,6 @@ function onTick() {
         ensureToolbar(listEl);
         applyGenCollapse();
         applyOpenAICollapse();
-        ensureFloatStack(listEl);
         // 有搜索词时：仅当条目列表签名变化（增删/重绘）才重算，否则滚动/心跳不重复全量匹配
         if (state.query.trim()) {
             const sig = getEntrySignature(listEl);
@@ -354,18 +323,6 @@ function updateBarState(sel, collapsed) {
     }
 }
 
-// ---- 回顶 / 跳底 右缘垂直层（sticky 装饰 <li>） ----
-function ensureFloatStack(listEl) {
-    if (listEl.querySelector('.cc-pm-float-li')) return;
-    const $li = $('<li>', { class: 'cc-pm-float-li' }).append(
-        '<button type="button" class="cc-pm-float-btn menu_button cc-pm-float-top" title="回顶"><span class="fa-solid fa-angle-up"></span></button>' +
-        '<button type="button" class="cc-pm-float-btn menu_button cc-pm-float-bottom" title="跳底"><span class="fa-solid fa-angle-down"></span></button>'
-    );
-    $li.on('click', '.cc-pm-float-top', () => scrollContainer('top'));
-    $li.on('click', '.cc-pm-float-bottom', () => scrollContainer('bottom'));
-    listEl.insertBefore($li[0], listEl.firstChild);
-}
-
 // ---- 匹配计算（数据模型 + DOM 顺序） ----
 function entryName(li) {
     // 名称在 li 内部 .completion_prompt_manager_prompt_name[data-pm-name]
@@ -437,7 +394,8 @@ function ensureToolbar(listEl) {
     const cur = state.currentId ? matches.findIndex(m => m.id === state.currentId) + 1 : 0;
     const curIdx = state.currentId ? Math.max(cur, 1) : 0;
     $bar.find('.cc-pm-search-count').text(`${curIdx}/${matches.length}`);
-    $bar.find('.cc-pm-search-btn').prop('disabled', !state.query.trim());
+    // 仅上一/下一随有无搜索词禁用；回顶/跳底始终可点
+    $bar.find('.cc-pm-search-prev, .cc-pm-search-next').prop('disabled', !state.query.trim());
 }
 
 function buildToolbar() {
@@ -449,8 +407,10 @@ function buildToolbar() {
                 <button type="button" class="cc-pm-search-clear" title="清除搜索"><span class="fa-solid fa-xmark"></span></button>
             </div>
             <span class="cc-pm-search-count">0/0</span>
-            <button type="button" class="cc-pm-search-btn cc-pm-search-prev" title="上一个匹配"><span class="fa-solid fa-arrow-up"></span></button>
-            <button type="button" class="cc-pm-search-btn cc-pm-search-next" title="下一个匹配"><span class="fa-solid fa-arrow-down"></span></button>
+            <button type="button" class="cc-pm-search-btn menu_button cc-pm-search-prev" title="上一个匹配"><span class="fa-solid fa-arrow-up"></span></button>
+            <button type="button" class="cc-pm-search-btn menu_button cc-pm-search-next" title="下一个匹配"><span class="fa-solid fa-arrow-down"></span></button>
+            <button type="button" class="cc-pm-search-btn menu_button cc-pm-search-top" title="回顶"><span class="fa-solid fa-angle-double-up"></span></button>
+            <button type="button" class="cc-pm-search-btn menu_button cc-pm-search-bottom" title="跳底"><span class="fa-solid fa-angle-double-down"></span></button>
         </div>
         <div class="cc-pm-search-results"></div>
     `);
@@ -486,6 +446,9 @@ function bindToolbarEvents($bar) {
 
     $prev.on('click', () => moveCurrent(-1));
     $next.on('click', () => moveCurrent(1));
+    // 回顶 / 跳底（搜索栏常驻，直接滚动列表所在容器）
+    $bar.find('.cc-pm-search-top').on('click', () => scrollContainer('top'));
+    $bar.find('.cc-pm-search-bottom').on('click', () => scrollContainer('bottom'));
     // 清除按钮：清空搜索词并复位高亮/下拉
     $bar.find('.cc-pm-search-clear').on('click', () => clearFilter());
 
@@ -532,7 +495,8 @@ function renderSearchState(matches) {
     if (!state.query.trim()) {
         $results.html('').removeClass('cc-open');
         $(toolbar).find('.cc-pm-search-count').text('0/0');
-        $(toolbar).find('.cc-pm-search-btn').prop('disabled', true);
+        // 回顶/跳底保持可点；仅上一/下一禁用
+        $(toolbar).find('.cc-pm-search-prev, .cc-pm-search-next').prop('disabled', true);
         return;
     }
 
@@ -550,7 +514,7 @@ function renderSearchState(matches) {
     // 计数
     const shownIdx = curIdx >= 0 ? curIdx + 1 : 0;
     $(toolbar).find('.cc-pm-search-count').text(`${shownIdx}/${matches.length}`);
-    $(toolbar).find('.cc-pm-search-btn').prop('disabled', matches.length === 0);
+    $(toolbar).find('.cc-pm-search-prev, .cc-pm-search-next').prop('disabled', matches.length === 0);
 
     // 下拉候选（仅名称入列，附带命中位置徽标）
     const items = matches.map(m => {
@@ -638,7 +602,6 @@ export function removePromptEntrySearchUI() {
     lastSignature = '';
     $(`#${CC_SEARCH_ID}`).remove();
     $(`#${CC_COLLAPSE_ROW_ID}`).remove();
-    $(`.cc-pm-float-li`).remove();
     $(`#${CC_STYLE_ID}`).remove();
     // 还原折叠态 class，恢复显示
     const wrap = getOpenAISettings();
