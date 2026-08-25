@@ -269,11 +269,19 @@ export function buildModulesString(structuredModules, showModuleNames = false, s
 }
 
 /**
- * 获取模块数据规则字符串
+ * 获取模块数据规则字符串（仅 showModuleNames=true 时输出内容；其余调用 showModuleNames=false 完全跳过）。
+ *
+ * ⚠️ showAllRules=true（用户设定，2026-08-25）：
+ *   - true  → 不再跳过 body / body_surround / specific_position 三个位置的模块标题+`> stats` 头，
+ *             即这些位置的模块也输出「模块标题 + stats:count/next_id」。
+ *   - false → 这三个位置提前 return ""（只跳过头部，模块数据条目本身在 buildModulesString 里仍照常输出）。
+ * 影响入口：仅 `{{CONTINUITY_MODULE_DATA}}` 宏（generateModuleDataPrompt，showModuleNames=true）与
+ *         Toolbox 提取预览；其余（文内/消息底部/上下文底部 UI、ORDER/MSG_MODULE 宏、自动生成）不受影响。
+ * 注意：这里只影响头部标题/stats，不含规则文本（规则在 `showRule` 分支，宏调用默认 false）。
  */
 function getModuleDataRuleString(moduleConfig, moduleData, processType, showModuleNames, showProcessInfo, showRule) {
     let result = '';
-    const showAllRules = false;
+    const showAllRules = true;
     if (showModuleNames) {
         if (!showAllRules && (moduleConfig.outputPosition === 'body' || moduleConfig.outputPosition === 'body_surround' || moduleConfig.outputPosition === 'specific_position')) {
             return result;
