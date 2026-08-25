@@ -1,5 +1,6 @@
 import { translate } from '../../../../../../i18n.js';
 import { debugLog, infoLog, warnLog, errorLog } from '../../utils/logger.js';
+import { showToast } from '../../shared/Toast.js';
 import moduleCacheManager from '../../singleton/moduleCacheManager.js';
 import configManager from '../../singleton/configManager.js';
 import { getContext } from '../../../../../../extensions.js';
@@ -659,14 +660,10 @@ function bindDebugButtons(doc) {
             newBtn.disabled = true;
             try {
                 await handler();
-                if (typeof toastr !== 'undefined') {
-                    toastr.success(translate(`ccore_${textKey}`));
-                }
+                showToast(translate(`ccore_${textKey}`), 'success');
             } catch (err) {
                 errorLog(`[Debug] ${translate(`ccore_${textKey}`)} 失败:`, err);
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(err.message);
-                }
+                showToast(err.message, 'error');
             } finally {
                 newBtn.disabled = false;
             }
@@ -699,14 +696,10 @@ function bindDebugButtons(doc) {
             newBtn.disabled = true;
             try {
                 await profilePipelineStages(false);
-                if (typeof toastr !== 'undefined') {
-                    toastr.success(translate('ccore_btn_debug_pipeline_profile') + ' 完成，结果见控制台');
-                }
+                showToast(translate('ccore_btn_debug_pipeline_profile') + ' 完成，结果见控制台', 'success');
             } catch (err) {
                 errorLog('[Perf] 性能采样失败:', err);
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(err.message);
-                }
+                showToast(err.message, 'error');
             } finally {
                 newBtn.disabled = false;
             }
@@ -723,14 +716,10 @@ function bindDebugButtons(doc) {
             newBtn.disabled = true;
             try {
                 await profilePipelineStages(true);
-                if (typeof toastr !== 'undefined') {
-                    toastr.success(translate('ccore_btn_debug_pipeline_profile_cache') + ' 完成，结果见控制台');
-                }
+                showToast(translate('ccore_btn_debug_pipeline_profile_cache') + ' 完成，结果见控制台', 'success');
             } catch (err) {
                 errorLog('[Perf] 性能采样(走缓存)失败:', err);
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(err.message);
-                }
+                showToast(err.message, 'error');
             } finally {
                 newBtn.disabled = false;
             }
@@ -747,14 +736,10 @@ function bindDebugButtons(doc) {
             newBtn.disabled = true;
             try {
                 await diagnoseOccurrenceCache();
-                if (typeof toastr !== 'undefined') {
-                    toastr.success(translate('ccore_btn_debug_occurrence_diag') + ' 完成，结果见控制台');
-                }
+                showToast(translate('ccore_btn_debug_occurrence_diag') + ' 完成，结果见控制台', 'success');
             } catch (err) {
                 errorLog('[Occurrence诊断] 失败:', err);
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(err.message);
-                }
+                showToast(err.message, 'error');
             } finally {
                 newBtn.disabled = false;
             }
@@ -771,14 +756,10 @@ function bindDebugButtons(doc) {
             newBtn.disabled = true;
             try {
                 await verifySnapshotRebuild();
-                if (typeof toastr !== 'undefined') {
-                    toastr.success(translate('ccore_btn_verify_snapshot_rebuild') + ' 完成，结果见控制台');
-                }
+                showToast(translate('ccore_btn_verify_snapshot_rebuild') + ' 完成，结果见控制台', 'success');
             } catch (err) {
                 errorLog('[快照验证] 失败:', err);
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(err.message);
-                }
+                showToast(err.message, 'error');
             } finally {
                 newBtn.disabled = false;
             }
@@ -882,9 +863,7 @@ function bindDebugButtons(doc) {
                 await handler();
             } catch (err) {
                 errorLog(`[Debug-Storage] ${label} 失败:`, err);
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(err.message);
-                }
+                showToast(err.message, 'error');
             } finally {
                 newBtn.disabled = false;
             }

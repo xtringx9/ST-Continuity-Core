@@ -14,6 +14,7 @@
 import { translate } from '../../../../../../i18n.js';
 import { openai_setting_names } from '../../../../../../openai.js';
 import { errorLog } from '../../utils/logger.js';
+import { showToast } from '../../shared/Toast.js';
 
 const ROLE_OPTIONS = ['user', 'assistant', 'system'];
 
@@ -284,7 +285,7 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         const key = String(container.querySelector('#async-custom-api-key').value?.trim() || '');
         const source = String(container.querySelector('#async-custom-api-source').value || 'openai');
         if (!apiurl) {
-            toastr.warning('请先填写 API URL');
+            showToast('请先填写 API URL', 'warning');
             return;
         }
         const btn = container.querySelector('#async-custom-api-fetch');
@@ -317,10 +318,10 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
                 modelCustom.value = prev;
             }
             syncModelCustomVisibility();
-            toastr.success(`拉取到 ${models.length} 个模型`);
+            showToast(`拉取到 ${models.length} 个模型`, 'success');
         } catch (err) {
             errorLog('[AsyncSettings] 拉取模型失败:', err);
-            toastr.error(`拉取模型失败: ${err.message}`);
+            showToast(`拉取模型失败: ${err.message}`, 'error');
         } finally {
             btn.textContent = originalText;
         }

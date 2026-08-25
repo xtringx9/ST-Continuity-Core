@@ -15,6 +15,7 @@ import { translate } from '../../../../../../i18n.js';
 import configManager from '../../singleton/configManager.js';
 import { refreshOnModuleConfigChange } from '../../core/contextBottomUI.js';
 import { IframeDialog } from '../../shared/IframeDialog.js';
+import { showToast } from '../../shared/Toast.js';
 // 直接 import SillyTavern 的 getContext（同目录 Toolbox.js 已验证可用：iframe 内可经此拿到实时角色/聊天上下文）
 // ⚠️ getContext() 返回对象含 chat 数组（st-context.js:96）——iframe 内不要 import script.js（404），
 // 一律走 getContext().chat 拿实时聊天数组。
@@ -455,9 +456,7 @@ function bindChatOpMigrateButton() {
     if (!btn) return;
     btn.addEventListener('click', () => {
         const count = migrateWorldBookModulesToChatEntries();
-        if (typeof toastr !== 'undefined') {
-            toastr.success(`${translate('ccore_btn_migrate_worldbook_chat')} 完成，复制 ${count} 条到当前聊天`);
-        }
+        showToast(`${translate('ccore_btn_migrate_worldbook_chat')} 完成，复制 ${count} 条到当前聊天`, 'success');
         renderDetail(); // 刷新条目列表显示新搬迁的条目
     });
 }
