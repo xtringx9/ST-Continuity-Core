@@ -29,6 +29,20 @@ import { debugLog, infoLog, errorLog, warnLog } from '../utils/logger.js';
 
 const LOG_TAG = 'AiCaller';
 
+// ⚠️ 2026-08-25 并发防覆盖：临时预设应用/恢复是全局共享 oai_settings 上的操作。
+//   presetOpSeq 递增生成操作 ID，activePresetOpId 记录"当前最新"应用操作；
+//   恢复恢复时校验，若期间已有更新的应用覆盖则跳过，避免旧调用的备份值盖掉新调用的应用值。
+let presetOpSeq = 0;
+let activePresetOpId = 0;
+
+/** 深拷贝应用值：对象/数组字段绝不按引用赋给 oai_settings，避免污染已保存的预设本体。 */
+function _clonePresetValue(value) {
+    if (typeof structuredClone === 'function') {
+        try { return structuredClone(value); } catch (e) { /* 回退 JSON */ }
+    }
+    return JSON.parse(JSON.stringify(value));
+}
+
 /** 调试拦截发送时返回的占位响应（configManager.debug.interceptSend 开启时使用） */
 const INTERCEPT_MOCK_RESPONSE = '[拦截测试] aiCaller 发送已被调试开关拦截，未实际调用 API。';
 
@@ -135,18 +149,40 @@ function _applyPresetForAssembly(presetName) {
         warnLog(LOG_TAG, `找不到 ST OpenAI 预设: ${presetName}，本次生成使用当前预设`);
         return null;
     }
+    // ⚠️ 2026-08-25 并发保护：声明本次为最新应用，恢复时据此校验避免覆盖更新的应用。
+    const opId = ++presetOpSeq;
+    activePresetOpId = opId;
     const fields = [];
-    for (const [presetKey, [, setting, , isConnection]] of Object.entries(settingsToUpdate)) {
-        if (isConnection) continue; // 连接绑定字段（模型/URL/source 等）不覆盖
-        if (preset[presetKey] === undefined) continue; // 预设没有该字段 → 不动
-        fields.push({ setting, oldValue: oai_settings[setting] });
-        oai_settings[setting] = preset[presetKey];
+    try {
+        for (const [presetKey, [, setting, , isConnection]] of Object.entries(settingsToUpdate)) {
+            if (isConnection) continue; // 连接绑定字段（模型/URL/source 等）不覆盖
+            if (preset[presetKey] === undefined) continue; // 预设没有该字段 → 不动
+            // ✅ Hole2：对象/数组字段（prompt_order/prompts/extensions）深拷贝后再赋，
+            //   绝不引用预设本体，避免组装期间被就地修改而污染用户已保存的预设。
+            const value = typeof preset[presetKey] === 'object' && preset[presetKey] !== null
+                ? _clonePresetValue(preset[presetKey])
+                : preset[presetKey];
+            fields.push({ setting, oldValue: oai_settings[setting] });
+            oai_settings[setting] = value;
+        }
+    } catch (e) {
+        // ✅ Hole1：中途抛错时把已记录的备份就地还原，保证 oai_settings 不残留临时预设值，
+        //   避免「备份丢失 → finally 空恢复 → 切不回去」。
+        for (const { setting, oldValue } of fields) oai_settings[setting] = oldValue;
+        errorLog(LOG_TAG, `临时应用 ST OpenAI 预设失败，已还原已改字段:`, e);
+        throw e;
     }
     // promptBinding 增强：功能开启才处理，否则保持现有逻辑（用户拍板，2026-08-18）
+    // ✅ Hole1 兜底：此附加逻辑单独 try/catch，抛错也不丢弃已收集的备份（fields 一定随返回值返回）。
     if (configManager.getStFeatureEnhanceConfig()?.promptBinding?.enabled === true) {
-        _applyPromptBindingsToPresetOrder(fields);
+        try {
+            _applyPromptBindingsToPresetOrder(fields);
+        } catch (e) {
+            errorLog(LOG_TAG, `应用 promptBinding 到目标预设失败，已忽略（预设备份仍保留）:`, e);
+        }
     }
     if (fields.length === 0) return null;
+    fields.opId = opId;
     debugLog(LOG_TAG, `已临时应用 ST OpenAI 预设「${presetName}」，覆盖 ${fields.length} 个组装相关字段`);
     return fields;
 }
@@ -205,9 +241,17 @@ function _applyPromptBindingsToPresetOrder(fields) {
  */
 function _restorePresetForAssembly(fields) {
     if (!Array.isArray(fields) || fields.length === 0) return;
+    // ✅ Hole3 并发防覆盖：仅当本次仍是"最新"的应用操作时才恢复。
+    //   若期间已有更新的调用再次临时应用预设（activePresetOpId 已变化），
+    //   本次恢复的 oldValue 会盖掉它 → 跳过，交给那个更新的调用自己恢复。
+    if (fields.opId !== undefined && activePresetOpId !== fields.opId) {
+        debugLog(LOG_TAG, '检测到更新的临时预设已应用，跳过本次预设恢复（避免旧值覆盖新值）');
+        return;
+    }
     for (const { setting, oldValue } of fields) {
         oai_settings[setting] = oldValue;
     }
+    activePresetOpId = 0; // 本次已恢复，清空"最新操作"标记
     debugLog(LOG_TAG, `已恢复 oai_settings（${fields.length} 个字段回到原值）`);
 }
 
