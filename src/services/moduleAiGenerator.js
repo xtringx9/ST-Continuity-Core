@@ -25,6 +25,31 @@ setMsgModuleResolver(mesId => generateChatModuleDataForFloor(mesId, 'async-alone
 
 const LOG_TAG = 'ModuleAiGenerator';
 
+// ⚠️ 2026-08-25 生成期上下文所有权管理（async-alone 窗口收窄 + 并发防误清 + 异常兜底）。
+//   背景：async-alone 用于「异步单独生成窗口内宏按 after_body 分流」，但仅组装期（宏展开）
+//   需要它，发送期不再有用。此前窗口过宽（直到生成结束才 clear）且仅成功/失败两处清理、
+//   无 finally 兜底 → 主聊天提示词在生成期间被误判为 async-alone（body 系模块丢失）。
+//   genContextOwner 记录「当前持有」的操作 ID：只有持有者才能 clear，杜绝并发生成互相误清、
+//   也保证 onPrompt/成功/失败/finally 多处调用幂等。
+let genContextOpSeq = 0;
+let genContextOwner = null;
+
+/** 开始 async-alone 生成期上下文，返回本操作的唯一 ID。 */
+function _beginGenContext(truncateToMesId) {
+    const opId = ++genContextOpSeq;
+    genContextOwner = opId;
+    setGenerationContextEndFloor(truncateToMesId - 1);
+    setGenerationContextMode('async-alone');
+    return opId;
+}
+
+/** 仅当 opId 仍是当前持有者时清除生成期上下文（幂等，可安全多路径调用）。 */
+function _clearGenContextIfOwned(opId) {
+    if (genContextOwner !== opId) return;
+    genContextOwner = null;
+    clearGenerationContext();
+}
+
 /**
  * 从 AI 回复文本中提取所有顶层模块 raw，合并为单个换行分隔文本块。
  * 逻辑同 perMessageStorage.extractMessageModules（已停用 perMessageStorage，此处内联）。
@@ -759,11 +784,14 @@ export const moduleAiGenerator = {
 
         // 生成期上下文：宏 {{CONTINUITY_MODULE_DATA}} 只读到目标层前一楼（目标层模块正要生成）；
         // 三态分流：pipeline 生成时宏按「异步单独生成」输出（after_body+embedded）
+        // ⚠️ 2026-08-25 窗口收窄：上下文只在组装期需要（宏展开消费），组装完成后
+        //   onPrompt 回调即 _clearGenContextIfOwned 提前清理，不再覆盖整个（可能很长的）发送期。
         const isPipeline = mode === 'pipeline';
+        /** @type {number|null} */
+        let genContextOpId = null;
         if (isPipeline) {
-            setGenerationContextEndFloor(truncateToMesId - 1);
-            setGenerationContextMode('async-alone');
-            debugLog(LOG_TAG, `设置生成上下文截止楼层 ${truncateToMesId - 1} + 模式 async-alone（宏 moduleData 截断 + 三态分流）`);
+            genContextOpId = _beginGenContext(truncateToMesId);
+            debugLog(LOG_TAG, `设置生成上下文截止楼层 ${truncateToMesId - 1} + 模式 async-alone（宏 moduleData 截断 + 三态分流），opId=${genContextOpId}`);
         }
 
         // 全局任务注册：记录生成所属聊天（保存校验用）+ running 状态（按钮计数/防重）
@@ -809,6 +837,10 @@ export const moduleAiGenerator = {
                 _updateRunningTask(runId, task.debugData);
             }
             window.updateRunningRecord?.(runId, task?.debugData || {});
+            // ⚠️ 2026-08-25 窗口收窄：onPrompt 在 dryRun 组装完成（CHAT_COMPLETION_PROMPT_READY）时触发，
+            //   此时宏已全部展开消费完毕，async-alone 不再需要 → 立即归还上下文，让主聊天提示词尽快回到 async-body。
+            //   幂等（_clearGenContextIfOwned），随后 finally 为兜底。
+            if (genContextOpId !== null) _clearGenContextIfOwned(genContextOpId);
         };
 
         // 捕获到 API 信息后实时推送（阶段 2：生成中面板显示「API 信息」）
@@ -1052,7 +1084,7 @@ export const moduleAiGenerator = {
 
             // 无论 shouldShowDebug 与否都清理运行中详情（用户可能手动打开过生成中面板）
             if (runId) window.closeRunningRecord?.(runId);
-            if (isPipeline) clearGenerationContext();
+            if (genContextOpId !== null) _clearGenContextIfOwned(genContextOpId);
             // 成功：完整 debugData 写入任务（供后续「重新打开面板」显示真实结果）
             const successDebug = typeof debugData === 'object' ? debugData : null;
             for (const k of taskKeys) {
@@ -1071,7 +1103,7 @@ export const moduleAiGenerator = {
                 storedCount,
             };
         } catch (err) {
-            if (isPipeline) clearGenerationContext();
+            if (genContextOpId !== null) _clearGenContextIfOwned(genContextOpId);
             for (const k of taskKeys) taskRegistry.finish(k, 'error', { mesId: messages[0]?.mesId, generatorName, success: false, error: err.message });
             errorLog(LOG_TAG, `AI 生成失败:`, err);
 
@@ -1172,6 +1204,11 @@ export const moduleAiGenerator = {
             showToast(`生成失败 #${messages[0]?.mesId} ${generatorName || 'modules'}：${err.message || '未知错误'}`, 'error');
 
             return { success: false, text: '', debug: err.debugInfo || null, error: err.message, hasModules: false, storedCount: 0 };
+        } finally {
+            // ⚠️ 2026-08-25 finally 兜底：无论成功/失败/中止/回调抛错，若 onPrompt 未来得及清理，
+            //   在此保证 async-alone 上下文一定归还。幂等（_clearGenContextIfOwned）+ 所有权判定，
+            //   不会误清其他并发生成的上下文。
+            if (genContextOpId !== null) _clearGenContextIfOwned(genContextOpId);
         }
     },
 };
