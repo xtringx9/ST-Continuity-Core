@@ -1354,16 +1354,17 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             deleteGeneratorContent(mesId, generatorName, outerSwipeId, delSwipe);
             // 若删除的是当前编辑版本，且后续还有版本 → 回退到删除位置或末尾；全删则空
             if (remainingAfter === 0) {
-                refreshVersions();
-                loadVersion(-1);
+                // ⚠️ 2026-08-23 删到 0 个版本 → 直接关闭编辑框（不再停留在空编辑器）
+                $editArea.remove();
+                $iframe.show();
             } else {
                 refreshVersions();
                 loadVersion(Math.min(delIdx, ids.length - 1));
-            }
-            // 非模块同步内存缓存（删后 active 可能变化）
-            if (!isModule && ids.length > 0) {
-                const active = getActiveGeneratorSwipe(mesId, generatorName, outerSwipeId);
-                generatedContentCache.set(mesId, generatorName, readGeneratorContent(mesId, generatorName, outerSwipeId, active) || '');
+                // 非模块同步内存缓存（删后 active 可能变化）
+                if (!isModule) {
+                    const active = getActiveGeneratorSwipe(mesId, generatorName, outerSwipeId);
+                    generatedContentCache.set(mesId, generatorName, readGeneratorContent(mesId, generatorName, outerSwipeId, active) || '');
+                }
             }
             // 模块：删除导致 active 回退 → 对比删除前后模块文本，增量变化则刷下游
             if (isModule) {
