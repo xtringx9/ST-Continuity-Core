@@ -228,8 +228,16 @@ details.module-data[open]>summary::before {
     transform: translate(-50%, -50%);
 }
 
+/* 消息底部/上下文底部容器：强制占满整行、防 flex/瞬态窄宽压缩成窄条。
+   ⚠️ 2026-08-25 修复「swipe 后在电脑宽屏上 iframe 变成手机窄条且不恢复」：
+   .mes 为 flex-row（style.css），容器若作为 flex item 会被兄弟元素/瞬时窄宽压缩；
+   min-width:100% + flex:0 0 100% 保证无论父级是 block（.mes_block）还是 flex（.mes）都撑满且不可收缩。
+   flex 属性在 block 父级下不生效（安全），text/box-sizing 统一。 */
 .continuity-context-bottom-ui {
     width: 100%;
+    min-width: 100%;
+    flex: 0 0 100%;
+    box-sizing: border-box;
 }
 
 .continuity-context-bottom-ui * {

@@ -121,6 +121,10 @@ export function injectHtmlToIframe(container, htmlString) {
         contentRoot.innerHTML = htmlString;
         rerunContentScripts(contentRoot);
         ensureBaseScripts(iframe);
+        // ⚠️ 2026-08-25 自愈：swipe/瞬态窄宽把 iframe 压成窄条后，仅替换内层内容不会重置宽度。
+        //   这里每次更新都重设 width:100%，配合容器 CSS(min-width/flex:0 0 100%)强制撑满，
+        //   让窄状态在后续任何内容变化时恢复正常全宽。
+        iframe.style.width = '100%';
         // 主题同步（已加载文档上幂等且廉价，保证换肤即时生效）
         syncStThemeToIframe(iframe, { inheritBackground: false });
         return;
