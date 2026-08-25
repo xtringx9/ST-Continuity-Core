@@ -305,6 +305,17 @@ class ModuleCacheManager {
     }
 
 
+    /**
+     * 清除当前聊天的所有缓存
+     */
+    clearCurrentChatCache() {
+        const chatIdHash = this.getCurrentChatIdHash();
+        this.clearChatCache(chatIdHash);
+    }
+
+    /**
+     * 打印当前缓存数据
+     */
     outputCache() {
         debugLog("[Module Cache]打印当前缓存数据:", moduleCacheManager.cache, moduleCacheManager.charWorldBookCache);
     }

@@ -41,6 +41,27 @@ export class EventHandler {
     }
 
     /**
+     * 失效某层的跨层取数缓存，让随之的渲染回落 fresh（统一入口）。
+     * 同时处理三件必须配套的事：
+     *   1) 失效 occurrence 指定源该层（chatText/asyncChat/chatMeta）——数据变了，逐层提取失效；
+     *   2) 清当前聊天 B 层（moduleCacheManager）——readCache 只看范围不看 isAllModule，
+     *      不清则命中 B 层旧快照（0-末尾）渲染成上一次版本；
+     *   3) 可选标记快照 dirty——累积态自该层失效，由快照管线增量续算。
+     * 各变更事件（编辑/swipe/floor/聊天级条目/渲染）统一走此入口，避免失效逻辑散落遗漏。
+     * @param {number} x 楼层号
+     * @param {Object} [opts]
+     * @param {string[]} [opts.sources=['chatText']] 需失效 occurrence 的源名数组
+     * @param {boolean} [opts.snapshotDirty=false] 是否同时 markSnapshotDirty(x)
+     */
+    _freshFloorCache(x, { sources = ['chatText'], snapshotDirty = false } = {}) {
+        if (typeof x !== 'number' || Number.isNaN(x)) return;
+        const chatKey = getChatCacheKey();
+        for (const src of sources) invalidateOccurrence(chatKey, src, x);
+        moduleCacheManager.clearCurrentChatCache();
+        if (snapshotDirty) markSnapshotDirty(x);
+    }
+
+    /**
      * 初始化事件处理器
      */
     initialize() {
@@ -122,10 +143,8 @@ export class EventHandler {
             this.registerEvent(event_types.MESSAGE_UPDATED, (mesid) => {
                 const x = Number(mesid);
                 if (Number.isNaN(x)) { scheduleMsgBottom('suffix', mesid); return; }
-                // occurrence 缓存：编辑正文只失效该层 chatText（extract 逐层独立）
-                invalidateOccurrence(getChatCacheKey(), 'chatText', x);
-                // 快照 dirty：正文变更自该层起累积态失效→增量续算
-                markSnapshotDirty(x);
+                // 编辑正文：失效该层 chatText occurrence + 清 B 层 + 标脏（统一入口）
+                this._freshFloorCache(x, { sources: ['chatText'], snapshotDirty: true });
                 const before = _editTextCache.get(String(x));
                 _editTextCache.delete(String(x));
                 const after = chat[x]?.mes ?? '';
@@ -140,14 +159,9 @@ export class EventHandler {
             this.registerEvent(event_types.MESSAGE_SWIPED, (mesid) => {
                 const x = Number(mesid);
                 if (!Number.isNaN(x)) {
-                    // 正文（chatText）按 swipe 版本变 → 失效该层正文提取缓存
-                    invalidateOccurrence(getChatCacheKey(), 'chatText', x);
-                    // ⚠️ floor 模块（asyncChat）也按正文 swipe 分组（readFloorModules 按 swipe_id 读
-                    // generators['modules'][outerSwipe]），切 swipe 需一并失效，否则 occurrence 缓存残留
-                    // 旧 swipe 的 floor 模块 → 消息底部/正文内刷新时仍读到旧内容（bug：swipe 后渲染不变）。
-                    invalidateOccurrence(getChatCacheKey(), 'asyncChat', x);
-                    // 快照 dirty：切 swipe 只影响该层（正文 swipe_id 变）→ 增量续算
-                    markSnapshotDirty(x);
+                    // 切 swipe：正文(chatText) + floor 模块(asyncChat，按正文 swipe_id 分组)都变，一并失效
+                    // + 清 B 层 + 标脏（统一入口）
+                    this._freshFloorCache(x, { sources: ['chatText', 'asyncChat'], snapshotDirty: true });
                 }
                 scheduleMsgBottom('single', mesid);
             }, false, "", true);
@@ -158,7 +172,15 @@ export class EventHandler {
             this.registerEvent(event_types.CHAT_CHANGED, checkRenderCurrentMessageContext, false, "", true);
             // this.registerEvent(event_types.MESSAGE_EDITED, checkRenderCurrentMessageContext);
             this.registerEvent(event_types.MESSAGE_SWIPED, checkRenderCurrentMessageContext, false, "", true);
-            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, checkRenderCurrentMessageContext, false, "", true);
+            this.registerEvent(event_types.CHARACTER_MESSAGE_RENDERED, (mesid) => {
+                // ⚠️ 2026-08-25 文内渲染陈旧修复：重新生成/新 swipe 走 script.js 只发 MESSAGE_RECEIVED +
+                //   CHARACTER_MESSAGE_RENDERED、不发 MESSAGE_SWIPED（noEmitTypes=['swipe'] 也不发内容更新），
+                //   导致该层 occurrence chatText/asyncChat 残留旧 swipe 数据。渲染前先失效 + 清 B 层，
+                //   保证文内/消息底部渲染到当前内容而非上一次版本（统一入口，本路径不标脏）。
+                const x = Number(mesid);
+                this._freshFloorCache(x, { sources: ['chatText', 'asyncChat'] });
+                checkRenderCurrentMessageContext(x);
+            }, false, "", true);
             // this.registerEvent(event_types.CHAT_COMPLETION_PROMPT_READY, checkRenderCurrentMessageContext);
             this.registerEvent(event_types.MORE_MESSAGES_LOADED, checkRenderCurrentMessageContext, false, "", true);
             // 编辑消息正文：正文内从该层到末尾（后缀）渲染，而非只该层/全量。
@@ -533,10 +555,9 @@ export class EventHandler {
             debugLog('[Module Cache]楼层模块数据变更，刷新缓存:', e?.detail);
             moduleCacheManager.updateModuleCacheDebounced(true);
             if (typeof mesId === 'number') {
-                // occurrence 缓存：floor generators 变更只失效该层 asyncChat（floorModuleStore 所有写操作统一收口此事件）
-                invalidateOccurrence(getChatCacheKey(), 'asyncChat', mesId);
-                // 快照 dirty：floor 内容变更自该层起累积态失效
-                markSnapshotDirty(mesId);
+                // floor generators 变更：失效该层 asyncChat occurrence + 清 B 层 + 标脏（统一入口）
+                // （floorModuleStore 所有写操作统一收口此事件）
+                this._freshFloorCache(mesId, { sources: ['asyncChat'], snapshotDirty: true });
                 // 同步刷新该楼层的消息底部模块展示区（空保存/编辑走 scheduleMsgBottom 会更新，这里统一收口）
                 scheduleMsgBottom('single', mesId);
                 // ⚠️ 嵌入模块（outputPosition==='embedded'）的 floor 内容变化会影响「正文内」样式注入
@@ -563,17 +584,13 @@ export class EventHandler {
             // occurrence 缓存：聊天级条目变更失效 chatMeta 源。
             // ⚠️ 负数条目（起始态）只合并到第 0 层缓存（start=0 时并入，按楼层从小到大排最前）→
             // 负数/全量失效只清第 0 层 chatMeta；非负锚定层失效该层。
-            const chatKey = getChatCacheKey();
             if (affect === 'full') {
-                invalidateOccurrence(chatKey, 'chatMeta', 0);
-                markSnapshotDirty(0);
+                this._freshFloorCache(0, { sources: ['chatMeta'], snapshotDirty: true });
             } else if (typeof floor === 'number' && Number.isFinite(floor) && floor >= 0) {
-                invalidateOccurrence(chatKey, 'chatMeta', floor);
-                markSnapshotDirty(floor);
+                this._freshFloorCache(floor, { sources: ['chatMeta'], snapshotDirty: true });
             } else if (typeof floor === 'number' && Number.isFinite(floor) && floor < 0) {
                 // 负数条目变更：内容在第 0 层缓存里 → 只失效第 0 层
-                invalidateOccurrence(chatKey, 'chatMeta', 0);
-                markSnapshotDirty(0);
+                this._freshFloorCache(0, { sources: ['chatMeta'], snapshotDirty: true });
             }
             moduleCacheManager.updateModuleCacheDebounced(true);
             const isFloorValid = typeof floor === 'number' && Number.isFinite(floor) && floor >= 0;
