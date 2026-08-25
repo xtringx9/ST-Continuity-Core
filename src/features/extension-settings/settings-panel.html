@@ -44,7 +44,7 @@
                         <div class="setting-main">
                             <input id="continuity_phone_mode" type="checkbox" />
                             <div class="setting-text">
-                                <label for="continuity_phone_mode" data-i18n="ccore_settings_phone_mode">启用小手机</label>
+                                <label for="continuity_phone_mode" data-i18n="ccore_settings_phone_mode">启用小手机（未完工）</label>
                                 <span class="setting-hint" data-i18n="ccore_settings_phone_mode_hint">开启后在 Cc 菜单显示「手机模式」入口，以手机外壳形式查看模块场景。</span>
                             </div>
                         </div>
@@ -62,17 +62,9 @@
                 </div>
 
                 <div class="continuity-tab-content" id="tab-feature-enhance">
-                    <div class="continuity-setting-card">
-                        <div class="setting-main">
-                            <input id="continuity_message_range_view" type="checkbox" />
-                            <div class="setting-text">
-                                <label for="continuity_message_range_view" data-i18n="ccore_settings_message_range_view">消息区间视图入口</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_message_range_view_hint">在魔杖菜单添加「显示区间 / 恢复默认」两项（仅聊天页）。</span>
-                            </div>
-                        </div>
-                    </div>
 
                     <div class="continuity-setting-card">
+                        <div class="continuity-section-label" data-i18n="ccore_settings_group_quick_reply">快捷回复</div>
                         <div class="setting-main">
                             <input id="continuity_quick_reply_optimize" type="checkbox" />
                             <div class="setting-text">
@@ -80,126 +72,117 @@
                                 <span class="setting-hint" data-i18n="ccore_settings_quick_reply_optimize_hint">QR 栏改为单排横滑、可拖拽平移、隐藏滚动条。</span>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="continuity-setting-card">
                         <div class="setting-main">
                             <input id="continuity_send_hijack" type="checkbox" />
                             <div class="setting-text">
-                                <label for="continuity_send_hijack" data-i18n="ccore_settings_send_hijack">发送键改为触发快捷回复</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_send_hijack_hint">开启后，点发送键或回车改为执行指定快捷回复，不再直接发送。</span>
+                                <label for="continuity_send_hijack" data-i18n="ccore_settings_send_hijack">发送键触发快捷回复</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_send_hijack_hint">发送键/回车改为执行指定 QR，不再直接发送。</span>
                             </div>
                         </div>
-                        <div class="setting-extra">
-                            <div class="continuity-form-row" style="margin-top: 4px;">
-                                <label for="continuity_send_hijack_set" class="continuity-form-label" data-i18n="ccore_settings_send_hijack_set">QR 集合:</label>
+                        <div class="setting-subs">
+                            <div class="sub-row">
+                                <label for="continuity_send_hijack_set" data-i18n="ccore_settings_send_hijack_set">QR 集合:</label>
                                 <select id="continuity_send_hijack_set" class="continuity-form-input"></select>
                             </div>
-                            <div class="continuity-form-row">
-                                <label for="continuity_send_hijack_label" class="continuity-form-label" data-i18n="ccore_settings_send_hijack_label">QR 条目:</label>
+                            <div class="sub-row">
+                                <label for="continuity_send_hijack_label" data-i18n="ccore_settings_send_hijack_label">QR 条目:</label>
                                 <select id="continuity_send_hijack_label" class="continuity-form-input"></select>
                             </div>
                         </div>
                     </div>
 
                     <div class="continuity-setting-card">
+                        <div class="continuity-section-label" data-i18n="ccore_settings_group_binding">绑定当前聊天</div>
+                        <div class="setting-main">
+                            <input id="continuity_world_book_binding" type="checkbox" />
+                            <div class="setting-text">
+                                <label for="continuity_world_book_binding" data-i18n="ccore_settings_world_book_binding">世界书条目</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_world_book_binding_hint">条目加三态开关（继承/本聊开/本聊关），按聊天记忆覆盖。</span>
+                            </div>
+                        </div>
+                        <div class="setting-main">
+                            <input id="continuity_prompt_binding" type="checkbox" />
+                            <div class="setting-text">
+                                <label for="continuity_prompt_binding" data-i18n="ccore_settings_prompt_binding">提示词预设条目</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_prompt_binding_hint">条目加三态开关（继承/本聊开/本聊关），按聊天记忆覆盖。</span>
+                            </div>
+                        </div>
+                        <div class="setting-main">
+                            <input id="continuity_preset_binding" type="checkbox" />
+                            <div class="setting-text">
+                                <label for="continuity_preset_binding" data-i18n="ccore_settings_preset_binding">预设</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_preset_binding_hint">预设下拉框右侧绑定聊天↔预设：打开已绑定聊天自动切预设，未绑定切回默认（默认=最近手动切换的预设）。</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="continuity-setting-card">
+                        <div class="continuity-section-label" data-i18n="ccore_settings_group_prompt_entry">提示词预设条目</div>
+                        <div class="setting-main">
+                            <input id="continuity_prompt_entry_actions" type="checkbox" />
+                            <div class="setting-text">
+                                <label for="continuity_prompt_entry_actions" data-i18n="ccore_settings_prompt_entry_actions">扩展操作</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_prompt_entry_actions_hint">预设条目「...」菜单：复制、插入空白、移除，便于长列表增改。</span>
+                            </div>
+                        </div>
+                        <div class="setting-main">
+                            <input id="continuity_prompt_entry_search" type="checkbox" />
+                            <div class="setting-text">
+                                <label for="continuity_prompt_entry_search" data-i18n="ccore_settings_prompt_entry_search">搜索定位</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_prompt_entry_search_hint">列表顶部搜索栏：按名称/内容搜索，支持上/下跳转、下拉点选、回顶/跳底。</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="continuity-setting-card">
+                        <div class="continuity-section-label" data-i18n="ccore_settings_group_zhi">智绘姬</div>
+                        <div class="setting-main">
+                            <input id="continuity_nai_preset_switcher" type="checkbox" />
+                            <div class="setting-text">
+                                <label for="continuity_nai_preset_switcher" data-i18n="ccore_settings_nai_preset_switcher">NAI 预设切换</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_nai_preset_switcher_hint">NAI 提示词预设（正/负向）切换与标签管理，入口在 Cc 菜单。</span>
+                            </div>
+                        </div>
+                        <div class="setting-main">
+                            <input id="continuity_chatu8_launcher" type="checkbox" />
+                            <div class="setting-text">
+                                <label for="continuity_chatu8_launcher" data-i18n="ccore_settings_chatu8_launcher">工作台入口</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_chatu8_launcher_hint">发送栏嵌入按钮（魔棒与 Cc 之间），点击打开智绘姬工作台；LLM 请求时显示加载动画。</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="continuity-setting-card">
+                        <div class="continuity-section-label" data-i18n="ccore_settings_group_chat_nav">聊天查看与导航</div>
+                        <div class="setting-main">
+                            <input id="continuity_message_range_view" type="checkbox" />
+                            <div class="setting-text">
+                                <label for="continuity_message_range_view" data-i18n="ccore_settings_message_range_view">消息区间视图入口</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_message_range_view_hint">魔杖菜单添加「显示区间/恢复默认」，仅聊天页可用。</span>
+                            </div>
+                        </div>
                         <div class="setting-main">
                             <input id="continuity_scroll_to_top" type="checkbox" />
                             <div class="setting-text">
                                 <label for="continuity_scroll_to_top" data-i18n="ccore_settings_scroll_to_top">消息导航条（替代滚动条）</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_scroll_to_top_hint">聊天视口右侧竖线导航：点击跳转、拖动菱形滑块滚动，隐藏原生滚动条。</span>
+                                <span class="setting-hint" data-i18n="ccore_settings_scroll_to_top_hint">视口右侧竖线导航：点击跳转、拖动滑块滚动，隐藏原生滚动条。</span>
                             </div>
                         </div>
-                        <div class="setting-extra">
-                            <label for="continuity_smooth_scroll_to_top" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;">
+                        <div class="setting-subs">
+                            <label class="sub-row" for="continuity_smooth_scroll_to_top">
                                 <input id="continuity_smooth_scroll_to_top" type="checkbox" />
                                 <span data-i18n="ccore_settings_smooth_scroll_to_top">平滑滑动跳转</span>
                             </label>
-                        </div>
-                        <div class="setting-extra">
-                            <label for="continuity_show_per_message_buttons" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;">
+                            <label class="sub-row" for="continuity_show_per_message_buttons">
                                 <input id="continuity_show_per_message_buttons" type="checkbox" />
                                 <span data-i18n="ccore_settings_show_per_message_buttons">显示每条消息顶底按钮</span>
                             </label>
                         </div>
-                    </div>
-
-                    <div class="continuity-setting-card">
-                        <div class="setting-main">
-                            <input id="continuity_world_book_binding" type="checkbox" />
-                            <div class="setting-text">
-                                <label for="continuity_world_book_binding" data-i18n="ccore_settings_world_book_binding">世界书条目·绑定当前聊天</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_world_book_binding_hint">世界书条目提供三态控件（继承 / 本聊开 / 本聊关），按聊天记忆开关覆盖。</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="continuity-setting-card">
-                        <div class="setting-main">
-                            <input id="continuity_prompt_binding" type="checkbox" />
-                            <div class="setting-text">
-                                <label for="continuity_prompt_binding" data-i18n="ccore_settings_prompt_binding">提示词预设条目·绑定当前聊天</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_prompt_binding_hint">提示词预设条目提供三态控件（继承 / 本聊开 / 本聊关），按聊天记忆开关覆盖。</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="continuity-setting-card">
-                        <div class="setting-main">
-                            <input id="continuity_prompt_entry_actions" type="checkbox" />
-                            <div class="setting-text">
-                                <label for="continuity_prompt_entry_actions" data-i18n="ccore_settings_prompt_entry_actions">提示词预设条目·扩展操作</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_prompt_entry_actions_hint">预设条目提供「...」菜单：复制、在上方/下方插入空白、移除（接管原生 Remove），便于在长列表中快速增改条目。</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="continuity-setting-card">
-                        <div class="setting-main">
-                            <input id="continuity_preset_binding" type="checkbox" />
-                            <div class="setting-text">
-                                <label for="continuity_preset_binding" data-i18n="ccore_settings_preset_binding">预设·绑定当前聊天</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_preset_binding_hint">在 ST 预设下拉框右侧绑定当前聊天到当前预设：打开绑定的聊天自动切换对应预设，未绑定的聊天切回默认预设。</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="continuity-setting-card">
-                        <div class="setting-main">
-                            <input id="continuity_nai_preset_switcher" type="checkbox" />
-                            <div class="setting-text">
-                                <label for="continuity_nai_preset_switcher" data-i18n="ccore_settings_nai_preset_switcher">智绘姬NAI预设切换</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_nai_preset_switcher_hint">智绘姬 NAI 提示词预设（正向/负向）切换与标签管理，入口在 Cc 菜单最右侧。</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="continuity-setting-card">
-                        <div class="setting-main">
-                            <input id="continuity_chatu8_launcher" type="checkbox" />
-                            <div class="setting-text">
-                                <label for="continuity_chatu8_launcher" data-i18n="ccore_settings_chatu8_launcher">智绘姬文生图启动器</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_chatu8_launcher_hint">在发送栏（大Cc/魔棒右侧）常驻按钮，点击打开智绘姬设置面板；智绘姬生图请求运行时按钮实时显示加载动画。</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="continuity-setting-card">
                         <div class="setting-main">
                             <input id="continuity_chat_reader" type="checkbox" />
                             <div class="setting-text">
-                                <label for="continuity_chat_reader" data-i18n="ccore_settings_chat_reader">图文阅读器</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_chat_reader_hint">独立页签阅读当前聊天，保留酒馆图文渲染，翻页/跳楼层更顺畅。插件开启时入口在 Cc 菜单；插件关闭时显示独立按钮。</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="continuity-setting-card">
-                        <div class="setting-main">
-                            <input id="continuity_prompt_entry_search" type="checkbox" />
-                            <div class="setting-text">
-                                <label for="continuity_prompt_entry_search" data-i18n="ccore_settings_prompt_entry_search">提示词预设条目·搜索定位</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_prompt_entry_search_hint">预设管理器列表顶部提供搜索栏：按条目名/内容搜索，支持「上一/下一」循环、下拉点选跳转，及回顶/跳底按钮。</span>
+                                <label for="continuity_chat_reader" data-i18n="ccore_settings_chat_reader">图文阅读器（未完工）</label>
+                                <span class="setting-hint" data-i18n="ccore_settings_chat_reader_hint">独立页签阅读当前聊天（保留酒馆图文渲染）；入口：开启在 Cc 菜单，关闭为独立按钮。</span>
                             </div>
                         </div>
                     </div>
@@ -209,7 +192,7 @@
                             <input id="continuity_api_manager" type="checkbox" />
                             <div class="setting-text">
                                 <label for="continuity_api_manager" data-i18n="ccore_settings_api_manager">API 连接管理</label>
-                                <span class="setting-hint" data-i18n="ccore_settings_api_manager_hint">在 ST API 连接区注入原生面板：保存多套「自定义端点 URL + 对应密钥」，一键填入 ST；含密钥去重清理。</span>
+                                <span class="setting-hint" data-i18n="ccore_settings_api_manager_hint">ST API 连接区注入面板：保存多套端点+密钥，一键填入；含密钥去重。</span>
                             </div>
                         </div>
                     </div>

@@ -48,7 +48,7 @@
 .continuity-settings-container {
     border: 1px solid var(--SmartThemeEmColor);
     border-radius: 6px;
-    padding: 10px;
+    padding: 8px;
     background-color: var(--SmartThemeBackgroundColor);
 }
 
@@ -66,18 +66,18 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .continuity-toggle-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .continuity-version-info {
     color: var(--SmartThemeBorderColor);
-    font-size: 0.85em;
+    font-size: 0.8em;
     white-space: nowrap;
 }
 
@@ -85,17 +85,17 @@
 .continuity-tabs {
     display: flex;
     gap: 0;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     border-bottom: 1px solid var(--SmartThemeEmColor);
     container-type: inline-size;
 }
 
 .continuity-tab-btn {
-    padding: 6px 14px;
+    padding: 5px 10px;
     border: none;
     background: transparent;
     color: var(--SmartThemeEmColor);
-    font-size: 0.9em;
+    font-size: 0.88em;
     cursor: pointer;
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
@@ -146,7 +146,7 @@
 
 .continuity-tab-content {
     display: none;
-    padding: 4px 0;
+    padding: 2px 0;
 }
 
 .continuity-tab-content.active {
@@ -157,13 +157,7 @@
 .continuity-form-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-}
-
-.continuity-form-label {
-    flex-shrink: 0;
-    min-width: 75px;
-    font-size: 0.92em;
+    gap: 8px;
 }
 
 .continuity-form-input {
@@ -184,11 +178,11 @@
 
 /* ── 设置卡片：开关 + 标签 + 提示文字融为一体 ── */
 .continuity-setting-card {
-    padding: 7px 10px;
-    border-radius: 6px;
+    padding: 5px 8px;
+    border-radius: 4px;
     background: rgba(128, 128, 128, 0.025);
     border: 1px solid rgba(128, 128, 128, 0.06);
-    margin-bottom: 5px;
+    margin-bottom: 3px;
 }
 .continuity-setting-card:last-child {
     margin-bottom: 0;
@@ -197,7 +191,7 @@
 .continuity-setting-card .setting-main {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
 }
 
 /* 同行模式：label + 控件水平排列 */
@@ -224,15 +218,16 @@
 .continuity-setting-card input[type="checkbox"] {
     flex-shrink: 0;
     cursor: pointer;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
 /* 分区小标题 */
 .continuity-section-label {
-    font-size: 0.82em;
+    font-size: 0.8em;
     color: var(--SmartThemeEmColor);
-    opacity: 0.65;
-    margin: 8px 0 5px 2px;
+    font-weight: 600;
+    opacity: 0.95;
+    margin: 2px 0 3px 2px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -240,7 +235,7 @@
 .continuity-setting-card .setting-text {
     flex: 1;
     min-width: 0;
-    line-height: 1.35;
+    line-height: 1.25;
 }
 .continuity-setting-card .setting-text > label {
     display: block;
@@ -253,13 +248,49 @@
     font-size: 0.78em;
     color: var(--SmartThemeEmColor);
     opacity: 0.7;
-    margin-top: 2px;
-    line-height: 1.4;
+    margin-top: 1px;
+    line-height: 1.3;
 }
 
 .continuity-setting-card .setting-extra {
-    margin-top: 6px;
-    padding-left: 24px;
+    margin-top: 4px;
+    padding-left: 18px;
+}
+
+/* 子选项容器：左竖线 + 浅底，视觉嵌套在父功能下方 */
+.continuity-setting-card .setting-subs {
+    margin: 4px 0 6px 20px;
+    padding: 4px 8px;
+    border-left: 2px solid rgba(var(--SmartThemeEmColorRGB), 0.25);
+    background: rgba(128, 128, 128, 0.04);
+    border-radius: 0 4px 4px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.continuity-setting-card .setting-subs .sub-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    color: var(--SmartThemeBodyColor);
+    cursor: pointer;
+    line-height: 1.2;
+}
+.continuity-setting-card .setting-subs .sub-row input[type="checkbox"] {
+    margin: 0;
+}
+/* 子选项容器内的下拉：紧凑化，与子开关行同尺寸 */
+.continuity-setting-card .setting-subs .sub-row select {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9em;
+    padding: 0 4px;
+}
+
+/* 聚合分组卡片：同组内连续子功能行之间的间距 */
+.continuity-setting-card .setting-main + .setting-main {
+    margin-top: 4px;
 }
 
 /* 调试日志细分分组子项（「显示调试日志」卡片内缩进） */
@@ -270,7 +301,7 @@
     font-size: 0.85em;
     color: var(--SmartThemeBodyColor);
     cursor: pointer;
-    margin: 2px 0;
+    margin: 1px 0;
 }
 .ccore-debug-group-item input[type="checkbox"] {
     margin: 0;
@@ -282,8 +313,8 @@
 
 /* 卡片内表单行（去除外层冗余间距） */
 .continuity-setting-card .continuity-form-row {
-    margin-top: 2px;
-    margin-bottom: 2px;
+    margin-top: 1px;
+    margin-bottom: 1px;
 }
 
 /* 卡片内按钮行间距 */

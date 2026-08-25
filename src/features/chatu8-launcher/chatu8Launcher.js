@@ -181,7 +181,7 @@ function applyLoadingState(btn, loading) {
     if (loading) {
         icon.className = 'fa-solid fa-spinner fa-spin';
         btn.style.backgroundColor = 'rgba(128, 128, 128, 0.3)';
-        btn.title = '智绘姬生图请求运行中…';
+        btn.title = '智绘姬 LLM 请求运行中…';
     } else {
         icon.className = 'fa-solid fa-paintbrush';
         btn.style.backgroundColor = '';
