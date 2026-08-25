@@ -22,6 +22,7 @@ import { initPromptEntryActions, removePromptEntryActions } from "../features/pr
 import { initPromptEntrySearch, removePromptEntrySearch } from "../features/prompt-entry-search/promptEntrySearch.js";
 import { initPresetBinding, removePresetBinding } from "../features/preset-binding/presetBinding.js";
 import { initChatu8Launcher, removeChatu8Launcher } from "../features/chatu8-launcher/chatu8Launcher.js";
+import { initApiManager, removeApiManager } from "../features/api-manager/ApiManager.js";
 import { escapeHtmlEntities as escapeHtml } from "../utils/textConverter.js";
 import perMessageStorage from "../services/perMessageStorage.js";
 import { moduleAiGenerator } from "../services/moduleAiGenerator.js";
@@ -69,12 +70,18 @@ export function loadSettingsToUI() {
     $("#continuity_phone_mode").prop("checked", configManager.isPhoneModeEnabled());
     $("#continuity_chat_reader").prop("checked", extensionConfig.stFeatureEnhance?.chatReader !== false);
     $("#continuity_include_hidden_messages").prop("checked", extensionConfig.module?.includeHiddenMessages?.enabled !== false);
+    $("#continuity_api_manager").prop("checked", configManager.isApiManagerEnabled());
 
     // ⚠️ 异步生成配置 UI 已迁移到 module-editor「异步配置」tab（2026-08-17）：
     //   原 settings-panel async tab（异步开关/生成方式/追加指令/独立API/调试面板等）已整体移除，
     //   对应 UI 元素不再存在，loadSettingsToUI 不再填充。
 
     updateExtensionUIState(extensionConfig.enabled);
+
+    // API 连接管理面板：开启状态下打开设置页时自动补齐注入（initApiManager 幂等，安全）
+    if (configManager.isApiManagerEnabled()) {
+        initApiManager();
+    }
 }
 
 /**
@@ -497,6 +504,26 @@ export function onChatReaderToggle(event) {
     // 开关即时反映到 Cc 菜单 / 独立按钮（重建入口，门控在 EntryButton 内）
     new EntryButton(extensionFolderPath).init();
     infoLog(`[图文阅读器] ${enabled ? '已开启' : '已关闭'}`);
+}
+
+/**
+ * API 连接管理开关切换：开启时向 ST 原生「API 连接」抽屉注入管理面板，关闭则移除。
+ * @param {Event} event
+ */
+export function onApiManagerToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.stFeatureEnhance ||= {};
+    extensionConfig.stFeatureEnhance.apiManager = { ...(extensionConfig.stFeatureEnhance.apiManager || {}), enabled };
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        initApiManager();
+        infoLog('[API连接管理] 已开启');
+    } else {
+        removeApiManager();
+        infoLog('[API连接管理] 已关闭');
+    }
 }
 
 export function onIncludeHiddenMessagesToggle(event) {

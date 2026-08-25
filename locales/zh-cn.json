@@ -446,6 +446,8 @@
     "ccore_settings_prompt_entry_actions_hint": "预设条目提供「...」菜单：复制、在上方/下方插入空白、移除（接管原生 Remove），便于在长列表中快速增改条目。",
     "ccore_settings_prompt_entry_search": "提示词预设条目·搜索定位",
     "ccore_settings_prompt_entry_search_hint": "预设管理器列表顶部提供搜索栏：按条目名/内容搜索，支持「上一/下一」循环、下拉点选跳转，及回顶/跳底按钮。",
+    "ccore_settings_api_manager": "API 连接管理",
+    "ccore_settings_api_manager_hint": "在 ST API 连接区注入原生面板：保存多套「自定义端点 URL + 对应密钥」一键填入 ST；含密钥去重清理。",
     "ccore_settings_preset_binding": "预设·绑定当前聊天",
     "ccore_settings_preset_binding_hint": "在 ST 预设下拉框右侧绑定当前聊天到当前预设：打开绑定的聊天自动切换对应预设，未绑定的聊天切回默认预设（默认预设=最近一次手动切换的预设）。",
     "ccore_preset_bind_unbound": "绑定当前预设到本聊天",

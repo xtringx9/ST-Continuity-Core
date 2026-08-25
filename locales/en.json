@@ -446,6 +446,8 @@
     "ccore_settings_prompt_entry_actions_hint": "Each preset entry gets a \"...\" menu: duplicate, insert blank above/below, and remove (takes over the native Remove), making it easy to add or edit entries in a long list.",
     "ccore_settings_prompt_entry_search": "Prompt Preset Entry · Search & Locate",
     "ccore_settings_prompt_entry_search_hint": "Adds a search bar above the preset list to find entries by name or content, with prev/next cycling, a clickable dropdown, and jump-to-top / jump-to-bottom buttons.",
+    "ccore_settings_api_manager": "API Connection Manager",
+    "ccore_settings_api_manager_hint": "Injects a native panel into the ST API connections area: save multiple custom-endpoint URL + secret pairs and fill them into ST with one click; also dedupes saved secrets.",
     "ccore_settings_preset_binding": "Preset · Bind to Current Chat",
     "ccore_settings_preset_binding_hint": "Bind the current chat to the current preset via a button right of the ST preset dropdown. Opening a bound chat switches the active preset; unbound chats fall back to the default preset (the last one you selected manually).",
     "ccore_preset_bind_unbound": "Bind current preset to this chat",

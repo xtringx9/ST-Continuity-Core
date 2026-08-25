@@ -55,6 +55,11 @@ export const DEFAULT_EXTENSION_CONFIG = {
             defaultPreset: '', // 未绑定聊天的回退预设（最近一次用户手动切换的预设；init 时空则记录当前值）
         },
         chatReader: false, // 图文阅读器（Cc 菜单入口 / 独立按钮）
+        apiManager: { // API 连接管理：多套「自定义端点 URL + 对应密钥」一键填入 ST（见 features/api-manager）
+            enabled: false,
+            profiles: [], // [{ id, name, apiurl, secretId }]，secretId 指向 api_key_custom 下某条 secret
+            selectedProfileId: '', // 上次选中的配置 id，刷新后自动恢复显示
+        },
     },
     module: { // 前端模块域合集（模块存储 / UI 呈现 / 元数据）
         asyncModule: {
@@ -557,6 +562,14 @@ class ConfigManager {
     }
 
     /**
+     * 判断「API 连接管理」是否开启（读 stFeatureEnhance.apiManager.enabled）
+     * @returns {boolean}
+     */
+    isApiManagerEnabled() {
+        return this.getStFeatureEnhanceConfig()?.apiManager?.enabled === true;
+    }
+
+    /**
      * 获取「智绘姬NAI预设切换」完整配置（读路径统一入口）
      * 独立顶层键 nai_preset_config = { enabled, metadata, presets }（开关与数据同处一键）。
      * @returns {Object} naiPreset 配置
@@ -901,6 +914,10 @@ class ConfigManager {
                 promptEntrySearch: {
                     ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.promptEntrySearch,
                     ...(migrated.stFeatureEnhance?.promptEntrySearch || {}),
+                },
+                apiManager: {
+                    ...DEFAULT_EXTENSION_CONFIG.stFeatureEnhance.apiManager,
+                    ...(migrated.stFeatureEnhance?.apiManager || {}),
                 },
             };
 
