@@ -20,6 +20,7 @@
 
 import configManager from "../../singleton/configManager.js";
 import { infoLog, warnLog, debugLog } from "../../utils/logger.js";
+import { showToast } from "../../shared/Toast.js";
 
 const LOG_TAG = '[Chatu8Launcher]';
 
@@ -173,6 +174,7 @@ function isChatu8Loading() {
  */
 function applyLoadingState(btn, loading) {
     if (loading === lastLoading) return;
+    const wasLoading = lastLoading;
     lastLoading = loading;
     const icon = btn.querySelector('i');
     if (!icon) return;
@@ -184,6 +186,11 @@ function applyLoadingState(btn, loading) {
         icon.className = 'fa-solid fa-paintbrush';
         btn.style.backgroundColor = '';
         btn.title = '打开智绘姬文生图工作台';
+        // 下降沿（运行 → 空闲）视为一次生成结束，弹自有 toast 通知。
+        // 仅依据 isLoading 状态位，成功/失败/中止统一视为"生成结束"（智绘姬无更细信号）。
+        if (wasLoading) {
+            showToast('智绘姬 LLM 生成结束', 'success');
+        }
     }
     // 注意：边框统一由 createButton 的 border 简写设定（与 Cc 同款），
     // 此处绝不改写/清空 borderColor，否则简写 border 退化成默认 1px 导致外框差异。

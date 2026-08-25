@@ -29,8 +29,34 @@ const TOAST_ICONS = {
     info: 'ℹ',
 };
 
-/** toast 样式（自包含，不依赖 editor-shell.css） */
+/** 主题存储 key（与各 iframe 编辑器共用同一份） */
+const THEME_KEY = 'st_continuity_theme';
+
+/** toast 样式（自包含，不依赖 editor-shell.css）
+ *  主题变量限定作用域到 .cc-toast-container，不注入 :root，避免影响 ST 主页面与父窗口其它插件元素。 */
 const TOAST_CSS = `
+.${TOAST_CONTAINER_CLASS} {
+    /* 亮色（对应 themes.css :root 中的 toast 用到的变量） */
+    --bg-app: #ffffff;
+    --bg-card: #ffffff;
+    --text-primary: #111827;
+    --border-color: #e5e7eb;
+    --accent-color: #2563eb;
+    --danger-color: #ef4444;
+    --success-color: #22c55e;
+    color-scheme: light;
+}
+.${TOAST_CONTAINER_CLASS}[data-theme="dark"] {
+    /* 深色（对应 themes.css [data-theme="dark"]；danger/success 沿用亮色值） */
+    --bg-app: #18181b;
+    --bg-card: #27272a;
+    --text-primary: #f4f4f5;
+    --border-color: #3f3f46;
+    --accent-color: #3b82f6;
+    --danger-color: #ef4444;
+    --success-color: #22c55e;
+    color-scheme: dark;
+}
 .${TOAST_CONTAINER_CLASS} {
     position: fixed;
     top: var(--cc-toast-top, 32px);
@@ -208,5 +234,31 @@ function getOrCreateContainer(doc) {
         container.className = TOAST_CONTAINER_CLASS;
         doc.body.appendChild(container);
     }
+    syncContainerTheme(container, doc);
     return container;
+}
+
+/**
+ * 让 toast 容器跟随 iframe 主题（light/dark）。
+ * 读取/监听各编辑器共用的 localStorage['st_continuity_theme']，把 data-theme
+ * 设置到容器自身（作用域限定，不影响 ST 主页面 / 父窗口其它插件元素）。
+ * 幂等：storage 监听只绑定一次。
+ */
+function syncContainerTheme(container, doc) {
+    try {
+        container.dataset.theme = localStorage.getItem(THEME_KEY) || 'light';
+    } catch (e) {
+        container.dataset.theme = 'light';
+    }
+    if (container._ccThemeBound) return;
+    container._ccThemeBound = true;
+    const win = doc.defaultView || (doc === window.document ? window : null);
+    if (!win) return;
+    try {
+        win.addEventListener('storage', (e) => {
+            if (e.key === THEME_KEY) {
+                container.dataset.theme = e.newValue || 'light';
+            }
+        });
+    } catch (e) { /* ignore */ }
 }
