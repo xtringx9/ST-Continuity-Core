@@ -209,6 +209,8 @@
     "ccore_settings_push_user_message_as_last": "Push generation instruction as last user message",
     "ccore_settings_push_user_message_as_last_hint": "On: push the generation instruction into chat as the last user message ({{lastUserMessage}} resolves to it). Off: pass via quietPrompt (system role).",
     "ccore_settings_fetch_models": "Fetch Models",
+    "ccore_async_api_profile_label": "Apply from API profiles:",
+    "ccore_async_api_profile_ph": "— Select an API profile to apply —",
     "ccore_settings_fallback_prompt_role": "Fallback prompt role:",
     "ccore_settings_fallback_prompt_role_hint": "Role of the message appended at the end when the generation instruction cannot be injected into macro/history (default: user).",
     "ccore_settings_ask_prompt_before_generate": "Ask for prompt before generating",

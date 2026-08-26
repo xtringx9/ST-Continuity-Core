@@ -27,6 +27,7 @@ import { MacrosParser } from '../../../../../macros.js';
 import { getPromptBindings, WB_BIND_MODE } from '../features/prompt-binding/promptBindingState.js';
 import configManager from '../singleton/configManager.js';
 import { debugLog, infoLog, errorLog, warnLog } from '../utils/logger.js';
+import { SECRET_KEYS, secret_state, readSecretState, rotateSecret } from '../../../../../secrets.js';
 
 const LOG_TAG = 'AiCaller';
 
@@ -42,6 +43,31 @@ function _clonePresetValue(value) {
         try { return structuredClone(value); } catch (e) { /* 回退 JSON */ }
     }
     return JSON.parse(JSON.stringify(value));
+}
+
+/**
+ * 临时把指定 secretId 设为 api_key_custom 的激活密钥（走 ST 服务端 CUSTOM 通道时用）。
+ * ⚠️ 方案 B（2026-08-26）：浏览器拿不到 api_key_custom 原文（ST 默认不暴露），只能让服务端
+ *    readSecret(CUSTOM) 读「激活」密钥。这里临时切到目标密钥，生成完由调用方 finally 还原，
+ *    避免长期改变 ST 全局激活密钥。
+ * @param {string} [secretId] 要临时激活的 secretId；缺省则不做任何事
+ * @returns {Promise<string|null>} 切换前原本激活的 secretId（供还原），无切换时返回 null
+ */
+async function _transientlyActivateSecret(secretId) {
+    if (!secretId) return null;
+    try {
+        if (!secret_state[SECRET_KEYS.CUSTOM]) {
+            await readSecretState();
+        }
+        const prior = (secret_state[SECRET_KEYS.CUSTOM] || []).find(s => s && s.active);
+        const priorId = prior?.id || null;
+        await rotateSecret(SECRET_KEYS.CUSTOM, secretId);
+        debugLog(LOG_TAG, `已临时激活 secretId=${secretId}（前激活=${priorId || '无'}）`);
+        return priorId;
+    } catch (e) {
+        errorLog(LOG_TAG, '临时激活 secretId 失败:', e);
+        return null;
+    }
 }
 
 /** 调试拦截发送时返回的占位响应（configManager.debug.interceptSend 开启时使用） */
@@ -285,6 +311,13 @@ export const aiCaller = {
     async call(options = {}) {
         const { mode, customApi, responseLength } = options;
         const callStartedAt = Date.now();
+        // 方案 B（2026-08-26）：有 secretId 时走 ST 服务端 CUSTOM 通道——先临时激活目标密钥，
+        //   服务端 readSecret(CUSTOM) 读到的即该密钥；明文 key 场景保持原有 reverse_proxy+proxy_password。
+        const useSecretChannel = !!(customApi && customApi.secretId);
+        let restoreSecretId = null;
+        if (useSecretChannel) {
+            restoreSecretId = await _transientlyActivateSecret(customApi.secretId);
+        }
         // 包装 onStream：统计本次是否收到过流式数据（供“结束情况”诊断）。纯扩展，不改变现有回调语义。
         const userOnStream = options.onStream;
         let streamed = false;
@@ -303,9 +336,18 @@ export const aiCaller = {
             const handler = (data) => {
                 const isCustom = !!(customApi && customApi.apiurl);
                 if (isCustom) {
-                    data.reverse_proxy = customApi.apiurl;
-                    data.chat_completion_source = customApi.source || 'openai';
-                    data.proxy_password = customApi.key || '';
+                    if (useSecretChannel) {
+                        // secretId 通道：source=custom + custom_url，服务端用临时激活的 CUSTOM 密钥
+                        delete data.reverse_proxy;
+                        delete data.proxy_password;
+                        data.chat_completion_source = 'custom';
+                        data.custom_url = customApi.apiurl;
+                    } else {
+                        // 明文 key 通道：保持原语义（openai/claude + reverse_proxy + proxy_password）
+                        data.reverse_proxy = customApi.apiurl;
+                        data.chat_completion_source = customApi.source || 'openai';
+                        data.proxy_password = customApi.key || '';
+                    }
                     if (customApi.model) data.model = customApi.model;
                     if (customApi.temperature !== undefined) data.temperature = customApi.temperature;
                     if (customApi.max_tokens > 0) data.max_tokens = customApi.max_tokens;
@@ -313,10 +355,11 @@ export const aiCaller = {
                 apiUsed = {
                     apiurl: isCustom ? customApi.apiurl : (data.reverse_proxy || ''),
                     model: isCustom ? (customApi.model || data.model) : (data.model || ''),
-                    source: isCustom ? (customApi.source || 'openai') : (data.chat_completion_source || ''),
+                    source: isCustom ? (useSecretChannel ? 'custom' : (customApi.source || 'openai')) : (data.chat_completion_source || ''),
                     temperature: isCustom ? (customApi.temperature ?? data.temperature) : (data.temperature),
                     max_tokens: isCustom ? (customApi.max_tokens ?? data.max_tokens) : (data.max_tokens),
                     custom: isCustom, // 标记是否为独立 API
+                    viaSecret: useSecretChannel, // 是否经服务端 secretId 通道
                 };
                 // 实时推送 API 信息（阶段 2：生成中面板显示「API 信息」）
                 options.onApiUsed?.(apiUsed);
@@ -342,6 +385,10 @@ export const aiCaller = {
             errorLog(LOG_TAG, `AI 调用失败(仍会触发 debug): ${e?.message || e}`);
         } finally {
             if (settingsCleanup) settingsCleanup();
+            // 还原 active 密钥（临时激活的 secretId 用完后切回原激活）
+            if (restoreSecretId) {
+                try { rotateSecret(SECRET_KEYS.CUSTOM, restoreSecretId).catch(() => {}); } catch (e) { /* 忽略还原失败 */ }
+            }
         }
 
         const debugInfo = {

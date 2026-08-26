@@ -57,9 +57,8 @@ function buildPanelHtml() {
         <hr />
         <div style="display:flex;gap:6px;align-items:center;width:100%;">
             <b style="white-space:nowrap;">API配置</b>
-            <select id="ccore_api_profiles" class="text_pole flex1" style="flex:1;min-width:0;" title="选择要应用 / 管理的一键连接"></select>
+            <select id="ccore_api_profiles" class="text_pole flex1" style="flex:1;min-width:0;" title="选择一键连接，选中即直接应用到 ST"></select>
             <i id="ccore_api_save" class="menu_button fa-solid fa-save" title="保存（读取 ST 当前连接为配置）"></i>
-            <i id="ccore_api_apply" class="menu_button fa-solid fa-arrow-right" title="应用（把选中配置填入 ST）"></i>
             <i id="ccore_api_edit" class="menu_button fa-solid fa-pen" title="编辑选中配置"></i>
             <i id="ccore_api_delete" class="menu_button fa-solid fa-trash-can" title="删除选中配置"></i>
         </div>
@@ -69,9 +68,9 @@ function buildPanelHtml() {
 function bindEventListeners() {
     const $ = (sel) => document.querySelector(sel);
 
-    $('#ccore_api_profiles')?.addEventListener('change', (e) => setSelectedProfile(e.target.value));
+    // 选择即应用：从下拉选中一项，直接填入 ST（无需单独「应用」按钮）
+    $('#ccore_api_profiles')?.addEventListener('change', (e) => { if (e.target.value) applySelected(e.target.value); });
     $('#ccore_api_save')?.addEventListener('click', saveFromST);
-    $('#ccore_api_apply')?.addEventListener('click', applySelected);
     $('#ccore_api_edit')?.addEventListener('click', editSelected);
     $('#ccore_api_delete')?.addEventListener('click', deleteSelected);
 }
@@ -80,15 +79,13 @@ function getProfiles() {
     return configManager.getExtensionConfig()?.stFeatureEnhance?.apiManager?.profiles || [];
 }
 
-/** 渲染配置下拉。 */
+/** 渲染配置下拉（默认不选择；重新打开时也不恢复上次选中）。 */
 function renderPanel() {
     const profiles = getProfiles();
     const $profiles = document.getElementById('ccore_api_profiles');
-    const current = getSelectedId();
-    $profiles.innerHTML =
-        '<option value="">— 未选择 —</option>' +
-        profiles.map(p => `<option value="${p.id}" ${p.id === current ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
-    $profiles.value = current;
+    $profiles.innerHTML = '<option value="">— 未选择 —</option>' +
+        profiles.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    $profiles.value = '';
 }
 
 /**
@@ -174,13 +171,13 @@ async function saveFromST() {
 }
 
 /**
- * 「应用」：把当前选中配置填入 ST——URL 写进自定义 API 输入框，关联密钥切为激活。
+ * 「应用」：把选中配置填入 ST——URL 写进自定义 API 输入框，关联密钥切为激活。
+ * 由下拉「选择即应用」触发；此处仅应用，不改写持久化选中态。
  */
-async function applySelected() {
-    const id = document.getElementById('ccore_api_profiles')?.value || '';
+async function applySelected(id) {
     const p = getProfiles().find(x => x.id === id);
     if (!p) {
-        toastr.warning('请先在下方选择要应用的配置');
+        toastr.warning('请先选择要应用的配置');
         return;
     }
 
@@ -223,25 +220,6 @@ function deleteSelected() {
     document.getElementById('ccore_api_profiles').value = '';
     renderPanel();
     toastr.success(`已删除配置「${name}」`);
-}
-
-/** 返回当前应选中配置的 id（优先 DOM 当前值，否则上次持久化的 selectedProfileId）。 */
-function getSelectedId() {
-    const profiles = getProfiles();
-    const domSel = document.getElementById('ccore_api_profiles')?.value || '';
-    if (domSel && profiles.some(p => p.id === domSel)) return domSel;
-    const saved = configManager.getExtensionConfig()?.stFeatureEnhance?.apiManager?.selectedProfileId;
-    if (saved && profiles.some(p => p.id === saved)) return saved;
-    return '';
-}
-
-/** 持久化当前选中配置 id，刷新后能自动恢复显示。 */
-function setSelectedProfile(id) {
-    const cfg = configManager.getExtensionConfig();
-    cfg.stFeatureEnhance ||= {};
-    cfg.stFeatureEnhance.apiManager ||= { enabled: false, profiles: [], selectedProfileId: '' };
-    cfg.stFeatureEnhance.apiManager.selectedProfileId = id;
-    configManager.setExtensionConfig(cfg);
 }
 
 /** 生成密钥下拉的 option HTML（含当前选中项）。 */

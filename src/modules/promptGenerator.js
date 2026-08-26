@@ -582,6 +582,7 @@ export function generateModuleOrderPrompt(mode) {
             });
 
             // 「动态插入」提示语：body_dynamic 模块（如 env）+ async-body 时的可嵌入模块，格式 [aa|...]/[xx|...] / [yy|...]
+            /* 暂时注释
             const dynamicList = [];
             bodyDynamicModules.forEach(module => dynamicList.push(`[${module.name}|...]`));
             // if (effectiveMode === 'async-body') {
@@ -589,8 +590,9 @@ export function generateModuleOrderPrompt(mode) {
                 sortedEmbeddable.forEach(module => dynamicList.push(`[${module.name}|...]`));
             // }
             if (dynamicList.length > 0) {
-                orderPrompt += `(正文内跟随叙事积极插入:${dynamicList.join('/')})\n`;
+                orderPrompt += `(正文内跟随叙事根据trigger插入:${dynamicList.join('/')})\n`;
             }
+            */
 
             bodyModules.forEach(module => {
                 orderPrompt += buildModulePrompt(module);

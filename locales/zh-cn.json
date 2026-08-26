@@ -209,6 +209,8 @@
     "ccore_settings_push_user_message_as_last": "生成指令作为最后 user 消息",
     "ccore_settings_push_user_message_as_last_hint": "开启时生成指令 push 进聊天作为最后一条 user 消息（{{lastUserMessage}} 可取到）；关闭时经 quietPrompt 传入（system 角色）。",
     "ccore_settings_fetch_models": "拉取模型",
+    "ccore_async_api_profile_label": "从 API 配置应用:",
+    "ccore_async_api_profile_ph": "— 选择要应用的 API 配置 —",
     "ccore_settings_fallback_prompt_role": "补末尾消息角色:",
     "ccore_settings_fallback_prompt_role_hint": "当生成指令无法替换进宏/历史消息时，作为最后一条消息补入的角色（默认 user）。",
     "ccore_settings_ask_prompt_before_generate": "生成前询问提示词",

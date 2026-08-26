@@ -524,6 +524,11 @@ export function onApiManagerToggle(event) {
         removeApiManager();
         infoLog('[API连接管理] 已关闭');
     }
+
+    // 实时通知 module-editor「异步配置」tab：api-manager 开关影响「从 API 配置应用」控件显隐。
+    // ⚠️ 注意：module-editor 是 iframe(src 模式，内无 <script>)，其 JS 全在主窗口上下文执行，
+    //    故必须用主窗口的 CustomEvent 派发，而不是 postMessage 发往子 iframe。
+    window.dispatchEvent(new CustomEvent('ccore:api-manager-changed', { detail: { enabled } }));
 }
 
 export function onIncludeHiddenMessagesToggle(event) {

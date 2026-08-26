@@ -15,8 +15,49 @@ import { translate } from '../../../../../../i18n.js';
 import { openai_setting_names } from '../../../../../../openai.js';
 import { errorLog } from '../../utils/logger.js';
 import { showToast } from '../../shared/Toast.js';
+import configManager from '../../singleton/configManager.js';
+import { SECRET_KEYS, secret_state, readSecretState, rotateSecret } from '../../../../../../secrets.js';
+import { getRequestHeaders } from '../../../../../../../script.js';
+
+// 方案 B（2026-08-26）：secretId 拉取模型走 ST 服务端 status（readSecret(CUSTOM) 读激活密钥），
+// 临时激活目标密钥、用毕还原，避免浏览器接触密钥原文与长期改变全局激活。
+async function _transientlyActivateSecret(secretId) {
+    if (!secretId) return null;
+    try {
+        if (!secret_state[SECRET_KEYS.CUSTOM]) {
+            await readSecretState();
+        }
+        const prior = (secret_state[SECRET_KEYS.CUSTOM] || []).find(s => s && s.active);
+        const priorId = prior?.id || null;
+        await rotateSecret(SECRET_KEYS.CUSTOM, secretId);
+        return priorId;
+    } catch (e) {
+        errorLog('[AsyncSettings] 临时激活 secretId 失败:', e);
+        return null;
+    }
+}
 
 const ROLE_OPTIONS = ['user', 'assistant', 'system'];
+
+// 实时同步：主设置面板切换「API连接管理」开关时，本模块据此重渲染异步 tab。
+// ⚠️ 注意：module-editor 是 iframe(src 模式，内无 <script>)，本模块 JS 在主窗口上下文执行，
+//    故监听主窗口的 CustomEvent 而非 iframe 的 postMessage message 事件。
+let _renderCtx = { doc: null, asyncConfig: null, asyncModule: null, onChange: null };
+let _apiManagerMsgBound = false;
+
+function _bindApiManagerMessageListener() {
+    if (_apiManagerMsgBound) return;
+    _apiManagerMsgBound = true;
+    window.addEventListener('ccore:api-manager-changed', () => {
+        const ctx = _renderCtx;
+        if (!ctx || !ctx.doc || !ctx.doc.getElementById('view-async')) return;
+        try {
+            renderAsyncSettings(ctx.doc, ctx.asyncConfig, ctx.asyncModule, ctx.onChange);
+        } catch (err) {
+            errorLog('[AsyncSettings] 根据 API连接管理开关重渲染失败:', err);
+        }
+    });
+}
 
 /**
  * 渲染异步配置页
@@ -26,10 +67,23 @@ const ROLE_OPTIONS = ['user', 'assistant', 'system'];
  * @param {Function} onChange 变更回调（标脏）
  */
 export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
+    // 记录渲染上下文 + 绑定一次性消息监听（供 api-manager 开关实时重渲染）
+    _renderCtx = { doc, asyncConfig, asyncModule, onChange };
+    _bindApiManagerMessageListener();
+
     const container = doc.getElementById('view-async');
     if (!container) return;
 
     const customApi = asyncConfig.customApi || {};
+    // ⚠️ 2026-08-26 「从 API 配置应用」：仅在 api-manager 功能启用且存在配置时显示该控件
+    const apiManagerEnabled = configManager.isApiManagerEnabled();
+    const apiProfiles = (configManager.getExtensionConfig()?.stFeatureEnhance?.apiManager?.profiles || []).filter(p => p && p.id);
+    const apiProfileOptions = apiManagerEnabled
+        ? `<select id="async-api-profile" class="text_pole" style="width:100%;">
+                <option value="">${translate('ccore_async_api_profile_ph')}</option>
+                ${apiProfiles.map(p => `<option value="${p.id}">${escapeHtml(p.name || p.id)}</option>`).join('')}
+           </select>`
+        : '';
     container.innerHTML = `
         <div class="detail-content">
             <div class="settings-container async-settings">
@@ -60,7 +114,13 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
                     </label>
                 </div>
                 <div class="form-group form-full-width" id="async-custom-api-block" style="display:none;">
-                    <label>API URL:</label>
+                    ${apiManagerEnabled && apiProfiles.length > 0 ? `
+                    <div id="async-api-profile-apply" class="form-group form-full-width">
+                        <label>${translate('ccore_async_api_profile_label')}</label>
+                        ${apiProfileOptions}
+                    </div>
+                    <label style="margin-top:8px;">API URL:</label>` : `
+                    <label>API URL:</label>`}
                     <input type="text" id="async-custom-api-url" value="${escapeHtml(customApi.apiurl || '')}" placeholder="https://api.openai.com/v1">
                     <label style="margin-top:8px;">API Key:</label>
                     <input type="password" id="async-custom-api-key" value="${escapeHtml(customApi.key || '')}" placeholder="sk-...">
@@ -232,6 +292,40 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
     };
     renderModelOptions();
 
+    // === 从 API 配置应用（api-manager 打通；仅开启且存在配置时页面才有此元素） ===
+    const profileSel = container.querySelector('#async-api-profile');
+    const renderProfileState = () => {
+        if (!profileSel) return;
+        const secretId = String(customApi.secretId || '');
+        if (secretId) {
+            const match = apiProfiles.find(x => x.secretId && x.secretId === secretId);
+            profileSel.value = match ? match.id : '';
+        } else {
+            profileSel.value = '';
+        }
+    };
+    if (profileSel) {
+        const applyProfile = (id) => {
+            const p = apiProfiles.find(x => x.id === id);
+            if (!p) { renderProfileState(); return; }
+            customApi.apiurl = p.apiurl || '';
+            customApi.secretId = p.secretId || ''; // 密钥双轨互斥：写入 secretId 即清空明文 key
+            customApi.key = '';
+            customApi.source = 'custom'; // secretId 通道强制走 ST 服务端 CUSTOM（source=custom）
+            const urlInput = container.querySelector('#async-custom-api-url');
+            const keyInput = container.querySelector('#async-custom-api-key');
+            const sourceSel = container.querySelector('#async-custom-api-source');
+            if (urlInput) urlInput.value = customApi.apiurl;
+            if (keyInput) keyInput.value = '';
+            if (sourceSel) sourceSel.value = 'custom';
+            renderProfileState();
+            showToast(`已应用独立 API 配置：「${p.name || p.id}」`, 'success');
+            onChange?.();
+        };
+        profileSel.addEventListener('change', (e) => applyProfile(e.target.value));
+    }
+    renderProfileState();
+
     // === 联动显隐：raw 显示 raw 配置块；独立 API 开关显示 customApi 配置块；preset 仅 pipeline 有效 ===
     const updateModeVisibility = () => {
         const mode = container.querySelector('#async-generation-mode').value;
@@ -256,6 +350,8 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         const ca = asyncConfig.customApi = asyncConfig.customApi || {};
         ca.apiurl = container.querySelector('#async-custom-api-url').value;
         ca.key = container.querySelector('#async-custom-api-key').value;
+        // 密钥双轨互斥：手动填入明文 key 即撤销 secretId 引用（与「从 API 配置应用」相反方向）
+        if (ca.key) ca.secretId = '';
         // 模型：select 选中「手动输入」时读自定义输入框，否则读下拉值
         const modelSel = container.querySelector('#async-custom-api-model');
         const modelCustom = container.querySelector('#async-custom-api-model-custom');
@@ -282,7 +378,6 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
     // === 拉取模型（OpenAI 兼容 /models）===
     container.querySelector('#async-custom-api-fetch').addEventListener('click', async () => {
         const apiurl = String(container.querySelector('#async-custom-api-url').value?.trim() || '');
-        const key = String(container.querySelector('#async-custom-api-key').value?.trim() || '');
         const source = String(container.querySelector('#async-custom-api-source').value || 'openai');
         if (!apiurl) {
             showToast('请先填写 API URL', 'warning');
@@ -292,28 +387,51 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         const originalText = btn.textContent;
         btn.textContent = '...';
         try {
-            const base = apiurl.replace(/\/+$/, '');
-            const headers = { 'Content-Type': 'application/json' };
-            if (key) headers['Authorization'] = `Bearer ${key}`;
-            if (source === 'claude') {
-                headers['x-api-key'] = key;
-                headers['anthropic-version'] = '2023-06-01';
-            }
-            const response = await fetch(`${base}/models`, { headers });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
             let models = [];
-            if (Array.isArray(data.data)) models = data.data.map(m => m.id).filter(Boolean);
-            else if (Array.isArray(data.models)) models = data.models.map(m => m.id || m.name).filter(Boolean);
+            const plainKey = String(container.querySelector('#async-custom-api-key').value?.trim() || '');
+            if (plainKey) {
+                // 明文 key：直接客户端请求（保持原行为）
+                const base = apiurl.replace(/\/+$/, '');
+                const headers = { 'Content-Type': 'application/json' };
+                headers['Authorization'] = `Bearer ${plainKey}`;
+                if (source === 'claude') {
+                    headers['x-api-key'] = plainKey;
+                    headers['anthropic-version'] = '2023-06-01';
+                }
+                const response = await fetch(`${base}/models`, { headers });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                if (Array.isArray(data.data)) models = data.data.map(m => m.id).filter(Boolean);
+                else if (Array.isArray(data.models)) models = data.models.map(m => m.id || m.name).filter(Boolean);
+            } else if (customApi.secretId) {
+                // secretId：临时激活 → ST 服务端 /status（source=custom，服务端 readSecret(CUSTOM)）→ 还原
+                const prev = await _transientlyActivateSecret(customApi.secretId);
+                try {
+                    const statusResp = await fetch('/api/backends/chat-completions/status', {
+                        method: 'POST',
+                        headers: getRequestHeaders(),
+                        body: JSON.stringify({ chat_completion_source: 'custom', custom_url: apiurl }),
+                    });
+                    if (!statusResp.ok) throw new Error(`HTTP ${statusResp.status}`);
+                    const data = await statusResp.json();
+                    if (Array.isArray(data?.data)) models = data.data.map(m => m.id).filter(Boolean);
+                    else if (Array.isArray(data?.models)) models = data.models.map(m => m.id || m.name).filter(Boolean);
+                } finally {
+                    if (prev) { try { await rotateSecret(SECRET_KEYS.CUSTOM, prev); } catch (e) { /* 忽略还原失败 */ } }
+                }
+            } else {
+                showToast('未配置密钥（明文 key 为空且无 secretId）', 'warning');
+                return;
+            }
             if (models.length === 0) throw new Error('响应中未找到模型列表');
-            // 用 select 填充（保留「手动输入」兜底）；当前选中的模型若在新列表里则保持选中
+            // 按下拉显示名排序（不区分大小写字母序）
+            models.sort((a, b) => String(a).toLowerCase().localeCompare(String(b).toLowerCase()));
             fetchedModels = models;
             const prev = modelSel.value === MANUAL ? modelCustom.value.trim() : modelSel.value;
             renderModelOptions();
             if (fetchedModels.includes(prev)) {
                 modelSel.value = prev;
             } else if (prev) {
-                // 当前值不在列表里 → 落到手动输入框并回填，用户可自行选用
                 modelSel.value = MANUAL;
                 modelCustom.value = prev;
             }

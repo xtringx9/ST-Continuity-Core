@@ -86,6 +86,11 @@ export const DEFAULT_ASYNC_CONFIG = {
     presetName: '', // 指定 ST OpenAI 预设（pipeline dryRun 组装时临时使用；空=用当前预设，2026-08-18）
     customApi: { // 独立 API 配置（useIndependentApi=true 时生效；2026-08-18 从 asyncModule.customApi 迁入）
         apiurl: '',
+        // ⚠️ 密钥双轨（2026-08-26）：secretId 与 key 互斥，不能同时有值。
+        //   - secretId：指向 ST 密钥池 api_key_custom 下某条 secret（api-manager 打通用的安全引用，不落明文）
+        //   - key：明文直填（不使用 api-manager 时的兜底）
+        //   设置其一即清空另一；生成时 aiCaller 按 secretId 解析真实密钥。
+        secretId: '',
         key: '',
         model: '',
         source: 'openai',
@@ -117,12 +122,17 @@ export function normalizeAsyncConfig(config) {
         normalizedGroups[0].isDefault = true;
     }
     const api = base.customApi && typeof base.customApi === 'object' ? base.customApi : {};
+    // 密钥双轨互斥（2026-08-26）：secretId 与 key 不能同时有值。任一侧写入都保证只留其一；
+    //   兜底优先级 secretId（安全引用）→ 有 secretId 则丢弃明文 key，否则保留 key。
+    const normSecretId = String(api.secretId || '');
+    const normKey = normSecretId ? '' : String(api.key || '');
     return {
         ...base,
         presetName: String(base.presetName || ''), // ST OpenAI 预设名（空=用当前预设）
         customApi: {
             apiurl: String(api.apiurl || ''),
-            key: String(api.key || ''),
+            secretId: normSecretId,
+            key: normKey,
             model: String(api.model || ''),
             source: ['openai', 'claude', 'custom'].includes(api.source) ? api.source : 'openai',
             temperature: typeof api.temperature === 'number' ? api.temperature : 0.3,
