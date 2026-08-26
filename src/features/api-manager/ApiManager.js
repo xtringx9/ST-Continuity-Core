@@ -62,6 +62,7 @@ function buildPanelHtml() {
             <i id="ccore_api_edit" class="menu_button fa-solid fa-pen" title="编辑选中配置"></i>
             <i id="ccore_api_delete" class="menu_button fa-solid fa-trash-can" title="删除选中配置"></i>
         </div>
+        <hr />
     </div>`;
 }
 
