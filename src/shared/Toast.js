@@ -227,6 +227,17 @@ export function showSuccessToast(docOrMessage, message) {
     showToast(docOrMessage, message, 'success');
 }
 
+// ⚠️ 便捷方法（2026-08-23）：给 showToast 挂上 .error/.warning/.success/.info，
+// 便于把 ST 的 toastr.error(...) 等批量替换为 showToast.error(...)，保持调用形态一致。
+//   showToast.error('出错了')
+//   showToast.warning('注意')
+//   showToast.success('完成')
+//   showToast.info('提示')
+showToast.error = (msg, duration) => showToast(msg, 'error', duration);
+showToast.warning = (msg, duration) => showToast(msg, 'warning', duration);
+showToast.success = (msg, duration) => showToast(msg, 'success', duration);
+showToast.info = (msg, duration) => showToast(msg, 'info', duration);
+
 function getOrCreateContainer(doc) {
     let container = doc.querySelector('.' + TOAST_CONTAINER_CLASS);
     if (!container) {
