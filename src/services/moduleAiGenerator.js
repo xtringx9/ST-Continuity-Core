@@ -11,7 +11,7 @@ import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
 import { expandPrompts, setMsgModuleResolver } from '../utils/variableReplacer.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
-import { readFloorModules, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, getActiveGeneratorSwipe } from '../core/floorModuleStore.js';
+import { readFloorModules, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, writeGeneratorContent, getActiveGeneratorSwipe } from '../core/floorModuleStore.js';
 import { setGenerationContextEndFloor, setGenerationContextMode, clearGenerationContext } from '../core/generationContext.js';
 import { taskRegistry } from '../core/taskRegistry.js';
 import { showToast } from '../shared/Toast.js';
@@ -634,6 +634,8 @@ export const moduleAiGenerator = {
             skipStorage = false, // ⚠️ 历史参数（原「是否跳过存储」）；统一路径后不再参与行为判定，保留兼容
             fallbackPromptRole, // 可选：本次生成的补末尾消息角色覆盖（提示词组 role）
             presetName, // 可选：显式指定 ST OpenAI 预设（优先于 generator_config/asyncConfig 配置）
+            continuePrefix, // 续写模式：已生成的截断文本前缀（照搬 ST continue 机制，注入 assistant 种子续写）
+            continueOverwriteSwipe, // 续写模式：要覆盖的内层版本 id（结果 = continuePrefix + 续写，写回该版本）
         } = options;
 
         const isModule = generatorName === 'modules';
@@ -777,6 +779,8 @@ export const moduleAiGenerator = {
                 ...(effectivePresetName ? { presetName: effectivePresetName } : {}),
                 // 提示词组 role 覆盖（可选，弹窗生成时传入）
                 ...(fallbackPromptRole ? { fallbackPromptRole } : {}),
+                // 续写模式：把截断文本前缀传给 aiCaller 注入 assistant 续写种子
+                ...(typeof continuePrefix === 'string' && continuePrefix ? { continuePrefix } : {}),
             };
 
             sentInfo = { type: 'pipeline', quietPrompt, truncateToMesId, pushAsLastUser };
@@ -905,17 +909,32 @@ export const moduleAiGenerator = {
                 hasModules = result.text.length > 0;
                 // 存储到每条消息（统一 floor：模块 + 非模块都走 appendGeneratorContent，新版本自动激活）
                 if (hasModules) {
-                    const storeText = result.text;
+                    // 续写模式：prefix + 续写 → 覆盖指定版本（照搬 ST continue 的「原文+新增」拼接）
+                    // ⚠️ 仅 pipeline 模式生效：续写种子由 aiCaller 在 pipeline 注入，raw 模式不续写、结果不能用 prefix 拼接。
+                    const isContinueOverwrite = mode === 'pipeline' && typeof continueOverwriteSwipe === 'number' && typeof continuePrefix === 'string' && continuePrefix;
+                    const storeText = isContinueOverwrite ? continuePrefix + result.text : result.text;
                     if (isSingle) {
                         const msg = messages[0];
-                        const newId = appendGeneratorContent(msg.mesId, generatorName, msg.activeSwipeId, storeText);
-                        if (newId >= 0) {
-                            storedCount = 1;
-                            if (!isModule) generatedContentCache.set(msg.mesId, generatorName, storeText);
-                            debugLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor，innerSwipe=${newId}）`);
+                        if (isContinueOverwrite) {
+                            const ok = writeGeneratorContent(msg.mesId, generatorName, msg.activeSwipeId, continueOverwriteSwipe, storeText);
+                            if (ok) {
+                                storedCount = 1;
+                                if (!isModule) generatedContentCache.set(msg.mesId, generatorName, storeText);
+                                debugLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 续写覆盖版本 ${continueOverwriteSwipe}（len=${storeText.length}）`);
+                            } else {
+                                errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 续写覆盖版本失败（楼层可能已不存在）`);
+                                toastr.error(`楼层 ${msg.mesId} ${generatorName} 续写覆盖版本失败`);
+                            }
                         } else {
-                            errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据写入失败（楼层可能已不存在）`);
-                            toastr.error(`楼层 ${msg.mesId} ${generatorName} 数据写入失败`);
+                            const newId = appendGeneratorContent(msg.mesId, generatorName, msg.activeSwipeId, storeText);
+                            if (newId >= 0) {
+                                storedCount = 1;
+                                if (!isModule) generatedContentCache.set(msg.mesId, generatorName, storeText);
+                                debugLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor，innerSwipe=${newId}）`);
+                            } else {
+                                errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据写入失败（楼层可能已不存在）`);
+                                toastr.error(`楼层 ${msg.mesId} ${generatorName} 数据写入失败`);
+                            }
                         }
                     } else {
                         let savedCount = 0;

@@ -1265,6 +1265,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
                 <span class="ccore-edit-ver-next" style="cursor:pointer;font-weight:bold;padding:0 2px;" title="下一个版本">›</span>
                 <span class="ccore-edit-ver-add menu_button interactable" style="cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;margin:0;" title="新建版本" tabindex="0" role="button"><i class="fa-solid fa-plus"></i></span>
                 <span class="ccore-edit-ver-del menu_button interactable" style="cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;margin:0;" title="删除当前版本" tabindex="0" role="button"><i class="fa-solid fa-trash-can"></i></span>
+                <span class="ccore-edit-ver-continue menu_button interactable" style="cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;margin:0;" title="继续生成（照搬 ST 继续机制，覆盖当前版本）" tabindex="0" role="button"><i class="fa-solid fa-forward"></i></span>
                 <div class="ccore-edit-actions" style="display:flex;gap:2px;margin-left:8px;">
                     <span class="ccore-edit-save menu_button interactable" style="cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;margin:0;background-color:var(--okGreen70a);" title="确认" tabindex="0" role="button"><i class="fa-solid fa-check"></i></span>
                     <span class="ccore-edit-cancel menu_button interactable" style="cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;margin:0;background-color:var(--crimson70a);" title="取消" tabindex="0" role="button"><i class="fa-solid fa-xmark"></i></span>
@@ -1388,6 +1389,75 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
         } catch (err) {
             errorLog(LOG_TAG, `删除版本失败:`, err);
             toastr.error(`删除版本失败：${err.message}`);
+        }
+    });
+
+    // 继续生成（照搬 ST 正文「继续」机制）：以当前编辑版本文本为前缀，让模型接着写，结果覆盖当前版本
+    $editArea.find('.ccore-edit-ver-continue').on('click', async (e) => {
+        e.stopPropagation();
+        const prefix = String($textarea.val() || '').trim();
+        if (!prefix) {
+            toastr.warning('当前内容为空，无需继续');
+            return;
+        }
+        const continueSwipe = ids[currentIndex];
+        if (continueSwipe === undefined) {
+            toastr.warning('无当前版本可继续');
+            return;
+        }
+        // ⚠️ 编辑框无法像 ST 正文那样实时流式显示追加内容，点击继续后直接关闭编辑框，后台续写。
+        $editArea.remove();
+        $iframe.show();
+        try {
+            // 与重新生成一致的选项构造
+            const asyncConfig = configManager.getAsyncConfig();
+            let customApi = null;
+            if (asyncConfig.useIndependentApi) {
+                const apiConfig = asyncConfig.customApi || {};
+                if (apiConfig.apiurl) customApi = { ...apiConfig };
+            }
+            const genOptions = {
+                generatorName,
+                mode: asyncConfig.generationMode || 'pipeline',
+                customApi,
+                // ⚠️ 续写必须自动落盘覆盖当前版本：强制 showDebug=false（跳过「弹出面板手动确认」的待处理态），
+                //   否则续写只会生成 pending 不写回，与「覆盖当前版本」语义不符。
+                showDebug: false,
+                continuePrefix: prefix,
+                continueOverwriteSwipe: continueSwipe,
+            };
+            if (isModule) {
+                genOptions.rawSystemPrompt = asyncConfig.rawSystemPrompt || '';
+                genOptions.rawUserPrompt = asyncConfig.rawUserPromptTemplate || '';
+                const defaultGroup = (asyncConfig.promptGroups || []).find(g => g.isDefault);
+                genOptions.pipelineModifier = defaultGroup?.prompt || '';
+            }
+            const result = await moduleAiGenerator.generate(mesId, genOptions);
+            if (result.success) {
+                // 模块内容变化 → 刷新下游（与「保存/删除」一致）
+                if (isModule) {
+                    const afterModuleText = readFloorModules(mesId, outerSwipeId);
+                    if (incrementalModulesChanged(prefix, afterModuleText)) {
+                        infoLog(LOG_TAG, `消息 ${mesId} 续写后模块文本变化，刷新下游`);
+                        scheduleMsgBottom('suffix', mesId);
+                        const affectInfo = resolveModuleChangeAffect(afterModuleText);
+                        if (affectInfo.inline) {
+                            const suffixIds = [];
+                            document.querySelectorAll('#chat .mes').forEach(el => {
+                                const id = Number(el.getAttribute('mesid'));
+                                if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
+                            });
+                            if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+                        }
+                    }
+                }
+                toastr.success('续写完成');
+            } else {
+                toastr.error(`续写失败：${result.error || '未知错误'}`);
+            }
+        } catch (err) {
+            errorLog(LOG_TAG, '续写失败:', err);
+            toastr.error(`续写失败：${err.message}`);
         }
     });
 

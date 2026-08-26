@@ -13,6 +13,7 @@ import {
     chat,
     name1,
     showSwipeButtons,
+    substituteParams,
 } from '../../../../../../script.js';
 import {
     sendOpenAIRequest,
@@ -426,7 +427,7 @@ export const aiCaller = {
      * 4. 自行 sendOpenAIRequest 发送（customApi 拦截在内部生效 → 独立 API 可用）
      */
     async _callPipeline(options, capture) {
-        const { quietPrompt, responseLength, truncateToMesId, pushAsLastUser, presetName } = options;
+        const { quietPrompt, responseLength, truncateToMesId, pushAsLastUser, presetName, continuePrefix } = options;
         options.onAbort ||= null;
 
         // 补末尾生成指令消息的角色（默认 user；弹窗提示词组可传 role 覆盖本次生成）
@@ -668,6 +669,34 @@ export const aiCaller = {
             if (!presetUiRefreshed) {
                 _refreshPromptManagerAfterPresetRestore(presetBackup);
                 presetUiRefreshed = true;
+            }
+
+            // 续写模式（照搬 ST 正文「继续」机制，默认 continue_prefill=false 的 nudge 法）：
+            //   - 追加 continue_postfix 后缀到截断文本末尾，作为 assistant 续写种子
+            //   - 末尾再跟一条 system 的 continue_nudge 提示（默认「继续上一条、勿重复原文」）
+            //   ⚠️ 顺序（按实测 ST 发送的末两条）：先 assistant，后 system（system 是最后一条）
+            //   → 不依赖模型「预填充/assistant 引导」能力，ST 即靠此在部分不支持预填充的模型上也能续写。
+            //   → 模型只返回续写片段，拼接由调用方（moduleAiGenerator）把 prefix+结果写回原版本。
+            if (typeof continuePrefix === 'string' && continuePrefix) {
+                const continuePostfix = oai_settings?.continue_postfix ?? ' ';
+                // ⚠️ nudge 宏展开对齐 ST：ST 用 substituteParamsExtended + 额外变量 lastChatMessage（=被续写消息）。
+                //   普通 substituteParams 不认识 {{lastChatMessage}}，先手动展开它，其余交给 ST 全套宏展开。
+                let continueNudge = oai_settings?.continue_nudge_prompt ?? '[Continue your last message without repeating its original content.]';
+                try {
+                    if (continueNudge.includes('{{lastChatMessage}}')) {
+                        continueNudge = continueNudge.split('{{lastChatMessage}}').join(continuePrefix);
+                    }
+                    continueNudge = substituteParams(continueNudge);
+                } catch (e) {
+                    errorLog(LOG_TAG, '续写 nudge 宏展开失败（用原文）:', e);
+                }
+                const seed = continuePrefix + continuePostfix;
+                // 先 assistant 续写种子，再 system nudge（末尾）
+                assembledChat.push({ role: 'assistant', content: seed });
+                assembledChat.push({ role: 'system', content: continueNudge });
+                capture.prompt.push({ role: 'assistant', content: seed });
+                capture.prompt.push({ role: 'system', content: continueNudge });
+                debugLog(LOG_TAG, `续写模式：注入 assistant 续写种子 + 末尾 system continue_nudge（seed长度 ${seed.length}，nudge=${JSON.stringify(continueNudge)}，postfix=${JSON.stringify(continuePostfix)}）`);
             }
 
             // 自己发送（customApi 拦截在 sendOpenAIRequest 内部生效；不锁 ST 发送按钮）
