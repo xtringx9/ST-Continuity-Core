@@ -1009,6 +1009,8 @@ async function onRegenerate(button, mesId, generatorName = 'modules', opts = {})
             if (runningTask.debugData) {
                 // ⚠️ 运行中详情用 runId 定位（流式更新匹配）；旧任务无 runId 时回退 taskKey
                 const runId = runningTask.debugData.runId || runningTask.debugData.taskKey || '';
+                // 从 runningTask.chatKey（`角色名::聊天文件名`）取当前聊天归属，让筛选栏角色/聊天一并回填
+                const ckParts = String(runningTask.chatKey || '').split('::');
                 window.openGenerationRecords?.({
                     view: 'detail',
                     running: {
@@ -1019,8 +1021,8 @@ async function onRegenerate(button, mesId, generatorName = 'modules', opts = {})
                     },
                     filters: {
                         gen: generatorName,
-                        char: '',
-                        chat: '',
+                        char: ckParts[0] || '',
+                        chat: ckParts[1] || '',
                         floor: String(mesId),
                         status: 'all',
                     },

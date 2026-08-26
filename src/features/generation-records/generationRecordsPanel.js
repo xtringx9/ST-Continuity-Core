@@ -122,18 +122,32 @@ let titleWrapEl = null;
 /** 底部操作栏元素（模块级，showDetail/showRunningDetail 引用） */
 let opbarEl = null;
 
-/** 筛选下拉元素缓存（模块级，collectFilterOptions 引用） */
+/** 筛选下拉元素缓存（模块级，collectFilterOptions / syncFilterUIFromState 引用） */
 let genFilterEl = null;
 let charFilterEl = null;
 let chatFilterEl = null;
+let floorFilterEl = null;
+let statusFilterEl = null;
 
 /**
  * 绑定筛选元素引用（bindPanel 调用；面板重建 iframe 后需重新绑定）。
  */
-function bindFilterEls(gen, char, chat) {
+function bindFilterEls(gen, char, chat, floor, status) {
     genFilterEl = gen;
     charFilterEl = char;
     chatFilterEl = chat;
+    floorFilterEl = floor;
+    statusFilterEl = status;
+}
+
+/** 把 openOpts.filters（state.filters）回填到筛选 UI（含楼层/状态） */
+function syncFilterUIFromState() {
+    const set = (el, v) => { if (el) el.value = v ?? ''; };
+    set(genFilterEl, state.filters.gen);
+    set(charFilterEl, state.filters.char);
+    set(chatFilterEl, state.filters.chat);
+    set(floorFilterEl, state.filters.floor);
+    set(statusFilterEl, state.filters.status);
 }
 
 /** 收集筛选项（模块级；初始 + 数据变更后刷新） */
@@ -151,6 +165,7 @@ function collectFilterOptions() {
     fillSelect(genFilterEl, [...gens], state.filters.gen);
     fillSelect(charFilterEl, [...chars], state.filters.char);
     fillSelect(chatFilterEl, [...chats], state.filters.chat);
+    syncFilterUIFromState();
 }
 
 /**
@@ -212,7 +227,7 @@ function bindPanel(doc) {
     state.currentId = openOpts.recordId;
 
     // 收集筛选项（模块级 collectFilterOptions 的绑定入口）
-    bindFilterEls(genFilter, charFilter, chatFilter);
+    bindFilterEls(genFilter, charFilter, chatFilter, floorFilter, statusFilter);
     collectFilterOptions();
 
     renderList = () => {
@@ -436,6 +451,7 @@ function applyView() {
     if (!panelDoc) return;
     // 面板已打开时也要同步筛选（bindPanel 只在首次执行）
     state.filters = { ...openOpts.filters };
+    syncFilterUIFromState();
     if (openOpts.view === 'detail') {
         if (openOpts.running?.taskKey) {
             // 运行中记录详情（生成中，流式更新）
