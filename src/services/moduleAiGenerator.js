@@ -639,6 +639,8 @@ export const moduleAiGenerator = {
         } = options;
 
         const isModule = generatorName === 'modules';
+        // 续写模式标志：pipeline 且带了被续写文本 + 目标版本 → 不注入生成指令，只续写
+        const isContinueMode = mode === 'pipeline' && typeof continueOverwriteSwipe === 'number' && typeof continuePrefix === 'string' && continuePrefix;
 
         // 统一为数组
         const ids = Array.isArray(mesIds) ? mesIds : [mesIds];
@@ -911,7 +913,7 @@ export const moduleAiGenerator = {
                 if (hasModules) {
                     // 续写模式：prefix + 续写 → 覆盖指定版本（照搬 ST continue 的「原文+新增」拼接）
                     // ⚠️ 仅 pipeline 模式生效：续写种子由 aiCaller 在 pipeline 注入，raw 模式不续写、结果不能用 prefix 拼接。
-                    const isContinueOverwrite = mode === 'pipeline' && typeof continueOverwriteSwipe === 'number' && typeof continuePrefix === 'string' && continuePrefix;
+                    const isContinueOverwrite = isContinueMode;
                     const storeText = isContinueOverwrite ? continuePrefix + result.text : result.text;
                     if (isSingle) {
                         const msg = messages[0];

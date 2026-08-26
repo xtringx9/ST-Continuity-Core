@@ -646,8 +646,15 @@ showRunningDetail = (running) => {
     panelDoc.getElementById('ccore-records-detail').style.display = 'flex';
 };
 
+// 粘底状态：true=跟随流式滚到底；用户上翻任一容器置 false，滚回底部自动恢复 true（配合 _bindStickyScroll 检测）。
+let stickyBottom = true;
+/** 已挂过滚动粘底监听的容器（避免重复绑定） */
+const _stickyBound = new WeakSet();
+
 /**
  * 流式更新运行中记录（生成中面板实时刷新，供 moduleAiGenerator 调用）。
+ * ⚠️ 2026-08-23 改为「增量更新」：只在原 DOM 上更新「完整响应」pre 的文本，不整段重渲，
+ *   避免重置其他 section 的展开/折叠状态；粘底按「用户是否在底部」决定，上翻则暂停、回底恢复。
  * @param {string} taskKey
  * @param {object} debugData 最新 debugData
  */
@@ -656,8 +663,66 @@ export function updateRunningRecord(taskKey, debugData) {
     runningMap.set(taskKey, debugData || {});
     if (panelDoc && state.running?.taskKey === taskKey) {
         const bodyEl = panelDoc.getElementById('ccore-records-detail-body');
-        const bottomEl = panelDoc.getElementById('ccore-records-detail-bottom');
-        renderDetailSections(bodyEl, bottomEl, { debugData: runningMap.get(taskKey) }, { followBottom: true });
+        // 只更新「完整响应」section 的 pre（不触碰其他 section 的 DOM/折叠状态）
+        const sec = _findSection(bodyEl, '完整响应');
+        const pre = sec?.querySelector('pre');
+        if (pre && pre.textContent !== String(debugData?.response ?? '')) {
+            pre.textContent = debugData?.response || '(空)';
+        }
+        _bindStickyScroll(bodyEl);
+        // 粘底：仅当「用户未上翻」（stickyBottom）才跟着滚底；上翻则完全不动，滚回底部由 scroll 事件恢复
+        if (stickyBottom) {
+            if (pre) pre.scrollTop = pre.scrollHeight;
+            if (bodyEl) bodyEl.scrollTop = bodyEl.scrollHeight;
+        }
+    }
+}
+
+/** 判断滚动容器是否处于底部（留小阈值，容差边缘像素，不严判到底）。 */
+function _isAtBottom(el) {
+    if (!el) return true;
+    return (el.scrollHeight - el.scrollTop - el.clientHeight) < 20;
+}
+
+/** 在详情主体中找到标题包含 target 的 section。 */
+function _findSection(bodyEl, target) {
+    if (!bodyEl) return null;
+    return Array.from(bodyEl.querySelectorAll('.ccore-records-section') || []).find(s => {
+        const t = s.querySelector('.ccore-records-sec-title-text');
+        return t && String(t.textContent).indexOf(target) !== -1;
+    });
+}
+
+/**
+ * 滚动粘底检测处理器（返回一个闭包）：读取当前详情主体 +「完整响应」pre 的位置。
+ * bodyEl 用闭包每次现查 pre，故 pre 重渲/替换后仍有效。
+ */
+function _makeStickyHandler(bodyEl) {
+    return () => {
+        const sec = _findSection(bodyEl, '完整响应');
+        const pre = sec?.querySelector('pre');
+        stickyBottom = _isAtBottom(bodyEl) && (!pre || _isAtBottom(pre));
+    };
+}
+
+/**
+ * 绑定粘底滚动检测（幂等）：
+ *  - bodyEl 是持久容器 → WeakSet 保证只绑一次；
+ *   用闭包每次现查当前 pre，重渲后依然有效。
+ *  - 「完整响应」pre 每次重渲会换新节点 → 用 dataset 标志对每个 pre 绑一次，
+ *    避免同一 pre 反复绑定泄漏。
+ */
+function _bindStickyScroll(bodyEl) {
+    if (!bodyEl) return;
+    if (!_stickyBound.has(bodyEl)) {
+        _stickyBound.add(bodyEl);
+        bodyEl.addEventListener('scroll', _makeStickyHandler(bodyEl));
+    }
+    const sec = _findSection(bodyEl, '完整响应');
+    const pre = sec?.querySelector('pre');
+    if (pre && !pre.dataset.ccStickyBound) {
+        pre.dataset.ccStickyBound = '1';
+        pre.addEventListener('scroll', _makeStickyHandler(bodyEl));
     }
 }
 
@@ -790,8 +855,10 @@ function section(title, content, opts = {}) {
     </div>`;
 }
 
-/** 渲染详情上下两区并绑定折叠（showDetail/showRunningDetail/updateRunningRecord 共用） */
-function renderDetailSections(bodyEl, bottomEl, record, { followBottom = false } = {}) {
+/** 渲染详情上下两区并绑定折叠（showDetail/showRunningDetail 共用；流式增量走 updateRunningRecord，不重渲） */
+function renderDetailSections(bodyEl, bottomEl, record) {
+    // 重新渲染=新视图，重置为「粘底」；刷新过程中不强制滚动（首个流式 chunk 到达自然会滚）
+    stickyBottom = true;
     if (bodyEl) {
         bodyEl.innerHTML = buildDetailBody(record);
         bindSectionToggles(bodyEl);
@@ -800,20 +867,6 @@ function renderDetailSections(bodyEl, bottomEl, record, { followBottom = false }
         bottomEl.innerHTML = buildDetailBottom(record);
         bindSectionToggles(bottomEl);
     }
-    // 流式生成时：让「完整响应」 section 始终粘在底部 + 详情主体滚到最底，保证最新 token 可见
-    if (followBottom) scrollResponseToBottom(bodyEl);
-}
-
-/** 流式更新后把「完整响应」 section 的 pre 及详情主体滚到底部。 */
-function scrollResponseToBottom(bodyEl) {
-    if (!bodyEl) return;
-    const sec = Array.from(bodyEl.querySelectorAll('.ccore-records-section') || []).find(s => {
-        const t = s.querySelector('.ccore-records-sec-title-text');
-        return t && String(t.textContent).indexOf('完整响应') !== -1;
-    });
-    const pre = sec?.querySelector('pre');
-    if (pre && pre.style.display !== 'none') pre.scrollTop = pre.scrollHeight;
-    bodyEl.scrollTop = bodyEl.scrollHeight;
 }
 
 /** 绑定详情 sections 的折叠/展开 与 复制按钮（在 bodyEl.innerHTML 赋值后调用） */
