@@ -287,7 +287,7 @@ function _createSaveCallback(ctx) {
         // 聊天归属校验：生成时的聊天 ≠ 当前聊天 → 拒绝保存（避免写错聊天文件），不破坏 pending 可稍后重试
         if (chatKey && chatKey !== _getChatKey()) {
             warnLog(LOG_TAG, `保存被拒绝：生成时聊天 ${chatKey} ≠ 当前聊天 ${_getChatKey()}`);
-            toastr.warning('聊天已切换，无法保存。请回到原聊天后，在该楼层的生成按钮处重新打开调试面板再保存。');
+            showToast('聊天已切换，无法保存。请回到原聊天后，在该楼层的生成按钮处重新打开调试面板再保存。', 'warning');
             return;
         }
 
@@ -306,7 +306,7 @@ function _createSaveCallback(ctx) {
                 if (targetInnerSwipe < 0) {
                     const msg = `保存失败：楼层 ${mesId} ${generatorName} 无法追加新版本（楼层可能已不存在）`;
                     errorLog(LOG_TAG, msg);
-                    toastr.error(msg);
+                    showToast(msg, 'error');
                     return;
                 }
             }
@@ -320,7 +320,7 @@ function _createSaveCallback(ctx) {
         } catch (err) {
             const msg = `保存失败：楼层 ${mesId} ${generatorName} 写入存储异常`;
             errorLog(LOG_TAG, msg, err);
-            toastr.error(`${msg}：${err.message}`);
+            showToast(`${msg}：${err.message}`, 'error');
             return;
         }
 
@@ -925,7 +925,7 @@ export const moduleAiGenerator = {
                                 debugLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 续写覆盖版本 ${continueOverwriteSwipe}（len=${storeText.length}）`);
                             } else {
                                 errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 续写覆盖版本失败（楼层可能已不存在）`);
-                                toastr.error(`楼层 ${msg.mesId} ${generatorName} 续写覆盖版本失败`);
+                                showToast(`楼层 ${msg.mesId} ${generatorName} 续写覆盖版本失败`, 'error');
                             }
                         } else {
                             const newId = appendGeneratorContent(msg.mesId, generatorName, msg.activeSwipeId, storeText);
@@ -935,7 +935,7 @@ export const moduleAiGenerator = {
                                 debugLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据已存储（floor，innerSwipe=${newId}）`);
                             } else {
                                 errorLog(LOG_TAG, `楼层 ${msg.mesId} ${generatorName} 数据写入失败（楼层可能已不存在）`);
-                                toastr.error(`楼层 ${msg.mesId} ${generatorName} 数据写入失败`);
+                                showToast(`楼层 ${msg.mesId} ${generatorName} 数据写入失败`, 'error');
                             }
                         }
                     } else {
@@ -951,7 +951,7 @@ export const moduleAiGenerator = {
                         }
                         storedCount = savedCount;
                         if (savedCount < messages.length) {
-                            toastr.error(`部分楼层 ${generatorName} 数据写入失败（成功 ${savedCount}/${messages.length}）`);
+                            showToast(`部分楼层 ${generatorName} 数据写入失败（成功 ${savedCount}/${messages.length}）`, 'error');
                         }
                         debugLog(LOG_TAG, `${savedCount}/${messages.length} 条消息 ${generatorName} 数据已存储（floor）`);
                     }

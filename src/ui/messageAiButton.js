@@ -1085,6 +1085,10 @@ async function onRegenerate(button, mesId, generatorName = 'modules', opts = {})
 
     if (!opts.silent) setRegenButtonState(button, STATE.LOADING, generatorName);
 
+    // ⚠️ 弹窗（askPromptBeforeGenerate）确认"生成"后先让步一帧：让弹窗关闭先绘制，
+    //   否则 generate 的同步段（提示词组装）会阻塞当前任务 → 弹窗关闭被推迟，看起来"卡一下"。
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     try {
         const result = await moduleAiGenerator.generate(mesId, options);
 
@@ -1405,60 +1409,65 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             toastr.warning('无当前版本可继续');
             return;
         }
-        // ⚠️ 编辑框无法像 ST 正文那样实时流式显示追加内容，点击继续后直接关闭编辑框，后台续写。
+        // ⚠️ 编辑框无法像 ST 正文那样实时流式显示追加内容，点击继续后先立刻关框；生成延到下一宏任务后台执行
+        //   （generate 的同步段含提示词组装，若当场执行会阻塞当前任务 → 关闭到下一帧才绘制，看起来"卡一下才关"）。
         $editArea.remove();
         $iframe.show();
-        try {
-            // 与重新生成一致的选项构造
-            const asyncConfig = configManager.getAsyncConfig();
-            let customApi = null;
-            if (asyncConfig.useIndependentApi) {
-                const apiConfig = asyncConfig.customApi || {};
-                if (apiConfig.apiurl) customApi = { ...apiConfig };
-            }
-            const genOptions = {
-                generatorName,
-                mode: asyncConfig.generationMode || 'pipeline',
-                customApi,
-                // ⚠️ 续写必须自动落盘覆盖当前版本：强制 showDebug=false（跳过「弹出面板手动确认」的待处理态），
-                //   否则续写只会生成 pending 不写回，与「覆盖当前版本」语义不符。
-                showDebug: false,
-                continuePrefix: prefix,
-                continueOverwriteSwipe: continueSwipe,
-            };
-            if (isModule) {
-                genOptions.rawSystemPrompt = asyncConfig.rawSystemPrompt || '';
-                genOptions.rawUserPrompt = asyncConfig.rawUserPromptTemplate || '';
-                const defaultGroup = (asyncConfig.promptGroups || []).find(g => g.isDefault);
-                genOptions.pipelineModifier = defaultGroup?.prompt || '';
-            }
-            const result = await moduleAiGenerator.generate(mesId, genOptions);
-            if (result.success) {
-                // 模块内容变化 → 刷新下游（与「保存/删除」一致）
-                if (isModule) {
-                    const afterModuleText = readFloorModules(mesId, outerSwipeId);
-                    if (incrementalModulesChanged(prefix, afterModuleText)) {
-                        infoLog(LOG_TAG, `消息 ${mesId} 续写后模块文本变化，刷新下游`);
-                        scheduleMsgBottom('suffix', mesId);
-                        const affectInfo = resolveModuleChangeAffect(afterModuleText);
-                        if (affectInfo.inline) {
-                            const suffixIds = [];
-                            document.querySelectorAll('#chat .mes').forEach(el => {
-                                const id = Number(el.getAttribute('mesid'));
-                                if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
-                            });
-                            if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
-                        }
+        setTimeout(() => {
+            (async () => {
+                try {
+                    // 与重新生成一致的选项构造
+                    const asyncConfig = configManager.getAsyncConfig();
+                    let customApi = null;
+                    if (asyncConfig.useIndependentApi) {
+                        const apiConfig = asyncConfig.customApi || {};
+                        if (apiConfig.apiurl) customApi = { ...apiConfig };
                     }
+                    const genOptions = {
+                        generatorName,
+                        mode: asyncConfig.generationMode || 'pipeline',
+                        customApi,
+                        // ⚠️ 续写必须自动落盘覆盖当前版本：强制 showDebug=false（跳过「弹出面板手动确认」的待处理态），
+                        //   否则续写只会生成 pending 不写回，与「覆盖当前版本」语义不符。
+                        showDebug: false,
+                        continuePrefix: prefix,
+                        continueOverwriteSwipe: continueSwipe,
+                    };
+                    if (isModule) {
+                        genOptions.rawSystemPrompt = asyncConfig.rawSystemPrompt || '';
+                        genOptions.rawUserPrompt = asyncConfig.rawUserPromptTemplate || '';
+                        const defaultGroup = (asyncConfig.promptGroups || []).find(g => g.isDefault);
+                        genOptions.pipelineModifier = defaultGroup?.prompt || '';
+                    }
+                    const result = await moduleAiGenerator.generate(mesId, genOptions);
+                    if (result.success) {
+                        // 模块内容变化 → 刷新下游（与「保存/删除」一致）
+                        if (isModule) {
+                            const afterModuleText = readFloorModules(mesId, outerSwipeId);
+                            if (incrementalModulesChanged(prefix, afterModuleText)) {
+                                infoLog(LOG_TAG, `消息 ${mesId} 续写后模块文本变化，刷新下游`);
+                                scheduleMsgBottom('suffix', mesId);
+                                const affectInfo = resolveModuleChangeAffect(afterModuleText);
+                                if (affectInfo.inline) {
+                                    const suffixIds = [];
+                                    document.querySelectorAll('#chat .mes').forEach(el => {
+                                        const id = Number(el.getAttribute('mesid'));
+                                        if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
+                                    });
+                                    if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+                                }
+                            }
+                        }
+                        toastr.success('续写完成');
+                    } else {
+                        toastr.error(`续写失败：${result.error || '未知错误'}`);
+                    }
+                } catch (err) {
+                    errorLog(LOG_TAG, '续写失败:', err);
+                    toastr.error(`续写失败：${err.message}`);
                 }
-                toastr.success('续写完成');
-            } else {
-                toastr.error(`续写失败：${result.error || '未知错误'}`);
-            }
-        } catch (err) {
-            errorLog(LOG_TAG, '续写失败:', err);
-            toastr.error(`续写失败：${err.message}`);
-        }
+            })();
+        }, 0);
     });
 
     loadVersion(currentIndex);
@@ -1497,25 +1506,33 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             }
             $editArea.remove();
             $iframe.show();
-            // 模块：对比编辑前后「增量模块文本」→ 变化则刷下游（suffix），否则只刷该条（single）
+            // ⚠️ 先让浏览器绘制「编辑框已关闭」，重活（模块下游增量渲染，同步且耗时）延到下一帧，
+            //   否则同步阻塞当前帧 → 关闭动作要等重活结束才可见，表现为"点保存后卡一下才关掉"。
             if (isModule) {
-                if (incrementalModulesChanged(before, text)) {
-                    infoLog(LOG_TAG, `消息 ${mesId} 增量模块文本变化，刷新下游`);
-                    scheduleMsgBottom('suffix', mesId);
-                    // ⚠️ 若变化内容含非 after_body 增量模块（embedded/body 系）→ 影响后续楼层正文内：
-                    // force 后缀重渲染（后续楼层正文内模块 raw 可能已被样式替换，需重建原文再替换）。
-                    const affectInfo = resolveModuleChangeAffect(text);
-                    if (affectInfo.inline) {
-                        const suffixIds = [];
-                        document.querySelectorAll('#chat .mes').forEach(el => {
-                            const id = Number(el.getAttribute('mesid'));
-                            if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
-                        });
-                        if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+                requestAnimationFrame(() => {
+                    try {
+                        // 模块：对比编辑前后「增量模块文本」→ 变化则刷下游（suffix），否则只刷该条（single）
+                        if (incrementalModulesChanged(before, text)) {
+                            infoLog(LOG_TAG, `消息 ${mesId} 增量模块文本变化，刷新下游`);
+                            scheduleMsgBottom('suffix', mesId);
+                            // ⚠️ 若变化内容含非 after_body 增量模块（embedded/body 系）→ 影响后续楼层正文内：
+                            // force 后缀重渲染（后续楼层正文内模块 raw 可能已被样式替换，需重建原文再替换）。
+                            const affectInfo = resolveModuleChangeAffect(text);
+                            if (affectInfo.inline) {
+                                const suffixIds = [];
+                                document.querySelectorAll('#chat .mes').forEach(el => {
+                                    const id = Number(el.getAttribute('mesid'));
+                                    if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
+                                });
+                                if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+                            }
+                        } else {
+                            scheduleMsgBottom('single', mesId);
+                        }
+                    } catch (e2) {
+                        errorLog(LOG_TAG, `保存后刷新下游失败:`, e2);
                     }
-                } else {
-                    scheduleMsgBottom('single', mesId);
-                }
+                });
             }
         } catch (err) {
             errorLog(LOG_TAG, `保存消息 ${mesId} ${generatorName} 数据失败:`, err);
