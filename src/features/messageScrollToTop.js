@@ -44,7 +44,8 @@ const NAV_HANDLE_TRACK_READLINE = true;
 const NAV_DOT_SIZE = 6;      // 单个圆点视觉直径（px）
 const NAV_DOT_HIT = 16;      // 圆点可点热区直径（px），大于视觉尺寸便于手机点按
 // 基础热区放大到 hover scale(1.4) 的尺寸，使非 hover 热区与 hover 等大，手机无需先激活即可点中。
-// 视觉圆点由 padding 维持 NAV_DOT_SIZE 不变；hover/active 的 scale(1.4) 仅作视觉反馈。
+// 视觉圆点由 ::after 伪元素绘制（NAV_DOT_SIZE 正圆，精确居中于热区中心）；
+// hover/active 的 scale(1.4) 仅作视觉反馈（外层 scale，伪元素随之等比放大）。
 const NAV_DOT_HIT_SCALE = 1.4;
 const NAV_DOT_HIT_MIN = 9;   // 热区最小直径（px），圆点过多缩到此值仍放不下则保持不重叠
 const NAV_DOT_MIN_GAP = 4;   // 相邻圆点热区间最小额外间距（px），避免密集消息圆点重叠
@@ -462,7 +463,8 @@ function recomputeCenters(allMes, total, barH, list) {
     const availSpan = Math.max(1, barH - NAV_VPAD * 2);
     const desiredStep = NAV_DOT_HIT + NAV_DOT_MIN_GAP;
     const effStep = Math.min(desiredStep, availSpan / need);
-    const effHit = Math.max(NAV_DOT_HIT_MIN, effStep - NAV_DOT_MIN_GAP) * NAV_DOT_HIT_SCALE;
+    // 热区尺寸取偶整数：margin-left 与半宽同为整数，避免 sub-pixel 导致圆点/竖线水平错位
+    const effHit = (Math.round(Math.max(NAV_DOT_HIT_MIN, effStep - NAV_DOT_MIN_GAP) * NAV_DOT_HIT_SCALE) & ~1) || 1;
     const effGap = effStep - effHit;
     // 最小可点击间距：相邻圆点中心若过近则向下推挤，保证热区不重叠
     const minStep = effHit + effGap;
@@ -477,14 +479,12 @@ function recomputeCenters(allMes, total, barH, list) {
             centers[k] = Math.max(centers[k + 1] - minStep, effHit / 2);
         }
     }
-    // 应用：动态设置热区尺寸 + top（热区盒左上，减去半径）
+    // 应用：动态设置热区尺寸 + top（热区盒左上，减去半径）；视觉圆点由 ::after 伪元素绘制，无需 padding
     for (let k = 0; k < centers.length; k++) {
         const dot = list.children[k];
-        const pad = Math.max(0, (effHit - NAV_DOT_SIZE) / 2);
         dot.style.width = `${effHit}px`;
         dot.style.height = `${effHit}px`;
         dot.style.marginLeft = `${-effHit / 2}px`;
-        dot.style.padding = `${pad}px`;
         dot.style.top = `${centers[k] - effHit / 2}px`;
     }
     // 同步刷新布局缓存（box 用 offsetTop/offsetHeight，本就在布局阶段读取，无额外开销）
@@ -1079,11 +1079,6 @@ function injectStyles() {
     width: ${NAV_DOT_HIT}px;
     height: ${NAV_DOT_HIT}px;
     margin-left: -${NAV_DOT_HIT / 2}px;
-    padding: ${(NAV_DOT_HIT - NAV_DOT_SIZE) / 2}px;
-    border-radius: 50%;
-    background: var(--dot-color, ${NAV_PROGRESS_COLOR});
-    background-clip: content-box;
-    -webkit-background-clip: content-box;
     border: none;
     cursor: pointer;
     pointer-events: auto;
@@ -1091,6 +1086,21 @@ function injectStyles() {
     transition: transform 0.15s, box-shadow 0.15s;
     z-index: 2;
     opacity: 1;
+}
+/* 视觉圆点：伪元素绘制正圆。避免 background-clip:content-box 的矩形/扁点问题
+   （content-box 矩形背景不会被 border-radius 裁成圆），并精确居中于热区中心，
+   不受热区尺寸 / sub-pixel 舍入影响，保证圆心与竖线对齐 */
+.ccore-msg-nav-dot::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: ${NAV_DOT_SIZE}px;
+    height: ${NAV_DOT_SIZE}px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--dot-color, ${NAV_PROGRESS_COLOR});
+    transition: transform 0.15s;
 }
 .ccore-msg-nav-dot:hover {
     transform: scale(1.4);
