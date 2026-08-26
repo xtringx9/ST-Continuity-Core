@@ -709,7 +709,9 @@ export const aiCaller = {
             const abortController = new AbortController();
             // 暴露中止能力（调试面板「中止」按钮用）
             options.onAbort?.(() => abortController.abort());
-            const responseData = await sendOpenAIRequest('normal', assembledChat, abortController.signal);
+            // ⚠️ 续写模式必须发 type='continue'：该后端据此把末尾 assistant 当「待继续」；发 normal 会被当普通生成 → 空返回。
+            const sendType = (typeof continuePrefix === 'string' && continuePrefix) ? 'continue' : 'normal';
+            const responseData = await sendOpenAIRequest(sendType, assembledChat, abortController.signal);
 
             // 解析响应：流式（async generator）与非流式（对象/字符串）
             let resultText = '';
