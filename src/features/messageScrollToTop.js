@@ -62,6 +62,11 @@ let chatChangedListener = null;   // CHAT_CHANGED 监听（聊天页门控：进
 let cachedAllMes = [];            // D) 由 MutationObserver 维护的全部 .mes 元素数组，避免每帧 querySelectorAll
 let cachedCenters = null;         // A) 圆点中心 y 数组（相对 nav 条顶），布局不变时复用
 let cachedCenterSig = '';         // A) 布局签名；变化（消息数/高度/视口高变）时重算 centers
+// 布局阶段缓存每条消息的 offsetTop/offsetHeight + mesid→index 映射，
+// 滚动阶段（每帧）直接据此 + chatEl.scrollTop 推算视口内位置，完全不读 getBoundingClientRect，
+// 从而把每帧的强制同步布局（layout thrashing）从 ~3N 次 rect 读降到 0 次消息 rect 读。
+let cachedMesBoxes = [];          // [{top, bottom}] 相对 #chat 滚动内容顶（offsetTop / offsetTop+offsetHeight）
+let cachedMesIndex = new Map();   // mesid(string) -> index（在 cachedAllMes 中的位置）
 
 /**
  * 为当前所有消息添加「滚动 / 跳转」按钮（挂在 body 上，按 mesid + dir 关联）
@@ -337,107 +342,90 @@ function onScrollHandleDown(event) {
  * 仍按视口底相对位置算比例，使高亮与进度对应同一消息、无错位。
  * @returns {HTMLElement|null}
  */
-/** B) 取视口附近消息元素（rect 实时过滤 cachedAllMes，避免每帧 querySelectorAll）。
- *  原用 IntersectionObserver 维护 visibleMesEls，但 ST 重建 #chat 时旧节点失效、IO 不报告
- *  新节点，导致集合恒空；改为每帧基于已缓存的 cachedAllMes 用 getBoundingClientRect 过滤，
- *  开销仅为 O(N) 次只读 rect（不 querySelector、不写 DOM），且始终随滚动正确更新。 */
-function getVisibleMes() {
-    const chatEl = document.getElementById('chat');
-    if (!chatEl) return cachedAllMes;
-    const chatRect = chatEl.getBoundingClientRect();
+/**
+ * C) 取视口附近消息（基于布局阶段缓存的 cachedMesBoxes + 本帧 chat 滚动偏移推算，
+ *  完全不读 getBoundingClientRect，避免每帧 O(N) 强制布局）。
+ *  返回 { els, top, bottom }——els 为视口附近（含 MARGIN 缓冲）的消息元素数组，
+ *  top/bottom 为这些元素的视口相对 y（= box.top - scrollTop + chatTop，box 已缓存）。
+ *  由 repositionButtons 每帧只计算一次，锚点/已读线/progress 共用，杜绝 3N 次 rect 读。
+ * @param {{chatTop:number, scrollTop:number, viewH:number}} ctx
+ */
+function getVisibleMesCtx(ctx) {
+    if (cachedAllMes.length === 0) return { els: cachedAllMes, top: [], bottom: [] };
     const MARGIN = 300;
-    const top = chatRect.top - MARGIN;
-    const bottom = chatRect.bottom + MARGIN;
-    const near = [];
-    for (const el of cachedAllMes) {
-        const r = el.getBoundingClientRect();
-        if (r.bottom > top && r.top < bottom) near.push(el);
-    }
-    return near.length > 0 ? near : cachedAllMes;
-}
-
-function getAnchorMesEl() {
-    const chatEl = document.getElementById('chat');
-    if (!chatEl) return null;
-    const chatRect = chatEl.getBoundingClientRect();
-    // 高亮基准：视口中央（消息到达屏幕中心即视为「当前」）
-    const refY = chatRect.top + chatRect.height / 2;
-    if (cachedAllMes.length === 0) { refreshAllMesCache(); }
-    if (cachedAllMes.length === 0) return null;
-    const full = cachedAllMes;
-    // B) 优先在视口附近消息里找 anchor（穿过视口的消息必被 IO 标记，正常必命中）；
-    //    极快滚动过渡帧 IO 滞后导致可见集漏掉时，回退全量保证高亮不丢。
-    const candidates = getVisibleMes();
-    if (candidates !== full) {
-        const anchor = candidates.find((el) => {
-            const r = el.getBoundingClientRect();
-            return r.top <= refY && r.bottom > refY;
-        });
-        if (anchor) return anchor;
-    }
-    // 全量 fallback：先找「穿过 refY」的那条（与 candidates 同标准），命中即返回；
-    // 仅当 refY 恰落在两消息缝隙（都不穿过）才退回 center 距 refY 最近，避免原
-    // 「center 最近」算法在相邻消息 center 都偏一侧时切换点被压低（高亮偏晚）。
-    const hit = full.find((el) => {
-        const r = el.getBoundingClientRect();
-        return r.top <= refY && r.bottom > refY;
-    });
-    if (hit) return hit;
-    let best = null;
-    let bestDist = Infinity;
-    for (const el of full) {
-        const r = el.getBoundingClientRect();
-        const c = r.top + r.height / 2;
-        const d = Math.abs(c - refY);
-        if (d < bestDist) {
-            bestDist = d;
-            best = el;
+    const vTop = -MARGIN;                 // 视口相对 chat 顶：chatTop 在 ctx 外统一加
+    const vBottom = ctx.viewH + MARGIN;
+    const nearEls = [];
+    const nearTop = [];
+    const nearBottom = [];
+    for (let i = 0; i < cachedAllMes.length; i++) {
+        const box = cachedMesBoxes[i];
+        // 视口相对 y：消息在聊天内容中的 top - 已滚动量；chatTop 是 #chat 相对视口的 top
+        const relTop = box.top - ctx.scrollTop;
+        const relBottom = box.bottom - ctx.scrollTop;
+        if (relBottom > vTop && relTop < vBottom) {
+            nearEls.push(cachedAllMes[i]);
+            nearTop.push(relTop + ctx.chatTop);   // 转成相对视口（含 chatTop 偏移）
+            nearBottom.push(relBottom + ctx.chatTop);
         }
     }
+    if (nearEls.length > 0) return { els: nearEls, top: nearTop, bottom: nearBottom };
+    // 极端：无邻近消息（理论上不会）回退全量，仍用缓存推算避免 rect 读
+    const top = [], bottom = [];
+    for (let i = 0; i < cachedAllMes.length; i++) {
+        top.push(cachedMesBoxes[i].top - ctx.scrollTop + ctx.chatTop);
+        bottom.push(cachedMesBoxes[i].bottom - ctx.scrollTop + ctx.chatTop);
+    }
+    return { els: cachedAllMes, top, bottom };
+}
+
+/** 在「已推算好的视口相对 y 数组」里找穿过 refY 的消息索引；缝隙则取中心最近。 */
+function findAnchorInCtx(ctx, vis, refY) {
+    for (let i = 0; i < vis.els.length; i++) {
+        if (vis.top[i] <= refY && vis.bottom[i] > refY) return vis.els[i];
+    }
+    let best = null, bestDist = Infinity;
+    for (let i = 0; i < vis.els.length; i++) {
+        const c = (vis.top[i] + vis.bottom[i]) / 2;
+        const d = Math.abs(c - refY);
+        if (d < bestDist) { bestDist = d; best = vis.els[i]; }
+    }
     return best;
+}
+
+function getAnchorMesEl(ctx, vis) {
+    if (cachedAllMes.length === 0) return null;
+    const refY = ctx.chatTop + ctx.viewH / 2; // 视口中央基准
+    return findAnchorInCtx(ctx, vis, refY);
 }
 
 /**
  * 取包含给定 y 坐标（相对视口）的消息；若 y 恰落在两消息缝隙，取中心最接近 y 的消息。
  * 用于已读段进度的独立锚点（视口底基准），与高亮锚点（视口中心）解耦。
- * @param {number} y 相对聊天视口顶的 y 坐标
- * @param {HTMLElement[]} allMes 当前全部消息元素
+ * @param {number} y 相对视口顶的 y 坐标
+ * @param {object} vis getVisibleMesCtx 的结果（本帧复用，不再重算）
  * @returns {HTMLElement|null}
  */
-function getMesAtY(y, allMes) {
-    if (!allMes || allMes.length === 0) return null;
-    // B) 优先在视口附近消息里找（视口底消息必穿过视口，正常必命中）；IO 滞后时回退全量
-    const candidates = getVisibleMes();
-    if (candidates !== allMes && candidates.length > 0) {
-        const hit = candidates.find((el) => {
-            const r = el.getBoundingClientRect();
-            return r.top <= y && r.bottom > y;
-        });
-        if (hit) return hit;
-    }
-    const arr = Array.from(allMes);
-    const hit = arr.find((el) => {
-        const r = el.getBoundingClientRect();
-        return r.top <= y && r.bottom > y;
-    });
-    if (hit) return hit;
-    let best = null;
-    let bestDist = Infinity;
-    for (const el of arr) {
-        const r = el.getBoundingClientRect();
-        const c = r.top + r.height / 2;
-        const d = Math.abs(c - y);
-        if (d < bestDist) {
-            bestDist = d;
-            best = el;
-        }
-    }
-    return best;
+function getMesAtY(y, vis) {
+    if (!vis || vis.els.length === 0) return null;
+    return findAnchorInCtx(null, vis, y);
 }
 
-/** D) 刷新全部 .mes 缓存（由 MutationObserver / 初始化触发，避免每帧 querySelectorAll）。 */
+/** D) 刷新全部 .mes 缓存（由 MutationObserver / 初始化触发，避免每帧 querySelectorAll）。
+ *  同时重建 cachedMesBoxes（相对 #chat 内容顶的 offset 区间，布局变化低频）与
+ *  cachedMesIndex（mesid→index），供滚动阶段免 getBoundingClientRect 推算位置。 */
 function refreshAllMesCache() {
     cachedAllMes = Array.from(document.querySelectorAll('#chat .mes'));
+    cachedMesBoxes = new Array(cachedAllMes.length);
+    cachedMesIndex = new Map();
+    for (let i = 0; i < cachedAllMes.length; i++) {
+        const el = cachedAllMes[i];
+        const top = el.offsetTop;
+        const h = el.offsetHeight;
+        cachedMesBoxes[i] = { top, bottom: top + h };
+        const id = el.getAttribute('mesid');
+        if (id !== null) cachedMesIndex.set(id, i);
+    }
 }
 
 /**
@@ -498,6 +486,13 @@ function recomputeCenters(allMes, total, barH, list) {
         dot.style.marginLeft = `${-effHit / 2}px`;
         dot.style.padding = `${pad}px`;
         dot.style.top = `${centers[k] - effHit / 2}px`;
+    }
+    // 同步刷新布局缓存（box 用 offsetTop/offsetHeight，本就在布局阶段读取，无额外开销）
+    for (let i = 0; i < total; i++) {
+        const mes = allMes[i];
+        const top = mes.offsetTop;
+        const h = mes.offsetHeight;
+        if (cachedMesBoxes[i]) { cachedMesBoxes[i].top = top; cachedMesBoxes[i].bottom = top + h; }
     }
     // 仅在布局变化（低频）时同步消息圆点颜色与楼层号，覆盖「is_user 判定初次渲染后才稳定」的边界，
     // 避免每帧 O(N) 样式写（原 rebuildNavDots 的 else 分支是滚轮卡顿残留主因）。
@@ -611,12 +606,8 @@ function repositionButtons() {
 
     // 一次性收集消息元素映射，避免每个按钮都做一次属性选择器查询（原 O(N) 次扫描）
     if (cachedAllMes.length === 0) refreshAllMesCache();
-    const mesMap = new Map();
-    cachedAllMes.forEach((el) => {
-        const id = el.getAttribute('mesid');
-        if (id !== null) mesMap.set(id, el);
-    });
-    const hasMes = mesMap.size > 0;
+    const mesMap = cachedMesIndex; // 复用布局阶段缓存的 mesid→index 映射
+    const hasMes = cachedAllMes.length > 0;
 
     // 圆点条矩形（位于聊天视口右侧中部，竖向铺满聊天高度，与消息按钮同贴右缘）
     let navRect = null;
@@ -627,18 +618,31 @@ function repositionButtons() {
         const navH = chatRect.height - NAV_VPAD * 2;
         navRect = { left: navLeft, top: navTop, right: navLeft + navW, bottom: navTop + navH };
     }
+    const navCenterY = navRect ? navRect.top + navRect.height / 2 : 0;
+
+    // 横向：per-message 按钮紧贴圆点条左侧，与圆点条间隔 BUTTON_GAP 不重叠
+    const btnLeft = chatRect.right - NAV_BAR_WIDTH - BUTTON_GAP - BUTTON_SIZE - EDGE_GAP;
+
+    // 视口相对 chat 顶偏移：消息在视口中的 top = box.top - scrollTop；
+    // 用布局缓存 cachedMesBoxes 推算，完全不读 getBoundingClientRect（消除每帧 N 次强制布局）。
+    const scrollTop = chatEl.scrollTop;
+    const viewTop = chatRect.top;
+    const viewBottom = chatRect.bottom;
 
     const posCache = new Map();
     const buttons = document.querySelectorAll(`.${BUTTON_CLASS}`);
     buttons.forEach((btn) => {
         const mesId = btn.getAttribute('data-mes-id');
-        const mesEl = mesId !== null ? mesMap.get(mesId) : null;
-        if (!mesEl) {
+        const idx = mesId !== null ? mesMap.get(mesId) : undefined;
+        const box = (idx !== undefined && cachedMesBoxes[idx]) ? cachedMesBoxes[idx] : null;
+        if (box === null) {
             if (btn.style.display !== 'none') btn.style.display = 'none';
             return;
         }
-        const mesRect = mesEl.getBoundingClientRect();
-        const visible = mesRect.bottom > chatRect.top + 4 && mesRect.top < chatRect.bottom - 4;
+        // 消息在视口中的绝对 y（用缓存 box + scrollTop + chatRect.top 推算，免 rect 读）
+        const mesTopV = box.top - scrollTop + viewTop;
+        const mesBottomV = box.bottom - scrollTop + viewTop;
+        const visible = mesBottomV > viewTop + 4 && mesTopV < viewBottom - 4;
         if (!visible) {
             if (btn.style.display !== 'none') btn.style.display = 'none';
             return;
@@ -655,8 +659,8 @@ function repositionButtons() {
             let topBtnTop;    // dir=top（跳转顶部）按钮的 top：贴近消息可见底部
             const needH = BUTTON_SIZE * 2 + BUTTON_GAP;
 
-            const visTop = Math.max(mesRect.top, chatRect.top);
-            const visBottom = Math.min(mesRect.bottom, chatRect.bottom);
+            const visTop = Math.max(mesTopV, viewTop);
+            const visBottom = Math.min(mesBottomV, viewBottom);
             const visH = visBottom - visTop;
 
             if (visH >= needH) {
@@ -684,14 +688,13 @@ function repositionButtons() {
             // 垂直避让：per-message 按钮位于圆点条左侧，通常不重叠；
             // 仅在极端情况下（如消息超宽等）仍做兜底避让
             if (navRect) {
-                const colLeft = chatRect.right - NAV_BAR_WIDTH - BUTTON_SIZE - EDGE_GAP;
+                const colLeft = btnLeft;
                 const horizOverlap = Math.max(colLeft, navRect.left) < Math.min(colLeft + BUTTON_SIZE, navRect.right);
                 if (horizOverlap) {
-                    const colCenter = mesRect.top + mesRect.height / 2;
-                    const navCenter = navRect.top + navRect.height / 2;
+                    const colCenter = (mesTopV + mesBottomV) / 2;
                     const intersects = colBottomTop > navRect.top && colTopTop < navRect.bottom;
                     if (intersects) {
-                        if (colCenter <= navCenter) {
+                        if (colCenter <= navCenterY) {
                             colBottomTop = navRect.top - NAV_AVOID_GAP - BUTTON_SIZE;
                         } else {
                             colTopTop = navRect.bottom + NAV_AVOID_GAP;
@@ -706,10 +709,7 @@ function repositionButtons() {
 
             // 按方向给出各自 top：bottom(跳转底部)→消息顶；top(跳转顶部)→消息底
             const dirTops = { bottom: bottomBtnTop, top: topBtnTop };
-
-            // 横向：per-message 按钮紧贴圆点条左侧，与圆点条间隔 BUTTON_GAP 不重叠
-            const left = chatRect.right - NAV_BAR_WIDTH - BUTTON_GAP - BUTTON_SIZE - EDGE_GAP;
-            pos = { dirTops, left };
+            pos = { dirTops, left: btnLeft };
             posCache.set(mesId, pos);
         }
 
@@ -751,14 +751,16 @@ function repositionButtons() {
             // 高亮圆点（用户关注的消息）与已读段进度（读到的位置）解耦、各自用最合适的基准：
             //  - 高亮：视口【中心】基准（getAnchorMesEl），短消息居中时高亮居中的那条；
             //  - 已读段：视口【底】基准独立算进度，反映「读到哪」，与高亮互不干扰、各自正确。
-            const anchor = getAnchorMesEl();           // 高亮用：视口中心
+            // C) 本帧只算一次可见集（基于缓存 box），anchor 与 readLine 共用，杜绝重复 rect 读。
+            const visCtx = getVisibleMesCtx({ chatTop: chatRect.top, scrollTop: chatEl.scrollTop, viewH: chatRect.height });
+            const anchor = getAnchorMesEl({ chatTop: chatRect.top, scrollTop: chatEl.scrollTop, viewH: chatRect.height }, visCtx);
             const readLine = navEl.querySelector(`.${NAV_PROGRESS_CLASS}-read`);
             let readLineBottom = null; // 已读线末端 y（相对 nav 条顶），供拖拽滑块对齐
 
             // —— 高亮圆点（视口中心基准）——
             if (anchor && list) {
-                const idx = Array.prototype.indexOf.call(allMes, anchor);
-                if (idx !== -1) {
+                const idx = cachedMesIndex.get(anchor.getAttribute('mesid'));
+                if (idx !== undefined && idx !== -1) {
                     const activeChildIdx = idx + 1; // 消息圆点从 children[1] 开始
                     if (lastActiveDot !== activeChildIdx) {
                         if (lastActiveDot >= 0 && list.children[lastActiveDot]) {
@@ -774,10 +776,11 @@ function repositionButtons() {
 
             // —— 已读竖线（视口底基准，独立锚点）——
             // 进度 anchor：视口底参考线包含的消息；进度 = 该消息顶→底被视口底扫过的比例。
-            const pAnchor = getMesAtY(chatRect.bottom - 2, allMes);
+            // 用缓存 box 推算消息在视口中的 top/height，完全不读 getBoundingClientRect。
+            const pAnchor = getMesAtY(chatRect.bottom - 2, visCtx);
             if (pAnchor && list) {
-                const pIdx = Array.prototype.indexOf.call(allMes, pAnchor);
-                if (pIdx !== -1) {
+                const pIdx = cachedMesIndex.get(pAnchor.getAttribute('mesid'));
+                if (pIdx !== undefined && pIdx !== -1) {
                     const pDotIdx = pIdx + 1;
                     const pDot = list.children[pDotIdx];
                     const nextDot = list.children[pDotIdx + 1];
@@ -786,9 +789,10 @@ function repositionButtons() {
                         const aCenter = parseFloat(pDot.style.top) + dotH / 2;
                         const nH = parseFloat(nextDot.style.height) || NAV_DOT_HIT * NAV_DOT_HIT_SCALE;
                         const nCenter = parseFloat(nextDot.style.top) + nH / 2;
-                        const aRect = pAnchor.getBoundingClientRect();
-                        const span = aRect.height || 1;
-                        let p = (chatRect.bottom - 2 - aRect.top) / span;
+                        const box = cachedMesBoxes[pIdx];
+                        const aTopV = box.top - chatEl.scrollTop;       // 消息顶相对视口
+                        const span = (box.bottom - box.top) || 1;
+                        let p = (chatRect.bottom - 2 - (aTopV + chatRect.top)) / span;
                         if (p < 0) p = 0; else if (p > 1) p = 1;
                         readLineBottom = aCenter + p * (nCenter - aCenter);
                         const color = pDot.style.getPropertyValue('--dot-color') || NAV_PROGRESS_COLOR;
@@ -882,6 +886,8 @@ export function removeMessageScrollToTop() {
     }
     lastActiveDot = -1;
     cachedAllMes = [];
+    cachedMesBoxes = [];
+    cachedMesIndex = new Map();
     cachedCenters = null;
     cachedCenterSig = '';
     if (refreshDebounceTimer) {
