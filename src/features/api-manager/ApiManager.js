@@ -8,9 +8,10 @@
 
 import configManager from '../../singleton/configManager.js';
 import { warnLog, infoLog, errorLog } from '../../utils/logger.js';
-import { SECRET_KEYS, secret_state, readSecretState, rotateSecret } from '../../../../../../secrets.js';
+import { SECRET_KEYS, secret_state, readSecretState } from '../../../../../../secrets.js';
 import { uuidv4 } from '../../../../../../utils.js';
 import { Popup, callGenericPopup, POPUP_TYPE, POPUP_RESULT } from '../../../../../../popup.js';
+import { rotateSecretQuiet } from '../../services/secretRotator.js';
 
 // 密钥池固定为「自定义(OpenAI兼容)」——用户场景与供应商无关，只认自定义端点 + 这池密钥。
 const API_KEY = SECRET_KEYS.CUSTOM;
@@ -191,11 +192,12 @@ async function applySelected(id) {
     urlInput.dispatchEvent(new Event('input', { bubbles: true }));
 
     if (p.secretId) {
-        try {
-            await rotateSecret(API_KEY, p.secretId);
+        // 静默旋转：不走 ST rotateSecret（会触发 #main_api change → 自动重连 → 切预设/拉模型，卡顿）
+        const ok = await rotateSecretQuiet(API_KEY, p.secretId);
+        if (ok) {
             toastr.success(`已应用「${p.name}」并切换对应密钥`);
-        } catch (err) {
-            errorLog('[ApiManager] 切换密钥失败:', err);
+        } else {
+            errorLog('[ApiManager] 切换密钥失败:', p.secretId);
             toastr.error('已填入端点，但切换密钥失败');
         }
     } else {

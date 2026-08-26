@@ -16,8 +16,9 @@ import { openai_setting_names } from '../../../../../../openai.js';
 import { errorLog } from '../../utils/logger.js';
 import { showToast } from '../../shared/Toast.js';
 import configManager from '../../singleton/configManager.js';
-import { SECRET_KEYS, secret_state, readSecretState, rotateSecret } from '../../../../../../secrets.js';
+import { SECRET_KEYS, secret_state, readSecretState } from '../../../../../../secrets.js';
 import { getRequestHeaders } from '../../../../../../../script.js';
+import { rotateSecretQuiet } from '../../services/secretRotator.js';
 
 // 方案 B（2026-08-26）：secretId 拉取模型走 ST 服务端 status（readSecret(CUSTOM) 读激活密钥），
 // 临时激活目标密钥、用毕还原，避免浏览器接触密钥原文与长期改变全局激活。
@@ -29,7 +30,8 @@ async function _transientlyActivateSecret(secretId) {
         }
         const prior = (secret_state[SECRET_KEYS.CUSTOM] || []).find(s => s && s.active);
         const priorId = prior?.id || null;
-        await rotateSecret(SECRET_KEYS.CUSTOM, secretId);
+        // 静默旋转：不走 ST rotateSecret（会触发 #main_api change → 自动重连 → 切预设/拉模型，卡顿）
+        await rotateSecretQuiet(SECRET_KEYS.CUSTOM, secretId);
         return priorId;
     } catch (e) {
         errorLog('[AsyncSettings] 临时激活 secretId 失败:', e);
@@ -417,7 +419,7 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
                     if (Array.isArray(data?.data)) models = data.data.map(m => m.id).filter(Boolean);
                     else if (Array.isArray(data?.models)) models = data.models.map(m => m.id || m.name).filter(Boolean);
                 } finally {
-                    if (prev) { try { await rotateSecret(SECRET_KEYS.CUSTOM, prev); } catch (e) { /* 忽略还原失败 */ } }
+                    if (prev) { try { await rotateSecretQuiet(SECRET_KEYS.CUSTOM, prev); } catch (e) { /* 忽略还原失败 */ } }
                 }
             } else {
                 showToast('未配置密钥（明文 key 为空且无 secretId）', 'warning');

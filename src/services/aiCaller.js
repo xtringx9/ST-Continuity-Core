@@ -27,7 +27,8 @@ import { MacrosParser } from '../../../../../macros.js';
 import { getPromptBindings, WB_BIND_MODE } from '../features/prompt-binding/promptBindingState.js';
 import configManager from '../singleton/configManager.js';
 import { debugLog, infoLog, errorLog, warnLog } from '../utils/logger.js';
-import { SECRET_KEYS, secret_state, readSecretState, rotateSecret } from '../../../../../secrets.js';
+import { SECRET_KEYS, secret_state, readSecretState } from '../../../../../secrets.js';
+import { rotateSecretQuiet } from './secretRotator.js';
 
 const LOG_TAG = 'AiCaller';
 
@@ -61,7 +62,8 @@ async function _transientlyActivateSecret(secretId) {
         }
         const prior = (secret_state[SECRET_KEYS.CUSTOM] || []).find(s => s && s.active);
         const priorId = prior?.id || null;
-        await rotateSecret(SECRET_KEYS.CUSTOM, secretId);
+        // 静默旋转：不走 ST rotateSecret（会触发 #main_api change → 自动重连 → 切预设/拉模型，卡顿且干扰并发预设保护）
+        await rotateSecretQuiet(SECRET_KEYS.CUSTOM, secretId);
         debugLog(LOG_TAG, `已临时激活 secretId=${secretId}（前激活=${priorId || '无'}）`);
         return priorId;
     } catch (e) {
@@ -387,7 +389,7 @@ export const aiCaller = {
             if (settingsCleanup) settingsCleanup();
             // 还原 active 密钥（临时激活的 secretId 用完后切回原激活）
             if (restoreSecretId) {
-                try { rotateSecret(SECRET_KEYS.CUSTOM, restoreSecretId).catch(() => {}); } catch (e) { /* 忽略还原失败 */ }
+                try { rotateSecretQuiet(SECRET_KEYS.CUSTOM, restoreSecretId); } catch (e) { /* 忽略还原失败 */ }
             }
         }
 
