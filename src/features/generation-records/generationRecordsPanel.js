@@ -46,6 +46,17 @@ function statusLabelFor(r) {
 }
 
 /**
+ * 楼层 + 对应 swipe 的展示文本：`#楼层`；记录带 swipeId 时追加 `· swipe N`。
+ * ⚠️ ST 原生 swipe 显示从 1 起（内部 swipe_id 为 0 起），此处 +1 对齐，避免语义偏差。
+ * @param {number} mesId
+ * @param {number} [swipeId] ST 正文内部 swipe_id（0 起），无则省略
+ */
+function floorLabel(mesId, swipeId) {
+    const base = `#${mesId}`;
+    return swipeId !== undefined && swipeId !== null ? `${base} · swipe ${swipeId + 1}` : base;
+}
+
+/**
  * 打开生成记录面板（单实例）。面板已打开时直接切换视图（不重建 iframe）。
  * @param {Object} [opts]
  * @param {'list'|'detail'} [opts.view] 初始视图：list=列表（默认）；detail=详情（需 recordId 或 running）
@@ -229,7 +240,7 @@ function bindPanel(doc) {
             card.innerHTML = `
                 <div class="ccore-records-card-head">
                     <span class="ccore-records-status">${statusLabel}</span>
-                    <span class="ccore-records-meta">${charName} / ${chatName} / #${r.mesId}</span>
+                    <span class="ccore-records-meta">${charName} / ${chatName} / ${floorLabel(r.mesId, r.swipeId)}</span>
                     <span class="ccore-records-time">${time}</span>
                 </div>
                 <div class="ccore-records-card-body">
@@ -243,6 +254,7 @@ function bindPanel(doc) {
                         taskKey: r.taskKey || '',
                         generatorName: r.generatorName,
                         mesId: r.mesId,
+                        swipeId: r.swipeId,
                         debugData: r.debugData || {},
                     });
                 } else {
@@ -272,7 +284,7 @@ function bindPanel(doc) {
 
         // 顶栏：返回 + 状态徽章（pending/已处理均显示）+ 角色/聊天/楼层；底栏：记录时间
         updateHeader('detail', {
-            text: `${charName} / ${chatName} / #${record.mesId}`,
+            text: `${charName} / ${chatName} / ${floorLabel(record.mesId, record.swipeId)}`,
             badge: { label: statusLabel, type: record.status },
         });
         if (footerTimeEl) footerTimeEl.textContent = time;
@@ -612,11 +624,11 @@ function hideCurrentContent() {
 showRunningDetail = (running) => {
     state.running = running;
     state.currentId = null;
-    const { taskKey, generatorName, mesId, debugData } = running;
+    const { taskKey, generatorName, mesId, swipeId, debugData } = running;
     if (!panelDoc) return;
 
     updateHeader('running', {
-        text: `${generatorName || 'modules'} / #${mesId} · 生成中`,
+        text: `${generatorName || 'modules'} / ${floorLabel(mesId, swipeId)} · 生成中`,
         badge: { label: '生成中', type: 'running' },
     });
     if (footerTimeEl) footerTimeEl.textContent = '';

@@ -6,7 +6,7 @@ import { initChatReader, syncChatReaderTheme } from '../chat-reader/ChatReader.j
 import { warnLog } from '../../utils/logger.js';
 import { openContextBottomAsModal, isInChatPage } from '../../core/contextBottomUI.js';
 import { taskRegistry } from '../../core/taskRegistry.js';
-import { getPendingCount } from '../../services/moduleAiGenerator.js';
+import { getPendingCount, getRunningCount } from '../../services/moduleAiGenerator.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
 import { eventSource, event_types } from '../../../../../../../script.js';
 
@@ -49,7 +49,10 @@ export class EntryButton {
 
         const update = () => {
             // 未完成数 = running 任务 + 待处理(pending)记录（2026-08-18：处理完才算结束，失败也算处理完）
-            const count = taskRegistry.getTotalRunningCount() + getPendingCount();
+            // ⚠️ running 用 getRunningCount（基于 runningTasks，runId 唯一，并发多个各算一条）
+            //   而不 taskRegistry.getTotalRunningCount——taskRegistry 按 chatKey::mesId::generatorName
+            //   作 key，同楼层同 generator 并发会覆盖（并发 2 个只算 1）。
+            const count = getRunningCount() + getPendingCount();
             if (count > 0) {
                 badge.textContent = count > 99 ? '99+' : String(count);
                 badge.style.display = 'block';

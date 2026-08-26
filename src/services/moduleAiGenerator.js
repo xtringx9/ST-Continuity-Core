@@ -112,8 +112,17 @@ const pendingResults = new Map();
 // 此 Map 用唯一 runId 记录，保证并发多个生成都出现在记录列表。
 const runningTasks = new Map();
 
-function _trackRunningTask(runId, chatKey, mesId, generatorName, taskKey, startedAt = Date.now()) {
-    runningTasks.set(runId, { chatKey, mesId, generatorName, taskKey, startedAt, debugData: {} });
+/**
+ * 通知 UI 刷新（大 Cc 徽标等基于 runningTasks 计数者，须在 runningTasks 增删时同步刷一次，
+ * 不能只靠 taskRegistry.start/finish——它在 error 路径先 finish 后 _untrack，徽标会过期）。
+ */
+function _emitRunningTaskChanged() {
+    window.dispatchEvent(new CustomEvent(taskRegistry.TASK_UPDATE_EVENT));
+}
+
+function _trackRunningTask(runId, chatKey, mesId, generatorName, taskKey, swipeId, startedAt = Date.now()) {
+    runningTasks.set(runId, { chatKey, mesId, generatorName, taskKey, swipeId, startedAt, debugData: {} });
+    _emitRunningTaskChanged();
 }
 
 function _updateRunningTask(runId, debugData) {
@@ -122,7 +131,9 @@ function _updateRunningTask(runId, debugData) {
 }
 
 function _untrackRunningTask(runId) {
+    if (!runningTasks.has(runId)) return;
     runningTasks.delete(runId);
+    _emitRunningTaskChanged();
 }
 
 let pendingIdCounter = 0;
@@ -424,7 +435,7 @@ export function getAllPendingRecords() {
         const mesId = Number(parts[3]);
         (records || []).forEach(r => {
             if (r && typeof r === 'object') {
-                out.push({ key, chatKey, generatorName, mesId, ...r });
+                out.push({ key, chatKey, generatorName, mesId, ...r, swipeId: r.context?.swipeId });
             }
         });
     }
@@ -440,6 +451,7 @@ export function getAllPendingRecords() {
             chatKey: t.chatKey,
             generatorName: t.generatorName,
             mesId: t.mesId,
+            swipeId: t.swipeId,
             id: `running_${runId}`,
             status: 'running',
             createdAt: t.startedAt || Date.now(),
@@ -517,6 +529,20 @@ export function getRunningCountForMes(mesId) {
     let count = 0;
     for (const t of runningTasks.values()) {
         if (t.chatKey === chatKey && Number(t.mesId) === Number(mesId)) count++;
+    }
+    return count;
+}
+
+/**
+ * 全局运行中任务数（大 Cc 徽标用）。
+ * ⚠️ 基于 runningTasks（runId 唯一）而非 taskRegistry——taskRegistry 按
+ *   chatKey::mesId::generatorName 作 key，同楼层同 generator 并发会覆盖（只算 1）；
+ *   runningTasks 每个独立生成各占一条，并发多个正确计数。
+ */
+export function getRunningCount() {
+    let count = 0;
+    for (const t of runningTasks.values()) {
+        if (t.chatKey && t.mesId !== undefined) count++;
     }
     return count;
 }
@@ -810,7 +836,7 @@ export const moduleAiGenerator = {
             const k = taskRegistry.start({ chatKey: taskChatKey, mesId: m.mesId, generatorName });
             taskKeys.push(k);
             // 独立跟踪运行中任务（taskRegistry 同 key 并发会覆盖；此 Map 按唯一 runId 记录）
-            _trackRunningTask(runId, taskChatKey, m.mesId, generatorName, k);
+            _trackRunningTask(runId, taskChatKey, m.mesId, generatorName, k, m.activeSwipeId);
         }
 
         // 中止能力：aiCaller 暴露 abort 后注入对应任务（调试面板「中止」按钮用）
