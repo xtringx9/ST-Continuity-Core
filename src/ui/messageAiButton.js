@@ -425,7 +425,7 @@ async function onInsertOuterSwipeAll(mesId) {
         if (result !== POPUP_RESULT.AFFIRMATIVE) return;
         const ok = insertOuterSwipeNode(mesId, outerSwipeId);
         if (!ok) {
-            toastr.warning('插入空白节点失败');
+            showToast.warning('插入空白节点失败');
             return;
         }
         infoLog(LOG_TAG, `消息 ${mesId} 在外层 ${outerSwipeId} 之前插入空白节点并后移`);
@@ -434,10 +434,10 @@ async function onInsertOuterSwipeAll(mesId) {
         generatedContentCache.delete(mesId);
         invalidateOccurrence(getChatCacheKey(), 'chatText', mesId);
         invalidateOccurrence(getChatCacheKey(), 'asyncChat', mesId);
-        toastr.success(`已在Swipe ${Number(outerSwipeId) + 1} 之前插入空白位置`);
+        showToast.success(`已在Swipe ${Number(outerSwipeId) + 1} 之前插入空白位置`);
     } catch (err) {
         errorLog(LOG_TAG, '插入外层 swipe 节点失败:', err);
-        toastr.error(`插入外层 swipe 节点失败：${err.message}`);
+        showToast.error(`插入外层 swipe 节点失败：${err.message}`);
     }
 }
 
@@ -460,7 +460,7 @@ async function onDeleteOuterSwipeAll(mesId) {
         if (result !== POPUP_RESULT.AFFIRMATIVE) return;
         const ok = deleteOuterSwipeNode(mesId, outerSwipeId);
         if (!ok) {
-            toastr.warning('未找到该Swipe节点，或已不存在');
+            showToast.warning('未找到该Swipe节点，或已不存在');
             return;
         }
         infoLog(LOG_TAG, `消息 ${mesId} 删除外层 swipe ${outerSwipeId} 全部 generator 节点并前移`);
@@ -480,10 +480,10 @@ async function onDeleteOuterSwipeAll(mesId) {
             });
             if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
         }
-        toastr.success(`已删除Swipe ${Number(outerSwipeId) + 1} 的全部异步生成内容`);
+        showToast.success(`已删除Swipe ${Number(outerSwipeId) + 1} 的全部异步生成内容`);
     } catch (err) {
         errorLog(LOG_TAG, '删除外层 swipe 节点失败:', err);
-        toastr.error(`删除外层 swipe 节点失败：${err.message}`);
+        showToast.error(`删除外层 swipe 节点失败：${err.message}`);
     }
 }
 
@@ -949,7 +949,7 @@ async function _askPromptBeforeGenerate(defaultPrompt, promptGroups = []) {
         if (g) {
             $textarea.val(g.prompt || '');
             if (g.role) $roleSelect.val(g.role);
-            toastr.info(`已载入提示词组「${g.name}」`);
+            showToast.info(`已载入提示词组「${g.name}」`);
         }
     });
 
@@ -976,7 +976,7 @@ async function _askPromptBeforeGenerate(defaultPrompt, promptGroups = []) {
         const text = String($textarea.val() ?? '');
         const role = String($roleSelect.val() || 'user');
         if (text.trim() === '') {
-            toastr.warning('提示词为空，已使用默认提示词');
+            showToast.warning('提示词为空，已使用默认提示词');
             return { prompt: defaultPrompt, role: null };
         }
         return { prompt: text, role };
@@ -1026,7 +1026,7 @@ async function onRegenerate(button, mesId, generatorName = 'modules', opts = {})
                     },
                 });
             } else {
-                toastr.info('该楼层此内容正在生成中…');
+                showToast.info('该楼层此内容正在生成中…');
             }
             return;
         }
@@ -1319,7 +1319,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
         try {
             const newId = appendGeneratorContent(mesId, generatorName, outerSwipeId, '');
             if (newId < 0) {
-                toastr.error('新建版本失败');
+                showToast.error('新建版本失败');
                 return;
             }
             refreshVersions();
@@ -1328,7 +1328,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             loadVersion(newIdx >= 0 ? newIdx : ids.length - 1);
         } catch (err) {
             errorLog(LOG_TAG, `新建版本失败:`, err);
-            toastr.error(`新建版本失败：${err.message}`);
+            showToast.error(`新建版本失败：${err.message}`);
         }
     });
 
@@ -1392,7 +1392,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             infoLog(LOG_TAG, `消息 ${mesId} ${generatorName} 删除版本 ${delSwipe}`);
         } catch (err) {
             errorLog(LOG_TAG, `删除版本失败:`, err);
-            toastr.error(`删除版本失败：${err.message}`);
+            showToast.error(`删除版本失败：${err.message}`);
         }
     });
 
@@ -1401,12 +1401,12 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
         e.stopPropagation();
         const prefix = String($textarea.val() || '').trim();
         if (!prefix) {
-            toastr.warning('当前内容为空，无需继续');
+            showToast.warning('当前内容为空，无需继续');
             return;
         }
         const continueSwipe = ids[currentIndex];
         if (continueSwipe === undefined) {
-            toastr.warning('无当前版本可继续');
+            showToast.warning('无当前版本可继续');
             return;
         }
         // ⚠️ 编辑框无法像 ST 正文那样实时流式显示追加内容，点击继续后先立刻关框；生成延到下一宏任务后台执行
@@ -1458,13 +1458,13 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
                                 }
                             }
                         }
-                        toastr.success('续写完成');
+                        showToast.success('续写完成');
                     } else {
-                        toastr.error(`续写失败：${result.error || '未知错误'}`);
+                        showToast.error(`续写失败：${result.error || '未知错误'}`);
                     }
                 } catch (err) {
                     errorLog(LOG_TAG, '续写失败:', err);
-                    toastr.error(`续写失败：${err.message}`);
+                    showToast.error(`续写失败：${err.message}`);
                 }
             })();
         }, 0);
@@ -1488,7 +1488,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
                 if (targetSwipe < 0) {
                     const msg = `保存失败：楼层 ${mesId} ${generatorName} 无法新建版本（楼层可能已不存在）`;
                     errorLog(LOG_TAG, msg);
-                    toastr.error(msg);
+                    showToast.error(msg);
                     $btn.removeClass('disabled').css('opacity', '');
                     return;
                 }
@@ -1536,7 +1536,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             }
         } catch (err) {
             errorLog(LOG_TAG, `保存消息 ${mesId} ${generatorName} 数据失败:`, err);
-            toastr.error(`保存消息 ${mesId} ${generatorName} 数据失败：${err.message}`);
+            showToast.error(`保存消息 ${mesId} ${generatorName} 数据失败：${err.message}`);
             $btn.removeClass('disabled').css('opacity', '');
         }
     });
