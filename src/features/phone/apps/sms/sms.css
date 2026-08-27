@@ -229,15 +229,35 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 9px 14px;
-    background: linear-gradient(180deg, #6bb0e8, #4d8fd5);
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: #f2f2f7;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 .sms-topbar-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    color: rgba(0, 0, 0, 0.9);
 }
+.sms-topbar-icons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.sms-topbar-icon {
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    color: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sms-topbar-icon:active { background: rgba(0, 0, 0, 0.08); }
 .sms-emptybody {
     flex: 1 1 auto;
     display: flex;

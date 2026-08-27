@@ -1,67 +1,67 @@
-/* 通用聊天 App 皮肤样式（像素皮，与手机外壳 phone.css 统一：黑描边 + 圆角） */
+/* 通用聊天 App 皮肤样式（去像素化：浅色系统风 + 品牌蓝） */
 
 /* ============ 会话列表 ============ */
 .g-conv-list {
     flex: 1 1 auto;
     overflow-y: auto;
     margin: 0;
-    padding: 0;
+    padding: 0 12px;
     list-style: none;
     background: #f2f2f7;
 }
 .g-conv {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-bottom: 2px solid rgba(28, 28, 30, 0.08);
+    gap: 12px;
+    padding: 12px 6px;
+    background: transparent;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     cursor: pointer;
-    background: #f2f2f7;
 }
-.g-conv:hover { background: #e8e8ee; }
-.g-conv:active { background: #dcdce2; }
+.g-conv:active { background: rgba(0, 0, 0, 0.04); }
 .g-avatar {
     flex: 0 0 auto;
     width: 46px;
     height: 46px;
-    border-radius: 12px;
-    background: #4f8cff;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6aa2ff, #3b78f0);
     color: #fff;
-    font-size: 20px;
-    font-weight: bold;
+    font-size: 18px;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid #1c1c1e;
+    flex-shrink: 0;
 }
 .g-conv-main {
     flex: 1 1 auto;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
 }
 .g-conv-title {
-    font-size: 15px;
-    font-weight: bold;
-    color: #1c1c1e;
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.9);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .g-conv-preview {
-    font-size: 12px;
-    color: #8e8e93;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.45);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .g-empty {
-    padding: 24px;
+    padding: 40px 24px;
     text-align: center;
-    color: #8e8e93;
+    color: rgba(0, 0, 0, 0.35);
     font-size: 14px;
     list-style: none;
+    background: transparent;
 }
 
 /* ============ 聊天窗口 ============ */
@@ -70,8 +70,8 @@
     display: flex;
     align-items: center;
     padding: 8px 6px;
-    background: #f8f8fa;
-    border-bottom: 2px solid #1c1c1e;
+    background: #f2f2f7;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 .g-chat-back {
     flex: 0 0 auto;
@@ -81,17 +81,17 @@
     background: transparent;
     font-size: 26px;
     line-height: 1;
-    color: #1c1c1e;
+    color: rgba(0, 0, 0, 0.8);
     cursor: pointer;
     border-radius: 8px;
 }
-.g-chat-back:active { background: #e8e8ee; }
+.g-chat-back:active { background: rgba(0, 0, 0, 0.08); }
 .g-chat-title {
     flex: 1 1 auto;
     text-align: center;
     font-size: 16px;
-    font-weight: bold;
-    color: #1c1c1e;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.9);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -107,12 +107,12 @@
     flex-direction: column !important;
     overflow: hidden;
 }
-.g-chat[hidden] { display: none !important; } /* 与 .phone-app[hidden] 同规则，防被 flex 覆盖 */
+.g-chat[hidden] { display: none !important; }
 .g-msgs {
     flex: 1 1 auto;
     overflow-y: auto;
     padding: 14px 12px;
-    background: #eef0f4;
+    background: #f2f2f7;
 }
 .g-msg {
     display: flex;
@@ -123,33 +123,34 @@
 .g-msg.mine { align-items: flex-end; }
 .g-bubble {
     max-width: 78%;
-    padding: 8px 12px;
-    border-radius: 12px;
+    padding: 9px 12px;
+    border-radius: 6px;
     background: #ffffff;
-    border: 2px solid #1c1c1e;
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.5;
-    color: #1c1c1e;
+    color: rgba(0, 0, 0, 0.9);
     white-space: pre-wrap;
     word-break: break-word;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
 }
 .g-msg.mine .g-bubble {
     background: #95ec69;
+    box-shadow: none;
 }
 
-/* ============ 消息类型细分（text/voice/img/money/loc/call/file） ============ */
+/* ============ 消息类型细分 ============ */
 .g-bubble .pm-voice { display: inline-flex; align-items: center; gap: 6px; }
-.g-bubble .pm-voice-dur { font-size: 12px; color: #666; }
-.g-bubble .pm-img { display: inline-block; background: #e3e7f0; border: 2px dashed #1c1c1e; border-radius: 8px; padding: 6px 10px; }
-.g-bubble .pm-money { display: inline-block; background: #ffe1e1; border: 2px solid #1c1c1e; border-radius: 8px; padding: 4px 10px; font-weight: bold; color: #c0392b; }
-.g-bubble .pm-loc { display: inline-block; background: #eaf4e8; border: 2px solid #1c1c1e; border-radius: 8px; padding: 4px 10px; }
-.g-bubble .pm-call { display: inline-block; background: #e8f0ff; border: 2px solid #1c1c1e; border-radius: 8px; padding: 4px 10px; }
-.g-bubble .pm-call-dur { font-size: 12px; color: #666; }
-.g-bubble .pm-file { display: inline-block; background: #f3f0e6; border: 2px solid #1c1c1e; border-radius: 8px; padding: 4px 10px; }
+.g-bubble .pm-voice-dur { font-size: 12px; color: rgba(0, 0, 0, 0.45); }
+.g-bubble .pm-img { display: inline-block; background: #d9e3ee; border-radius: 6px; padding: 8px 12px; font-size: 14px; }
+.g-bubble .pm-money { display: inline-block; background: #ffe8d6; border-radius: 6px; padding: 6px 10px; font-weight: bold; color: #e05a00; }
+.g-bubble .pm-loc { display: inline-block; background: #e5f2f6; border-radius: 6px; padding: 6px 10px; }
+.g-bubble .pm-call { display: inline-block; background: #edf1f5; border-radius: 6px; padding: 6px 10px; }
+.g-bubble .pm-call-dur { font-size: 12px; color: rgba(0, 0, 0, 0.45); }
+.g-bubble .pm-file { display: inline-block; background: #f4f1ea; border-radius: 6px; padding: 6px 10px; }
 .g-msg-time {
     font-size: 11px;
-    color: #8e8e93;
-    margin-top: 3px;
+    color: rgba(0, 0, 0, 0.35);
+    margin-top: 4px;
 }
 
 /* 日期分组水印 */
@@ -157,8 +158,8 @@
     display: flex;
     justify-content: center;
     font-size: 12px;
-    color: #8e8e93;
-    padding: 10px 0 6px;
+    color: rgba(0, 0, 0, 0.4);
+    padding: 10px 0 4px;
 }
 
 /* 底部输入栏 */
@@ -166,10 +167,10 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding: 8px 10px;
-    background: #f8f8fa;
-    border-top: 2px solid #1c1c1e;
+    background: #f6f6f8;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 .g-ci-btn {
     flex: 0 0 auto;
@@ -183,21 +184,21 @@
 .g-ci-field {
     flex: 1 1 auto;
     min-width: 0;
-    border: 2px solid #1c1c1e;
-    background: #fff;
-    border-radius: 8px;
-    padding: 7px 10px;
-    font-size: 14px;
+    border: none;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 8px 12px;
+    font-size: 15px;
     font-family: inherit;
     outline: none;
 }
 .g-chat-bar {
     flex: 0 0 auto;
-    height: 2px;
-    background: #1c1c1e;
+    height: 3px;
+    background: #f6f6f8;
 }
 
-/* ============ 空状态：真 App 界面骨架（顶栏 + 空态 + 底部标签栏） ============ */
+/* ============ 空状态：完整 App 界面 ============ */
 .g-frame-empty {
     flex: 1 1 auto;
     display: flex !important;
@@ -211,15 +212,34 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
-    background: #f8f8fa;
-    border-bottom: 2px solid #1c1c1e;
+    padding: 8px 14px;
+    background: #f2f2f7;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 .g-topbar-title {
-    font-size: 16px;
-    font-weight: bold;
-    color: #1c1c1e;
+    font-size: 17px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.9);
 }
+.g-topbar-icons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.g-topbar-icon {
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    color: rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.g-topbar-icon:active { background: rgba(0, 0, 0, 0.08); }
 .g-emptybody {
     flex: 1 1 auto;
     display: flex;
@@ -230,11 +250,9 @@
     background: #f2f2f7;
 }
 .g-empty-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 18px;
-    background: #e4e4ea;
-    border: 2px solid #1c1c1e;
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -246,27 +264,26 @@
 }
 .g-empty-msg {
     font-size: 13px;
-    color: #8e8e93;
+    color: rgba(0, 0, 0, 0.4);
 }
 .g-tabbar {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-around;
-    padding: 8px 0;
-    background: #f8f8fa;
-    border-top: 2px solid #1c1c1e;
+    padding: 6px 0 5px;
+    background: #ffffff;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 .g-tab {
-    font-size: 12px;
-    font-weight: bold;
-    color: #8e8e93;
-    padding: 4px 10px;
-    border-radius: 8px;
-    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.5);
+    padding: 3px 12px;
 }
 .g-tab.active {
-    color: #007aff;
-    background: rgba(0, 122, 255, 0.1);
-    border-color: #007aff;
+    color: #3b78f0;
+    font-weight: 600;
 }

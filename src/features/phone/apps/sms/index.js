@@ -75,8 +75,17 @@ export function buildSmsSkin() {
                 </div>`;
             }).join('');
 
+            // SMS 风格顶部导航（列表态与空态共用）：标题 + 搜索/编辑
+            const smsTopbar = `<div class="sms-topbar">
+                <span class="sms-topbar-title">信息</span>
+                <span class="sms-topbar-icons">
+                    <button class="sms-topbar-icon" type="button">🔍</button>
+                    <button class="sms-topbar-icon" type="button">✎</button>
+                </span>
+            </div>`;
+
             // 空态：与各 App 一致，短信品牌顶栏 + 空态 + 底部标签栏
-            const emptyList = `<div class="sms-topbar"><span class="sms-topbar-title">短信</span></div>
+            const emptyList = `${smsTopbar}
                 <div class="sms-emptybody">
                     <div class="sms-empty-icon" style="background:#5a98d8">${skinIcon('sms')}</div>
                     <div class="sms-empty-msg">暂无会话</div>
@@ -87,7 +96,7 @@ export function buildSmsSkin() {
 
             return {
                 list: items
-                    ? `<ul class="sms-conv-list">${items}</ul>`
+                    ? `${smsTopbar}<ul class="sms-conv-list">${items}</ul>`
                     : `<div class="sms-frame-empty">${emptyList}</div>`,
                 chats,
             };

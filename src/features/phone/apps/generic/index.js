@@ -78,7 +78,14 @@ export function buildGenericSkin() {
             }).join('');
 
             // 会话列表为空：显示完整 App 界面（顶栏 + 空态 + 底部标签栏），而非技术性提示
-            const emptyList = `<div class="g-topbar"><span class="g-topbar-title">聊天</span></div>
+            const gTopbar = `<div class="g-topbar">
+                <span class="g-topbar-title">聊天</span>
+                <span class="g-topbar-icons">
+                    <button class="g-topbar-icon" type="button">🔍</button>
+                    <button class="g-topbar-icon" type="button">＋</button>
+                </span>
+            </div>`;
+            const emptyList = `${gTopbar}
                 <div class="g-emptybody">
                     <div class="g-empty-icon" style="background:#4f8cff">${skinIcon('generic')}</div>
                     <div class="g-empty-msg">暂无会话</div>
@@ -89,7 +96,7 @@ export function buildGenericSkin() {
 
             return {
                 list: items
-                    ? `<ul class="g-conv-list">${items}</ul>`
+                    ? `${gTopbar}<ul class="g-conv-list">${items}</ul>`
                     : `<div class="g-frame-empty">${emptyList}</div>`,
                 chats,
             };

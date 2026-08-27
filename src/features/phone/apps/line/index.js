@@ -78,8 +78,16 @@ export function buildLineSkin() {
                 </div>`;
             }).join('');
 
-            // 会话列表为空：显示完整 LINE 界面（顶栏 + 空态 + 底部标签栏）
-            const emptyList = `<div class="ln-topbar"><span class="ln-topbar-title">LINE</span></div>
+            // LINE 风格顶部导航（列表态与空态共用）：标题 + 右侧按钮
+            const lnTopbar = `<div class="ln-topbar">
+                <span class="ln-topbar-title">LINE</span>
+                <span class="ln-topbar-icons">
+                    <button class="ln-topbar-icon" type="button">🔍</button>
+                    <button class="ln-topbar-icon" type="button">＋</button>
+                </span>
+            </div>`;
+
+            const emptyList = `${lnTopbar}
                 <div class="ln-emptybody">
                     <div class="ln-empty-icon" style="background:#06c755">${skinIcon('line')}</div>
                     <div class="ln-empty-msg">暂无会话</div>
@@ -90,7 +98,7 @@ export function buildLineSkin() {
 
             return {
                 list: items
-                    ? `<ul class="ln-conv-list">${items}</ul>`
+                    ? `${lnTopbar}<ul class="ln-conv-list">${items}</ul>`
                     : `<div class="ln-frame-empty">${emptyList}</div>`,
                 chats,
             };

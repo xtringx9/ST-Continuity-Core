@@ -77,8 +77,16 @@ export function buildQqSkin() {
                 </div>`;
             }).join('');
 
-            // 会话列表为空：显示完整 QQ 界面（顶栏 + 空态 + 底部标签栏）
-            const emptyList = `<div class="qq-topbar"><span class="qq-topbar-title">QQ</span></div>
+            // QQ 风格顶部导航（列表态与空态共用）：标题 + 搜索/加号
+            const qqTopbar = `<div class="qq-topbar">
+                <span class="qq-topbar-title">消息</span>
+                <span class="qq-topbar-icons">
+                    <button class="qq-topbar-icon" type="button">🔍</button>
+                    <button class="qq-topbar-icon" type="button">＋</button>
+                </span>
+            </div>`;
+
+            const emptyList = `${qqTopbar}
                 <div class="qq-emptybody">
                     <div class="qq-empty-icon" style="background:#12b7f5">${skinIcon('qq')}</div>
                     <div class="qq-empty-msg">暂无会话</div>
@@ -89,7 +97,7 @@ export function buildQqSkin() {
 
             return {
                 list: items
-                    ? `<ul class="qq-conv-list">${items}</ul>`
+                    ? `${qqTopbar}<ul class="qq-conv-list">${items}</ul>`
                     : `<div class="qq-frame-empty">${emptyList}</div>`,
                 chats,
             };

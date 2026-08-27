@@ -22,23 +22,26 @@ export const SKIN_ICONS = {
         <circle cx="41" cy="47" r="1.8" fill="#0f9e53"/>
         <circle cx="49" cy="47" r="1.8" fill="#0f9e53"/>
     </svg>`,
-    /* QQ：企鹅简化轮廓 */
+    /* QQ：企鹅（白身 + 蓝眼 + 红围巾） */
     qq: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <path d="M32 6c-9 0 -16 8 -15 18 0 4 1 8 3 11l-1 12c1 4 2 7 3 9 2 -1 5 -3 6 -6 1 0 2 0 4 0s3 0 4 0c1 3 4 5 6 6 1 -2 2 -5 3 -9l-1 -12c2 -3 3 -7 3 -11 1 -10 -6 -18 -15 -18z" fill="#fff" stroke="#fff" stroke-linejoin="round"/>
-        <circle cx="25" cy="30" r="4" fill="#13b6f0"/>
-        <circle cx="39" cy="30" r="4" fill="#13b6f0"/>
+        <path d="M32 4c-10 0 -18 9 -18 20 0 4.5 1.5 8.5 4 12l-1.5 10.5c.7 3.4 1.8 6 3 7.6 1.8 -1.1 4.6 -3.1 5.5 -5.6 1 .4 2.2 .5 3.5 .5h7c1.3 0 2.5 -.2 3.5 -.5 .9 2.5 3.7 4.5 5.5 5.6 1.2 -1.6 2.3 -4.2 3 -7.6l-1.5 -10.5c2.5 -3.5 4 -7.5 4 -12 0 -11 -8 -20 -18 -20z" fill="#fff"/>
+        <path d="M18 24c3-6 8-9 14-9s11 3 14 9l-5 2.5c-.7-2-2-3.9-3.5-5.2-1.5 1.3-3.4 2.1-5.5 2.1s-4-.8-5.5-2.1c-1.5 1.3-2.8 3.2-3.5 5.2z" fill="#e8402a"/>
+        <circle cx="26" cy="33" r="2.6" fill="#2b2b2b"/>
+        <circle cx="38" cy="33" r="2.6" fill="#2b2b2b"/>
+        <path d="M26 43c3 1.8 9 1.8 12 0" stroke="#2b2b2b" stroke-width="1.8" fill="none" stroke-linecap="round"/>
     </svg>`,
-    /* LINE：气泡 + 闪电 */
+    /* LINE：绿色圆角牌 + 白色闪电 */
     line: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <rect x="4" y="12" width="56" height="40" rx="8" fill="#fff"/>
-        <path d="M34 18l-12 14h8l-2 14 12 -15h-9l3 -13z" fill="#06a159"/>
+        <path d="M32 6c15 0 26 10 26 26s-11 26 -26 26 -26 -11 -26 -26 11 -26 26 -26z" fill="#fff" opacity="0.9"/>
+        <path d="M32 8c13.5 0 24 10.5 24 24s-10.5 24 -24 24 -24 -10.5 -24 -24 10.5 -24 24 -24z" fill="none" stroke="#fff" stroke-width="3" opacity="0.45"/>
+        <path d="M35 16l-13 16h9l-2 16 13 -17h-10l3 -15z" fill="#06a159"/>
     </svg>`,
     /* SMS：短信气泡 + 三个点 */
     sms: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <path d="M10 16a9 9 0 0 0 -9 9v16a9 9 0 0 0 9 9h6l3 9 12 -9h23a8 8 0 0 0 8 -8v-17a8 8 0 0 0 -8 -8z" fill="#fff"/>
-        <circle cx="23" cy="30" r="3" fill="#5a98d8"/>
-        <circle cx="33" cy="30" r="3" fill="#5a98d8"/>
-        <circle cx="43" cy="30" r="3" fill="#5a98d8"/>
+        <path d="M12 14a9 9 0 0 0 -9 9v18a9 9 0 0 0 9 9h4l2 9 11 -9h23a9 9 0 0 0 9 -9v-18a9 9 0 0 0 -9 -9z" fill="#fff"/>
+        <circle cx="22" cy="32" r="2.6" fill="#5a98d8"/>
+        <circle cx="32" cy="32" r="2.6" fill="#5a98d8"/>
+        <circle cx="42" cy="32" r="2.6" fill="#5a98d8"/>
     </svg>`,
     /* 设置：齿轮简化 */
     settings: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
