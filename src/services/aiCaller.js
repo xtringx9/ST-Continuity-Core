@@ -32,11 +32,35 @@ import { rotateSecretQuiet } from './secretRotator.js';
 
 const LOG_TAG = 'AiCaller';
 
-// ⚠️ 2026-08-25 并发防覆盖：临时预设应用/恢复是全局共享 oai_settings 上的操作。
-//   presetOpSeq 递增生成操作 ID，activePresetOpId 记录"当前最新"应用操作；
-//   恢复恢复时校验，若期间已有更新的应用覆盖则跳过，避免旧调用的备份值盖掉新调用的应用值。
-let presetOpSeq = 0;
-let activePresetOpId = 0;
+// ⚠️ 2026-08-27 单飞锁（方案 A）：临时预设应用/恢复是全局共享 oai_settings 上的操作，
+//   多个 _callPipeline 并发/重叠时若用"跳过旧恢复"策略会导致 oai_settings 最终停在临时候选
+//   预设而非原始值，被 ST saveSettings 落盘即"预设被覆盖保存"。
+//   改用语义明确的互斥锁，保证「apply 预设 → Generate dryRun 组装 → restore」整段临界区串行，
+//   任一时刻只有一个调用占用 oai_settings，restore 必然回到原始值。
+//   锁只覆盖 apply→restore 窗口（含 await Generate），发送阶段（sendOpenAIRequest）在 restore
+//   之后，不占锁，避免把网络等待也串行化。
+let presetLock = Promise.resolve();
+let presetLockRelease = null;
+
+/**
+ * 获取预设临界区锁：等待前一个持有者释放后再进入，保证串行。
+ * 与 releasePresetLock 配对；释放由调用方在 restore 后（含异常 finally）保证。
+ */
+async function acquirePresetLock() {
+    const prev = presetLock;
+    let release;
+    presetLock = new Promise((resolve) => { release = resolve; });
+    presetLockRelease = release;
+    await prev;
+}
+
+/** 释放预设临界区锁（幂等由调用方 presetLockReleased 标志保证）。 */
+function releasePresetLock() {
+    if (presetLockRelease) {
+        presetLockRelease();
+        presetLockRelease = null;
+    }
+}
 
 /** 深拷贝应用值：对象/数组字段绝不按引用赋给 oai_settings，避免污染已保存的预设本体。 */
 function _clonePresetValue(value) {
@@ -178,9 +202,7 @@ function _applyPresetForAssembly(presetName) {
         warnLog(LOG_TAG, `找不到 ST OpenAI 预设: ${presetName}，本次生成使用当前预设`);
         return null;
     }
-    // ⚠️ 2026-08-25 并发保护：声明本次为最新应用，恢复时据此校验避免覆盖更新的应用。
-    const opId = ++presetOpSeq;
-    activePresetOpId = opId;
+    // ⚠️ 2026-08-27：单飞锁（方案 A）已保证本临界区串行，无需 opId 并发校验。
     const fields = [];
     try {
         for (const [presetKey, [, setting, , isConnection]] of Object.entries(settingsToUpdate)) {
@@ -211,7 +233,6 @@ function _applyPresetForAssembly(presetName) {
         }
     }
     if (fields.length === 0) return null;
-    fields.opId = opId;
     debugLog(LOG_TAG, `已临时应用 ST OpenAI 预设「${presetName}」，覆盖 ${fields.length} 个组装相关字段`);
     return fields;
 }
@@ -270,17 +291,11 @@ function _applyPromptBindingsToPresetOrder(fields) {
  */
 function _restorePresetForAssembly(fields) {
     if (!Array.isArray(fields) || fields.length === 0) return;
-    // ✅ Hole3 并发防覆盖：仅当本次仍是"最新"的应用操作时才恢复。
-    //   若期间已有更新的调用再次临时应用预设（activePresetOpId 已变化），
-    //   本次恢复的 oldValue 会盖掉它 → 跳过，交给那个更新的调用自己恢复。
-    if (fields.opId !== undefined && activePresetOpId !== fields.opId) {
-        debugLog(LOG_TAG, '检测到更新的临时预设已应用，跳过本次预设恢复（避免旧值覆盖新值）');
-        return;
-    }
+    // ⚠️ 2026-08-27：单飞锁（方案 A）已保证临界区串行，本函数必然对应唯一活跃应用，
+    //   无需再校验 opId 跳过——直接恢复全部备份字段，oai_settings 必然回到原始值。
     for (const { setting, oldValue } of fields) {
         oai_settings[setting] = oldValue;
     }
-    activePresetOpId = 0; // 本次已恢复，清空"最新操作"标记
     debugLog(LOG_TAG, `已恢复 oai_settings（${fields.length} 个字段回到原值）`);
 }
 
@@ -505,6 +520,8 @@ export const aiCaller = {
         let swipeRefreshed = false;
         /** @type {Array<{setting:string, oldValue:*}>|null} */
         let presetBackup = null;
+        // ⚠️ 2026-08-27 单飞锁（方案 A）：预设临界区锁释放标志，与 presetRestored 对齐，确保每 acquire 必 release。
+        let presetLockReleased = false;
         // ⚠️ 2026-08-23 PromptManager UI 残留修复：临时预设覆盖了 prompt_order/prompts 时，
         //   dryRun 组装会触发 renderPromptManager 的延迟异步重绘，可能抓到“已覆盖、未恢复”的中间态，
         //   把临时预设的条目画出来（数据已还原、UI 残留到下一次 renderDebounced）。故在恢复预设后强制用
@@ -611,6 +628,10 @@ export const aiCaller = {
             };
             eventSource.once(event_types.CHAT_COMPLETION_PROMPT_READY, promptHandler);
 
+            // ⚠️ 2026-08-27 单飞锁（方案 A）：进入预设临界区前先获取锁，保证 apply→Generate→restore 串行，
+            //   避免重叠调用把 oai_settings 永久停在临时候选预设（被 ST saveSettings 落盘即"预设被覆盖保存"）。
+            //   锁在 restore 后（含 finally 兜底）release；网络发送阶段在 restore 之后，不占锁。
+            await acquirePresetLock();
             // 临时应用指定 ST OpenAI 预设（presetName）→ dryRun 组装用该预设的 prompts/prompt_order/上下文设置
             // ⚠️ 只影响组装：组装完成后立即恢复（提前清理块），finally 兜底；不触发 OAI_PRESET_CHANGED 事件
             presetBackup = _applyPresetForAssembly(presetName);
@@ -714,6 +735,11 @@ export const aiCaller = {
             if (!presetRestored) {
                 _restorePresetForAssembly(presetBackup);
                 presetRestored = true; // 标记已恢复，finally 据此跳过（避免重复恢复）
+                // ⚠️ 2026-08-27 临界区结束：restore 成功后立即释放单飞锁，让下一个并发生成进入。
+                if (!presetLockReleased) {
+                    releasePresetLock();
+                    presetLockReleased = true;
+                }
             }
             if (!presetUiRefreshed) {
                 _refreshPromptManagerAfterPresetRestore(presetBackup);
@@ -815,6 +841,11 @@ export const aiCaller = {
             if (!presetRestored) {
                 _restorePresetForAssembly(presetBackup);
                 presetRestored = true;
+                // ⚠️ 2026-08-27 异常早退路径同样释放单飞锁，避免死锁（后续生成永久阻塞在 acquire）。
+                if (!presetLockReleased) {
+                    releasePresetLock();
+                    presetLockReleased = true;
+                }
             }
             // 异常早退路径同样强制重绘，覆盖可能残留的临时预设条目
             if (!presetUiRefreshed) {
