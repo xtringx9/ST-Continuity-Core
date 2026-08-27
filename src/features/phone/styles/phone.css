@@ -9,7 +9,8 @@ html, body {
     height: 100%;
     /* 透明：容器已由 IframeModal fitContent 去深色，手机壳自带底色 */
     background: transparent;
-    font-family: "Courier New", ui-monospace, "Courier", monospace;
+    /* 系统 UI 字体栈：贴近真实手机 App（Windows 落微软雅黑，mac 落 SF/苹方） */
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
 }
 
 body {

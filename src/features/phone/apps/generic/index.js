@@ -4,6 +4,7 @@
 // 契约（详见 apps/index.js）：renderAppHtml(conversations) → { list, chats }
 // 本皮肤为最小可用集：会话列表（头像+标题+预览）+ 聊天窗口（左右气泡 + 时间水印）。
 // 气泡类型暂只做 text（type 细分留待后续 skin 或本皮肤扩展）。
+import { skinIcon } from '../icons.js';
 
 /**
  * HTML 转义（防 XSS / 破坏结构）
@@ -40,7 +41,8 @@ export function buildGenericSkin() {
     return {
         id: 'generic',
         label: '通用聊天',
-        icon: '💬',
+        iconKey: 'generic',
+        iconBg: '#4f8cff',
         cssPath: 'src/features/phone/apps/generic/generic.css',
 
         /**
@@ -74,7 +76,7 @@ export function buildGenericSkin() {
             // 会话列表为空：显示完整 App 界面（顶栏 + 空态 + 底部标签栏），而非技术性提示
             const emptyList = `<div class="g-topbar"><span class="g-topbar-title">聊天</span></div>
                 <div class="g-emptybody">
-                    <div class="g-empty-icon">💬</div>
+                    <div class="g-empty-icon" style="background:#4f8cff">${skinIcon('generic')}</div>
                     <div class="g-empty-msg">暂无会话</div>
                 </div>
                 <div class="g-tabbar">

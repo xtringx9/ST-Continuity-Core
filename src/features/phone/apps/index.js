@@ -21,12 +21,14 @@ import { buildGenericSkin } from './generic/index.js';
 import { buildWechatSkin } from './wechat/index.js';
 import { buildQqSkin } from './qq/index.js';
 import { buildLineSkin } from './line/index.js';
+import { buildSmsSkin } from './sms/index.js';
 
 const SKINS = [
     buildGenericSkin(),
     buildWechatSkin(),
     buildQqSkin(),
     buildLineSkin(),
+    buildSmsSkin(),
 ];
 
 /** 界面语义字段列表（设置面板字段映射下拉与渲染共用） */

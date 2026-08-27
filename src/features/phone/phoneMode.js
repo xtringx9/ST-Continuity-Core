@@ -223,6 +223,7 @@ const PLATFORM_ALIASES = {
     wechat: ['微信', 'weixin', 'wx'],
     qq: ['企鹅', 'qq聊天'],
     line: ['連我', 'line聊天'],
+    sms: ['短信', 'iMessage', 'imessage', 'message', 'messages'],
 };
 
 /**

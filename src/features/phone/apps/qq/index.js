@@ -2,6 +2,7 @@
 //
 // 契约（见 apps/index.js）：renderAppHtml(conversations) → { list, chats }
 // 皮肤只管内容，外壳层负责导航；群聊消息带发送者昵称，私聊不带。
+import { skinIcon } from '../icons.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -40,7 +41,8 @@ export function buildQqSkin() {
     return {
         id: 'qq',
         label: 'QQ',
-        icon: '🐧',
+        iconKey: 'qq',
+        iconBg: '#12b7f5',
         cssPath: 'src/features/phone/apps/qq/qq.css',
 
         renderAppHtml(conversations) {
@@ -73,7 +75,7 @@ export function buildQqSkin() {
             // 会话列表为空：显示完整 QQ 界面（顶栏 + 空态 + 底部标签栏）
             const emptyList = `<div class="qq-topbar"><span class="qq-topbar-title">QQ</span></div>
                 <div class="qq-emptybody">
-                    <div class="qq-empty-icon">🐧</div>
+                    <div class="qq-empty-icon" style="background:#12b7f5">${skinIcon('qq')}</div>
                     <div class="qq-empty-msg">暂无会话</div>
                 </div>
                 <div class="qq-tabbar">

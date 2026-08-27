@@ -4,6 +4,7 @@
 //   list: 会话列表（圆形头像 + 名称 + 预览），每个可点击项带 data-conv=索引
 //   chats: 各会话聊天窗口（顶栏 + 消息流），默认 hidden，带 data-conv=索引
 // 外壳层（phoneRenderer NAV_SCRIPT）负责 home ↔ App ↔ 会话 导航，皮肤只管内容。
+import { skinIcon } from '../icons.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -48,7 +49,8 @@ export function buildWechatSkin() {
     return {
         id: 'wechat',
         label: '微信',
-        icon: '💚',
+        iconKey: 'wechat',
+        iconBg: '#07c160',
         cssPath: 'src/features/phone/apps/wechat/wechat.css',
 
         renderAppHtml(conversations) {
@@ -83,7 +85,7 @@ export function buildWechatSkin() {
             // 会话列表为空：显示完整微信界面（顶栏 + 空态 + 底部标签栏）
             const emptyList = `<div class="wx-topbar"><span class="wx-topbar-title">微信</span></div>
                 <div class="wx-emptybody">
-                    <div class="wx-empty-icon">💬</div>
+                    <div class="wx-empty-icon" style="background:#07c160">${skinIcon('wechat')}</div>
                     <div class="wx-empty-msg">暂无会话</div>
                 </div>
                 <div class="wx-tabbar">

@@ -15,6 +15,7 @@
 // - 全程只读、纯字符串拼接；所有动态文本经 escapeHtml 防止 XSS / 破坏结构。
 // - 设置面板内置于同一 iframe，由桌面「设置」App 打开，保存时通过 postMessage 通知父窗口持久化（见 phoneMode.js）。
 // - moduleConfig 仅用于场景标签，不参与消息渲染。
+import { skinIcon } from './apps/icons.js';
 
 /**
  * HTML 转义（防 XSS / 破坏结构）
@@ -201,21 +202,21 @@ export function buildPhoneHtml({ cssUrls = [], apps = [], settings = null, initV
     const now = currentClock();
     const links = cssUrls.map((u) => `<link rel="stylesheet" href="${escapeHtml(u)}">`).join('\n');
 
-    // 「设置」App（固定在桌面）
+    // 「设置」App（固定在桌面；图标用 SVG 齿轮）
     const settingsApp = settings
         ? `<button class="app-icon" type="button" data-app="settings">
-             <span class="app-icon-img" style="background:#8e8e93">⚙️</span>
+             <span class="app-icon-img" style="background:#8e8e93">${skinIcon('settings')}</span>
              <span class="app-icon-label">设置</span>
            </button>`
         : '';
 
-    // 桌面（首页）：App 图标网格
+    // 桌面（首页）：App 图标网格（图标 = 各皮肤品牌 SVG + 品牌色底）
     const emptyHtml = apps.length
         ? ''
         : `<div class="phone-empty">暂无应用，请在手机设置中添加模块</div>`;
     const homeApps = emptyHtml + apps.map((a) => `
             <button class="app-icon" type="button" data-app="${escapeHtml(a.key)}">
-                <span class="app-icon-img">${escapeHtml(a.icon)}</span>
+                <span class="app-icon-img" style="background:${escapeHtml(a.iconBg || '#4f8cff')}">${skinIcon(a.iconKey || 'generic')}</span>
                 <span class="app-icon-label">${escapeHtml(a.label)}</span>
             </button>`).join('') + settingsApp;
     const homeView = `<div class="phone-home" id="phoneHome"><div class="phone-home-grid">${homeApps}</div></div>`;

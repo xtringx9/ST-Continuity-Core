@@ -2,6 +2,7 @@
 //
 // 契约（见 apps/index.js）：renderAppHtml(conversations) → { list, chats }
 // 皮肤只管内容，外壳层负责导航；会话卡展示群成员（mems），聊天窗口气泡左右两侧。
+import { skinIcon } from '../icons.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -40,7 +41,8 @@ export function buildLineSkin() {
     return {
         id: 'line',
         label: 'LINE',
-        icon: '💮',
+        iconKey: 'line',
+        iconBg: '#06c755',
         cssPath: 'src/features/phone/apps/line/line.css',
 
         renderAppHtml(conversations) {
@@ -74,7 +76,7 @@ export function buildLineSkin() {
             // 会话列表为空：显示完整 LINE 界面（顶栏 + 空态 + 底部标签栏）
             const emptyList = `<div class="ln-topbar"><span class="ln-topbar-title">LINE</span></div>
                 <div class="ln-emptybody">
-                    <div class="ln-empty-icon">💧</div>
+                    <div class="ln-empty-icon" style="background:#06c755">${skinIcon('line')}</div>
                     <div class="ln-empty-msg">暂无会话</div>
                 </div>
                 <div class="ln-tabbar">
