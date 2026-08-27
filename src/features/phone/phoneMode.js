@@ -121,7 +121,9 @@ function resolveField(fm, vars, field) {
  */
 
 /**
- * 提取名字变体集合（小写，含完整串/括号外/括号内）
+ * 提取名字变体集合（小写，去除空白字符——id 与括号间、字母与空白混排等写法都统一）
+ * 变体：完整串 / 括号外(id) / 括号内(真实姓名)，均去除空白后参与匹配；
+ * 显示名不受影响（extractDisplayName 保留原文格式）。
  * @param {string} value
  * @returns {Array<string>}
  */
@@ -129,12 +131,13 @@ function extractNameVariants(value) {
     const variants = [];
     const raw = String(value == null ? '' : value).trim();
     if (!raw) return variants;
-    const lower = raw.toLowerCase();
-    variants.push(lower);
-    const m = lower.match(/^([^\(（]+)[\(（]([^\)）]+)[\)）]$/);
+    // 去除所有空白：完整串变体（'Z (郑重)'→'z(郑重)'）、括号外 id、括号内真名一致归一
+    const compact = raw.toLowerCase().replace(/\s+/g, '');
+    variants.push(compact);
+    const m = compact.match(/^([^\(（]+)[\(（]([^\)）]+)[\)）]$/);
     if (m) {
-        variants.push(m[1].trim());
-        variants.push(m[2].trim());
+        variants.push(m[1]);
+        variants.push(m[2]);
     }
     return variants;
 }

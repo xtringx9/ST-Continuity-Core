@@ -288,6 +288,8 @@ const NAV_SCRIPT = `
     if (listHost) listHost.hidden = false;
     var views = appEl.querySelector('.phone-chat-views');
     if (views) {
+      // 会话列表视图：整个聊天视图容器隐藏（空态无会话时也占满整屏，避免两个 flex:1 各占半屏）
+      views.hidden = true;
       Array.prototype.forEach.call(views.children, function (v) {
         if (v.hasAttribute('data-conv')) v.hidden = true;
       });
@@ -315,6 +317,7 @@ const NAV_SCRIPT = `
     if (listHost) listHost.hidden = true;
     var views = appEl.querySelector('.phone-chat-views');
     if (views) {
+      views.hidden = false;
       Array.prototype.forEach.call(views.children, function (v) {
         if (v.hasAttribute('data-conv')) v.hidden = (v.getAttribute('data-conv') !== String(idx));
       });

@@ -220,6 +220,7 @@ body {
     flex-direction: column;
     overflow: hidden;
 }
+.phone-chat-views[hidden] { display: none !important; } /* 会话列表视图时整体隐藏，避免与 listHost 各占半屏 */
 .phone-chat-views > [data-conv][hidden] { display: none !important; }
 
 /* ============ 设置面板（由桌面「设置」App 打开） ============ */
