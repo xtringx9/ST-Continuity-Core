@@ -5,6 +5,7 @@
 //   chats: 各会话聊天窗口（顶栏 + 消息流），默认 hidden，带 data-conv=索引
 // 外壳层（phoneRenderer NAV_SCRIPT）负责 home ↔ App ↔ 会话 导航，皮肤只管内容。
 import { skinIcon } from '../icons.js';
+import { renderMessageContent } from '../messageTypes.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -30,7 +31,7 @@ function isGroupConversation(conv) {
 /** 单条消息气泡（左右布局 + 时间水印） */
 function bubble(m, groupConv) {
     const mine = m.isMine ? 'mine' : 'theirs';
-    const content = esc(m.content || '');
+    const content = renderMessageContent(m);
     const time = m.time ? `<div class="wx-time">${esc(m.time)}</div>` : '';
     // 群聊对方消息显示发送者名（自己/私聊不显示）
     const name = !m.isMine && groupConv && m.from ? `<div class="wx-name">${esc(m.from)}</div>` : '';

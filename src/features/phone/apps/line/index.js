@@ -3,6 +3,7 @@
 // 契约（见 apps/index.js）：renderAppHtml(conversations) → { list, chats }
 // 皮肤只管内容，外壳层负责导航；会话卡展示群成员（mems），聊天窗口气泡左右两侧。
 import { skinIcon } from '../icons.js';
+import { renderMessageContent } from '../messageTypes.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -25,7 +26,7 @@ function isGroupConversation(conv) {
 
 function bubble(m, groupConv) {
     const mine = m.isMine ? 'mine' : 'theirs';
-    const content = esc(m.content || '');
+    const content = renderMessageContent(m);
     const time = m.time ? `<div class="ln-time">${esc(m.time)}</div>` : '';
     const name = !m.isMine && groupConv && m.from ? `<div class="ln-name">${esc(m.from)}</div>` : '';
     return `<div class="ln-msg ${mine}">

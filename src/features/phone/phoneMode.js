@@ -493,7 +493,7 @@ function renderPhoneHtml() {
         const conversations = groupMessagesToConversations(skinMessages, userName);
         const { list, chats } = skin.renderAppHtml(conversations);
         const appHtml = `<div class="phone-conv-list-host">${list}</div><div class="phone-chat-views">${chats}</div>`;
-        apps.push({ key: skin.id, label: skin.label, icon: skin.icon, html: appHtml });
+        apps.push({ key: skin.id, label: skin.label, iconKey: skin.iconKey || 'generic', iconBg: skin.iconBg || '#4f8cff', html: appHtml });
     }
 
     // 设置面板数据：场景（模块 + 字段映射）+ 模块列表

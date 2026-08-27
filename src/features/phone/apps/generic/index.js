@@ -5,6 +5,7 @@
 // 本皮肤为最小可用集：会话列表（头像+标题+预览）+ 聊天窗口（左右气泡 + 时间水印）。
 // 气泡类型暂只做 text（type 细分留待后续 skin 或本皮肤扩展）。
 import { skinIcon } from '../icons.js';
+import { renderMessageContent } from '../messageTypes.js';
 
 /**
  * HTML 转义（防 XSS / 破坏结构）
@@ -25,7 +26,7 @@ function escapeHtml(str) {
  * @returns {string}
  */
 function bubble(m) {
-    const content = escapeHtml(m.content || '');
+    const content = renderMessageContent(m);
     const time = m.time ? `<div class="g-msg-time">${escapeHtml(m.time)}</div>` : '';
     return `<div class="g-msg ${m.isMine ? 'mine' : 'theirs'}">
         <div class="g-bubble">${content}</div>

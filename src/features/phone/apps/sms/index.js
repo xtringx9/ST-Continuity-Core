@@ -3,6 +3,7 @@
 // 契约（见 apps/index.js）：renderAppHtml(conversations) → { list, chats }
 // 桌面图标走 iconKey 注册；会话列表 + 聊天窗口结构与通用皮肤一致，配色品牌化。
 import { skinIcon } from '../icons.js';
+import { renderMessageContent } from '../messageTypes.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -25,7 +26,7 @@ function isGroupConversation(conv) {
 
 function bubble(m, groupConv) {
     const mine = m.isMine ? 'mine' : 'theirs';
-    const content = esc(m.content || '');
+    const content = renderMessageContent(m);
     const time = m.time ? `<div class="sms-time">${esc(m.time)}</div>` : '';
     const name = !m.isMine && groupConv && m.from ? `<div class="sms-name">${esc(m.from)}</div>` : '';
     const avatar = `<span class="sms-avatar">${initial(m.isMine ? '我' : m.from)}</span>`;

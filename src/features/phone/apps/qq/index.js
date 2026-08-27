@@ -3,6 +3,7 @@
 // 契约（见 apps/index.js）：renderAppHtml(conversations) → { list, chats }
 // 皮肤只管内容，外壳层负责导航；群聊消息带发送者昵称，私聊不带。
 import { skinIcon } from '../icons.js';
+import { renderMessageContent } from '../messageTypes.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -25,7 +26,7 @@ function isGroupConversation(conv) {
 
 function bubble(m, groupConv) {
     const mine = m.isMine ? 'mine' : 'theirs';
-    const content = esc(m.content || '');
+    const content = renderMessageContent(m);
     const time = m.time ? `<div class="qq-time">${esc(m.time)}</div>` : '';
     const name = !m.isMine && groupConv && m.from ? `<div class="qq-name">${esc(m.from)}</div>` : '';
     return `<div class="qq-msg ${mine}">

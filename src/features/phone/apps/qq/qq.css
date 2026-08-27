@@ -130,6 +130,16 @@
 .qq-msg.mine .qq-bubble {
     background: #a1e2ff;
 }
+
+/* ============ 消息类型细分（text/voice/img/money/loc/call/file） ============ */
+.qq-bubble .pm-voice { display: inline-flex; align-items: center; gap: 6px; }
+.qq-bubble .pm-voice-dur { font-size: 12px; color: #666; }
+.qq-bubble .pm-img { display: inline-block; background: #e3f1fc; border-radius: 8px; padding: 6px 10px; font-size: 14px; }
+.qq-bubble .pm-money { display: inline-block; background: #ffead9; border-radius: 8px; padding: 4px 10px; font-weight: bold; color: #e05a00; }
+.qq-bubble .pm-loc { display: inline-block; background: #e8f4f9; border-radius: 8px; padding: 4px 10px; }
+.qq-bubble .pm-call { display: inline-block; background: #eef2f6; border-radius: 8px; padding: 4px 10px; }
+.qq-bubble .pm-call-dur { font-size: 12px; color: #666; }
+.qq-bubble .pm-file { display: inline-block; background: #f5f1e8; border-radius: 8px; padding: 4px 10px; }
 .qq-time {
     font-size: 11px;
     color: #bbb;

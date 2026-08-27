@@ -144,6 +144,16 @@
 .ln-msg.mine .ln-bubble {
     background: #9deeb2;
 }
+
+/* ============ 消息类型细分（text/voice/img/money/loc/call/file） ============ */
+.ln-bubble .pm-voice { display: inline-flex; align-items: center; gap: 6px; }
+.ln-bubble .pm-voice-dur { font-size: 12px; color: #666; }
+.ln-bubble .pm-img { display: inline-block; background: #e3f2ed; border-radius: 8px; padding: 6px 10px; font-size: 14px; }
+.ln-bubble .pm-money { display: inline-block; background: #ffe4d6; border-radius: 8px; padding: 4px 10px; font-weight: bold; color: #e05a00; }
+.ln-bubble .pm-loc { display: inline-block; background: #e8f4f9; border-radius: 8px; padding: 4px 10px; }
+.ln-bubble .pm-call { display: inline-block; background: #eef2f6; border-radius: 8px; padding: 4px 10px; }
+.ln-bubble .pm-call-dur { font-size: 12px; color: #666; }
+.ln-bubble .pm-file { display: inline-block; background: #f5f1e8; border-radius: 8px; padding: 4px 10px; }
 .ln-time {
     font-size: 11px;
     color: #bbb;
