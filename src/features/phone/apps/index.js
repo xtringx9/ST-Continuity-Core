@@ -18,10 +18,15 @@
 // 注意：新增皮肤时若需要照片/文件等富媒体渲染，通知 phoneMode 在映射阶段补数据
 // （当前 MESSAGE_FIELDS 仅 sender/content/time/type/platform 五字段的最小集）。
 import { buildGenericSkin } from './generic/index.js';
+import { buildWechatSkin } from './wechat/index.js';
+import { buildQqSkin } from './qq/index.js';
+import { buildLineSkin } from './line/index.js';
 
 const SKINS = [
     buildGenericSkin(),
-    // 后续：wechat / qq / line 各占一个目录，实现相同契约后在此挂载
+    buildWechatSkin(),
+    buildQqSkin(),
+    buildLineSkin(),
 ];
 
 /** 界面语义字段列表（设置面板字段映射下拉与渲染共用） */

@@ -1,0 +1,152 @@
+/* LINE App 皮肤样式（绿色品牌顶栏 + 白色圆角会话卡 + 圆角气泡） */
+
+/* ============ 会话列表 ============ */
+.ln-conv-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    margin: 0;
+    padding: 10px;
+    list-style: none;
+    background: #f4f5f7;
+}
+.ln-conv {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #fff;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.ln-conv:active { background: #f0f1f4; }
+.ln-avatar {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0fc06e, #06a159);
+    color: #fff;
+    font-size: 19px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.ln-conv-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.ln-conv-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #222;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ln-conv-preview {
+    font-size: 12px;
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ln-membox {
+    display: flex;
+    gap: 3px;
+    margin-top: 2px;
+}
+.ln-mini {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #555;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.ln-empty {
+    padding: 24px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+    list-style: none;
+    background: #f4f5f7;
+}
+
+/* ============ 聊天窗口 ============ */
+.ln-chat {
+    flex: 1 1 auto;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+}
+.ln-chat[hidden] { display: none !important; }
+.ln-chat-header {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    background: linear-gradient(180deg, #0fc06e, #06a159);
+}
+.ln-msgs {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 14px 12px;
+    background: #eef1f4;
+}
+.ln-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 6px 0;
+}
+.ln-msg .ln-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+    margin-top: 2px;
+}
+.ln-msg.mine {
+    flex-direction: row-reverse;
+}
+.ln-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 68%;
+}
+.ln-msg.mine .ln-body { align-items: flex-end; }
+.ln-name {
+    font-size: 12px;
+    color: #999;
+}
+.ln-bubble {
+    padding: 8px 12px;
+    border-radius: 16px;
+    background: #fff;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #222;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.ln-msg.mine .ln-bubble {
+    background: #9deeb2;
+}
+.ln-time {
+    font-size: 11px;
+    color: #bbb;
+    margin-top: 3px;
+    text-align: center;
+}

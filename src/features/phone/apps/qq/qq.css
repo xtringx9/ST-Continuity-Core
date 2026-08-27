@@ -1,0 +1,138 @@
+/* QQ App 皮肤样式（蓝色顶栏 + 白底列表 + 圆角气泡） */
+
+/* ============ 会话列表 ============ */
+.qq-conv-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: #fff;
+}
+.qq-conv {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    background: #fff;
+}
+.qq-conv:active { background: #f5f5f5; }
+.qq-avatar {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #6ec2ff, #2d8cf0);
+    color: #fff;
+    font-size: 19px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.qq-conv-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.qq-conv-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: #111;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.qq-conv-preview {
+    font-size: 12px;
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.qq-conv-time {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: #bbb;
+}
+.qq-empty {
+    padding: 24px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+    list-style: none;
+    background: #fff;
+}
+
+/* ============ 聊天窗口 ============ */
+.qq-chat {
+    flex: 1 1 auto;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+}
+.qq-chat[hidden] { display: none !important; }
+.qq-chat-header {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    text-align: center;
+    background: linear-gradient(180deg, #4aa8f0, #2d8cf0);
+}
+.qq-msgs {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 14px 12px;
+    background: #eef1f5;
+}
+.qq-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 6px 0;
+}
+.qq-msg .qq-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
+    margin-top: 2px;
+}
+.qq-msg.mine {
+    flex-direction: row-reverse;
+}
+.qq-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 68%;
+}
+.qq-msg.mine .qq-body { align-items: flex-end; }
+.qq-name {
+    font-size: 12px;
+    color: #999;
+}
+.qq-bubble {
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: #fff;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #111;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.qq-msg.mine .qq-bubble {
+    background: #a1e2ff;
+}
+.qq-time {
+    font-size: 11px;
+    color: #bbb;
+    margin-top: 3px;
+    text-align: center;
+}
