@@ -4,7 +4,7 @@
 // 桌面图标走 iconKey 注册；会话列表 + 聊天窗口结构与通用皮肤一致，配色品牌化。
 import { skinIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -31,13 +31,13 @@ function bubble(m, groupConv) {
     const time = m.time ? `<div class="sms-time">${esc(m.time)}</div>` : '';
     const name = !m.isMine && groupConv && m.from ? `<div class="sms-name">${esc(m.from)}</div>` : '';
     const avatar = `<span class="sms-avatar">${initial(m.isMine ? '我' : m.from)}</span>`;
+    // 头像固定放最前，视觉位置由 CSS order 决定（theirs=左，mine=右）
     return `<div class="sms-msg ${mine}">
-        ${m.isMine ? '' : avatar}
+        ${avatar}
         <div class="sms-body">
             ${name}
             <div class="sms-bubble">${content}</div>
         </div>
-        ${m.isMine ? avatar : ''}
     </div>${time}`;
 }
 
@@ -69,7 +69,7 @@ export function buildSmsSkin() {
                     ? dateDivider('sms', p.date)
                     : bubble(p.msg, group)).join('');
                 return `<div class="sms-chat" data-conv="${i}" hidden>
-                    <div class="sms-chat-header">${esc(conv.title || '会话')}</div>
+                    ${chatHeader('sms', esc(conv.title || '会话'))}
                     <div class="sms-msgs">${parts || '<div class="sms-empty">暂无消息</div>'}</div>
                     ${chatComposer('sms')}
                 </div>`;

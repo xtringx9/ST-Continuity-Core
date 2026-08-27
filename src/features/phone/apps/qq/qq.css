@@ -78,12 +78,38 @@
 .qq-chat[hidden] { display: none !important; }
 .qq-chat-header {
     flex: 0 0 auto;
-    padding: 10px 14px;
-    font-size: 15px;
+    display: flex;
+    align-items: center;
+    padding: 8px 6px;
+    background: linear-gradient(180deg, #4aa8f0, #2d8cf0);
+}
+.qq-chat-back {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    line-height: 1;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 8px;
+}
+.qq-chat-back:active { background: rgba(255, 255, 255, 0.2); }
+.qq-chat-title {
+    flex: 1 1 auto;
+    text-align: center;
+    font-size: 16px;
     font-weight: 600;
     color: #fff;
-    text-align: center;
-    background: linear-gradient(180deg, #4aa8f0, #2d8cf0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.qq-chat-header-spacer {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
 }
 .qq-msgs {
     flex: 1 1 auto;
@@ -103,9 +129,12 @@
     font-size: 16px;
     margin-top: 2px;
 }
-.qq-msg.mine {
-    flex-direction: row-reverse;
-}
+/* 「我」的头像固定右侧（对方左侧）——用 order 控制，不依赖 flex-direction */
+.qq-msg .qq-avatar { order: 2; }
+.qq-msg.theirs .qq-avatar { order: 0; }
+/* 「我」的消息整体贴右 */
+.qq-msg.mine { justify-content: flex-end; }
+.qq-msg.mine .qq-body { margin-left: auto; }
 .qq-body {
     display: flex;
     flex-direction: column;
@@ -231,7 +260,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 30px;
+    overflow: hidden;
+}
+.qq-empty-icon svg {
+    width: 100%;
+    height: 100%;
 }
 .qq-empty-msg {
     font-size: 13px;

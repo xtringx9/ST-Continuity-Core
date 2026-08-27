@@ -4,7 +4,7 @@
 // 皮肤只管内容，外壳层负责导航；群聊消息带发送者昵称，私聊不带。
 import { skinIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -71,7 +71,7 @@ export function buildQqSkin() {
                     ? dateDivider('qq', p.date)
                     : bubble(p.msg, group)).join('');
                 return `<div class="qq-chat" data-conv="${i}" hidden>
-                    <div class="qq-chat-header">${esc(conv.title || '会话')}</div>
+                    ${chatHeader('qq', esc(conv.title || '会话'))}
                     <div class="qq-msgs">${parts || '<div class="qq-empty">暂无消息</div>'}</div>
                     ${chatComposer('qq')}
                 </div>`;

@@ -38,6 +38,20 @@ export function dateDivider(prefix, date) {
 }
 
 /**
+ * 聊天窗口顶栏：返回按钮 + 居中标题（拟真 App：聊天页自带返回，不依赖外壳通用返回）
+ * @param {string} prefix 皮肤类名前缀
+ * @param {string} title 会话标题
+ * @returns {string}
+ */
+export function chatHeader(prefix, title) {
+    return `<div class="${prefix}-chat-header">
+        <button class="js-chat-back ${prefix}-chat-back" type="button" title="返回">‹</button>
+        <span class="${prefix}-chat-title">${String(title != null ? title : '会话')}</span>
+        <span class="${prefix}-chat-header-spacer"></span>
+    </div>`;
+}
+
+/**
  * 底部输入栏（类名 byPfx = prefix+'-chat-input'，按钮行 = prefix+'-chat-bar'）。
  * @param {string} prefix 皮肤类名前缀
  * @returns {string}

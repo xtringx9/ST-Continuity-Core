@@ -1,38 +1,39 @@
-/* 微信 App 皮肤样式（深色渐变顶栏 + 圆形头像 + 左右气泡） */
+/* 微信 App 皮肤（高仿真实微信：浅色顶部导航 + 白色会话列表 + 圆形头像 + 双向气泡） */
 
 /* ============ 会话列表 ============ */
 .wx-conv-list {
     flex: 1 1 auto;
     overflow-y: auto;
     margin: 0;
-    padding: 0;
+    padding: 0 12px;
     list-style: none;
     background: #ededed;
 }
 .wx-conv {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    background: #ededed;
-    border-bottom: 1px solid #dcdcdc;
+    gap: 12px;
+    padding: 12px 6px;
+    background: transparent;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
     cursor: pointer;
 }
-.wx-conv:active { background: #e0e0e0; }
+.wx-conv:active { background: rgba(0, 0, 0, 0.04); }
 .wx-avatar {
     flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
+    width: 46px;
+    height: 46px;
+    border-radius: 8px;
     background: linear-gradient(135deg, #8fd3fe, #4ba3f5);
     color: #fff;
-    font-size: 19px;
+    font-size: 18px;
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     text-align: center;
+    flex-shrink: 0;
 }
 .wx-conv-main {
     flex: 1 1 auto;
@@ -48,9 +49,9 @@
 }
 .wx-conv-title {
     flex: 1 1 auto;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 500;
-    color: #111;
+    color: rgba(0, 0, 0, 0.9);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -58,22 +59,22 @@
 .wx-conv-time {
     flex: 0 0 auto;
     font-size: 11px;
-    color: #9a9a9a;
+    color: rgba(0, 0, 0, 0.35);
 }
 .wx-conv-preview {
-    font-size: 12px;
-    color: #9a9a9a;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.45);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .wx-empty {
-    padding: 24px;
+    padding: 40px 24px;
     text-align: center;
-    color: #9a9a9a;
+    color: rgba(0, 0, 0, 0.35);
     font-size: 14px;
     list-style: none;
-    background: #ededed;
+    background: transparent;
 }
 
 /* ============ 聊天窗口 ============ */
@@ -86,12 +87,39 @@
 .wx-chat[hidden] { display: none !important; }
 .wx-chat-header {
     flex: 0 0 auto;
-    padding: 10px 14px;
-    font-size: 15px;
-    font-weight: 600;
-    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 8px 6px;
+    background: #ededed;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.wx-chat-back {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    line-height: 1;
+    color: rgba(0, 0, 0, 0.8);
+    cursor: pointer;
+    border-radius: 8px;
+}
+.wx-chat-back:active { background: rgba(0, 0, 0, 0.08); }
+.wx-chat-title {
+    flex: 1 1 auto;
     text-align: center;
-    background: linear-gradient(180deg, #404040, #2a2a2a);
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wx-chat-header-spacer {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
 }
 .wx-msgs {
     flex: 1 1 auto;
@@ -103,66 +131,70 @@
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    margin: 6px 0;
+    margin: 10px 0;
 }
 .wx-msg .wx-avatar {
     width: 38px;
     height: 38px;
-    font-size: 16px;
+    font-size: 15px;
     margin-top: 2px;
 }
-.wx-msg.mine {
-    flex-direction: row-reverse;
-}
+/* 「我」的头像固定右侧（对方左侧）——用 order 控制，不依赖 flex-direction */
+.wx-msg .wx-avatar { order: 2; }
+.wx-msg.theirs .wx-avatar { order: 0; }
+/* 「我」的消息整体贴右：头像在右，气泡在其左；body 移除 auto margin 只依赖 justify */
+.wx-msg.mine { justify-content: flex-end; }
+.wx-msg.mine .wx-body { align-items: flex-end; }
 .wx-body {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    max-width: 68%;
+    max-width: 65%;
 }
 .wx-msg.mine .wx-body { align-items: flex-end; }
 .wx-name {
     font-size: 12px;
-    color: #9a9a9a;
+    color: rgba(0, 0, 0, 0.45);
 }
 .wx-bubble {
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: #fff;
-    font-size: 14px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    background: #ffffff;
+    font-size: 15px;
     line-height: 1.5;
-    color: #111;
+    color: rgba(0, 0, 0, 0.9);
     white-space: pre-wrap;
     word-break: break-word;
-    position: relative;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
 }
 .wx-msg.mine .wx-bubble {
     background: #95ec69;
+    box-shadow: none;
 }
 
 /* ============ 消息类型细分（text/voice/img/money/loc/call/file） ============ */
 .wx-bubble .pm-voice { display: inline-flex; align-items: center; gap: 6px; }
-.wx-bubble .pm-voice-dur { font-size: 12px; color: #666; }
-.wx-bubble .pm-img { display: inline-block; background: #dde5ee; border-radius: 8px; padding: 6px 10px; font-size: 14px; }
-.wx-bubble .pm-money { display: inline-block; background: #ffe4d6; border-radius: 8px; padding: 4px 10px; font-weight: bold; color: #e05a00; }
-.wx-bubble .pm-loc { display: inline-block; background: #e8f4f9; border-radius: 8px; padding: 4px 10px; }
-.wx-bubble .pm-call { display: inline-block; background: #eef2f6; border-radius: 8px; padding: 4px 10px; }
-.wx-bubble .pm-call-dur { font-size: 12px; color: #666; }
-.wx-bubble .pm-file { display: inline-block; background: #f5f1e8; border-radius: 8px; padding: 4px 10px; }
+.wx-bubble .pm-voice-dur { font-size: 12px; color: rgba(0, 0, 0, 0.45); }
+.wx-bubble .pm-img { display: inline-block; background: #d9e3ee; border-radius: 6px; padding: 8px 12px; font-size: 14px; }
+.wx-bubble .pm-money { display: inline-block; background: #ffe8d6; border-radius: 6px; padding: 6px 10px; font-weight: bold; color: #e05a00; }
+.wx-bubble .pm-loc { display: inline-block; background: #e5f2f6; border-radius: 6px; padding: 6px 10px; }
+.wx-bubble .pm-call { display: inline-block; background: #edf1f5; border-radius: 6px; padding: 6px 10px; }
+.wx-bubble .pm-call-dur { font-size: 12px; color: rgba(0, 0, 0, 0.45); }
+.wx-bubble .pm-file { display: inline-block; background: #f4f1ea; border-radius: 6px; padding: 6px 10px; }
 .wx-time {
     font-size: 11px;
-    color: #9a9a9a;
-    margin-top: 3px;
+    color: rgba(0, 0, 0, 0.35);
+    margin-top: 4px;
     text-align: center;
 }
 
-/* 日期分组水印（同一天不重复展示） */
+/* 日期分组水印（同一天不重复展示，微信风格淡灰） */
 .wx-date {
     display: flex;
     justify-content: center;
     font-size: 12px;
-    color: #b3b3b3;
-    padding: 10px 0 6px;
+    color: rgba(0, 0, 0, 0.4);
+    padding: 10px 0 4px;
 }
 
 /* 底部输入栏 */
@@ -170,10 +202,10 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding: 8px 10px;
-    background: #f7f7f7;
-    border-top: 1px solid #e0e0e0;
+    background: #f6f6f6;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 .wx-ci-btn {
     flex: 0 0 auto;
@@ -183,25 +215,27 @@
     cursor: pointer;
     padding: 2px;
     line-height: 1;
+    filter: grayscale(0.3);
 }
 .wx-ci-field {
     flex: 1 1 auto;
     min-width: 0;
     border: none;
-    background: #fff;
-    border-radius: 8px;
-    padding: 8px 10px;
-    font-size: 14px;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 8px 12px;
+    font-size: 15px;
     font-family: inherit;
     outline: none;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 .wx-chat-bar {
     flex: 0 0 auto;
-    height: 2px;
-    background: #e0e0e0;
+    height: 3px;
+    background: #f6f6f6;
 }
 
-/* ============ 空状态：真微信界面骨架（顶栏 + 空态 + 底部标签栏） ============ */
+/* ============ 空状态：高仿微信首页（顶部导航 + 空态 + 底部标签栏） ============ */
 .wx-frame-empty {
     flex: 1 1 auto;
     display: flex !important;
@@ -214,16 +248,35 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 9px 14px;
+    justify-content: space-between;
+    padding: 8px 14px;
     background: #ededed;
-    border-bottom: 1px solid #d8d8d8;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 .wx-topbar-title {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
-    color: #111;
+    color: rgba(0, 0, 0, 0.9);
 }
+.wx-topbar-icons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.wx-topbar-icon {
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    color: rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wx-topbar-icon:active { background: rgba(0, 0, 0, 0.08); }
 .wx-emptybody {
     flex: 1 1 auto;
     display: flex;
@@ -234,36 +287,38 @@
     background: #ededed;
 }
 .wx-empty-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    background: rgba(0, 0, 0, 0.06);
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 30px;
+    overflow: hidden;
+}
+.wx-empty-icon svg {
+    width: 100%;
+    height: 100%;
 }
 .wx-empty-msg {
     font-size: 13px;
-    color: #9a9a9a;
+    color: rgba(0, 0, 0, 0.4);
 }
 .wx-tabbar {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-around;
-    padding: 7px 0 6px;
-    background: #f6f6f6;
-    border-top: 1px solid #d8d8d8;
+    padding: 6px 0 5px;
+    background: #f7f7f7;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 .wx-tab {
     display: flex;
     flex-direction: column;
     align-items: center;
     font-size: 11px;
-    color: #8a8a8a;
+    color: rgba(0, 0, 0, 0.5);
     padding: 3px 12px;
-    border-radius: 8px;
 }
 .wx-tab.active {
     color: #07c160;

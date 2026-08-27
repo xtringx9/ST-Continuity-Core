@@ -12,13 +12,15 @@ export const SKIN_ICONS = {
         <circle cx="36" cy="25" r="3" fill="#6ba7ff"/>
         <circle cx="46" cy="25" r="3" fill="#6ba7ff"/>
     </svg>`,
-    /* 微信：双气泡 */
+    /* 微信：官方双气泡（主白泡 + 绿尾 + 眼睛，无多余装饰路径） */
     wechat: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="46" cy="18" r="11" fill="#fff" opacity="0.55"/>
-        <path d="M8 40h25a7 7 0 0 0 7 -7v-9a7 7 0 0 0 -7 -7h-25a7 7 0 0 0 -7 7v9a7 7 0 0 0 7 7z" fill="#fff"/>
-        <path d="M10 42l2 8 9 -8z" fill="#fff"/>
-        <circle cx="18" cy="28" r="2" fill="#3fa24f"/>
-        <circle cx="28" cy="28" r="2" fill="#3fa24f"/>
+        <path d="M8 14a9 9 0 0 1 9 -9h14a9 9 0 0 1 9 9v9a9 9 0 0 1 -9 9h-6l-8 8 2 -8h-2a9 9 0 0 1 -9 -9v-9z" fill="#ffffff"/>
+        <circle cx="20" cy="19" r="2" fill="#0f9e53"/>
+        <circle cx="28" cy="19" r="2" fill="#0f9e53"/>
+        <circle cx="36" cy="19" r="2" fill="#0f9e53"/>
+        <path d="M30 43a8 8 0 0 1 8 -8h12a8 8 0 0 1 8 8v8a8 8 0 0 1 -8 8h-5l-7 7 2 -7h-2a8 8 0 0 1 -8 -8v-8z" fill="#ffffff" opacity="0.85"/>
+        <circle cx="41" cy="47" r="1.8" fill="#0f9e53"/>
+        <circle cx="49" cy="47" r="1.8" fill="#0f9e53"/>
     </svg>`,
     /* QQ：企鹅简化轮廓 */
     qq: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">

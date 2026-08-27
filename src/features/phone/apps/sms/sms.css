@@ -73,12 +73,38 @@
 .sms-chat[hidden] { display: none !important; }
 .sms-chat-header {
     flex: 0 0 auto;
-    padding: 10px 14px;
-    font-size: 15px;
+    display: flex;
+    align-items: center;
+    padding: 8px 6px;
+    background: linear-gradient(180deg, #6bb0e8, #4d8fd5);
+}
+.sms-chat-back {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    line-height: 1;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 8px;
+}
+.sms-chat-back:active { background: rgba(255, 255, 255, 0.2); }
+.sms-chat-title {
+    flex: 1 1 auto;
+    text-align: center;
+    font-size: 16px;
     font-weight: 600;
     color: #fff;
-    text-align: center;
-    background: linear-gradient(180deg, #6bb0e8, #4d8fd5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sms-chat-header-spacer {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
 }
 .sms-msgs {
     flex: 1 1 auto;
@@ -98,9 +124,12 @@
     font-size: 16px;
     margin-top: 2px;
 }
-.sms-msg.mine {
-    flex-direction: row-reverse;
-}
+/* 「我」的头像固定右侧（对方左侧）——用 order 控制，不依赖 flex-direction */
+.sms-msg .sms-avatar { order: 2; }
+.sms-msg.theirs .sms-avatar { order: 0; }
+/* 「我」的消息整体贴右 */
+.sms-msg.mine { justify-content: flex-end; }
+.sms-msg.mine .sms-body { margin-left: auto; }
 .sms-body {
     display: flex;
     flex-direction: column;
@@ -226,6 +255,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+}
+.sms-empty-icon svg {
+    width: 100%;
+    height: 100%;
 }
 .sms-empty-msg {
     font-size: 13px;

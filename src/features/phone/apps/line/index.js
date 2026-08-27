@@ -4,7 +4,7 @@
 // 皮肤只管内容，外壳层负责导航；会话卡展示群成员（mems），聊天窗口气泡左右两侧。
 import { skinIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -72,7 +72,7 @@ export function buildLineSkin() {
                     ? dateDivider('ln', p.date)
                     : bubble(p.msg, group)).join('');
                 return `<div class="ln-chat" data-conv="${i}" hidden>
-                    <div class="ln-chat-header">${esc(conv.title || '会话')}</div>
+                    ${chatHeader('ln', esc(conv.title || '会话'))}
                     <div class="ln-msgs">${parts || '<div class="ln-empty">暂无消息</div>'}</div>
                     ${chatComposer('ln')}
                 </div>`;

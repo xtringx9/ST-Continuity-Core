@@ -6,7 +6,7 @@
 // 外壳层（phoneRenderer NAV_SCRIPT）负责 home ↔ App ↔ 会话 导航，皮肤只管内容。
 import { skinIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -37,13 +37,13 @@ function bubble(m, groupConv) {
     // 群聊对方消息显示发送者名（自己/私聊不显示）
     const name = !m.isMine && groupConv && m.from ? `<div class="wx-name">${esc(m.from)}</div>` : '';
     const avatar = `<span class="wx-avatar">${initial(m.isMine ? '我' : m.from)}</span>`;
+    // 头像固定放最前，视觉位置由 CSS order 决定（theirs=左，mine=右）
     return `<div class="wx-msg ${mine}">
-        ${m.isMine ? '' : avatar}
+        ${avatar}
         <div class="wx-body">
             ${name}
             <div class="wx-bubble">${content}</div>
         </div>
-        ${m.isMine ? avatar : ''}
     </div>${time}`;
 }
 
@@ -81,14 +81,22 @@ export function buildWechatSkin() {
                     ? dateDivider('wx', p.date)
                     : bubble(p.msg, group)).join('');
                 return `<div class="wx-chat" data-conv="${i}" hidden>
-                    <div class="wx-chat-header">${esc(conv.title || '会话')}</div>
+                    ${chatHeader('wx', esc(conv.title || '会话'))}
                     <div class="wx-msgs">${parts || '<div class="wx-empty">暂无消息</div>'}</div>
                     ${chatComposer('wx')}
                 </div>`;
             }).join('');
 
-            // 会话列表为空：显示完整微信界面（顶栏 + 空态 + 底部标签栏）
-            const emptyList = `<div class="wx-topbar"><span class="wx-topbar-title">微信</span></div>
+            // 微信风格顶部导航（列表态与空态共用）：标题 + 搜索/加号
+            const wxTopbar = `<div class="wx-topbar">
+                <span class="wx-topbar-title">微信</span>
+                <span class="wx-topbar-icons">
+                    <button class="wx-topbar-icon" type="button">🔍</button>
+                    <button class="wx-topbar-icon" type="button">＋</button>
+                </span>
+            </div>`;
+
+            const emptyList = `${wxTopbar}
                 <div class="wx-emptybody">
                     <div class="wx-empty-icon" style="background:#07c160">${skinIcon('wechat')}</div>
                     <div class="wx-empty-msg">暂无会话</div>
@@ -99,7 +107,7 @@ export function buildWechatSkin() {
 
             return {
                 list: items
-                    ? `<ul class="wx-conv-list">${items}</ul>`
+                    ? `${wxTopbar}<ul class="wx-conv-list">${items}</ul>`
                     : `<div class="wx-frame-empty">${emptyList}</div>`,
                 chats,
             };

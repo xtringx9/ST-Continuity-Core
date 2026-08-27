@@ -366,6 +366,19 @@ const NAV_SCRIPT = `
     });
   });
 
+  // 聊天页内返回（拟真 App：皮肤顶栏自带返回按钮，点击回到该 App 会话列表）
+  apps.forEach(function (appEl) {
+    var views = appEl.querySelector('.phone-chat-views');
+    if (!views) return;
+    views.addEventListener('click', function (e) {
+      var back = e.target.closest ? e.target.closest('.js-chat-back') : null;
+      if (!back || !appEl.id) return;
+      var appId = appEl.id.replace(/^app-/, '');
+      var target = document.getElementById('app-' + appId);
+      if (target) { resetAppToConvList(target); state.view = 'app'; state.appId = appId; reportView(appId); }
+    });
+  });
+
   if (psBack) psBack.addEventListener('click', handleBack);
   if (psExit) psExit.addEventListener('click', function () {
     window.parent.postMessage({ type: 'CLOSE_CONTINUITY_MODAL' }, '*');
