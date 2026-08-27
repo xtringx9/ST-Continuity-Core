@@ -312,25 +312,29 @@ function buildNameCanonicalMap(messages, userName) {
         if (!cur || cand.length > cur.length) rootName.set(root, cand);
     }
 
+    // 独立 resolve 函数（对象方法 isUser 也复用；对象字面量内同名方法名不会遮蔽外层变量，
+    // 直接引用函数即可，避免与方法名解析混乱）
+    const resolveName = (lower) => {
+        if (!lower) return '';
+        const lowerStr = String(lower).toLowerCase();
+        for (const v of extractNameVariants(lowerStr)) {
+            let node = v;
+            const seen = new Set();
+            while (parent.has(node) && !seen.has(node)) {
+                seen.add(node);
+                if (parent.get(node) === node) break;
+                node = parent.get(node);
+            }
+            if (seen.has(node) && parent.get(node) === node) return rootName.get(node) || lowerStr;
+        }
+        return lowerStr;
+    };
+
     return {
         /** userName 是否被消息提及（决定是否可做 user 判定） */
         userMentioned,
         /** 解析名字为规范写法（同一人多写法 → 同一根 → 同一规范写法） */
-        resolve(lower) {
-            if (!lower) return '';
-            const lowerStr = String(lower).toLowerCase();
-            for (const v of extractNameVariants(lowerStr)) {
-                let node = v;
-                const seen = new Set();
-                while (parent.has(node) && !seen.has(node)) {
-                    seen.add(node);
-                    if (parent.get(node) === node) break;
-                    node = parent.get(node);
-                }
-                if (seen.has(node) && parent.get(node) === node) return rootName.get(node) || lowerStr;
-            }
-            return lowerStr;
-        },
+        resolve: resolveName,
         /**
          * 判断名字是否指向 user：
          * - 变体直接交集（id/真名命中）始终有效；
@@ -341,7 +345,7 @@ function buildNameCanonicalMap(messages, userName) {
             if (isSamePerson(name, userName)) return true;
             if (!userMentioned) return false;
             // 桥接判定：与 userName 归一后落在同一根
-            return resolve(name) === resolve(userName) && resolve(name) !== '';
+            return resolveName(name) === resolveName(userName) && resolveName(name) !== '';
         },
     };
 }
