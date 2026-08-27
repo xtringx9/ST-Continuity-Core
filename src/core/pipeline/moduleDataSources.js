@@ -12,7 +12,7 @@
 // 源头判断（符合「判断放源头、下游不散落」约定）：getActiveSources() 单点路由。
 
 import { chat } from '../../../../../../../script.js';
-import { extractModulesFromChat } from '../moduleExtractor.js';
+import { extractModulesFromChat, parseNestedModules } from '../moduleExtractor.js';
 import configManager from '../../singleton/configManager.js';
 import { readFloorModules } from '../floorModuleStore.js';
 import { getChatModuleEntryConfig, getChatModuleEntries } from '../chatModuleEntryStore.js';
@@ -127,16 +127,10 @@ registerModuleDataSource('asyncChat', {
             const isUserMessage = message.is_user || message.role === 'user';
             const speakerName = message.name || (isUserMessage ? 'user' : 'assistant');
 
-            // 按换行拆成单个模块 raw（与 extractMessageModules 的合并格式一致）
-            const blocks = rawText.split('\n');
+            // 跨行解析：整段文本交给 parseNestedModules（修复换行被误判为模块结束）
+            const blocks = splitRawTextIntoToplevelModules(rawText, matchesFilter);
             for (const block of blocks) {
-                const trimmed = block.trim();
-                if (!trimmed) continue;
-                // 仅接受形如 [模块|...] 的条目
-                if (!trimmed.startsWith('[') || !trimmed.includes('|')) continue;
-                // 按 filters 过滤模块名
-                const moduleName = trimmed.slice(1, trimmed.indexOf('|')).trim();
-                if (!matchesFilter(moduleName)) continue;
+                const trimmed = block.raw;
                 extracted.push({
                     raw: trimmed,
                     processedRaw: processTextForMatching(trimmed) || trimmed,
@@ -162,6 +156,30 @@ registerModuleDataSource('asyncChat', {
         return extracted;
     },
 });
+
+/**
+ * 把整段模块文本解析为顶层模块数组（修复：换行不再视为模块结束）。
+ *
+ * 旧实现用 rawText.split('\n') 按行拆分，每行当一个模块——一旦某 [模块|...] 内部含换行
+ * （AI 生成多行变量值很常见），就会被劈成多行、后继行不再是 [..| 开头而被丢弃。
+ * 现改为复用与 chatText 同源的 parseNestedModules（逐字符 [ ] 配对，天然支持跨行模块），
+ * 仅取不被其他模块包裹的顶层模块（parent===null），与扁平 [模块|...] 序列语义一致。
+ *
+ * @param {string} rawText 整段模块文本（多个 [模块|...] 可能用换行拼接，单个模块内可能含换行）
+ * @param {(moduleName:string)=>boolean} matchesFilter 模块名过滤回调（null/filters 为空时返回 true）
+ * @returns {Array<{raw:string, moduleName:string}>}
+ */
+function splitRawTextIntoToplevelModules(rawText, matchesFilter) {
+    const parsed = parseNestedModules(rawText);
+    const out = [];
+    for (const m of parsed) {
+        if (m.parent !== null) continue; // 只取顶层，避免嵌套被重复计入
+        const moduleName = m.moduleName;
+        if (matchesFilter && !matchesFilter(moduleName)) continue;
+        out.push({ raw: m.raw, moduleName });
+    }
+    return out;
+}
 
 // ============================================================
 // chatMetaSource：读聊天级模块内容条目（F 二期，第三数据源）
@@ -231,14 +249,10 @@ registerModuleDataSource('chatMeta', {
 
             const messageIndex = Number(entry.messageIndex);
 
-            // 按换行拆成单个模块 raw（与 asyncChatSource 一致）
-            const blocks = rawText.split('\n');
+            // 跨行解析：整段文本交给 parseNestedModules（与 asyncChatSource 一致，修复换行被误判）
+            const blocks = splitRawTextIntoToplevelModules(rawText, matchesFilter);
             for (const block of blocks) {
-                const trimmed = block.trim();
-                if (!trimmed) continue;
-                if (!trimmed.startsWith('[') || !trimmed.includes('|')) continue;
-                const moduleName = trimmed.slice(1, trimmed.indexOf('|')).trim();
-                if (!matchesFilter(moduleName)) continue;
+                const trimmed = block.raw;
                 extracted.push({
                     raw: trimmed,
                     processedRaw: processTextForMatching(trimmed) || trimmed,
