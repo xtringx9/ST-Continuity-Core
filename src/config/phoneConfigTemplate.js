@@ -20,6 +20,11 @@ export const PHONE_CONFIG_TEMPLATE = {
     // 手机场景数组，每个场景 = 一个被查看的模块视图
     scenes: [
         {
+            skinId: {
+                type: 'string',
+                default: 'generic',
+                description: '⚠️ 已废弃（保留兼容旧配置）：消息进哪个 App 改由 platform 映射字段的值决定，不再由配置指定'
+            },
             moduleName: {
                 type: 'string',
                 required: true,
@@ -77,6 +82,7 @@ export const DEFAULT_PHONE_CONFIG_VALUES = {
  */
 export function createEmptyScene(moduleName = '') {
     return {
+        skinId: 'generic',
         moduleName,
         enabled: true,
         appLabel: '',
@@ -153,6 +159,7 @@ export function normalizePhoneConfig(config) {
 
     if (Array.isArray(config.scenes)) {
         normalized.scenes = config.scenes.map((scene) => ({
+            skinId: typeof scene.skinId === 'string' && scene.skinId ? scene.skinId : 'generic',
             moduleName: scene.moduleName || '',
             enabled: scene.enabled !== undefined ? scene.enabled : true,
             appLabel: typeof scene.appLabel === 'string' ? scene.appLabel : '',

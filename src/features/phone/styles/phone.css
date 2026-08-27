@@ -40,16 +40,6 @@ body {
     position: relative;
 }
 
-/* 像素皮：轻扫描线（不抢 iOS 质感，pointer-events:none 不挡点击） */
-.phone::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 30;
-    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 4px);
-}
-
 /* 状态栏：三栏（左=退出/返回，中=时间，右=占位对称），时间真正居中 */
 .phone-statusbar {
     flex: 0 0 auto;
@@ -212,6 +202,26 @@ body {
     background: #f2f2f7;
 }
 
+/* 隐藏滚动条（真机手感，滚动功能保留） */
+.phone *::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.phone * { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* App 内两级视图容器（皮肤中性：list=会话列表，views=各聊天窗口；皮肤自己的类名在各自 css 里） */
+.phone-conv-list-host {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.phone-conv-list-host[hidden] { display: none !important; } /* 防 flex 覆盖 hidden */
+.phone-chat-views {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.phone-chat-views > [data-conv][hidden] { display: none !important; }
+
 /* ============ 设置面板（由桌面「设置」App 打开） ============ */
 .phone-settings-overlay {
     position: absolute;
@@ -283,6 +293,20 @@ body {
     background: #fff;
 }
 .ps-check { min-width: auto !important; color: #333 !important; }
+/* 字段映射分组 */
+.ps-fm {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-top: 2px dashed #1c1c1e;
+    padding-top: 10px;
+    margin-top: 2px;
+}
+.ps-fm-title {
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+}
 .ps-subtitle {
     font-size: 12px;
     color: #999;
@@ -321,3 +345,12 @@ body {
     box-shadow: 3px 3px 0 #1c1c1e;   /* 像素投影 */
 }
 .ps-save:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #1c1c1e; }
+/* 保存回执提示 */
+.ps-result {
+    margin-right: 10px;
+    font-size: 13px;
+    font-weight: bold;
+    vertical-align: middle;
+}
+.ps-result.ok { color: #16a34a; }
+.ps-result.err { color: #e53e3e; }

@@ -1543,8 +1543,10 @@ class ConfigManager {
             return false;
         }
         try {
-            if (!this.isPhoneConfigLoaded) {
-                this.loadPhoneConfig();
+            // ⚠️ 直接用内存最新值保存（可能刚被 handlePhoneMessage 赋值），
+            // 不要在这里 loadPhoneConfig()——若从未加载过会从磁盘覆盖掉新配置（含 fieldMap）。
+            if (!this.phoneConfig || !Array.isArray(this.phoneConfig.scenes)) {
+                this.phoneConfig = { ...DEFAULT_PHONE_CONFIG_VALUES };
             }
             this.phoneConfig = normalizePhoneConfig(this.phoneConfig);
             if (!extension_settings[extensionName]) {
