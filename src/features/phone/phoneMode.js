@@ -252,12 +252,15 @@ function pairKey(a, b) {
 /**
  * 跨消息统一「同一人的不同写法 → 同一会话 key」：
  * 收集消息中所有名字（sender/dm/mems/grp）做并查集归并——名字变体（完整串/括号外 id/括号内真名）
- * 有交集即视为同一人。根变体 → 该人所有写法中「最长」的（保留「线上id(真实姓名)」全格式）作为规范写法。
+ * 有交集即视为同一人。同时把 userName（ST 用户真名）注册进并查集作为锚点：
+ * 只要历史消息中出现过「线上id(真名)」形式，变体即可桥接，后续纯 id 消息也能识别 user。
+ * 根变体 → 该人所有写法中「最长」的（保留「线上id(真实姓名)」全格式）作为规范写法。
  * 返回 { resolve(lower) } 解析任意名字为规范写法。
  * @param {Array} messages
+ * @param {string} userName 当前用户真名（锚点：用于把纯 id 桥接为 user）
  * @returns {{ resolve: (name: string) => string }}
  */
-function buildNameCanonicalMap(messages) {
+function buildNameCanonicalMap(messages, userName) {
     const parent = new Map();               // 变体(小写) → 根变体(小写)
     const owner = new Map();                // 变体(小写) → 该变体最早的名字
     const find = (x) => (parent.get(x) === x ? x : find(parent.get(x)));
@@ -280,12 +283,25 @@ function buildNameCanonicalMap(messages) {
         const root = find(variants[0]);
         for (let i = 1; i < variants.length; i++) union(root, find(variants[i]));
     };
+
+    // 先注册全部消息名
     for (const m of messages) {
         register(m.from);
         register(m.dm);
         register(m.grp);
         if (m.mems) for (const mm of String(m.mems).split(/[,，、]/)) register(mm);
     }
+
+    // 判定 userName 是否被消息提及（变体交集）：有 mention 才启用 user 桥接判定，
+    // 否则消息里纯 id 无法可靠断言谁是 user，避免误把任意名字判成 user
+    const userVariants = extractNameVariants(userName);
+    let userMentioned = false;
+    for (const [variant] of parent) {
+        const vSet = new Set(extractNameVariants(variant));
+        if (userVariants.some((u) => vSet.has(u))) { userMentioned = true; break; }
+    }
+    // 若被提及：把 userName 并进对应的根（该根即 user 身份的锚点）
+    if (userMentioned) register(userName);
 
     // 根变体 → 该人所有写法中「最长」（保留「线上id(真实姓名)」全格式）作为规范写法
     const rootName = new Map();
@@ -297,6 +313,8 @@ function buildNameCanonicalMap(messages) {
     }
 
     return {
+        /** userName 是否被消息提及（决定是否可做 user 判定） */
+        userMentioned,
         /** 解析名字为规范写法（同一人多写法 → 同一根 → 同一规范写法） */
         resolve(lower) {
             if (!lower) return '';
@@ -313,6 +331,18 @@ function buildNameCanonicalMap(messages) {
             }
             return lowerStr;
         },
+        /**
+         * 判断名字是否指向 user：
+         * - 变体直接交集（id/真名命中）始终有效；
+         * - 消息未提及 userName 时不做桥接判定（避免误判）。
+         */
+        isUser(name) {
+            if (!name) return false;
+            if (isSamePerson(name, userName)) return true;
+            if (!userMentioned) return false;
+            // 桥接判定：与 userName 归一后落在同一根
+            return resolve(name) === resolve(userName) && resolve(name) !== '';
+        },
     };
 }
 
@@ -322,7 +352,7 @@ function buildNameCanonicalMap(messages) {
  *   - dm 有值 = 私聊 → 会话 = (sender, dm) 的「双方组合」，无序对同一会话（A发B收 与 B发A收 同窗）
  *   - grp 有值 = 群聊 → 归为「群组名」会话（成员从 mems/sender/dm 收集）
  *   - 都没有 → 以非我的 sender 兜底
- * 用户判定：id/真实姓名任一变体匹配（extractNameVariants / isSamePerson），
+ * 用户判定：优先规范 id 对比（经 buildNameCanonicalMap 桥接，纯 id 也能识别 user），
  * 会话标题：user 与别人 → 只显示对方（保留「线上id(真实姓名)」格式）
  * 同一人的不同写法（周宙 / Z(周宙)）经 buildNameCanonicalMap 归一到同一组 key；
  * 无任何归属信息（sender/dm/grp 为空，多为未配置映射）→ 兜底「未分类」，消息不丢。
@@ -331,17 +361,19 @@ function buildNameCanonicalMap(messages) {
  * @returns {Array} [{ key, title, members, preview, messages }]
  */
 function groupMessagesToConversations(messages, userName) {
-    const { resolve } = buildNameCanonicalMap(messages);
+    const { resolve, isUser, userMentioned } = buildNameCanonicalMap(messages, userName);
+    // userName 的规范 id（仅当消息提及过 user 时才可作对比锚点；未提及则纯 id 无法可靠断言）
+    const userC = userMentioned ? resolve(userName) : '';
     const map = new Map();
     for (const m of messages) {
         const from = m.from || '';
         const dm = m.dm || '';
         const grp = m.grp || '';
-        const fromIsUser = isSamePerson(from, userName);
-        const dmIsUser = isSamePerson(dm, userName);
         // 用规范写法做 key + 标题（同一人多写法 → 同一根 → 同一规范写法）
-        const fromC = resolve(from);
-        const dmC = resolve(dm);
+        const fromC = resolve(from) || from;
+        const dmC = resolve(dm) || dm;
+        const fromIsUser = !!fromC && !!userC && (fromC === userC || isUser(from));
+        const dmIsUser = !!dmC && !!userC && (dmC === userC || isUser(dm));
         let key;
         let title;
         if (dm) {
@@ -379,7 +411,7 @@ function groupMessagesToConversations(messages, userName) {
         if (from && !fromIsUser) collect.push(from);
         if (dm && !dmIsUser) collect.push(dm);
         collect.map((x) => String(x).trim()).filter(Boolean).forEach((mm) => {
-            const rc = resolve(mm);
+            const rc = resolve(mm) || mm;
             if (!conv.members.includes(rc)) conv.members.push(rc);
         });
         conv.messages.push(m);
@@ -446,7 +478,11 @@ function renderPhoneHtml() {
     const apps = [];
     for (const skin of skins) {
         cssUrls.push(`${currentExtensionPath}/${skin.cssPath}`);
-        const conversations = groupMessagesToConversations(messagesBySkin.get(skin.id) || [], userName);
+        // 基于全部消息的规范身份解析，补齐纯 id 消息的 isMine（气泡方向）
+        const skinMessages = messagesBySkin.get(skin.id) || [];
+        const { isUser } = buildNameCanonicalMap(skinMessages, userName);
+        for (const msg of skinMessages) msg.isMine = isUser(msg.from);
+        const conversations = groupMessagesToConversations(skinMessages, userName);
         const { list, chats } = skin.renderAppHtml(conversations);
         const appHtml = `<div class="phone-conv-list-host">${list}</div><div class="phone-chat-views">${chats}</div>`;
         apps.push({ key: skin.id, label: skin.label, icon: skin.icon, html: appHtml });
