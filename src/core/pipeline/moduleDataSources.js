@@ -127,8 +127,8 @@ registerModuleDataSource('asyncChat', {
             const isUserMessage = message.is_user || message.role === 'user';
             const speakerName = message.name || (isUserMessage ? 'user' : 'assistant');
 
-            // 跨行解析：整段文本交给 parseNestedModules（修复换行被误判为模块结束）
-            const blocks = splitRawTextIntoToplevelModules(rawText, matchesFilter);
+            // 跨行解析：整段文本交给 parseNestedModules（修复换行被误判为模块结束，且保留嵌套）
+            const blocks = parseRawTextIntoModules(rawText, matchesFilter);
             for (const block of blocks) {
                 const trimmed = block.raw;
                 extracted.push({
@@ -158,22 +158,25 @@ registerModuleDataSource('asyncChat', {
 });
 
 /**
- * 把整段模块文本解析为顶层模块数组（修复：换行不再视为模块结束）。
+ * 把整段模块文本解析为模块数组（修复：换行不再视为模块结束，且保留嵌套子模块）。
  *
  * 旧实现用 rawText.split('\n') 按行拆分，每行当一个模块——一旦某 [模块|...] 内部含换行
  * （AI 生成多行变量值很常见），就会被劈成多行、后继行不再是 [..| 开头而被丢弃。
  * 现改为复用与 chatText 同源的 parseNestedModules（逐字符 [ ] 配对，天然支持跨行模块），
- * 仅取不被其他模块包裹的顶层模块（parent===null），与扁平 [模块|...] 序列语义一致。
+ * 返回 parseNestedModules 解析出的全部模块（含嵌套子模块），与 extractModulesFromChat
+ * 行为完全对齐（其 modules.forEach 同样不区分 parent，逐条 push）。
  *
- * @param {string} rawText 整段模块文本（多个 [模块|...] 可能用换行拼接，单个模块内可能含换行）
+ * ⚠️ floor/chatMeta 文本也可能含嵌套（如 [外层|var:值[内层|...]），不可只取 parent===null，
+ * 否则会丢失嵌套子模块（与之前 split('\n') 一样的 bug，只是换了个丢法）。
+ *
+ * @param {string} rawText 整段模块文本（多个 [模块|...] 可能用换行拼接，单个模块内可能含换行/嵌套）
  * @param {(moduleName:string)=>boolean} matchesFilter 模块名过滤回调（null/filters 为空时返回 true）
  * @returns {Array<{raw:string, moduleName:string}>}
  */
-function splitRawTextIntoToplevelModules(rawText, matchesFilter) {
+function parseRawTextIntoModules(rawText, matchesFilter) {
     const parsed = parseNestedModules(rawText);
     const out = [];
     for (const m of parsed) {
-        if (m.parent !== null) continue; // 只取顶层，避免嵌套被重复计入
         const moduleName = m.moduleName;
         if (matchesFilter && !matchesFilter(moduleName)) continue;
         out.push({ raw: m.raw, moduleName });
@@ -249,8 +252,8 @@ registerModuleDataSource('chatMeta', {
 
             const messageIndex = Number(entry.messageIndex);
 
-            // 跨行解析：整段文本交给 parseNestedModules（与 asyncChatSource 一致，修复换行被误判）
-            const blocks = splitRawTextIntoToplevelModules(rawText, matchesFilter);
+            // 跨行解析：整段文本交给 parseNestedModules（与 asyncChatSource 一致，修复换行被误判，且保留嵌套）
+            const blocks = parseRawTextIntoModules(rawText, matchesFilter);
             for (const block of blocks) {
                 const trimmed = block.raw;
                 extracted.push({
