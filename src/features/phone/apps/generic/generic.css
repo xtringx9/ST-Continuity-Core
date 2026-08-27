@@ -115,3 +115,73 @@
     color: #8e8e93;
     margin-top: 3px;
 }
+
+/* ============ 空状态：真 App 界面骨架（顶栏 + 空态 + 底部标签栏） ============ */
+.g-frame-empty {
+    flex: 1 1 auto;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+    background: #f2f2f7;
+}
+.g-frame-empty[hidden] { display: none !important; }
+.g-topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f8f8fa;
+    border-bottom: 2px solid #1c1c1e;
+}
+.g-topbar-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #1c1c1e;
+}
+.g-emptybody {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #f2f2f7;
+}
+.g-empty-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    background: #e4e4ea;
+    border: 2px solid #1c1c1e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+}
+.g-empty-msg {
+    font-size: 13px;
+    color: #8e8e93;
+}
+.g-tabbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 8px 0;
+    background: #f8f8fa;
+    border-top: 2px solid #1c1c1e;
+}
+.g-tab {
+    font-size: 12px;
+    font-weight: bold;
+    color: #8e8e93;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+}
+.g-tab.active {
+    color: #007aff;
+    background: rgba(0, 122, 255, 0.1);
+    border-color: #007aff;
+}

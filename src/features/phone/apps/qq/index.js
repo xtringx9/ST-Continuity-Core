@@ -70,8 +70,20 @@ export function buildQqSkin() {
                 </div>`;
             }).join('');
 
+            // 会话列表为空：显示完整 QQ 界面（顶栏 + 空态 + 底部标签栏）
+            const emptyList = `<div class="qq-topbar"><span class="qq-topbar-title">QQ</span></div>
+                <div class="qq-emptybody">
+                    <div class="qq-empty-icon">🐧</div>
+                    <div class="qq-empty-msg">暂无会话</div>
+                </div>
+                <div class="qq-tabbar">
+                    <span class="qq-tab active">消息</span><span class="qq-tab">联系人</span><span class="qq-tab">动态</span><span class="qq-tab">我的</span>
+                </div>`;
+
             return {
-                list: `<ul class="qq-conv-list">${items || '<li class="qq-empty">暂无会话，请先在手机设置中配置模块</li>'}</ul>`,
+                list: items
+                    ? `<ul class="qq-conv-list">${items}</ul>`
+                    : `<div class="qq-frame-empty">${emptyList}</div>`,
                 chats,
             };
         },

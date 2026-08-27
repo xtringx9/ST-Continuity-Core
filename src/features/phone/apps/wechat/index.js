@@ -80,8 +80,20 @@ export function buildWechatSkin() {
                 </div>`;
             }).join('');
 
+            // 会话列表为空：显示完整微信界面（顶栏 + 空态 + 底部标签栏）
+            const emptyList = `<div class="wx-topbar"><span class="wx-topbar-title">微信</span></div>
+                <div class="wx-emptybody">
+                    <div class="wx-empty-icon">💬</div>
+                    <div class="wx-empty-msg">暂无会话</div>
+                </div>
+                <div class="wx-tabbar">
+                    <span class="wx-tab active">微信</span><span class="wx-tab">通讯录</span><span class="wx-tab">发现</span><span class="wx-tab">我</span>
+                </div>`;
+
             return {
-                list: `<ul class="wx-conv-list">${items || '<li class="wx-empty">暂无会话，请先在手机设置中配置模块</li>'}</ul>`,
+                list: items
+                    ? `<ul class="wx-conv-list">${items}</ul>`
+                    : `<div class="wx-frame-empty">${emptyList}</div>`,
                 chats,
             };
         },

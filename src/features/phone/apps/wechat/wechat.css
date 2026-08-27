@@ -145,3 +145,72 @@
     margin-top: 3px;
     text-align: center;
 }
+
+/* ============ 空状态：真微信界面骨架（顶栏 + 空态 + 底部标签栏） ============ */
+.wx-frame-empty {
+    flex: 1 1 auto;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+    background: #ededed;
+}
+.wx-frame-empty[hidden] { display: none !important; }
+.wx-topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 14px;
+    background: #ededed;
+    border-bottom: 1px solid #d8d8d8;
+}
+.wx-topbar-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111;
+}
+.wx-emptybody {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #ededed;
+}
+.wx-empty-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+}
+.wx-empty-msg {
+    font-size: 13px;
+    color: #9a9a9a;
+}
+.wx-tabbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 7px 0 6px;
+    background: #f6f6f6;
+    border-top: 1px solid #d8d8d8;
+}
+.wx-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 11px;
+    color: #8a8a8a;
+    padding: 3px 12px;
+    border-radius: 8px;
+}
+.wx-tab.active {
+    color: #07c160;
+    font-weight: 600;
+}

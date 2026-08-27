@@ -51,7 +51,7 @@ export function buildGenericSkin() {
         renderAppHtml(conversations) {
             const items = conversations.map((conv, i) => {
                 const title = escapeHtml(conv.title || '未命名会话');
-                const preview = escapeHtml((conv.preview || '暂无消息').slice(0, 30));
+                const preview = escapeHtml((conv.preview || '').slice(0, 30));
                 const initial = escapeHtml((conv.title || '?').slice(0, 1));
                 return `<li class="g-conv" data-conv="${i}">
                     <span class="g-avatar">${initial}</span>
@@ -71,8 +71,20 @@ export function buildGenericSkin() {
                 </div>`;
             }).join('');
 
+            // 会话列表为空：显示完整 App 界面（顶栏 + 空态 + 底部标签栏），而非技术性提示
+            const emptyList = `<div class="g-topbar"><span class="g-topbar-title">聊天</span></div>
+                <div class="g-emptybody">
+                    <div class="g-empty-icon">💬</div>
+                    <div class="g-empty-msg">暂无会话</div>
+                </div>
+                <div class="g-tabbar">
+                    <span class="g-tab active">消息</span><span class="g-tab">联系人</span><span class="g-tab">动态</span><span class="g-tab">设置</span>
+                </div>`;
+
             return {
-                list: `<ul class="g-conv-list">${items || '<li class="g-empty">暂无会话，请在手机设置中把模块放进来</li>'}</ul>`,
+                list: items
+                    ? `<ul class="g-conv-list">${items}</ul>`
+                    : `<div class="g-frame-empty">${emptyList}</div>`,
                 chats,
             };
         },

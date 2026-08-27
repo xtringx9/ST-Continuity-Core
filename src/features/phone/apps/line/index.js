@@ -71,8 +71,20 @@ export function buildLineSkin() {
                 </div>`;
             }).join('');
 
+            // 会话列表为空：显示完整 LINE 界面（顶栏 + 空态 + 底部标签栏）
+            const emptyList = `<div class="ln-topbar"><span class="ln-topbar-title">LINE</span></div>
+                <div class="ln-emptybody">
+                    <div class="ln-empty-icon">💧</div>
+                    <div class="ln-empty-msg">暂无会话</div>
+                </div>
+                <div class="ln-tabbar">
+                    <span class="ln-tab active">好友</span><span class="ln-tab">聊天</span><span class="ln-tab">动态</span><span class="ln-tab">设置</span>
+                </div>`;
+
             return {
-                list: `<ul class="ln-conv-list">${items || '<li class="ln-empty">暂无会话，请先在手机设置中配置模块</li>'}</ul>`,
+                list: items
+                    ? `<ul class="ln-conv-list">${items}</ul>`
+                    : `<div class="ln-frame-empty">${emptyList}</div>`,
                 chats,
             };
         },
