@@ -242,39 +242,40 @@ meta.json 格式：
 
 ### 异步模块存储配置
 
-存储在 `extension_config.asyncModule` 中（扩展级，非模块级）：
+存储在 `module_config.asyncConfig` 中（模块域配置级；2026-08-17 从 `extension_config.module.asyncModule` 迁入，旧位置只剩 `enabled`）：
 
 ```javascript
-asyncModule: {
-    enabled: false,              // 异步模块存储（需服务器插件）
-    snapshotInterval: 5,         // 快照间隔（层）
-    generationMode: 'pipeline',  // AI 生成模式: 'pipeline' | 'raw'
-    customApi: {                 // 独立 API 配置（留空则使用 ST 主 API）
+asyncConfig: {
+    snapshotInterval: 5,            // 快照间隔（层）
+    generationMode: 'pipeline',     // AI 生成模式: 'pipeline' | 'raw'
+    useIndependentApi: false,       // false=主 API, true=独立 API
+    rawSystemPrompt: '',            // raw 模式的系统提示词
+    rawUserPromptTemplate: '',      // raw 模式的用户提示词模板
+    showDebug: true,                // 生成后是否弹出面板手动确认（false=自动存储）
+    pushUserMessageAsLast: false,   // UI 暂隐藏但生效
+    askPromptBeforeGenerate: false, // UI 暂隐藏但生效
+    autoGenerateOnMessageEnd: true, // GENERATION_ENDED 时自动触发异步生成
+    promptGroups: [],               // 提示词组 [{id,name,role,prompt,isDefault}]
+    presetName: '',                 // 指定 ST OpenAI 预设（dryRun 组装临时使用）
+    customApi: {                    // 独立 API 配置
         apiurl: '',
-        key: '',
+        secretId: '',               // 密钥双轨（与 key 互斥）：指向 ST 密钥池 api_key_custom 的 secret 引用
+        key: '',                    // 明文密钥直填兜底
         model: '',
-        source: 'openai',
-        temperature: 0.3,
-        max_tokens: 500,
+        source: 'openai',           // 'openai' | 'claude' | 'custom'
+        temperature: 1,
+        max_tokens: 0,              // 0=不限制
     },
-    rawSystemPrompt: '',         // raw 模式的系统提示词
-    rawUserPromptTemplate: '',   // raw 模式的用户提示词模板
-    pipelineModifier: '',        // pipeline 模式追加的指令
-    showDebug: true,             // 生成后是否显示调试面板
 }
 ```
 
-- `enabled`：开启后，非正文模块异步生成 + 分开存储，需安装服务器插件
-- `snapshotInterval`：快照间隔，默认5层，一般不需修改
-- `generationMode`：AI 生成模式
-  - `pipeline`：走 ST 完整管线（角色卡/世界书/预设），通过 `CHAT_COMPLETION_PROMPT_READY` 事件拦截修改提示词
-  - `raw`：完全自定义提示词，通过 `generateRaw` 调用
-- `customApi`：独立 API 配置，通过 `CHAT_COMPLETION_SETTINGS_READY` 事件拦截替换 API 参数
-- `rawSystemPrompt`/`rawUserPromptTemplate`：raw 模式的提示词模板
-- `pipelineModifier`：pipeline 模式追加到提示词末尾的指令
-- `showDebug`：生成后是否弹出调试面板（展示提示词/响应/提取结果 + 复制按钮）
+- 默认生成提示词 = `promptGroups` 中 isDefault 组的 prompt（默认含一条「仅输出 module_update」组；用户删除后不回填）
+- `generationMode`：`pipeline` 走 ST 完整管线（事件拦截修改提示词）；`raw` 通过 `generateRaw` 完全自定义
+- `customApi.secretId`/`key` 双轨互斥：secretId 走服务端 CUSTOM 密钥通道（临时激活+静默旋转），key 明文直填
+- `presetName`：dryRun 组装时临时切换预设，优先级 options.presetName > generator_config > asyncConfig
+- 生成指令宏 `{{ccore_msg_module}}`：生成期专用，展开为指定楼层 mesId 现算的模块数据（moduleAiGenerator 注册解析器注入 variableReplacer）
 - `BATCH_SIZE = 100`：内部常量，不暴露给用户
-- 关闭 `enabled` 时，行为与现有全量同步处理完全一致
+- 关闭异步（`asyncModule.enabled=false`）时，行为与全量同步处理完全一致
 
 ### AI 调用架构
 
