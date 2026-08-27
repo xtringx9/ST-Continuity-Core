@@ -4,6 +4,7 @@
 // 桌面图标走 iconKey 注册；会话列表 + 聊天窗口结构与通用皮肤一致，配色品牌化。
 import { skinIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
+import { groupByDate, dateDivider, chatComposer } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -64,10 +65,13 @@ export function buildSmsSkin() {
 
             const chats = conversations.map((conv, i) => {
                 const group = isGroupConversation(conv);
-                const msgs = conv.messages.map((m) => bubble(m, group)).join('');
+                const parts = groupByDate(conv.messages).map((p) => p.kind === 'date'
+                    ? dateDivider('sms', p.date)
+                    : bubble(p.msg, group)).join('');
                 return `<div class="sms-chat" data-conv="${i}" hidden>
                     <div class="sms-chat-header">${esc(conv.title || '会话')}</div>
-                    <div class="sms-msgs">${msgs || '<div class="sms-empty">暂无消息</div>'}</div>
+                    <div class="sms-msgs">${parts || '<div class="sms-empty">暂无消息</div>'}</div>
+                    ${chatComposer('sms')}
                 </div>`;
             }).join('');
 

@@ -6,6 +6,7 @@
 // 外壳层（phoneRenderer NAV_SCRIPT）负责 home ↔ App ↔ 会话 导航，皮肤只管内容。
 import { skinIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
+import { groupByDate, dateDivider, chatComposer } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -76,10 +77,13 @@ export function buildWechatSkin() {
 
             const chats = conversations.map((conv, i) => {
                 const group = isGroupConversation(conv);
-                const msgs = conv.messages.map((m) => bubble(m, group)).join('');
+                const parts = groupByDate(conv.messages).map((p) => p.kind === 'date'
+                    ? dateDivider('wx', p.date)
+                    : bubble(p.msg, group)).join('');
                 return `<div class="wx-chat" data-conv="${i}" hidden>
                     <div class="wx-chat-header">${esc(conv.title || '会话')}</div>
-                    <div class="wx-msgs">${msgs || '<div class="wx-empty">暂无消息</div>'}</div>
+                    <div class="wx-msgs">${parts || '<div class="wx-empty">暂无消息</div>'}</div>
+                    ${chatComposer('wx')}
                 </div>`;
             }).join('');
 

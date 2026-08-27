@@ -6,6 +6,7 @@
 // 气泡类型暂只做 text（type 细分留待后续 skin 或本皮肤扩展）。
 import { skinIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
+import { groupByDate, dateDivider, chatComposer } from '../chatChrome.js';
 
 /**
  * HTML 转义（防 XSS / 破坏结构）
@@ -67,10 +68,13 @@ export function buildGenericSkin() {
 
             const chats = conversations.map((conv, i) => {
                 const header = `<div class="g-chat-header">${escapeHtml(conv.title || '会话')}</div>`;
-                const msgs = conv.messages.map((m) => bubble(m)).join('');
+                const parts = groupByDate(conv.messages).map((p) => p.kind === 'date'
+                    ? dateDivider('g', p.date)
+                    : bubble(p.msg)).join('');
                 return `<div class="g-chat" data-conv="${i}" hidden>
                     ${header}
-                    <div class="g-msgs">${msgs || '<div class="g-empty">暂无消息</div>'}</div>
+                    <div class="g-msgs">${parts || '<div class="g-empty">暂无消息</div>'}</div>
+                    ${chatComposer('g')}
                 </div>`;
             }).join('');
 

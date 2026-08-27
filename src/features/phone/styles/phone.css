@@ -207,6 +207,13 @@ body {
 .phone *::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .phone * { scrollbar-width: none; -ms-overflow-style: none; }
 
+/* 触摸滚动：触屏上手指划拉有效（不允许水平/缩放手势劫持垂直滚动） */
+.phone * {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
 /* App 内两级视图容器（皮肤中性：list=会话列表，views=各聊天窗口；皮肤自己的类名在各自 css 里） */
 .phone-conv-list-host {
     flex: 1 1 auto;
