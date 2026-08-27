@@ -140,15 +140,33 @@ function extractNameVariants(value) {
 }
 
 /**
- * 提取显示名：优先括号内（真实姓名），无括号则原值
+ * 标准化身份：返回「用于 key 的简化 id」+「用于显示（线上id(真实姓名)）」
+ * @param {string} value
+ * @returns {{ id: string, display: string }}
+ */
+function normalizeName(value) {
+    const raw = String(value == null ? '' : value).trim();
+    if (!raw) return { id: '', display: '' };
+    const m = raw.match(/^([^\(（]+)[\(（]([^\)）]+)[\)）]$/);
+    if (m) {
+        const idRaw = m[1].trim();
+        const real = m[2].trim();
+        return {
+            id: idRaw.toLowerCase(),
+            display: `${idRaw}(${real})`,
+        };
+    }
+    // 无括号：id 和显示都是原值
+    return { id: raw.toLowerCase(), display: raw };
+}
+
+/**
+ * 提取显示名：保留原值格式「线上id(真实姓名)」（线上id 优先可见）
  * @param {string} value
  * @returns {string}
  */
 function extractDisplayName(value) {
-    const raw = String(value == null ? '' : value).trim();
-    if (!raw) return '';
-    const m = raw.match(/^([^\(（]+)[\(（]([^\)）]+)[\)）]$/);
-    return m ? m[2].trim() : raw;
+    return String(value == null ? '' : value).trim();
 }
 
 /**
@@ -224,7 +242,7 @@ function routePlatform(platform, skins) {
     return id && skins.some((s) => s.id === id) ? id : 'generic';
 }
 
-/** 无序对 key：私聊双方组合（A↔B 与 B↔A 视为同一会话） */
+/** 无序对 key：私聊双方组合（A↔B 与 B↔A 视为同一会话）。入参为已标准化的 id（小写） */
 function pairKey(a, b) {
     const x = String(a == null ? '' : a);
     const y = String(b == null ? '' : b);
@@ -232,19 +250,88 @@ function pairKey(a, b) {
 }
 
 /**
+ * 跨消息统一「同一人的不同写法 → 同一会话 key」：
+ * 收集消息中所有名字（sender/dm/mems/grp）做并查集归并——名字变体（完整串/括号外 id/括号内真名）
+ * 有交集即视为同一人。根变体 → 该人所有写法中「最长」的（保留「线上id(真实姓名)」全格式）作为规范写法。
+ * 返回 { resolve(lower) } 解析任意名字为规范写法。
+ * @param {Array} messages
+ * @returns {{ resolve: (name: string) => string }}
+ */
+function buildNameCanonicalMap(messages) {
+    const parent = new Map();               // 变体(小写) → 根变体(小写)
+    const owner = new Map();                // 变体(小写) → 该变体最早的名字
+    const find = (x) => (parent.get(x) === x ? x : find(parent.get(x)));
+    const union = (a, b) => {
+        const ra = find(a), rb = find(b);
+        if (ra === rb) return;
+        // 让「拥有更长 owner」的一方当根，保证规范写法是最长的那个（含线上id(真实姓名)）
+        const la = (owner.get(ra) || ra).length;
+        const lb = (owner.get(rb) || rb).length;
+        if (lb > la) parent.set(ra, rb);
+        else parent.set(rb, ra);
+    };
+
+    const register = (name) => {
+        const raw = String(name == null ? '' : name).trim();
+        if (!raw) return;
+        const variants = extractNameVariants(raw);
+        for (const v of variants) if (!parent.has(v)) { parent.set(v, v); owner.set(v, raw); }
+        // 该名字的所有变体并入同一人
+        const root = find(variants[0]);
+        for (let i = 1; i < variants.length; i++) union(root, find(variants[i]));
+    };
+    for (const m of messages) {
+        register(m.from);
+        register(m.dm);
+        register(m.grp);
+        if (m.mems) for (const mm of String(m.mems).split(/[,，、]/)) register(mm);
+    }
+
+    // 根变体 → 该人所有写法中「最长」（保留「线上id(真实姓名)」全格式）作为规范写法
+    const rootName = new Map();
+    for (const [variant] of parent) {
+        const root = find(variant);
+        const cand = owner.get(variant) || variant;
+        const cur = rootName.get(root);
+        if (!cur || cand.length > cur.length) rootName.set(root, cand);
+    }
+
+    return {
+        /** 解析名字为规范写法（同一人多写法 → 同一根 → 同一规范写法） */
+        resolve(lower) {
+            if (!lower) return '';
+            const lowerStr = String(lower).toLowerCase();
+            for (const v of extractNameVariants(lowerStr)) {
+                let node = v;
+                const seen = new Set();
+                while (parent.has(node) && !seen.has(node)) {
+                    seen.add(node);
+                    if (parent.get(node) === node) break;
+                    node = parent.get(node);
+                }
+                if (seen.has(node) && parent.get(node) === node) return rootName.get(node) || lowerStr;
+            }
+            return lowerStr;
+        },
+    };
+}
+
+/**
  * 按「对方」分组会话（true IM 语义）：
  * 优先级：私聊(dm 有值) > 群聊(grp 有值) > 兜底(sender)：
  *   - dm 有值 = 私聊 → 会话 = (sender, dm) 的「双方组合」，无序对同一会话（A发B收 与 B发A收 同窗）
- *   - grp 有值 = 群聊 → 归为「群组名」会话（成员从 mems/sender 收集）
+ *   - grp 有值 = 群聊 → 归为「群组名」会话（成员从 mems/sender/dm 收集）
  *   - 都没有 → 以非我的 sender 兜底
  * 用户判定：id/真实姓名任一变体匹配（extractNameVariants / isSamePerson），
- * 会话标题：user 与别人 → 只显示对方（真实姓名优先）
+ * 会话标题：user 与别人 → 只显示对方（保留「线上id(真实姓名)」格式）
+ * 同一人的不同写法（周宙 / Z(周宙)）经 buildNameCanonicalMap 归一到同一组 key；
  * 无任何归属信息（sender/dm/grp 为空，多为未配置映射）→ 兜底「未分类」，消息不丢。
  * @param {Array} messages
  * @param {string} userName 当前用户名字（过滤 user 会话 / 判定方向）
  * @returns {Array} [{ key, title, members, preview, messages }]
  */
 function groupMessagesToConversations(messages, userName) {
+    const { resolve } = buildNameCanonicalMap(messages);
     const map = new Map();
     for (const m of messages) {
         const from = m.from || '';
@@ -252,18 +339,21 @@ function groupMessagesToConversations(messages, userName) {
         const grp = m.grp || '';
         const fromIsUser = isSamePerson(from, userName);
         const dmIsUser = isSamePerson(dm, userName);
+        // 用规范写法做 key + 标题（同一人多写法 → 同一根 → 同一规范写法）
+        const fromC = resolve(from);
+        const dmC = resolve(dm);
         let key;
         let title;
         if (dm) {
             // 私聊：会话 = (sender, dm) 双方组合，无序对同一会话
-            key = 'dm:' + pairKey(from, dm);
+            key = 'dm:' + pairKey(fromC, dmC);
             if (fromIsUser && dmIsUser) continue;           // 自己和自己
             if (fromIsUser) {
-                title = extractDisplayName(dm);              // 我发 → 对方=接收方
+                title = extractDisplayName(dmC);             // 我发 → 对方=接收方
             } else if (dmIsUser) {
-                title = extractDisplayName(from);            // 对方发 → 对方=发送者
+                title = extractDisplayName(fromC);           // 对方发 → 对方=发送者
             } else {
-                title = (extractDisplayName(from) || '?') + ' · ' + (extractDisplayName(dm) || '?');
+                title = (extractDisplayName(fromC) || '?') + ' · ' + (extractDisplayName(dmC) || '?');
             }
         } else if (grp) {
             // 群聊：归为群组会话
@@ -271,8 +361,8 @@ function groupMessagesToConversations(messages, userName) {
             title = grp;
         } else if (from && !fromIsUser) {
             // 无类型标签：以非我发送者兜底
-            key = 'dm:' + pairKey(from, '');
-            title = extractDisplayName(from);
+            key = 'dm:' + pairKey(fromC, '');
+            title = extractDisplayName(fromC);
         } else {
             // 无任何归属信息（sender/dm/grp 均取不到，多为未配置映射）：兜底到「未分类」，
             // 保证消息不丢（含 user 自己发出的）；字段映射配置后这类消息会自然消失
@@ -283,12 +373,14 @@ function groupMessagesToConversations(messages, userName) {
 
         if (!map.has(key)) map.set(key, { key, title, members: [], messages: [] });
         const conv = map.get(key);
-        // 成员：mems 字段 + 非我 sender 都算群成员（供皮肤展示）
+        // 成员：mems 字段 + 私聊双方（sender/dm，供皮肤展示；同一人多写法按规范写法去重）
         const collect = [];
         if (m.mems) collect.push(...String(m.mems).split(/[,，、]/));
         if (from && !fromIsUser) collect.push(from);
+        if (dm && !dmIsUser) collect.push(dm);
         collect.map((x) => String(x).trim()).filter(Boolean).forEach((mm) => {
-            if (!conv.members.includes(mm)) conv.members.push(mm);
+            const rc = resolve(mm);
+            if (!conv.members.includes(rc)) conv.members.push(rc);
         });
         conv.messages.push(m);
     }
