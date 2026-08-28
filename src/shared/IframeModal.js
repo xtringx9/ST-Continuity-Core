@@ -68,13 +68,17 @@ export class IframeModal {
             });
             Object.assign(iframe.style, {
                 width: 'min(96vw, 440px)',
-                height: 'min(94vh, 900px)',
+                height: 'min(94vh, 900px)',   // vh 兜底（旧浏览器，见下方 dvh 覆盖）
                 maxWidth: '96vw',
                 maxHeight: '94vh',
                 border: 'none',
                 display: 'block',
                 background: 'transparent',
             });
+            // 覆盖为动态视口：移动浏览器地址栏/底部栏会占掉部分 vh，94vh 超出可见区导致手机上下被遮挡；
+            // dvh = 排除浏览器 UI 后的可见高度，随上下栏收起/展开实时适配。不支持 dvh 的浏览器忽略此行保留 vh。
+            iframe.style.height = 'min(94dvh, 900px)';
+            iframe.style.maxHeight = '94dvh';
         }
         // fitContent：容器随内容自适应（去除深色外框），iframe 先给定尺寸避免加载前塌陷
         else if (options.fitContent) {
