@@ -523,8 +523,15 @@ export class EventHandler {
      */
     initializeWorldBookIntegration() {
         this.registerEvent(event_types.EXTENSION_SETTINGS_LOADED, checkAndInitializeWorldBook, false, "", true);
-        this.registerEvent(event_types.WORLDINFO_SETTINGS_UPDATED, updateCurrentCharWorldBookCache, false, "", true);
-        this.registerEvent(event_types.WORLDINFO_UPDATED, updateCurrentCharWorldBookCache, false, "", true);
+        // 世界书数据变更：刷新角色世界书缓存 + 失效 charBook 源第 0 层 occurrence。
+        // charBook 源读 getCurrentCharBooksEnabledEntries（charWorldBookCache），世界书模块条目统一
+        // -99 起始态、只并入第 0 层缓存 → 变更需先刷新 cache 再清第 0 层 + B 层 + 标脏（与 chatMeta 负数一致）。
+        const onWorldBookChanged = async () => {
+            await updateCurrentCharWorldBookCache();
+            this._freshFloorCache(0, { sources: ['charBook'], snapshotDirty: true });
+        };
+        this.registerEvent(event_types.WORLDINFO_SETTINGS_UPDATED, onWorldBookChanged, false, "", true);
+        this.registerEvent(event_types.WORLDINFO_UPDATED, onWorldBookChanged, false, "", true);
         this.registerEvent(event_types.CHARACTER_EDITOR_OPENED, updateCurrentCharWorldBookCache, false, "", true);
     }
 
@@ -533,8 +540,11 @@ export class EventHandler {
         // - Immediate（同步）：CHAT_CHANGED（进聊天需新鲜缓存）、MESSAGE_SENT（PROMPT_READY 宏同步读前需含用户新消息）
         // - Debounced（80ms 合并 + force 取并集）：RECEIVED/EDITED/UPDATED/SWIPED 等 burst 事件，无同步读约束
         // - CHAT_COMPLETION_PROMPT_READY 移除：生成前触发、缓存已 warm、立即被后续事件覆盖，纯浪费
-        this.registerEvent(event_types.CHAT_CHANGED, () => {
+        this.registerEvent(event_types.CHAT_CHANGED, async () => {
             moduleCacheManager.clearAllCache();
+            // charBook 源依赖角色世界书 cache：切聊天/换角色时刷新（不同角色/聊天的世界书不同）。
+            // await 确保 cache 就绪再 warm，避免 charBook 源读到旧角色的世界书缓存。
+            await updateCurrentCharWorldBookCache();
             moduleCacheManager.updateModuleCacheImmediate(false);
         }, true, "Module Cache", true);
         this.registerEvent(event_types.CHAT_CHANGED, () => generatedContentCache.clear(), true, "Generated Content Cache", true);

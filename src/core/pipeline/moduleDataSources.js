@@ -16,8 +16,17 @@ import { extractModulesFromChat, parseNestedModules } from '../moduleExtractor.j
 import configManager from '../../singleton/configManager.js';
 import { readFloorModules } from '../floorModuleStore.js';
 import { getChatModuleEntryConfig, getChatModuleEntries } from '../chatModuleEntryStore.js';
+import { getCurrentCharBooksEnabledEntries } from '../../utils/worldBookUtils.js';
 import { debugLog } from '../../utils/logger.js';
 import { processTextForMatching } from '../../utils/textConverter.js';
+
+/**
+ * 世界书模块条目统一起始态楼层（负数）。
+ * 语义：世界书中启用的模块内容条目（!disable）作为「初始模块」，从聊天起始态（第 0 层之前）参与。
+ * 用 -99 与聊天级条目的 -1/-2/-3 起始态在楼层轴上隔离，输出排序恒排最前。
+ * 负数只在楼层 0 的提取中并入 → 世界书变更只需失效第 0 层 occurrence（与 chatMeta 负数一致）。
+ */
+export const WORLD_BOOK_MODULE_INDEX = -99;
 
 /** 源注册表 */
 const sources = new Map();
@@ -46,6 +55,9 @@ export function getActiveSourceNames() {
     }
     if (sources.has('chatMeta')) {
         names.push('chatMeta');
+    }
+    if (sources.has('charBook')) {
+        names.push('charBook');
     }
     return names;
 }
@@ -278,6 +290,79 @@ registerModuleDataSource('chatMeta', {
         }
 
         debugLog(`[chatMetaSource] 提取到 ${extracted.length} 个聊天级条目模块块`);
+        return extracted;
+    },
+});
+
+// ============================================================
+// charBookSource：读世界书启用条目中的模块内容（第四数据源，初始模块）
+// ============================================================
+// 数据落点：角色相关世界书（getCurrentCharBooksEnabledEntries，读 charWorldBookCache 里
+//   角色世界书 extensions.world + 附加世界书 + 聊天世界书 的全部 !disable 条目）。
+// 语义（用户拍板 2026-08-28）：
+//   - 判断 = 条目开关（!disable）：启用的世界书条目，其 content 含模块格式即作为「初始模块」。
+//   - 旧 [CCore] 条目通常 disable=true（搬迁后关闭）→ !disable 天然排除，自动兼容旧数据。
+//   - 统一 messageIndex = WORLD_BOOK_MODULE_INDEX（-99，起始态，恒排最前，与聊天级 -1/-2/-3 隔离）。
+//   - 只在楼层 0 并入（start===0），变更只需失效第 0 层 occurrence（与 chatMeta 负数一致）。
+//   - 注册在 chatMeta 之后：同 key 去重「先到先得」时聊天级负数先入 → 聊天级覆盖世界书默认。
+// 产出与 chatText/asyncChat/chatMeta 同构，供 runModulePipeline 合并 + deduplicateModules 去重。
+registerModuleDataSource('charBook', {
+    /**
+     * @param {{start:number, end:number|null, filters:Array|null}} opts
+     * @returns {Array<{raw, messageIndex, source, isUserMessage, speakerName}>}
+     */
+    getRawModules({ start, end, filters }) {
+        const extracted = [];
+        // 世界书模块条目统一 -99 起始态，只在楼层 0 并入（start===0 时）
+        if ((start ?? 0) > 0) return extracted;
+        const entries = getCurrentCharBooksEnabledEntries();
+        if (!Array.isArray(entries) || entries.length === 0) return extracted;
+
+        // 提取模块名（含兼容名）判定集合，与其它源 filters 语义对齐
+        const filterNames = new Set();
+        if (Array.isArray(filters)) {
+            for (const f of filters) {
+                if (f?.name) filterNames.add(f.name);
+                if (Array.isArray(f?.compatibleModuleNames)) {
+                    for (const cn of f.compatibleModuleNames) filterNames.add(cn);
+                }
+            }
+        }
+        const matchesFilter = (moduleName) => {
+            if (filters === null || filterNames.size === 0) return true;
+            return filterNames.has(moduleName);
+        };
+
+        for (const entry of entries) {
+            const rawText = entry?.content;
+            if (!rawText || typeof rawText !== 'string' || rawText.trim() === '') continue;
+
+            // 跨行解析：与 asyncChat/chatMeta 一致，保留嵌套子模块
+            const blocks = parseRawTextIntoModules(rawText, matchesFilter);
+            for (const block of blocks) {
+                const trimmed = block.raw;
+                extracted.push({
+                    raw: trimmed,
+                    processedRaw: processTextForMatching(trimmed) || trimmed,
+                    messageIndex: WORLD_BOOK_MODULE_INDEX,
+                    isUserMessage: false,
+                    speakerName: 'worldbook',
+                    timestamp: new Date().toISOString(),
+                    source: 'worldbook',
+                    nestedInfo: {
+                        level: 0,
+                        isNested: false,
+                        isContainer: false,
+                        parentModule: null,
+                        childrenCount: 0,
+                        childrenModules: [],
+                        nestedVariables: [],
+                    },
+                });
+            }
+        }
+
+        debugLog(`[charBookSource] 提取到 ${extracted.length} 个世界书模块块（起始态 ${WORLD_BOOK_MODULE_INDEX}）`);
         return extracted;
     },
 });
