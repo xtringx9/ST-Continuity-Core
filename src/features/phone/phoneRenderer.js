@@ -16,6 +16,7 @@
 // - 设置面板内置于同一 iframe，由桌面「设置」App 打开，保存时通过 postMessage 通知父窗口持久化（见 phoneMode.js）。
 // - moduleConfig 仅用于场景标签，不参与消息渲染。
 import { skinIcon } from './apps/icons.js';
+import { STATUS_ICONS } from './apps/status-icons.js';
 
 /**
  * HTML 转义（防 XSS / 破坏结构）
@@ -32,7 +33,8 @@ function escapeHtml(str) {
 
 /**
  * 构建设置面板（由桌面「设置」App 打开）的覆盖层 HTML + 内联脚本。
- * 职责：模块选择 + 字段映射（消息进哪个 App 由 platform 映射值决定，面板无 App 选择）。
+ * iOS 风格：分组列表导航（主列表 → 各设置子页）。当前子页：消息模块（字段映射）。
+ * 预留：壁纸等后续设置项（通用组）。
  * @param {Object} settings { scenes, modules }
  */
 function buildSettingsOverlay(settings) {
@@ -54,25 +56,66 @@ function buildSettingsOverlay(settings) {
 
     return `<div class="phone-settings-overlay" id="phoneSettings" hidden>
   <div class="phone-settings-panel">
-    <div class="ps-header"><span>手机设置</span><button id="psClose" class="ps-close" type="button">✕</button></div>
-    <div class="ps-body">
-      <div class="ps-row"><label>模块</label><select id="psModule">${moduleOptions}</select></div>
-      <div class="ps-row"><label class="ps-check"><input type="checkbox" id="psEnabled"> 启用此模块（在手机中显示）</label></div>
-      <div class="ps-fm">
-        <div class="ps-fm-title">字段映射（raw = 模块数据原文）</div>
-        <div class="ps-row"><label>发送者</label><select id="psFmsender"></select></div>
-        <div class="ps-row"><label>内容</label><select id="psFmcontent"></select></div>
-        <div class="ps-row"><label>时间</label><select id="psFmtime"></select></div>
-        <div class="ps-row"><label>类型</label><select id="psFmtype"></select></div>
-        <div class="ps-row"><label>平台</label><select id="psFmplat"></select></div>
-        <div class="ps-row"><label>私聊</label><select id="psFmdm"></select></div>
-        <div class="ps-row"><label>群组</label><select id="psFmgrp"></select></div>
-        <div class="ps-row"><label>成员</label><select id="psFmmems"></select></div>
+    <div class="ps-nav">
+      <button class="ps-nav-back" id="psNavBack" type="button" hidden aria-label="返回">‹</button>
+      <span class="ps-nav-title" id="psNavTitle">设置</span>
+    </div>
+
+    <!-- 主列表页 -->
+    <div class="ps-page" id="psPageList">
+      <div class="ps-section">
+        <div class="ps-section-title">消息</div>
+        <div class="ps-group">
+          <button class="ps-item" id="psOpenModule" type="button">
+            <span class="ps-item-icon" style="background:#0a84ff">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#fff" d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1 -1 1H9l-4 4v-4H4a1 1 0 0 1 -1 -1V6a1 1 0 0 1 1 -1z"/></svg>
+            </span>
+            <span class="ps-item-label">消息模块</span>
+            <span class="ps-item-value" id="psModuleSummary">未选择</span>
+            <span class="ps-item-chevron">›</span>
+          </button>
+        </div>
+      </div>
+      <div class="ps-section">
+        <div class="ps-section-title">通用</div>
+        <div class="ps-group">
+          <button class="ps-item" id="psOpenWallpaper" type="button" disabled>
+            <span class="ps-item-icon" style="background:#8e8e93">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="9" cy="10" r="1.6" fill="#fff"/><path d="M5 18l5-5 3 3 3-4 3 4v1H5z" fill="#fff"/></svg>
+            </span>
+            <span class="ps-item-label">壁纸</span>
+            <span class="ps-item-value">敬请期待</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 消息模块子页：模块选择 + 字段映射 + 启用 -->
+    <div class="ps-page" id="psPageModule" hidden>
+      <div class="ps-section">
+        <div class="ps-section-title">模块</div>
+        <div class="ps-group">
+          <div class="ps-row"><label>模块</label><select id="psModule">${moduleOptions}</select></div>
+          <div class="ps-row"><label class="ps-check"><input type="checkbox" id="psEnabled"> 启用此模块（在手机中显示）</label></div>
+        </div>
+      </div>
+      <div class="ps-section">
+        <div class="ps-section-title">字段映射</div>
+        <div class="ps-group">
+          <div class="ps-row"><label>发送者</label><select id="psFmsender"></select></div>
+          <div class="ps-row"><label>内容</label><select id="psFmcontent"></select></div>
+          <div class="ps-row"><label>时间</label><select id="psFmtime"></select></div>
+          <div class="ps-row"><label>类型</label><select id="psFmtype"></select></div>
+          <div class="ps-row"><label>平台</label><select id="psFmplat"></select></div>
+          <div class="ps-row"><label>私聊</label><select id="psFmdm"></select></div>
+          <div class="ps-row"><label>群组</label><select id="psFmgrp"></select></div>
+          <div class="ps-row"><label>成员</label><select id="psFmmems"></select></div>
+        </div>
       </div>
       <div id="psMismatch" class="ps-mismatch"></div>
       <div class="ps-hint">会话分组：私聊（dm 有值）= 发送者+接收方双方组成一窗（A↔B 无论谁发同一会话）；群聊（grp 有值）→ 归群组；都没有 → 按发送者兜底；「我」（ST 用户名）的消息只作右侧气泡；「平台」值路由到对应 App</div>
+      <div class="ps-footer"><span id="psResult" class="ps-result"></span><button id="psSave" class="ps-save" type="button">保存</button></div>
     </div>
-    <div class="ps-footer"><span id="psResult" class="ps-result"></span><button id="psSave" class="ps-save" type="button">保存</button></div>
   </div>
 </div>
 <script id="phoneSettingsData" type="application/json">${json}</script>
@@ -80,17 +123,45 @@ function buildSettingsOverlay(settings) {
 }
 
 // 设置面板交互脚本（纯静态，无外部数据注入，安全）。
-// 职责：由桌面「设置」App 打开、模块失配提示、字段映射下拉（raw / 模块变量）、保存时 postMessage 给父窗口。
+// 职责：iOS 风格两级导航（主列表 ↔ 子页）、模块选择 + 失配提示、字段映射下拉（raw / 模块变量）、保存。
 const SETTINGS_SCRIPT = `
 (function () {
   var data = JSON.parse(document.getElementById('phoneSettingsData').textContent);
   var settingsApp = document.querySelector('.app-icon[data-app="settings"]');
   var overlay = document.getElementById('phoneSettings');
-  var closeBtn = document.getElementById('psClose');
+  var pageList = document.getElementById('psPageList');
+  var pageModule = document.getElementById('psPageModule');
+  var navBack = document.getElementById('psNavBack');
+  var navTitle = document.getElementById('psNavTitle');
+  var moduleSum = document.getElementById('psModuleSummary');
   var saveBtn = document.getElementById('psSave');
   var moduleSel = document.getElementById('psModule');
   var enabledChk = document.getElementById('psEnabled');
   var mismatchBox = document.getElementById('psMismatch');
+
+  // 主列表 → 子页导航
+  function showPage(which) {
+    var isModule = which === 'module';
+    pageList.hidden = isModule;
+    pageModule.hidden = !isModule;
+    navBack.hidden = !isModule;
+    navTitle.textContent = isModule ? '消息模块' : '设置';
+  }
+  document.getElementById('psOpenModule').addEventListener('click', function () {
+    var sc = currentScene() || data.scenes[0] || { moduleName: '', enabled: true, fieldMap: {} };
+    moduleSel.value = sc.moduleName || '';
+    enabledChk.checked = sc.enabled !== false;
+    renderFieldMap(sc.fieldMap || {});
+    checkMismatch();
+    showPage('module');
+  });
+  navBack.addEventListener('click', function () { showPage('list'); });
+  // 关闭：主列表显示时点击遮罩外关闭；子页则先回主列表（iOS 交互习惯）
+  overlay.addEventListener('click', function (e) {
+    if (e.target !== overlay) return;
+    if (!pageModule.hidden) { showPage('list'); return; }
+    closeSettings();
+  });
 
   // 字段映射常量（与 apps/index.js 的 MESSAGE_FIELDS 一一对应）
   var FM_FIELDS = ['sender', 'content', 'time', 'type', 'plat', 'dm', 'grp', 'mems'];
@@ -122,19 +193,26 @@ const SETTINGS_SCRIPT = `
     });
   }
 
+  function updateModuleSummary() {
+    var sc = currentScene() || (data.scenes || []).find(function (s) {
+      return s.moduleName && (data.modules || []).some(function (m) { return m.name === s.moduleName; });
+    });
+    if (moduleSum) moduleSum.textContent = sc ? sc.moduleName : (moduleSel.value || '未选择');
+  }
   function openSettings() {
-    // 优先回显当前已选中模块的已有映射；否则第一个场景
-    var sc = currentScene() || data.scenes[0] || { moduleName: '', enabled: true, fieldMap: {} };
+    // 打开默认停主列表；模块/映射预载当前场景（进子页时已回显）
+    var sc = data.scenes[0] || { moduleName: '', enabled: true, fieldMap: {} };
     moduleSel.value = sc.moduleName || '';
     enabledChk.checked = sc.enabled !== false;
     renderFieldMap(sc.fieldMap || {});
     checkMismatch();
+    updateModuleSummary();
+    showPage('list');
     overlay.hidden = false;
   }
   function closeSettings() { overlay.hidden = true; }
 
   if (settingsApp) settingsApp.addEventListener('click', openSettings);
-  closeBtn.addEventListener('click', closeSettings);
 
   // 当前选中的模块对应已有场景（用于回显已保存的字段映射，避免每次重设）
   function currentScene() {
@@ -157,6 +235,7 @@ const SETTINGS_SCRIPT = `
     var sc = currentScene();
     renderFieldMap(sc ? (sc.fieldMap || {}) : {});
     checkMismatch();
+    updateModuleSummary();
   });
 
   saveBtn.addEventListener('click', function () {
@@ -174,7 +253,8 @@ const SETTINGS_SCRIPT = `
       fieldMap: fieldMap,
     };
     window.parent.postMessage({ type: 'SAVE_PHONE_CONFIG', scene: scene }, '*');
-    closeSettings();
+    updateModuleSummary();
+    showPage('list');   // 保存成功回主列表（iOS 保存后自动返回上页）
   });
 
   // 保存回执（父窗口 POST 回）：成功显示「已保存 ✓」，失败显示「保存失败 ✗」
@@ -241,13 +321,14 @@ ${links}
 <body>
 <div class="phone-frame">
   <div class="phone">
+    <!-- 真实手机状态栏：时间左 + 信号/WiFi/电池右（纯 CSS + 微型内联 SVG，零网络依赖） -->
     <div class="phone-statusbar">
-      <div class="ps-left">
-        <button class="ps-back" type="button" title="返回" hidden>‹ 返回</button>
-      </div>
       <span class="ps-time">${now}</span>
-      <div class="ps-right">
-        <button class="ps-exit" type="button" title="退出手机">✕</button>
+      <span class="ps-notch" aria-hidden="true"></span>
+      <div class="ps-icons">
+        ${STATUS_ICONS.signal}
+        ${STATUS_ICONS.wifi}
+        ${STATUS_ICONS.battery}
       </div>
     </div>
     <div class="phone-screen-host" id="phoneScreenHost">
@@ -255,6 +336,8 @@ ${links}
       ${appViews}
     </div>
     ${overlay}
+    <!-- 悬浮 home 指示条（拟真 iPhone：单击回桌面，双击关闭手机）；不占布局流，覆盖在内容底部 -->
+    <span class="pd-homebar" title="回桌面（双击关闭手机）"></span>
     <script>window.__PHONE_INIT_VIEW = ${JSON.stringify(initView || 'home')};</script>
     ${navScript}
   </div>
@@ -264,7 +347,8 @@ ${links}
 }
 
 // 桌面 ↔ App（会话列表）↔ 会话（聊天窗口）导航脚本（纯静态）。
-// 状态栏：右上角退出常驻、左侧返回键逐级返回（会话 → App → 桌面）。
+// 交互：桌面点 App → 会话列表 → 点会话 → 聊天窗口；聊天页内返回键回会话列表，
+// 底部 home 手势条单击回桌面、双击关闭手机。
 // 每次切换界面都上报父窗口，便于重开时恢复；初始按 __PHONE_INIT_VIEW 恢复（仅恢复到 App 级）。
 // 皮肤只提供视图内容；本脚本按皮肤容器的 data-conv 属性切换（list 容器 .phone-conv-list-host，
 // chats 容器 .phone-chat-views的直接子元素带 data-conv）。
@@ -274,16 +358,11 @@ const NAV_SCRIPT = `
   var home = document.getElementById('phoneHome');
   var apps = Array.prototype.slice.call(document.querySelectorAll('.phone-app'));
   var overlay = document.getElementById('phoneSettings');
-  var psExit = document.querySelector('.ps-exit');   // 右上角：常驻退出小手机
-  var psBack = document.querySelector('.ps-back');   // 状态栏左侧：逐级返回
-
   var state = { view: 'home', appId: '' };           // view: home | app | chat
 
   function reportView(v) {
     try { window.parent.postMessage({ type: 'PHONE_VIEW_CHANGED', view: v }, '*'); } catch (e) {}
   }
-  function showAppChrome() { if (psBack) psBack.hidden = false; }
-  function showHomeChrome() { if (psBack) psBack.hidden = true; }
   function resetAppToConvList(appEl) {
     var listHost = appEl.querySelector('.phone-conv-list-host');
     if (listHost) listHost.hidden = false;
@@ -300,7 +379,6 @@ const NAV_SCRIPT = `
   function openApp(key) {
     home.hidden = true;
     apps.forEach(function (el) { el.hidden = (el.id !== 'app-' + key); });
-    showAppChrome();
     var appEl = document.getElementById('app-' + key);
     if (appEl) {
       resetAppToConvList(appEl);
@@ -332,19 +410,9 @@ const NAV_SCRIPT = `
     state.appId = '';
     apps.forEach(function (el) { el.hidden = true; });
     home.hidden = false;
-    showHomeChrome();
     if (overlay) overlay.hidden = true;
     reportView('home');
   }
-  function handleBack() {
-    if (state.view === 'chat' && state.appId) {
-      var appEl = document.getElementById('app-' + state.appId);
-      if (appEl) { resetAppToConvList(appEl); state.view = 'app'; reportView(state.appId); }
-      return;
-    }
-    goHome();
-  }
-
   document.querySelectorAll('.app-icon').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var key = btn.getAttribute('data-app');
@@ -379,17 +447,28 @@ const NAV_SCRIPT = `
     });
   });
 
-  if (psBack) psBack.addEventListener('click', handleBack);
-  if (psExit) psExit.addEventListener('click', function () {
-    window.parent.postMessage({ type: 'CLOSE_CONTINUITY_MODAL' }, '*');
-  });
+  // 底部 homebar（拟真 iPhone 手势条）：单击回桌面；双击关闭手机（替代原「退出」按钮）
+  var pdHomebar = document.querySelector('.pd-homebar');
+  if (pdHomebar) {
+    pdHomebar.addEventListener('click', function () {
+      if (pdHomebar._dbl) return;       // 双击由第二个事件处理，忽略首次单击
+      pdHomebar._t = setTimeout(function () {
+        pdHomebar._dbl = false;
+        goHome();
+      }, 260);
+    });
+    pdHomebar.addEventListener('dblclick', function () {
+      pdHomebar._dbl = true;
+      clearTimeout(pdHomebar._t);
+      window.parent.postMessage({ type: 'CLOSE_CONTINUITY_MODAL' }, '*');
+    });
+  }
 
   // 初始界面：恢复到退出时所在的 App（会话列表级）
   var initView = (window.__PHONE_INIT_VIEW || 'home');
   if (initView !== 'home' && document.getElementById('app-' + initView)) {
     openApp(initView);
   } else {
-    showHomeChrome();
     reportView('home');
   }
 })();

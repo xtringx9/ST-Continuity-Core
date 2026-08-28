@@ -1,7 +1,22 @@
 // App 品牌图标（SVG 内联字符串）
 // 用途：手机桌面图标 + 各皮肤空态图标。避免依赖系统 emoji 字体（跨平台渲染不一致）。
-// 每个图标 64x64 viewBox，纯 SVG；在外壳 .app-icon-img（圆角渐变底）内铺满显示。
-// 皮肤在 index.js 里通过 iconKey 引用，phoneRenderer 用 skinIcon(iconKey) 取实际 SVG。
+// 微信/QQ/LINE 使用 Simple Icons 官方品牌剪影（见 brand-icons.js，本地内嵌无远程引用）；
+// 其余自绘 64x64。皮肤在 index.js 里通过 iconKey 引用，phoneRenderer 用 skinIcon(iconKey) 取实际 SVG。
+import { BRAND_ICONS } from './brand-icons.js';
+
+/**
+ * 把 Simple Icons 的 24 viewBox 剪影包进 64 viewBox 并缩小居中。
+ * 统一视觉尺寸：自绘图标是 64 内约 44-48 主体，品牌剪影同理处理，避免显得过大。
+ * @param {string} svg24 不带外层 <svg> 的 24 坐标系内容（取 path/圆形等）
+ */
+function fitBrandIcon(svg24) {
+    const inner = svg24
+        .replace(/^<svg[^>]*>/, '')
+        .replace(/<\/svg>\s*$/, '');
+    // scale 1.833 ≈ 24*1.833 = 44，四周留 (64-44)/2 = 10px 边距
+    // fill 放 g 上：保住白色（原 svg 的 fill 属性随标签被剥离）
+    return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><g fill="#ffffff" transform="translate(10 10) scale(1.833)">${inner}</g></svg>`;
+}
 
 /** @type {Record<string, string>} 图标集合（64×64） */
 export const SKIN_ICONS = {
@@ -12,42 +27,21 @@ export const SKIN_ICONS = {
         <circle cx="36" cy="25" r="3" fill="#6ba7ff"/>
         <circle cx="46" cy="25" r="3" fill="#6ba7ff"/>
     </svg>`,
-    /* 微信：官方双气泡（主白泡 + 绿尾 + 眼睛，无多余装饰路径） */
-    wechat: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <path d="M8 14a9 9 0 0 1 9 -9h14a9 9 0 0 1 9 9v9a9 9 0 0 1 -9 9h-6l-8 8 2 -8h-2a9 9 0 0 1 -9 -9v-9z" fill="#ffffff"/>
-        <circle cx="20" cy="19" r="2" fill="#0f9e53"/>
-        <circle cx="28" cy="19" r="2" fill="#0f9e53"/>
-        <circle cx="36" cy="19" r="2" fill="#0f9e53"/>
-        <path d="M30 43a8 8 0 0 1 8 -8h12a8 8 0 0 1 8 8v8a8 8 0 0 1 -8 8h-5l-7 7 2 -7h-2a8 8 0 0 1 -8 -8v-8z" fill="#ffffff" opacity="0.85"/>
-        <circle cx="41" cy="47" r="1.8" fill="#0f9e53"/>
-        <circle cx="49" cy="47" r="1.8" fill="#0f9e53"/>
-    </svg>`,
-    /* QQ：企鹅（白身 + 蓝眼 + 红围巾） */
-    qq: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <path d="M32 4c-10 0 -18 9 -18 20 0 4.5 1.5 8.5 4 12l-1.5 10.5c.7 3.4 1.8 6 3 7.6 1.8 -1.1 4.6 -3.1 5.5 -5.6 1 .4 2.2 .5 3.5 .5h7c1.3 0 2.5 -.2 3.5 -.5 .9 2.5 3.7 4.5 5.5 5.6 1.2 -1.6 2.3 -4.2 3 -7.6l-1.5 -10.5c2.5 -3.5 4 -7.5 4 -12 0 -11 -8 -20 -18 -20z" fill="#fff"/>
-        <path d="M18 24c3-6 8-9 14-9s11 3 14 9l-5 2.5c-.7-2-2-3.9-3.5-5.2-1.5 1.3-3.4 2.1-5.5 2.1s-4-.8-5.5-2.1c-1.5 1.3-2.8 3.2-3.5 5.2z" fill="#e8402a"/>
-        <circle cx="26" cy="33" r="2.6" fill="#2b2b2b"/>
-        <circle cx="38" cy="33" r="2.6" fill="#2b2b2b"/>
-        <path d="M26 43c3 1.8 9 1.8 12 0" stroke="#2b2b2b" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    </svg>`,
-    /* LINE：绿色圆角牌 + 白色闪电 */
-    line: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <path d="M32 6c15 0 26 10 26 26s-11 26 -26 26 -26 -11 -26 -26 11 -26 26 -26z" fill="#fff" opacity="0.9"/>
-        <path d="M32 8c13.5 0 24 10.5 24 24s-10.5 24 -24 24 -24 -10.5 -24 -24 10.5 -24 24 -24z" fill="none" stroke="#fff" stroke-width="3" opacity="0.45"/>
-        <path d="M35 16l-13 16h9l-2 16 13 -17h-10l3 -15z" fill="#06a159"/>
-    </svg>`,
-    /* SMS：短信气泡 + 三个点 */
+    /* 微信/QQ/LINE：Simple Icons 官方剪影（白色），缩小居中适配 64 视口 */
+    wechat: fitBrandIcon(BRAND_ICONS.wechat),
+    qq: fitBrandIcon(BRAND_ICONS.qq),
+    line: fitBrandIcon(BRAND_ICONS.line),
+    /* SMS：短信气泡 + 三个点（气泡占比收敛，四周留白更精致） */
     sms: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 14a9 9 0 0 0 -9 9v18a9 9 0 0 0 9 9h4l2 9 11 -9h23a9 9 0 0 0 9 -9v-18a9 9 0 0 0 -9 -9z" fill="#fff"/>
-        <circle cx="22" cy="32" r="2.6" fill="#5a98d8"/>
-        <circle cx="32" cy="32" r="2.6" fill="#5a98d8"/>
-        <circle cx="42" cy="32" r="2.6" fill="#5a98d8"/>
+        <path d="M14 18a8 8 0 0 0 -8 8v14a8 8 0 0 0 8 8h3l2 7 9 -7h22a8 8 0 0 0 8 -8v-14a8 8 0 0 0 -8 -8z" fill="#fff"/>
+        <circle cx="24" cy="33" r="2.2" fill="#5a98d8"/>
+        <circle cx="32" cy="33" r="2.2" fill="#5a98d8"/>
+        <circle cx="40" cy="33" r="2.2" fill="#5a98d8"/>
     </svg>`,
-    /* 设置：齿轮简化 */
-    settings: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <path d="M28 10h8l2 6 6 2 6 -2 4 7 -4 6v9l4 6 -4 7 -6 -2 -6 2 -2 6h-8l-2 -6 -6 -2 -6 2 -4 -7 4 -6v-9l-4 -6 4 -7 6 2 6 -2z" fill="#fff"/>
-        <circle cx="32" cy="32" r="9" fill="#8e8e93"/>
-    </svg>`,
+    /* 设置：Material 官方齿轮（mdi:cog，下载真实 path） */
+    settings: `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><g fill="#ffffff" transform="translate(10 10) scale(1.833)">
+        <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5A3.5 3.5 0 0 1 15.5 12A3.5 3.5 0 0 1 12 15.5m7.43-2.53c.04-.32.07-.64.07-.97s-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1s.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64z"/>
+    </g></svg>`,
 };
 
 /**
