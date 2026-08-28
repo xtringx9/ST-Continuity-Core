@@ -411,6 +411,7 @@ function buildToolbar() {
             <button type="button" class="cc-pm-search-btn menu_button cc-pm-search-next" title="下一个匹配"><span class="fa-solid fa-arrow-down"></span></button>
             <button type="button" class="cc-pm-search-btn menu_button cc-pm-search-top" title="回顶"><span class="fa-solid fa-angle-double-up"></span></button>
             <button type="button" class="cc-pm-search-btn menu_button cc-pm-search-bottom" title="跳底"><span class="fa-solid fa-angle-double-down"></span></button>
+            <button type="button" class="cc-pm-search-btn menu_button cc-pm-search-save" title="保存预设（等同原生更新按钮）"><span class="fa-solid fa-floppy-disk"></span></button>
         </div>
         <div class="cc-pm-search-results"></div>
     `);
@@ -449,6 +450,11 @@ function bindToolbarEvents($bar) {
     // 回顶 / 跳底（搜索栏常驻，直接滚动列表所在容器）
     $bar.find('.cc-pm-search-top').on('click', () => scrollContainer('top'));
     $bar.find('.cc-pm-search-bottom').on('click', () => scrollContainer('bottom'));
+    // 保存预设：复用 ST 原生 #update_oai_preset 的保存逻辑（取当前预设名 → saveOpenAIPreset + toast）
+    $bar.find('.cc-pm-search-save').on('click', () => {
+        const nativeBtn = document.getElementById('update_oai_preset');
+        if (nativeBtn) nativeBtn.click();
+    });
     // 清除按钮：清空搜索词并复位高亮/下拉
     $bar.find('.cc-pm-search-clear').on('click', () => clearFilter());
 
