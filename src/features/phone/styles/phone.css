@@ -1,4 +1,13 @@
 /* 手机模式外壳样式（混合风：苹果骨 + 像素皮，不继承 ST 主题，避免污染） */
+/* Inter 可变字体（西文/数字，本地内嵌，视觉贴近 SF Pro；中文自动回退系统苹方/雅黑） */
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -9,8 +18,8 @@ html, body {
     height: 100%;
     /* 透明：容器已由 IframeModal fitContent 去深色，手机壳自带底色 */
     background: transparent;
-    /* 系统 UI 字体栈：贴近真实手机 App（Windows 落微软雅黑，mac 落 SF/苹方） */
-    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    /* 系统 UI 字体栈：Inter（iOS 质感）优先，中文回退苹方/雅黑 */
+    font-family: 'Inter', system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
 }
 
 body {
