@@ -39,10 +39,16 @@ const CC_PM_ACT_STYLES = `
 .${CC_PM_ACT_CLASS}.cc-pm-act-delete:hover { color: var(--SmartThemeDangerColor, #f88); filter: brightness(1.2); }
 
 /* 注入了我们按钮的条目：控件区改为靠右紧凑排列（覆盖 ST 高特异性 space-between），
-   展开时给该条目 li 加宽网格控件列（grid 列加宽只向左延展、右边界不动 → edit/开关不动），
-   避免注入按钮溢出把 edit/开关挤出 */
+   并把控件网格列由固定 80px 改成 auto：列宽随内容向左延展、右边界（45px 的 tokens 列）不动
+   → edit/开关位置恒定。 */
 .prompt_manager_prompt_controls.cc-pm-controls-normalized {
     justify-content: flex-end !important;
+}
+/* 原生 edit/开关是 span，ST 只给了 width:18px、flex-shrink 默认 1 → 控件列宽不足时会被压缩，
+   宽度一变位置必跟着变（点 “...” 展开/收起时 edit 按钮左右跳动的根因）。
+   禁掉收缩后，宽度不足改由网格列（auto）向左延展吸收，不再挤压原生按钮。 */
+.prompt_manager_prompt_controls.cc-pm-controls-normalized > * {
+    flex: 0 0 auto !important;
 }
 #completion_prompt_manager #completion_prompt_manager_list li.cc-pm-entry {
     grid-template-columns: 4fr auto 45px !important;
@@ -293,12 +299,13 @@ function injectControlIntoEntry($entry) {
     ACTIONS.reverse(); // 展开后顺序反过来；删除按钮（若有）在最左，最右挨“...”的是复制
     const $collapsible = ACTIONS.map(a =>
         makeActionButton(a.fa, a.title, a.act, (a.extra || '') + ' cc-pm-act-collapsible'));
-    // “...” 切换按钮：点击就地展开/收起 4 个操作按钮（切换控件区 cc-pm-act-expanded），
-    // 同时加宽条目网格控件列 li.cc-pm-entry（grid 列加宽只向左延展 → edit/开关不动）。
+    // “...” 切换按钮：点击就地展开/收起 4 个操作按钮（切换控件区 cc-pm-act-expanded）。
+    // ⚠️ 网格类 li.cc-pm-entry 必须在注入时就常驻、不随展开/收起切换：
+    //    切换会让「收起=80px 固定列（内容超出→压缩原生 edit/开关）/ 展开=auto（按内容撑开→不压缩）」
+    //    两套算法交替，点 “...” 时 edit/开关就会左右跳动。
     // 单一 “...” 始终可见：展开时变色提示「收起」，避免伪装按钮不可见的问题。
     const toggleExpanded = () => {
         $controls.toggleClass('cc-pm-act-expanded');
-        $entry.toggleClass('cc-pm-entry');
     };
     const $toggle = makeActionButton('fa-ellipsis', '更多操作 / 收起', toggleExpanded, 'cc-pm-act-toggle');
     // 顺序（右→左插入前 edit）：[复制][上插][下插][移除][...][edit]
@@ -328,8 +335,9 @@ function injectControlIntoEntry($entry) {
     $controls.children('span.fa-solid').filter(function () {
         return this.className.trim() === 'fa-solid' && !this.textContent.trim();
     }).hide();
-    // 控件区归一化为靠右紧凑排列，统一各条目按钮间距
+    // 控件区归一化为靠右紧凑排列，统一各条目按钮间距；网格类常驻（理由见 toggleExpanded 注释）
     if ($controls.length) $controls.addClass('cc-pm-controls-normalized');
+    $entry.addClass('cc-pm-entry');
     return true;
 }
 

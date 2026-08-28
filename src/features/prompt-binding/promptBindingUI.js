@@ -12,7 +12,11 @@ import { debugLog, errorLog } from '../../utils/logger.js';
 // 控件样式（注入到页面 <style> 一次）
 const CC_PM_BIND_STYLES = `
 .cc-pm-bind {
-    margin-left: 0;
+    /* 与原生控件（detach/edit/toggle）保持同一间隙：ST promptmanager.css 用
+       "li.completion_prompt_manager_prompt span span span { margin-left: 0.25em }" 撑开间距，
+       我们是 div、该后代选择器命中不到，故手动补同样的 0.25em（em 继承自 .prompt_manager_prompt_controls
+       的 calc(var(--mainFontSize)*1.2)，与原生 span 计算基准一致） */
+    margin-left: 0.25em;
     position: relative;
     flex: 0 0 auto;
     display: inline-flex;
@@ -87,6 +91,18 @@ const CC_PM_BIND_STYLES = `
     position: relative;
     z-index: 2147483647;
 }
+/* 控件区归一化（与 promptEntryActions 的 cc-pm-controls-normalized 同款但独立，两功能可各自开关）：
+   原生 edit/开关是 span，ST 只给 width:18px、flex-shrink 默认 1 → 控件列（80px）装不下时被压缩，
+   宽度一变位置就跟着变。禁收缩 + 控件列改 auto（列宽随内容向左延展、右边界不动）→ 位置恒定。 */
+.prompt_manager_prompt_controls.cc-pm-bind-normalized {
+    justify-content: flex-end !important;
+}
+.prompt_manager_prompt_controls.cc-pm-bind-normalized > * {
+    flex: 0 0 auto !important;
+}
+#completion_prompt_manager #completion_prompt_manager_list li.cc-pm-bind-entry {
+    grid-template-columns: 4fr auto 45px !important;
+}
 `;
 
 const WB_BIND_FA = {
@@ -146,6 +162,8 @@ function detachListObservers() {
 
 function cleanupStrayControls() {
     $('.cc-pm-bind').remove();
+    $('.prompt_manager_prompt_controls').removeClass('cc-pm-bind-normalized');
+    $('li.cc-pm-bind-entry').removeClass('cc-pm-bind-entry');
     $('.prompt_manager_prompt.cc-pm-entry-open').removeClass('cc-pm-entry-open');
 }
 
@@ -185,9 +203,11 @@ function injectControlIntoEntry($entry) {
     const $controls = $entry.find('.prompt_manager_prompt_controls');
     if ($controls.length) {
         $controls.append($control);
+        $controls.addClass('cc-pm-bind-normalized');
     } else {
         $entry.append($control);
     }
+    $entry.addClass('cc-pm-bind-entry');
 
     refreshEntryControl($entry, identifier);
 
@@ -241,9 +261,8 @@ function closeAllMenus() {
 
 function injectAllControls() {
     if (!isInChatPage()) {
-        // 离开聊天页时清掉可能残留的控件，避免跨上下文串味（与世界书条目绑定同一逻辑）
-        $('.cc-pm-bind').remove();
-        $('.prompt_manager_prompt.cc-pm-entry-open').removeClass('cc-pm-entry-open');
+        // 离开聊天页时清掉可能残留的控件（含归一化类名），避免跨上下文串味（与世界书条目绑定同一逻辑）
+        cleanupStrayControls();
         return;
     }
     const $entries = getEntries();
