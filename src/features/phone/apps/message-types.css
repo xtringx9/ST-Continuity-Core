@@ -1,0 +1,227 @@
+/* ============ 消息类型卡片化通用结构（所有皮肤共用，品牌色由皮肤 css 覆盖） ============ */
+
+/* 基础文本（plain text） */
+.pm-bubble-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: inherit;
+}
+
+/* ---------- 语音卡片（播放键 + 波形 + 时长） ---------- */
+.pm-voice {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    vertical-align: middle;
+    min-width: 110px;
+    padding: 6px 8px;
+}
+.pm-voice-btn {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    color: inherit;
+    opacity: 0.9;
+}
+.pm-voice-wave {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 26px;
+}
+.pm-voice-wave i {
+    width: 4px;
+    background: currentColor;
+    border-radius: 2px;
+    opacity: 0.7;
+    animation: pmWave 0.8s ease-in-out infinite alternate;
+}
+.pm-voice-wave i:nth-child(2) { animation-delay: 0.1s; }
+.pm-voice-wave i:nth-child(3) { animation-delay: 0.2s; }
+.pm-voice-wave i:nth-child(4) { animation-delay: 0.3s; }
+.pm-voice-wave i:nth-child(5) { animation-delay: 0.4s; }
+@keyframes pmWave {
+    0% { transform: scaleY(0.6); }
+    100% { transform: scaleY(1); }
+}
+.pm-voice-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.pm-voice-text {
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+.pm-voice-dur {
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.65;
+}
+
+/* ---------- 图片卡片（预览图标 + 文件名） ---------- */
+.pm-img {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 120px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.06);
+}
+.pm-img-thumb {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    color: inherit;
+    opacity: 0.8;
+}
+.pm-img-name {
+    font-size: 13px;
+    line-height: 1.3;
+    max-width: 160px;
+    word-break: break-all;
+}
+
+/* ---------- 红包卡片（微信红包风格） ---------- */
+.pm-money {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 130px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(255, 100, 0, 0.12);
+    color: #d84000;
+}
+.pm-money-ico {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+.pm-money-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.pm-money-lbl {
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.8;
+}
+.pm-money-amt {
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1.3;
+}
+
+/* ---------- 位置卡片（pin + 三级地点） ---------- */
+.pm-loc {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(0, 100, 200, 0.08);
+    color: #226699;
+}
+.pm-loc-pin {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    margin-top: 2px;
+}
+.pm-loc-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.pm-loc-main {
+    font-size: 14px;
+    line-height: 1.3;
+    font-weight: 500;
+}
+.pm-loc-sub {
+    font-size: 12px;
+    line-height: 1.2;
+    opacity: 0.75;
+}
+
+/* ---------- 通话卡片（方向图标 + 时长） ---------- */
+.pm-call {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.06);
+}
+.pm-call-ico {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+.pm-call-main {
+    font-size: 13px;
+    line-height: 1.3;
+}
+.pm-call-dur {
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.65;
+}
+/* 方向：呼入/呼出由颜色区分（深色 vs 亮色） */
+.pm-call.in { opacity: 0.95; }
+.pm-call.out { opacity: 0.8; }
+
+/* ---------- 文件卡片（图标 + 文件名） ---------- */
+.pm-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(100, 80, 60, 0.08);
+    color: #665544;
+}
+.pm-file-ico {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+.pm-file-name {
+    font-size: 13px;
+    line-height: 1.3;
+    word-break: break-all;
+    max-width: 160px;
+}
+
+/* ---------- 日期水印（所有皮肤共用结构，颜色由皮肤覆盖） ---------- */
+.pm-date-divider {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0 6px;
+}
+.pm-date-divider span {
+    padding: 3px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.08);
+    color: rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- 相对时间水印（贴气泡内侧） ---------- */
+.pm-time-inline {
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.55;
+    margin-top: 4px;
+}
+.mine .pm-time-inline {
+    text-align: right;
+}

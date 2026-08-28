@@ -354,6 +354,16 @@ function buildNameCanonicalMap(messages, userName) {
     };
 }
 
+/** 会话列表预览：非文本消息按 type 加前缀标记（与卡片化渲染呼应） */
+const TYPE_PREFIX = {
+    voice: '[语音] ',
+    img: '[图片] ',
+    money: '[红包] ',
+    loc: '[位置] ',
+    call: '[通话] ',
+    file: '[文件] ',
+};
+
 /**
  * 按「对方」分组会话（true IM 语义）：
  * 优先级：私聊(dm 有值) > 群聊(grp 有值) > 兜底(sender)：
@@ -428,7 +438,8 @@ function groupMessagesToConversations(messages, userName) {
     const out = [];
     for (const conv of map.values()) {
         const last = conv.messages[conv.messages.length - 1];
-        conv.preview = last ? last.content : '';
+        const prefix = last ? (TYPE_PREFIX[String(last.type || '').toLowerCase()] || '') : '';
+        conv.preview = last ? prefix + last.content : '';
         out.push(conv);
     }
     return out;
@@ -481,8 +492,12 @@ function renderPhoneHtml() {
         }
     }
 
-    // 2) 桌面固定渲染全部皮肤；每个 App 内把分发的消息分组为会话
-    const cssUrls = [`${currentExtensionPath}/src/features/phone/styles/phone.css`];
+    // 桌面固定渲染全部皮肤；每个 App 内把分发的消息分组为会话
+    // 加载顺序：外壳 phone.css → 共享消息卡片 message-types.css → 各皮肤 css（可覆盖品牌色）
+    const cssUrls = [
+        `${currentExtensionPath}/src/features/phone/styles/phone.css`,
+        `${currentExtensionPath}/src/features/phone/apps/message-types.css`,
+    ];
     const apps = [];
     for (const skin of skins) {
         cssUrls.push(`${currentExtensionPath}/${skin.cssPath}`);

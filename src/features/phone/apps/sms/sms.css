@@ -39,13 +39,24 @@
     flex-direction: column;
     gap: 3px;
 }
+.sms-conv-line1 {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
 .sms-conv-title {
+    flex: 1 1 auto;
     font-size: 15px;
     font-weight: 500;
     color: #111;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.sms-conv-time {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: #aaaaaa;
 }
 .sms-conv-preview {
     font-size: 12px;
@@ -89,6 +100,9 @@
     color: #fff;
     cursor: pointer;
     border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .sms-chat-back:active { background: rgba(255, 255, 255, 0.2); }
 .sms-chat-title {
@@ -155,30 +169,13 @@
     background: #95d07a;
 }
 
-/* ============ 消息类型细分（text/voice/img/money/loc/call/file） ============ */
-.sms-bubble .pm-voice { display: inline-flex; align-items: center; gap: 6px; }
-.sms-bubble .pm-voice-dur { font-size: 12px; color: #666; }
-.sms-bubble .pm-img { display: inline-block; background: #e3f2ed; border-radius: 8px; padding: 6px 10px; font-size: 14px; }
-.sms-bubble .pm-money { display: inline-block; background: #ffe4d6; border-radius: 8px; padding: 4px 10px; font-weight: bold; color: #e05a00; }
-.sms-bubble .pm-loc { display: inline-block; background: #e8f4f9; border-radius: 8px; padding: 4px 10px; }
-.sms-bubble .pm-call { display: inline-block; background: #eef2f6; border-radius: 8px; padding: 4px 10px; }
-.sms-bubble .pm-call-dur { font-size: 12px; color: #666; }
-.sms-bubble .pm-file { display: inline-block; background: #f5f1e8; border-radius: 8px; padding: 4px 10px; }
+/* ============ 消息类型卡片（结构样式在 message-types.css，此处仅品牌色覆盖） ============ */
 .sms-time {
     font-size: 11px;
     color: #aaaaaa;
-    margin-top: 3px;
-    text-align: center;
 }
-
-/* 日期分组水印 */
-.sms-date {
-    display: flex;
-    justify-content: center;
-    font-size: 12px;
-    color: #b3b3b3;
-    padding: 10px 0 6px;
-}
+.sms-bubble .pm-voice-btn { color: #5a98d8; }
+.sms-msg.mine .pm-voice-btn { color: #3c7cae; }
 
 /* 底部输入栏 */
 .sms-chat-input {

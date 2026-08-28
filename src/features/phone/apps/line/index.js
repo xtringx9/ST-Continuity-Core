@@ -2,9 +2,9 @@
 //
 // 契约（见 apps/index.js）：renderAppHtml(conversations) → { list, chats }
 // 皮肤只管内容，外壳层负责导航；会话卡展示群成员（mems），聊天窗口气泡左右两侧。
-import { skinIcon } from '../icons.js';
+import { skinIcon, uiIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer, chatHeader } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -25,18 +25,20 @@ function isGroupConversation(conv) {
     return conv.messages.some((m) => m.grp);
 }
 
+/** 单条消息气泡（左右布局 + 时间贴气泡底部） */
 function bubble(m, groupConv) {
     const mine = m.isMine ? 'mine' : 'theirs';
     const content = renderMessageContent(m);
-    const time = m.time ? `<div class="ln-time">${esc(m.time)}</div>` : '';
+    const time = m.time ? `<div class="ln-time pm-time-inline">${esc(msgClock(m.time))}</div>` : '';
     const name = !m.isMine && groupConv && m.from ? `<div class="ln-name">${esc(m.from)}</div>` : '';
     return `<div class="ln-msg ${mine}">
         <span class="ln-avatar">${initial(m.isMine ? '我' : m.from)}</span>
         <div class="ln-body">
             ${name}
             <div class="ln-bubble">${content}</div>
+            ${time}
         </div>
-    </div>${time}`;
+    </div>`;
 }
 
 export function buildLineSkin() {
@@ -51,6 +53,8 @@ export function buildLineSkin() {
             const items = conversations.map((conv, i) => {
                 const title = esc(conv.title || '未命名会话');
                 const preview = esc((conv.preview || '').slice(0, 26));
+                const lastMsg = conv.messages[conv.messages.length - 1];
+                const time = lastMsg && lastMsg.time ? esc(fmtTime(lastMsg.time, true)) : '';
                 const group = isGroupConversation(conv);
                 // 成员首字串联（群聊体现成员多，私聊就一个头像）
                 const memberChips = group && conv.members && conv.members.length > 1
@@ -59,7 +63,10 @@ export function buildLineSkin() {
                 return `<li class="ln-conv" data-conv="${i}">
                     <span class="ln-avatar">${initial(title)}</span>
                     <div class="ln-conv-main">
-                        <div class="ln-conv-title">${title}${group ? ' · 群' : ''}</div>
+                        <div class="ln-conv-line1">
+                            <span class="ln-conv-title">${title}${group ? ' · 群' : ''}</span>
+                            <span class="ln-conv-time">${time}</span>
+                        </div>
                         <div class="ln-conv-preview">${preview}</div>
                         <div class="ln-membox">${memberChips}</div>
                     </div>
@@ -82,8 +89,8 @@ export function buildLineSkin() {
             const lnTopbar = `<div class="ln-topbar">
                 <span class="ln-topbar-title">LINE</span>
                 <span class="ln-topbar-icons">
-                    <button class="ln-topbar-icon" type="button">🔍</button>
-                    <button class="ln-topbar-icon" type="button">＋</button>
+                    <button class="ln-topbar-icon" type="button" title="搜索">${uiIcon('search', 20)}</button>
+                    <button class="ln-topbar-icon" type="button" title="新建">${uiIcon('plus', 20)}</button>
                 </span>
             </div>`;
 

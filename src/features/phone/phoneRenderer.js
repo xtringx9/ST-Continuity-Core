@@ -395,11 +395,21 @@ const NAV_SCRIPT = `
     var listHost = appEl.querySelector('.phone-conv-list-host');
     if (listHost) listHost.hidden = true;
     var views = appEl.querySelector('.phone-chat-views');
+    var shown = null;
     if (views) {
       views.hidden = false;
       Array.prototype.forEach.call(views.children, function (v) {
-        if (v.hasAttribute('data-conv')) v.hidden = (v.getAttribute('data-conv') !== String(idx));
+        if (v.hasAttribute('data-conv')) {
+          var isTarget = v.getAttribute('data-conv') === String(idx);
+          v.hidden = !isTarget;
+          if (isTarget) shown = v;
+        }
       });
+    }
+    // 打开会话自动定位到最新消息（消息流滚动到底部）
+    if (shown) {
+      var stream = shown.querySelector('[class$="-msgs"]');
+      if (stream) stream.scrollTop = stream.scrollHeight;
     }
     state.view = 'chat';
     state.appId = key;

@@ -40,13 +40,24 @@
     flex-direction: column;
     gap: 3px;
 }
+.g-conv-line1 {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
 .g-conv-title {
+    flex: 1 1 auto;
     font-size: 16px;
     font-weight: 500;
     color: rgba(0, 0, 0, 0.9);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.g-conv-time {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.35);
 }
 .g-conv-preview {
     font-size: 13px;
@@ -84,6 +95,9 @@
     color: rgba(0, 0, 0, 0.8);
     cursor: pointer;
     border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .g-chat-back:active { background: rgba(0, 0, 0, 0.08); }
 .g-chat-title {
@@ -138,29 +152,13 @@
     box-shadow: none;
 }
 
-/* ============ 消息类型细分 ============ */
-.g-bubble .pm-voice { display: inline-flex; align-items: center; gap: 6px; }
-.g-bubble .pm-voice-dur { font-size: 12px; color: rgba(0, 0, 0, 0.45); }
-.g-bubble .pm-img { display: inline-block; background: #d9e3ee; border-radius: 6px; padding: 8px 12px; font-size: 14px; }
-.g-bubble .pm-money { display: inline-block; background: #ffe8d6; border-radius: 6px; padding: 6px 10px; font-weight: bold; color: #e05a00; }
-.g-bubble .pm-loc { display: inline-block; background: #e5f2f6; border-radius: 6px; padding: 6px 10px; }
-.g-bubble .pm-call { display: inline-block; background: #edf1f5; border-radius: 6px; padding: 6px 10px; }
-.g-bubble .pm-call-dur { font-size: 12px; color: rgba(0, 0, 0, 0.45); }
-.g-bubble .pm-file { display: inline-block; background: #f4f1ea; border-radius: 6px; padding: 6px 10px; }
+/* ============ 消息类型卡片（结构样式在 message-types.css，此处仅品牌色覆盖） ============ */
 .g-msg-time {
     font-size: 11px;
     color: rgba(0, 0, 0, 0.35);
-    margin-top: 4px;
 }
-
-/* 日期分组水印 */
-.g-date {
-    display: flex;
-    justify-content: center;
-    font-size: 12px;
-    color: rgba(0, 0, 0, 0.4);
-    padding: 10px 0 4px;
-}
+.g-bubble .pm-voice-btn { color: #3b78f0; }
+.g-msg.mine .pm-voice-btn { color: #1f5fd0; }
 
 /* 底部输入栏 */
 .g-chat-input {

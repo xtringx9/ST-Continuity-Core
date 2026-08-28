@@ -1,12 +1,12 @@
 // 通用聊天 App 皮肤（apps/ 注册表第一个成员）
 //
-// 职责：提供「会话列表」与「聊天窗口」两段 HTML，视觉与手机外壳（像素皮）统一。
+// 职责：提供「会话列表」与「聊天窗口」两段 HTML，视觉与手机外壳统一。
 // 契约（详见 apps/index.js）：renderAppHtml(conversations) → { list, chats }
-// 本皮肤为最小可用集：会话列表（头像+标题+预览）+ 聊天窗口（左右气泡 + 时间水印）。
-// 气泡类型暂只做 text（type 细分留待后续 skin 或本皮肤扩展）。
-import { skinIcon } from '../icons.js';
+// 本皮肤为最小可用集：会话列表（头像+标题+时间+预览）+ 聊天窗口（左右气泡 + 时间水印）。
+// 气泡类型（text/voice/img/money/loc/call/file）由 messageTypes.js 卡片化渲染。
+import { skinIcon, uiIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer, chatHeader } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock } from '../chatChrome.js';
 
 /**
  * HTML 转义（防 XSS / 破坏结构）
@@ -22,13 +22,13 @@ function escapeHtml(str) {
 }
 
 /**
- * 单条消息气泡（text 型；其余 type 降级为文本渲染，避免崩坏布局）
+ * 单条消息气泡（text 型；其余 type 由 renderMessageContent 卡片化渲染）
  * @param {Object} m { from, content, time, type, isMine }
  * @returns {string}
  */
 function bubble(m) {
     const content = renderMessageContent(m);
-    const time = m.time ? `<div class="g-msg-time">${escapeHtml(m.time)}</div>` : '';
+    const time = m.time ? `<div class="g-msg-time pm-time-inline">${escapeHtml(msgClock(m.time))}</div>` : '';
     return `<div class="g-msg ${m.isMine ? 'mine' : 'theirs'}">
         <div class="g-bubble">${content}</div>
         ${time}
@@ -56,11 +56,16 @@ export function buildGenericSkin() {
             const items = conversations.map((conv, i) => {
                 const title = escapeHtml(conv.title || '未命名会话');
                 const preview = escapeHtml((conv.preview || '').slice(0, 30));
+                const lastMsg = conv.messages[conv.messages.length - 1];
+                const time = lastMsg && lastMsg.time ? escapeHtml(fmtTime(lastMsg.time, true)) : '';
                 const initial = escapeHtml((conv.title || '?').slice(0, 1));
                 return `<li class="g-conv" data-conv="${i}">
                     <span class="g-avatar">${initial}</span>
                     <div class="g-conv-main">
-                        <div class="g-conv-title">${title}</div>
+                        <div class="g-conv-line1">
+                            <span class="g-conv-title">${title}</span>
+                            <span class="g-conv-time">${time}</span>
+                        </div>
                         <div class="g-conv-preview">${preview}</div>
                     </div>
                 </li>`;
@@ -81,8 +86,8 @@ export function buildGenericSkin() {
             const gTopbar = `<div class="g-topbar">
                 <span class="g-topbar-title">聊天</span>
                 <span class="g-topbar-icons">
-                    <button class="g-topbar-icon" type="button">🔍</button>
-                    <button class="g-topbar-icon" type="button">＋</button>
+                    <button class="g-topbar-icon" type="button" title="搜索">${uiIcon('search', 20)}</button>
+                    <button class="g-topbar-icon" type="button" title="新建">${uiIcon('plus', 20)}</button>
                 </span>
             </div>`;
             const emptyList = `${gTopbar}

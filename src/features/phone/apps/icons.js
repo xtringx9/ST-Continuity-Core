@@ -52,3 +52,43 @@ export const SKIN_ICONS = {
 export function skinIcon(key) {
     return SKIN_ICONS[key] || SKIN_ICONS.generic;
 }
+
+/* ---------- 线性 UI 图标集（24 视口，stroke=currentColor，随文字色变化） ---------- */
+const UI_PATH = {
+    /* 返回箭头（纯 chevron，无横线） */
+    back: '<path d="M15 18l-6-6 6-6"/>',
+    /* 搜索 */
+    search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>',
+    /* 加号（新建） */
+    plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+    /* 表情 */
+    smile: '<circle cx="12" cy="12" r="9"/><path d="M8 14.5s1.2 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
+    /* 语音（麦克风） */
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/>',
+    /* 编辑（铅笔） */
+    edit: '<path d="M5 19l-.8-3.2L16.5 3.5a2.1 2.1 0 0 1 3 3L7.2 18.9 5 19z"/><path d="M14.5 5.5l3 3"/>',
+    /* 图片（缩略卡） */
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.6"/><path d="M4 17l5-4 3 3 3-3 5 4"/>',
+    /* 语音消息条（喇叭） */
+    speaker: '<path d="M4 10v4h4l5 4V6l-5 4H4z"/><path d="M16 9a4 4 0 0 1 0 6"/>',
+    /* 位置 pin */
+    pin: '<path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/>',
+    /* 电话 */
+    phone: '<path d="M4 5.5C4 14 10 20 18.5 20l1.5-1.5-4-3-2 1.5a12 12 0 0 1-5-5L10.5 10 7.5 6 6 4 4 5.5z"/>',
+    /* 文件 */
+    file: '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h7"/><path d="M9 17h5"/>',
+    /* 红包（fill 版：红底圆角 + 金色褶皱，脱离 stroke 体系） */
+    redpack: '<rect x="3" y="5" width="18" height="14" rx="3" fill="#e04b2e"/><path d="M3 9h18" stroke="#b83117" stroke-width="1.5" fill="none"/><path d="M12 5l-2.6 4a3 3 0 0 0 5.2 0L12 5z" fill="#f2b63c"/>',
+};
+
+/**
+ * 生成线性 UI 图标（stroke=currentColor，随父级文字色自动换色）
+ * @param {string} name 图标名（UI_PATH 中的 key）
+ * @param {number} [size=20] 宽高
+ * @returns {string} 内联 SVG
+ */
+export function uiIcon(name, size = 20) {
+    const body = UI_PATH[name] || UI_PATH.plus;
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+}

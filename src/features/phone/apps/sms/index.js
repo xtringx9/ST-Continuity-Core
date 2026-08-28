@@ -2,9 +2,9 @@
 //
 // 契约（见 apps/index.js）：renderAppHtml(conversations) → { list, chats }
 // 桌面图标走 iconKey 注册；会话列表 + 聊天窗口结构与通用皮肤一致，配色品牌化。
-import { skinIcon } from '../icons.js';
+import { skinIcon, uiIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer, chatHeader } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -25,20 +25,21 @@ function isGroupConversation(conv) {
     return conv.messages.some((m) => m.grp);
 }
 
+/** 单条消息气泡（左右布局 + 时间贴气泡底部） */
 function bubble(m, groupConv) {
     const mine = m.isMine ? 'mine' : 'theirs';
     const content = renderMessageContent(m);
-    const time = m.time ? `<div class="sms-time">${esc(m.time)}</div>` : '';
+    const time = m.time ? `<div class="sms-time pm-time-inline">${esc(msgClock(m.time))}</div>` : '';
     const name = !m.isMine && groupConv && m.from ? `<div class="sms-name">${esc(m.from)}</div>` : '';
     const avatar = `<span class="sms-avatar">${initial(m.isMine ? '我' : m.from)}</span>`;
-    // 头像固定放最前，视觉位置由 CSS order 决定（theirs=左，mine=右）
     return `<div class="sms-msg ${mine}">
         ${avatar}
         <div class="sms-body">
             ${name}
             <div class="sms-bubble">${content}</div>
+            ${time}
         </div>
-    </div>${time}`;
+    </div>`;
 }
 
 export function buildSmsSkin() {
@@ -53,11 +54,16 @@ export function buildSmsSkin() {
             const items = conversations.map((conv, i) => {
                 const title = esc(conv.title || '未命名会话');
                 const preview = esc((conv.preview || '').slice(0, 26));
+                const lastMsg = conv.messages[conv.messages.length - 1];
+                const time = lastMsg && lastMsg.time ? esc(fmtTime(lastMsg.time, true)) : '';
                 const group = isGroupConversation(conv);
                 return `<li class="sms-conv" data-conv="${i}">
                     <span class="sms-avatar">${initial(title)}</span>
                     <div class="sms-conv-main">
-                        <div class="sms-conv-title">${title}${group ? ' · 群发' : ''}</div>
+                        <div class="sms-conv-line1">
+                            <span class="sms-conv-title">${title}${group ? ' · 群发' : ''}</span>
+                            <span class="sms-conv-time">${time}</span>
+                        </div>
                         <div class="sms-conv-preview">${preview}</div>
                     </div>
                 </li>`;
@@ -79,8 +85,8 @@ export function buildSmsSkin() {
             const smsTopbar = `<div class="sms-topbar">
                 <span class="sms-topbar-title">信息</span>
                 <span class="sms-topbar-icons">
-                    <button class="sms-topbar-icon" type="button">🔍</button>
-                    <button class="sms-topbar-icon" type="button">✎</button>
+                    <button class="sms-topbar-icon" type="button" title="搜索">${uiIcon('search', 20)}</button>
+                    <button class="sms-topbar-icon" type="button" title="编辑">${uiIcon('edit', 20)}</button>
                 </span>
             </div>`;
 

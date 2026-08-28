@@ -41,13 +41,24 @@
     flex-direction: column;
     gap: 2px;
 }
+.ln-conv-line1 {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
 .ln-conv-title {
+    flex: 1 1 auto;
     font-size: 15px;
     font-weight: 600;
     color: #222;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.ln-conv-time {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: #b3b3b3;
 }
 .ln-conv-preview {
     font-size: 12px;
@@ -108,6 +119,9 @@
     color: #fff;
     cursor: pointer;
     border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .ln-chat-back:active { background: rgba(255, 255, 255, 0.2); }
 .ln-chat-title {
@@ -174,30 +188,13 @@
     background: #9deeb2;
 }
 
-/* ============ 消息类型细分（text/voice/img/money/loc/call/file） ============ */
-.ln-bubble .pm-voice { display: inline-flex; align-items: center; gap: 6px; }
-.ln-bubble .pm-voice-dur { font-size: 12px; color: #666; }
-.ln-bubble .pm-img { display: inline-block; background: #e3f2ed; border-radius: 8px; padding: 6px 10px; font-size: 14px; }
-.ln-bubble .pm-money { display: inline-block; background: #ffe4d6; border-radius: 8px; padding: 4px 10px; font-weight: bold; color: #e05a00; }
-.ln-bubble .pm-loc { display: inline-block; background: #e8f4f9; border-radius: 8px; padding: 4px 10px; }
-.ln-bubble .pm-call { display: inline-block; background: #eef2f6; border-radius: 8px; padding: 4px 10px; }
-.ln-bubble .pm-call-dur { font-size: 12px; color: #666; }
-.ln-bubble .pm-file { display: inline-block; background: #f5f1e8; border-radius: 8px; padding: 4px 10px; }
+/* ============ 消息类型卡片（结构样式在 message-types.css，此处仅品牌色覆盖） ============ */
 .ln-time {
     font-size: 11px;
     color: #bbb;
-    margin-top: 3px;
-    text-align: center;
 }
-
-/* 日期分组水印 */
-.ln-date {
-    display: flex;
-    justify-content: center;
-    font-size: 12px;
-    color: #b3b3b3;
-    padding: 10px 0 6px;
-}
+.ln-bubble .pm-voice-btn { color: #06a159; }
+.ln-msg.mine .pm-voice-btn { color: #058a4b; }
 
 /* 底部输入栏 */
 .ln-chat-input {

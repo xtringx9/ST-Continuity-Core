@@ -4,9 +4,9 @@
 //   list: 会话列表（圆形头像 + 名称 + 预览），每个可点击项带 data-conv=索引
 //   chats: 各会话聊天窗口（顶栏 + 消息流），默认 hidden，带 data-conv=索引
 // 外壳层（phoneRenderer NAV_SCRIPT）负责 home ↔ App ↔ 会话 导航，皮肤只管内容。
-import { skinIcon } from '../icons.js';
+import { skinIcon, uiIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer, chatHeader } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -21,7 +21,8 @@ function esc(str) {
 /** 头像首字 */
 function initial(name) {
     const s = String(name || '?');
-    return esc(s.trim().slice(0, 1) || '?');
+    const m = s.trim();
+    return esc(m.slice(0, 1) || '?');
 }
 
 /** 群聊判定：无 dm 字段（grp 有值）的消息归为群聊；这里用消息中是否出现过 grp 简化处理 */
@@ -29,11 +30,21 @@ function isGroupConversation(conv) {
     return conv.messages.some((m) => m.grp);
 }
 
-/** 单条消息气泡（左右布局 + 时间水印） */
+/** 群聊头像：成员首字 2×2 小方块堆叠（微信风格九宫格简化版） */
+function groupAvatar(members) {
+    const initials = (members || []).map(initial).filter(Boolean);
+    const seen = new Set();
+    const uniq = initials.filter((c) => !seen.has(c) && seen.add(c));
+    const cells = uniq.slice(0, 3).map((c) => `<span class="wx-mini">${esc(c)}</span>`).join('');
+    const more = uniq.length > 3 ? `<span class="wx-mini">+${uniq.length - 3}</span>` : '';
+    return `<span class="wx-gavatar">${cells}${more}</span>`;
+}
+
+/** 单条消息气泡（左右布局 + 时间贴气泡底部） */
 function bubble(m, groupConv) {
     const mine = m.isMine ? 'mine' : 'theirs';
     const content = renderMessageContent(m);
-    const time = m.time ? `<div class="wx-time">${esc(m.time)}</div>` : '';
+    const time = m.time ? `<div class="wx-time pm-time-inline">${esc(msgClock(m.time))}</div>` : '';
     // 群聊对方消息显示发送者名（自己/私聊不显示）
     const name = !m.isMine && groupConv && m.from ? `<div class="wx-name">${esc(m.from)}</div>` : '';
     const avatar = `<span class="wx-avatar">${initial(m.isMine ? '我' : m.from)}</span>`;
@@ -43,8 +54,9 @@ function bubble(m, groupConv) {
         <div class="wx-body">
             ${name}
             <div class="wx-bubble">${content}</div>
+            ${time}
         </div>
-    </div>${time}`;
+    </div>`;
 }
 
 export function buildWechatSkin() {
@@ -59,12 +71,11 @@ export function buildWechatSkin() {
             const items = conversations.map((conv, i) => {
                 const title = esc(conv.title || '未命名会话');
                 const preview = esc((conv.preview || '').slice(0, 26));
-                const time = conv.messages.length
-                    ? esc(conv.messages[conv.messages.length - 1].time || '')
-                    : '';
+                const lastMsg = conv.messages[conv.messages.length - 1];
+                const time = lastMsg && lastMsg.time ? esc(fmtTime(lastMsg.time, true)) : '';
                 const group = isGroupConversation(conv);
                 return `<li class="wx-conv" data-conv="${i}">
-                    <span class="wx-avatar">${initial(title)}</span>
+                    ${group ? groupAvatar(conv.members) : `<span class="wx-avatar">${initial(title)}</span>`}
                     <div class="wx-conv-main">
                         <div class="wx-conv-line1">
                             <span class="wx-conv-title">${title}</span>
@@ -91,8 +102,8 @@ export function buildWechatSkin() {
             const wxTopbar = `<div class="wx-topbar">
                 <span class="wx-topbar-title">微信</span>
                 <span class="wx-topbar-icons">
-                    <button class="wx-topbar-icon" type="button">🔍</button>
-                    <button class="wx-topbar-icon" type="button">＋</button>
+                    <button class="wx-topbar-icon" type="button" title="搜索">${uiIcon('search', 20)}</button>
+                    <button class="wx-topbar-icon" type="button" title="新建">${uiIcon('plus', 20)}</button>
                 </span>
             </div>`;
 
