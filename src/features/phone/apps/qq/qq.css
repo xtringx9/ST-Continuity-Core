@@ -322,9 +322,13 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 2px;
     font-size: 11px;
     color: rgba(0, 0, 0, 0.5);
     padding: 3px 12px;
+}
+.qq-tab span {
+    line-height: 1;
 }
 .qq-tab.active {
     color: #12b7f5;

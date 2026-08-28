@@ -94,18 +94,24 @@ export function buildLineSkin() {
                 </span>
             </div>`;
 
+            // LINE 底部标签栏（有内容/空态共用；品牌绿 active，顺序贴近真 LINE：主页/好友/聊天/动态/设置 取 4 个）
+            const lnTabbar = `<div class="ln-tabbar">
+                <span class="ln-tab active">${uiIcon('contacts', 22)}<span>好友</span></span>
+                <span class="ln-tab">${uiIcon('bubble', 22)}<span>聊天</span></span>
+                <span class="ln-tab">${uiIcon('timeline', 22)}<span>动态</span></span>
+                <span class="ln-tab">${uiIcon('gear', 22)}<span>设置</span></span>
+            </div>`;
+
             const emptyList = `${lnTopbar}
                 <div class="ln-emptybody">
                     <div class="ln-empty-icon" style="background:#06c755">${skinIcon('line')}</div>
                     <div class="ln-empty-msg">暂无会话</div>
                 </div>
-                <div class="ln-tabbar">
-                    <span class="ln-tab active">好友</span><span class="ln-tab">聊天</span><span class="ln-tab">动态</span><span class="ln-tab">设置</span>
-                </div>`;
+                ${lnTabbar}`;
 
             return {
                 list: items
-                    ? `${lnTopbar}<ul class="ln-conv-list">${items}</ul>`
+                    ? `${lnTopbar}<ul class="ln-conv-list">${items}</ul>${lnTabbar}`
                     : `<div class="ln-frame-empty">${emptyList}</div>`,
                 chats,
             };

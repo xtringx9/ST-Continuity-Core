@@ -90,18 +90,23 @@ export function buildGenericSkin() {
                     <button class="g-topbar-icon" type="button" title="新建">${uiIcon('plus', 20)}</button>
                 </span>
             </div>`;
+            // 通用聊天底部标签栏（有内容/空态共用；品牌蓝 active）
+            const gTabbar = `<div class="g-tabbar">
+                <span class="g-tab active">${uiIcon('bubble', 22)}<span>消息</span></span>
+                <span class="g-tab">${uiIcon('contacts', 22)}<span>联系人</span></span>
+                <span class="g-tab">${uiIcon('timeline', 22)}<span>动态</span></span>
+                <span class="g-tab">${uiIcon('gear', 22)}<span>设置</span></span>
+            </div>`;
             const emptyList = `${gTopbar}
                 <div class="g-emptybody">
                     <div class="g-empty-icon" style="background:#4f8cff">${skinIcon('generic')}</div>
                     <div class="g-empty-msg">暂无会话</div>
                 </div>
-                <div class="g-tabbar">
-                    <span class="g-tab active">消息</span><span class="g-tab">联系人</span><span class="g-tab">动态</span><span class="g-tab">设置</span>
-                </div>`;
+                ${gTabbar}`;
 
             return {
                 list: items
-                    ? `${gTopbar}<ul class="g-conv-list">${items}</ul>`
+                    ? `${gTopbar}<ul class="g-conv-list">${items}</ul>${gTabbar}`
                     : `<div class="g-frame-empty">${emptyList}</div>`,
                 chats,
             };

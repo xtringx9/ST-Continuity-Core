@@ -90,19 +90,24 @@ export function buildSmsSkin() {
                 </span>
             </div>`;
 
+            // 短信底部标签栏（有内容/空态共用；信息/通话/通讯录 三段式）
+            const smsTabbar = `<div class="sms-tabbar">
+                <span class="sms-tab active">${uiIcon('bubble', 22)}<span>信息</span></span>
+                <span class="sms-tab">${uiIcon('phone', 22)}<span>通话</span></span>
+                <span class="sms-tab">${uiIcon('contacts', 22)}<span>通讯录</span></span>
+            </div>`;
+
             // 空态：与各 App 一致，短信品牌顶栏 + 空态 + 底部标签栏
             const emptyList = `${smsTopbar}
                 <div class="sms-emptybody">
                     <div class="sms-empty-icon" style="background:#5a98d8">${skinIcon('sms')}</div>
                     <div class="sms-empty-msg">暂无会话</div>
                 </div>
-                <div class="sms-tabbar">
-                    <span class="sms-tab active">信息</span><span class="sms-tab">通话</span><span class="sms-tab">通讯录</span>
-                </div>`;
+                ${smsTabbar}`;
 
             return {
                 list: items
-                    ? `${smsTopbar}<ul class="sms-conv-list">${items}</ul>`
+                    ? `${smsTopbar}<ul class="sms-conv-list">${items}</ul>${smsTabbar}`
                     : `<div class="sms-frame-empty">${emptyList}</div>`,
                 chats,
             };

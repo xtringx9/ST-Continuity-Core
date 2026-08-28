@@ -107,18 +107,24 @@ export function buildWechatSkin() {
                 </span>
             </div>`;
 
+            // 微信底部标签栏（有内容/空态共用；品牌绿 active）
+            const wxTabbar = `<div class="wx-tabbar">
+                <span class="wx-tab active">${uiIcon('bubble', 22)}<span>微信</span></span>
+                <span class="wx-tab">${uiIcon('contacts', 22)}<span>通讯录</span></span>
+                <span class="wx-tab">${uiIcon('compass', 22)}<span>发现</span></span>
+                <span class="wx-tab">${uiIcon('gear', 22)}<span>我</span></span>
+            </div>`;
+
             const emptyList = `${wxTopbar}
                 <div class="wx-emptybody">
                     <div class="wx-empty-icon" style="background:#07c160">${skinIcon('wechat')}</div>
                     <div class="wx-empty-msg">暂无会话</div>
                 </div>
-                <div class="wx-tabbar">
-                    <span class="wx-tab active">微信</span><span class="wx-tab">通讯录</span><span class="wx-tab">发现</span><span class="wx-tab">我</span>
-                </div>`;
+                ${wxTabbar}`;
 
             return {
                 list: items
-                    ? `${wxTopbar}<ul class="wx-conv-list">${items}</ul>`
+                    ? `${wxTopbar}<ul class="wx-conv-list">${items}</ul>${wxTabbar}`
                     : `<div class="wx-frame-empty">${emptyList}</div>`,
                 chats,
             };

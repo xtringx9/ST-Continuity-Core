@@ -100,18 +100,24 @@ export function buildQqSkin() {
                 </span>
             </div>`;
 
+            // QQ 底部标签栏（有内容/空态共用；品牌蓝 active）
+            const qqTabbar = `<div class="qq-tabbar">
+                <span class="qq-tab active">${uiIcon('bubble', 22)}<span>消息</span></span>
+                <span class="qq-tab">${uiIcon('contacts', 22)}<span>联系人</span></span>
+                <span class="qq-tab">${uiIcon('timeline', 22)}<span>动态</span></span>
+                <span class="qq-tab">${uiIcon('star', 22)}<span>空间</span></span>
+            </div>`;
+
             const emptyList = `${qqTopbar}
                 <div class="qq-emptybody">
                     <div class="qq-empty-icon" style="background:#1f9af5">${skinIcon('qq')}</div>
                     <div class="qq-empty-msg">暂无会话</div>
                 </div>
-                <div class="qq-tabbar">
-                    <span class="qq-tab active">消息</span><span class="qq-tab">联系人</span><span class="qq-tab">动态</span><span class="qq-tab">空间</span>
-                </div>`;
+                ${qqTabbar}`;
 
             return {
                 list: items
-                    ? `${qqTopbar}<ul class="qq-conv-list">${items}</ul>`
+                    ? `${qqTopbar}<ul class="qq-conv-list">${items}</ul>${qqTabbar}`
                     : `<div class="qq-frame-empty">${emptyList}</div>`,
                 chats,
             };

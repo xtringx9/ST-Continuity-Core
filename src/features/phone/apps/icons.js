@@ -79,6 +79,18 @@ const UI_PATH = {
     file: '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h7"/><path d="M9 17h5"/>',
     /* 红包（fill 版：红底圆角 + 金色褶皱，脱离 stroke 体系） */
     redpack: '<rect x="3" y="5" width="18" height="14" rx="3" fill="#e04b2e"/><path d="M3 9h18" stroke="#b83117" stroke-width="1.5" fill="none"/><path d="M12 5l-2.6 4a3 3 0 0 0 5.2 0L12 5z" fill="#f2b63c"/>',
+    /* 聊天气泡（会话 tab） */
+    bubble: '<path d="M4 5.5h16a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-9.5L6 20v-3H4a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2z"/>',
+    /* 通讯录/联系人（人形） */
+    contacts: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-3.6 3.6-6 8-6s8 2.4 8 6"/>',
+    /* 发现/罗盘 */
+    compass: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 5-5 2.2 2.2-5z"/>',
+    /* 动态/时间线（时钟） */
+    timeline: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>',
+    /* 设置（线性小齿轮，与桌面 64 版齿轮呼应） */
+    gear: '<circle cx="12" cy="12" r="3.4"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.4 5.4l1.8 1.8M16.8 16.8l1.8 1.8M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8"/>',
+    /* 空间/K 歌等点缀（五角星） */
+    star: '<path d="M12 2.6l2.7 6.1 6.6.6-5 4.3 1.5 6.4L12 16.6l-5.8 3.4 1.5-6.4-5-4.3 6.6-.6z"/>',
 };
 
 /**
