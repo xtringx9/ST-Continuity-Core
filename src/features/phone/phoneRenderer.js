@@ -336,8 +336,8 @@ ${links}
       ${appViews}
     </div>
     ${overlay}
-    <!-- 悬浮 home 指示条（拟真 iPhone：单击回桌面，双击关闭手机）；不占布局流，覆盖在内容底部 -->
-    <span class="pd-homebar" title="回桌面（双击关闭手机）"></span>
+    <!-- 悬浮 home 指示条（拟真 iPhone：单击回桌面）；不占布局流，覆盖在内容底部 -->
+    <span class="pd-homebar" title="回桌面"></span>
     <script>window.__PHONE_INIT_VIEW = ${JSON.stringify(initView || 'home')};</script>
     ${navScript}
   </div>
@@ -457,20 +457,11 @@ const NAV_SCRIPT = `
     });
   });
 
-  // 底部 homebar（拟真 iPhone 手势条）：单击回桌面；双击关闭手机（替代原「退出」按钮）
+  // 底部 homebar（拟真 iPhone 手势条）：单击回桌面（零延迟，不做双击关闭）
   var pdHomebar = document.querySelector('.pd-homebar');
   if (pdHomebar) {
     pdHomebar.addEventListener('click', function () {
-      if (pdHomebar._dbl) return;       // 双击由第二个事件处理，忽略首次单击
-      pdHomebar._t = setTimeout(function () {
-        pdHomebar._dbl = false;
-        goHome();
-      }, 260);
-    });
-    pdHomebar.addEventListener('dblclick', function () {
-      pdHomebar._dbl = true;
-      clearTimeout(pdHomebar._t);
-      window.parent.postMessage({ type: 'CLOSE_CONTINUITY_MODAL' }, '*');
+      goHome();
     });
   }
 

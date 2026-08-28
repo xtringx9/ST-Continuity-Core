@@ -126,6 +126,12 @@ body {
     transition: background 0.1s;
 }
 .pd-homebar:hover { background: rgba(0, 0, 0, 0.3); }
+/* 按压即时反馈：只缩放不改变居中（transform 需保留 translateX(-50%)，否则会横向跳位） */
+.pd-homebar:active {
+    transform: translateX(-50%) scale(0.92);
+    background: rgba(0, 0, 0, 0.38);
+    transition: none;
+}
 
 /* 屏幕容器：承载桌面 + 各 App 视图 */
 .phone-screen-host {
