@@ -1173,6 +1173,38 @@ async function onEditModules(mesId) {
 }
 
 /**
+ * textarea 内容滚到末尾（不抢焦点，避免打断用户 / 触发额外页面滚动）。
+ * ⚠️ 脱离文档的 textarea scrollHeight 恒为 0，必须在 append 到 DOM 之后调用才有效。
+ * @param {jQuery} $ta
+ */
+function scrollTextareaToBottom($ta) {
+    const el = $ta && $ta[0];
+    if (!el || !el.isConnected) return;
+    el.scrollTop = el.scrollHeight;
+    // 光标一并落到末尾：后续聚焦/输入接着末尾继续（setSelectionRange 不触发滚动，也不抢焦点）
+    try {
+        el.setSelectionRange(el.value.length, el.value.length);
+    } catch {
+        /* 浏览器不支持时忽略 */
+    }
+}
+
+/**
+ * 编辑框定位到「最底部」：
+ *  1) textarea 内部滚到内容末尾（长内容直接看到/接续末尾，而非开头）
+ *  2) 编辑框整体滚入视口底部（编辑框插在长消息下方，默认往往在视口之外）
+ * 已在视口内则不做页面滚动（最小侵入）。
+ * @param {HTMLElement} editAreaEl
+ */
+function scrollEditAreaToBottom(editAreaEl) {
+    if (!editAreaEl) return;
+    scrollTextareaToBottom($(editAreaEl).find('.ccore-edit-textarea'));
+    const rect = editAreaEl.getBoundingClientRect();
+    if (rect.bottom <= window.innerHeight + 1) return;
+    editAreaEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+/**
  * 编辑生成内容（小剧场、角色心理等）/ 模块数据（genName='modules'）
  * 支持多版本（innerSwipe）：编辑区顶部显示版本切换（‹ 当前/总数 ›），
  * 读取当前激活版本，保存写回当前编辑的版本（不自动切 active）。
@@ -1292,6 +1324,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             $textarea.data('saved-value', '');
             $verLabel.text(`0\u200b/\u200b0`);
             $editArea.find('.ccore-edit-ver-prev, .ccore-edit-ver-next').css('visibility', 'hidden');
+            scrollTextareaToBottom($textarea);
             return;
         }
         if (idx < 0) idx = 0;
@@ -1301,6 +1334,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
         $textarea.data('saved-value', versions[ids[idx]] || '');
         $verLabel.text(`${idx + 1}\u200b/\u200b${ids.length}`);
         $editArea.find('.ccore-edit-ver-prev, .ccore-edit-ver-next').css('visibility', ids.length > 1 ? 'visible' : 'hidden');
+        scrollTextareaToBottom($textarea);
     };
 
     // 版本切换
@@ -1474,6 +1508,9 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
 
     loadVersion(currentIndex);
     $container.append($editArea);
+
+    // ⚠️ 打开后默认定位到最底部（须在 append 之后：脱离文档的 textarea 量不到 scrollHeight）
+    scrollEditAreaToBottom($editArea[0]);
 
     // 保存：无版本 → 新建（append 并激活）；有版本 → 写回当前编辑版本（不自动切 active）
     $editArea.find('.ccore-edit-save').on('click', async (e) => {
