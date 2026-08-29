@@ -102,15 +102,25 @@ const STME_KEYS = new Set([
 ]);
 
 /**
- * 判定键的来源。key 可能带作用域前缀（extra. / swipe. / swipe.extra. / chat_metadata.）。
+ * 去掉作用域前缀，得到裸键名（仅用于展示）。
+ * 注意：row.key 必须保留完整路径（extra. / swipe_info. / swipe_info.extra. / chat_metadata.），
+ * 因为导出/清理靠 resolveKey 按前缀定位取值，不能拿裸键名去解析。
+ * @param {string} key
+ * @returns {string}
+ */
+function bareKey(key) {
+    return String(key).replace(/^(?:swipe_info\.)?(?:extra\.)?/, '').replace(/^chat_metadata\./, '');
+}
+
+/**
+ * 判定键的来源。key 可能带作用域前缀（extra. / swipe_info. / swipe_info.extra. / chat_metadata.）。
  * @param {string} key 报告里的完整键名
  * @param {boolean} isNative 是否命中 ST 原生白名单
  * @returns {'ccore'|'stme'|'native'|'other'}
  */
 function keySource(key, isNative) {
     if (isNative) return 'native';
-    // 取去掉作用域前缀后的末段键名
-    const bare = String(key).replace(/^(?:swipe\.)?(?:extra\.)?/, '').replace(/^chat_metadata\./, '');
+    const bare = bareKey(key);
     if (CCORE_KEYS.has(bare)) return 'ccore';
     if (STME_KEYS.has(bare)) return 'stme';
     return 'other';
@@ -436,7 +446,7 @@ async function scanLines(lines, onProgress) {
     const total = lines.length;
     const topKeys = new Map();      // key -> { type, count, bytes, sample }
     const extraKeys = new Map();    // 'extra.KEY' -> 同上
-    const swipeKeys = new Map();    // 'swipe.KEY' -> 同上（swipe_info / swipes 内副本）
+    const swipeKeys = new Map();    // 'swipe_info.KEY' -> 同上（swipe_info / swipes 各分支内的键）
     const metaKeys = new Map();     // 'chat_metadata.KEY' -> { type, bytes, sample }
 
     let totalBytes = 0;       // 估算全文 jsonl 字节
@@ -488,12 +498,12 @@ async function scanLines(lines, onProgress) {
                 if (!sw || typeof sw !== 'object') continue;
                 if (sw.extra && typeof sw.extra === 'object') {
                     for (const k of Object.keys(sw.extra)) {
-                        accum(swipeKeys, `swipe.extra.${k}`, sw.extra[k], NATIVE_EXTRA_KEYS.has(k));
+                        accum(swipeKeys, `swipe_info.extra.${k}`, sw.extra[k], NATIVE_EXTRA_KEYS.has(k));
                     }
                 }
                 for (const k of Object.keys(sw)) {
                     if (k === 'extra') continue;
-                    accum(swipeKeys, `swipe.${k}`, sw[k], NATIVE_TOP_KEYS.has(k));
+                    accum(swipeKeys, `swipe_info.${k}`, sw[k], NATIVE_TOP_KEYS.has(k));
                 }
             }
         }
@@ -505,8 +515,10 @@ async function scanLines(lines, onProgress) {
     }
     onProgress(total, total);
 
+    // key = 完整路径（导出/清理靠它定位）；label = 裸键名（分组标题已表明作用域，展示时不再重复前缀）
     const toRows = (map, scope) => Array.from(map.entries()).map(([key, rec]) => ({
         key: scope ? `${scope}.${key}` : key,
+        label: bareKey(key),
         type: rec.type,
         floors: rec.count,
         bytes: rec.bytes,
@@ -520,6 +532,7 @@ async function scanLines(lines, onProgress) {
     const swipeRows = toRows(swipeKeys);
     const metaRows = Array.from(metaKeys.entries()).map(([key, rec]) => ({
         key: `chat_metadata.${key}`,
+        label: key,
         type: rec.type,
         bytes: rec.bytes,
         sample: rec.sample,
@@ -597,10 +610,10 @@ function renderReport(report) {
         container.appendChild(empty);
     } else {
         // 四组键位表（含原生键，原生键标记「原生」且不可清理）
-        container.appendChild(renderKeyTable('楼层级键（消息顶层）', report.topRows, report.totalBytes));
-        container.appendChild(renderKeyTable('extra 内键', report.extraRows, report.totalBytes));
-        container.appendChild(renderKeyTable('swipe_info / swipes 内副本', report.swipeRows, report.totalBytes));
-        container.appendChild(renderKeyTable('聊天元数据 chat_metadata 键', report.metaRows, report.totalBytes));
+        container.appendChild(renderKeyTable('每层', report.topRows, report.totalBytes));
+        container.appendChild(renderKeyTable('每层/extra', report.extraRows, report.totalBytes));
+        container.appendChild(renderKeyTable('每层/swipe_info', report.swipeRows, report.totalBytes));
+        container.appendChild(renderKeyTable('chat_metadata', report.metaRows, report.totalBytes));
     }
 
     reportEl.innerHTML = '';
@@ -631,11 +644,16 @@ function renderKeyTable(title, rows, totalBytes) {
     rows.forEach((row) => {
         const tr = doc.createElement('div');
         tr.className = 'cc-manage-tr';
+        // 存完整路径，供清理后定位本行（裸键名跨组不唯一，不能靠文本匹配）
+        tr.dataset.key = String(row.key);
         const src = row.source || keySource(row.key, row.native);
         const srcLabel = SOURCE_LABEL[src] || SOURCE_LABEL.other;
         const pct = totalBytes > 0 ? `${((row.bytes / totalBytes) * 100).toFixed(1)}%` : '0%';
+        // 「第三方/未知」不打标签：来源判定是尽力而为，误标会显得像在诱导清理，
+        // 交由用户自行判断；仅对来源明确的（ccore / 记忆增强 / 原生）标注。
+        const tagHtml = src === 'other' ? '' : ` <em class="cc-src-tag cc-src-${src}" title="${escapeAttr(srcLabel.title)}">${escapeHtml(srcLabel.text)}</em>`;
         tr.innerHTML = `
-            <span class="cc-manage-td cc-manage-k" title="${escapeAttr(row.key)}">${escapeHtml(row.key)} <em class="cc-src-tag cc-src-${src}" title="${escapeAttr(srcLabel.title)}">${escapeHtml(srcLabel.text)}</em></span>
+            <span class="cc-manage-td cc-manage-k" title="${escapeAttr(row.label ?? row.key)}">${escapeHtml(row.label ?? row.key)}${tagHtml}</span>
             <span class="cc-manage-td">${escapeHtml(row.type)}</span>
             <span class="cc-manage-td">${row.floors ?? '-'}</span>
             <span class="cc-manage-td">${fmtBytes(row.bytes)}</span>
@@ -701,7 +719,7 @@ function escapeAttr(s) {
 
 /**
  * 导出某键的全部命中楼层取值为 JSON（不修改原文件）。
- * @param {string} key 形如 extra.ccore / swipe.extra.ccore / chat_metadata.xxx / 顶层键
+ * @param {string} key 形如 extra.ccore / swipe_info.extra.ccore / chat_metadata.xxx / 顶层键
  */
 function exportKey(key) {
     // 重新扫描并抽取（报告里只保留了 sample，未保留全量楼层取值）
@@ -765,7 +783,10 @@ async function exportKeyFromSource(key) {
 }
 
 /**
- * 解析键路径（支持 extra.x / swipe.extra.x / swipe.x / chat_metadata.x / 顶层键）。
+ * 解析键路径（支持 extra.x / swipe_info.extra.x / swipe_info.x / chat_metadata.x / 顶层键）。
+ * 注：swipe_info. 是我们自定义的作用域前缀，文件里并没有 swipe_info.x 这样的字面路径，
+ *   它表示「到 mes.swipe_info 的每个分支对象里找 x」。
+ *   注意 mes.swipes 是【字符串数组】（各分支正文），不是分支对象，故不参与此前缀。
  * @param {object} mes
  * @param {string} key
  * @returns {*}
@@ -775,18 +796,19 @@ function resolveKey(mes, key) {
         const k = key.slice('extra.'.length);
         return mes?.extra?.[k];
     }
-    if (key.startsWith('swipe.extra.')) {
-        const k = key.slice('swipe.extra.'.length);
+    if (key.startsWith('swipe_info.extra.')) {
+        const k = key.slice('swipe_info.extra.'.length);
         const sw = Array.isArray(mes?.swipe_info) ? mes.swipe_info : (Array.isArray(mes?.swipes) ? mes.swipes : null);
         if (!Array.isArray(sw)) return undefined;
         for (const s of sw) if (s?.extra && k in s.extra) return s.extra[k];
         return undefined;
     }
-    if (key.startsWith('swipe.')) {
-        const k = key.slice('swipe.'.length);
+    if (key.startsWith('swipe_info.')) {
+        const k = key.slice('swipe_info.'.length);
         const sw = Array.isArray(mes?.swipe_info) ? mes.swipe_info : (Array.isArray(mes?.swipes) ? mes.swipes : null);
         if (!Array.isArray(sw)) return undefined;
-        for (const s of sw) if (k in s) return s[k];
+        // mes.swipes 是字符串数组（各分支正文），元素非对象：跳过（对字符串用 `in` 会抛 TypeError）
+        for (const s of sw) if (s && typeof s === 'object' && k in s) return s[k];
         return undefined;
     }
     if (key.startsWith('chat_metadata.')) {
@@ -896,9 +918,10 @@ async function collectKeyValues(key) {
 /** 导出前预览 */
 async function openExportPreview(row) {
     const { items } = await collectKeyValues(row.key);
+    const shown = row.label ?? row.key;
     if (items.length === 0) {
         openKeyModal({
-            title: `导出：${row.key}`,
+            title: `导出：${shown}`,
             summaryHtml: '<b>该键当前没有可导出的取值。</b>',
             samplesText: '',
             confirmText: '关闭',
@@ -910,7 +933,7 @@ async function openExportPreview(row) {
         `#${it.index} → ${truncate(it.value, 300)}`
     )).join('\n\n');
     openKeyModal({
-        title: `导出：${row.key}`,
+        title: `导出：${shown}`,
         summaryHtml: `共 <b>${items.length}</b> 条取值，合计约 <b>${fmtBytes(row.bytes)}</b>。导出为 JSON 文件，<b>不会修改聊天文件</b>。`,
         samplesText: `${samples}${items.length > 5 ? `\n\n…（另有 ${items.length - 5} 条，导出时全部包含）` : ''}`,
         confirmText: '确认导出',
@@ -922,9 +945,10 @@ async function openExportPreview(row) {
 async function openCleanPreview(row) {
     if (mCurrentChat) return;
     const { items } = await collectKeyValues(row.key);
+    const shown = row.label ?? row.key;
     if (items.length === 0) {
         openKeyModal({
-            title: `清理：${row.key}`,
+            title: `清理：${shown}`,
             summaryHtml: '<b>该键当前没有可清理的内容。</b>',
             samplesText: '',
             confirmText: '关闭',
@@ -936,9 +960,11 @@ async function openCleanPreview(row) {
         `#${it.index} → ${truncate(it.value, 300)}`
     )).join('\n\n');
     openKeyModal({
-        title: `清理：${row.key}`,
-        summaryHtml: `将从 <b>${items.length}</b> 处移除该键，释放约 <b>${fmtBytes(row.bytes)}</b>。<br>
-            <b class="cc-warn">此操作会改写聊天文件，不可撤销</b>（ST 保存时会自动备份，且为原子写入）。`,
+        title: `清理：${shown}`,
+        summaryHtml: `将从 <b>${items.length}</b> 处<b>删除该键本身</b>（键值对整体移除，不只是清空内容），释放约 <b>${fmtBytes(row.bytes)}</b>。<br>
+            <b class="cc-warn">此操作会改写聊天文件，不可撤销。</b><br>
+            建议先手动备份聊天文件（复制一份 <code>${escapeHtml(mActiveChatName || '')}.jsonl</code> 到别处）；
+            ST 保存时虽会自行备份且为原子写入，但自行备份最稳妥。`,
         samplesText: `${samples}${items.length > 5 ? `\n\n…（另有 ${items.length - 5} 处）` : ''}`,
         confirmText: '确认清理',
         danger: true,
@@ -954,6 +980,8 @@ async function openCleanPreview(row) {
 async function runCleanKey(row) {
     const key = row.key;
     try {
+        // 兜底：当前聊天走内存，清理必须针对历史聊天文件
+        if (mCurrentChat) throw new Error('当前聊天不允许清理，请选择历史聊天');
         const raw = await fetchChatJsonl(mActiveChatName, mActiveChar);
         if (raw == null) throw new Error('读取聊天文件失败');
         const lines = raw.split('\n');
@@ -973,8 +1001,10 @@ async function runCleanKey(row) {
             infoLog(LOG_TAG, `键 ${key} 无可清理内容`);
             return;
         }
+        // 无法解析的行无法回写（/api/chats/save 只接受对象数组），继续执行会静默丢消息。
+        // 因此只要有一行解析失败就整体中止，不做任何写入。
         if (skipped > 0) {
-            errorLog(LOG_TAG, `清理时跳过 ${skipped} 行无法解析的内容，这些行将被丢弃`);
+            throw new Error(`聊天文件中有 ${skipped} 行无法解析，为避免数据丢失已中止清理（文件未被修改）`);
         }
         // 首行 chat_metadata.integrity 必须原样保留，否则 /api/chats/save 的完整性校验会 400
         const res = await fetch('/api/chats/save', {
@@ -1007,8 +1037,19 @@ async function runCleanKey(row) {
 }
 
 /**
+ * 结构性关键键：无论来源判定结果如何，一律禁止删除。
+ * 这是兜底防线 —— 原生键白名单是 best-effort，可能漏判；
+ * 一旦漏判就允许用户删掉这些字段，会直接破坏聊天结构或让 ST 报错。
+ */
+const PROTECTED_TOP_KEYS = new Set([
+    'mes', 'name', 'is_user', 'is_system', 'send_date', 'send_date_str',
+    'swipes', 'swipe_info', 'swipe_id', 'extra', 'mes_id', 'gen_id',
+    'chat_metadata', 'title', 'force_avatar', 'display_avatar',
+]);
+
+/**
  * 从消息对象里删除指定键（就地修改），返回是否删除。
- * 支持 extra.x / swipe.extra.x / swipe.x / chat_metadata.x / 顶层键。
+ * 支持 extra.x / swipe_info.extra.x / swipe_info.x / chat_metadata.x / 顶层键。
  */
 function deleteKeyAt(mes, key) {
     if (key.startsWith('extra.')) {
@@ -1019,8 +1060,8 @@ function deleteKeyAt(mes, key) {
         }
         return false;
     }
-    if (key.startsWith('swipe.extra.')) {
-        const k = key.slice('swipe.extra.'.length);
+    if (key.startsWith('swipe_info.extra.')) {
+        const k = key.slice('swipe_info.extra.'.length);
         const sw = Array.isArray(mes?.swipe_info) ? mes.swipe_info : (Array.isArray(mes?.swipes) ? mes.swipes : null);
         if (!Array.isArray(sw)) return false;
         let hit = false;
@@ -1029,13 +1070,14 @@ function deleteKeyAt(mes, key) {
         }
         return hit;
     }
-    if (key.startsWith('swipe.')) {
-        const k = key.slice('swipe.'.length);
+    if (key.startsWith('swipe_info.')) {
+        const k = key.slice('swipe_info.'.length);
         const sw = Array.isArray(mes?.swipe_info) ? mes.swipe_info : (Array.isArray(mes?.swipes) ? mes.swipes : null);
         if (!Array.isArray(sw)) return false;
         let hit = false;
         for (const s of sw) {
-            if (s && Object.prototype.hasOwnProperty.call(s, k)) { delete s[k]; hit = true; }
+            // mes.swipes 是字符串数组，跳过非对象分支
+            if (s && typeof s === 'object' && Object.prototype.hasOwnProperty.call(s, k)) { delete s[k]; hit = true; }
         }
         return hit;
     }
@@ -1050,6 +1092,8 @@ function deleteKeyAt(mes, key) {
         return false;
     }
     const bare = key;
+    // 兜底：结构性关键键永不删除（防白名单漏判导致误删）
+    if (PROTECTED_TOP_KEYS.has(bare)) return false;
     if (mes && Object.prototype.hasOwnProperty.call(mes, bare)) {
         delete mes[bare];
         return true;
@@ -1061,9 +1105,10 @@ function deleteKeyAt(mes, key) {
 function markKeyCleaned(row, removed) {
     if (!reportEl) return;
     const rows = reportEl.querySelectorAll('.cc-manage-tr');
+    // 按行上存的完整键路径精确匹配（显示的是裸键名，跨组不唯一，不能靠文本匹配）
+    const fullKey = String(row.key);
     for (const tr of rows) {
-        const kEl = tr.querySelector('.cc-manage-k');
-        if (kEl && kEl.textContent.trim().startsWith(row.key)) {
+        if (tr.dataset.key === fullKey) {
             const tip = doc.createElement('span');
             tip.className = 'cc-cleaned-tip';
             tip.textContent = `已清理 ${removed} 处（重新分析可刷新统计）`;

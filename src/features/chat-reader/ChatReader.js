@@ -421,8 +421,10 @@ function renderChatModalList(chats, onPick) {
         chatModalBodyEl.innerHTML = '<div class="reader-loading">该角色暂无聊天记录</div>';
         return;
     }
+    // 按最后消息时间倒序（新 → 旧）。用副本排序，避免改动调用方可能缓存/复用的数组。
+    const sorted = chats.slice().sort((a, b) => chatTimeValue(b.last_mes) - chatTimeValue(a.last_mes));
     const frag = doc.createDocumentFragment();
-    chats.forEach((chatMeta) => {
+    sorted.forEach((chatMeta) => {
         const item = doc.createElement('div');
         item.className = 'reader-chat-item interactable';
         item.title = `file: ${chatMeta.file_name}`;
@@ -956,6 +958,22 @@ function formatChatTime(ts) {
         return m && m.isValid() ? m.format('YYYY-MM-DD HH:mm') : '';
     } catch (e) {
         return '';
+    }
+}
+
+/**
+ * 取聊天时间的可比较数值（毫秒），用于排序。与 formatChatTime 同源解析，
+ * 兼容 last_mes 的各种历史格式；解析失败返回 0（排序时落到最后）。
+ * @param {string|number} ts
+ * @returns {number}
+ */
+function chatTimeValue(ts) {
+    if (ts === undefined || ts === null || ts === '') return 0;
+    try {
+        const m = timestampToMoment(ts);
+        return m && m.isValid() ? m.valueOf() : 0;
+    } catch (e) {
+        return 0;
     }
 }
 
