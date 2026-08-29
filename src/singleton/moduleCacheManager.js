@@ -1,7 +1,7 @@
 import configManager from "./configManager.js";
 import { chat, chat_metadata, saveSettingsDebounced } from "../../../../../../script.js";
 import { getContext, extension_settings } from "../../../../../extensions.js";
-import { errorLog, debugLog } from "../utils/logger.js";
+import { errorLog, debugLog, infoLog } from "../utils/logger.js";
 import { runModulePipeline } from "../core/pipeline/runModulePipeline.js";
 
 // Tier 2：缓存更新防抖状态（模块级单例状态）
@@ -317,7 +317,7 @@ class ModuleCacheManager {
      * 打印当前缓存数据
      */
     outputCache() {
-        debugLog("[Module Cache]打印当前缓存数据:", moduleCacheManager.cache, moduleCacheManager.charWorldBookCache);
+        infoLog("[Module Cache]打印当前缓存数据:", moduleCacheManager.cache, moduleCacheManager.charWorldBookCache);
     }
 }
 
