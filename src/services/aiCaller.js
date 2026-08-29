@@ -201,7 +201,7 @@ function _refreshPromptManagerAfterPresetRestore(presetBackup) {
  *   ② CC「搜索定位」面板自带保存按钮：.cc-pm-search-save（promptEntrySearch.js:414，<button>，
  *      内部转发 nativeBtn.click() 即 ①）。它是真 <button>，disabled 可同时挡真实点击与程序化 .click()，
  *      故用 disabled 直接断掉「用户点它 → nativeBtn.click() → 保存」的整条链路（纯 pointer-events 挡不住转发）。
- *   功能关闭时 ② 不存在，querySelector 取空自动跳过，无副作用。
+ *   功能关闭时（configManager.getStFeatureEnhanceConfig().promptEntrySearch.enabled !== true）跳过 ②，不查 DOM。
  * 做法：apply 期间屏蔽、restore 后还原；不改动 oai_settings 任何数据，纯交互层拦截，无污染风险。
  * @param {boolean} blocked true=屏蔽点击，false=解除屏蔽
  */
@@ -214,10 +214,13 @@ function _blockPresetSaveButton(blocked) {
             nativeBtn.style.opacity = blocked ? '0.4' : '';
         }
         // ② CC 搜索定位面板保存按钮（<button>，disabled 可挡住其转发 nativeBtn.click() 的链路）
-        const ccSearchSave = document.querySelector('.cc-pm-search-save');
-        if (ccSearchSave) {
-            ccSearchSave.disabled = blocked;
-            ccSearchSave.style.opacity = blocked ? '0.4' : '';
+        //   先经 configManager 判断功能是否开启：关闭时该按钮本就不存在，不必查 DOM。
+        if (configManager.getStFeatureEnhanceConfig()?.promptEntrySearch?.enabled === true) {
+            const ccSearchSave = document.querySelector('.cc-pm-search-save');
+            if (ccSearchSave) {
+                ccSearchSave.disabled = blocked;
+                ccSearchSave.style.opacity = blocked ? '0.4' : '';
+            }
         }
     } catch (e) {
         debugLog(LOG_TAG, `${blocked ? '屏蔽' : '解除屏蔽'}「更新预设」按钮失败（忽略）:`, e);
