@@ -15,6 +15,7 @@ import { characters, getPastCharacterChats, getRequestHeaders } from '../../../.
 import { getCurrentChatDetails } from '../../../../../../../script.js';
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
 import { renderCharPicker, openChatModal, closeChatModal } from './ChatReader.js';
+import { timestampToMoment } from '../../../../../../utils.js';
 
 const LOG_TAG = '[ChatManager]';
 
@@ -166,12 +167,21 @@ function showManageHome() {
     renderManageCharGrid('');
 }
 
+/**
+ * 格式化时间戳 → 「YYYY-MM-DD HH:mm」（24 小时制，纯数字，无英文月份）。
+ * 复用 ST 的 timestampToMoment：last_mes 可能是 Unix 时间戳，也可能是历史 send_date 字符串
+ * （ISO 8601 / meridiem / ST humanized 等），直接 new Date() 解析不稳定（会原样漏出英文月份）。
+ * @param {string|number} ts
+ * @returns {string} 解析失败返回空串
+ */
 function formatTime(ts) {
-    if (!ts) return '';
-    const d = new Date(ts);
-    if (isNaN(d.getTime())) return ts;
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    if (ts === undefined || ts === null || ts === '') return '';
+    try {
+        const m = timestampToMoment(ts);
+        return m && m.isValid() ? m.format('YYYY-MM-DD HH:mm') : '';
+    } catch (e) {
+        return '';
+    }
 }
 
 function renderManageCharGrid(query) {
@@ -222,7 +232,7 @@ function backToManageChatList() {
  * 管理：详情（概览 + 开始分析）
  * ===================================================== */
 
-function enterManageDetail(chatMeta, isCurrent) {
+async function enterManageDetail(chatMeta, isCurrent) {
     if (manageHomeEl) manageHomeEl.style.display = 'none';
     if (detailEl) detailEl.style.display = '';
     if (reportEl) reportEl.innerHTML = '';
@@ -235,8 +245,14 @@ function enterManageDetail(chatMeta, isCurrent) {
     if (metaEl) {
         const parts = [];
         if (isCurrent) {
+            // 当前聊天走内存数据：chat 为消息数组（不含元数据行），其长度即楼层数
+            const memChat = await getMemoryChat();
+            const floors = Array.isArray(memChat) ? memChat.length : 0;
+            if (floors > 0) parts.push(`楼层 ${floors}`);
             parts.push('当前打开的聊天（分析内存数据，无需读取文件）');
         } else {
+            // getChatInfo 返回的 chat_items 即楼层数（已减去元数据行）
+            if (chatMeta?.chat_items != null) parts.push(`楼层 ${chatMeta.chat_items}`);
             if (chatMeta?.file_size) parts.push(`大小 ${chatMeta.file_size}`);
             if (chatMeta?.last_mes) parts.push(`最后消息 ${formatTime(chatMeta.last_mes)}`);
         }
