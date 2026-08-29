@@ -190,28 +190,34 @@ function _refreshPromptManagerAfterPresetRestore(presetBackup) {
 }
 
 /**
- * ⚠️ 2026-08-29 防误保存：临时应用预设期间屏蔽 ST「更新预设」按钮。
+ * ⚠️ 2026-08-29 防误保存：临时应用预设期间屏蔽所有「更新/保存预设」入口。
  * 背景：#update_oai_preset（index.html:202，是 div.menu_button 而非 <button>，故 disabled 属性无效）
  *   点击时以 oai_settings.preset_settings_openai 为文件名、以内存 oai_settings 为内容写盘
  *   （openai.js:6276-6278）。而 dryRun 组装期间 ST 会延迟重绘 PromptManager，把 UI 条目列表画成
  *   临时预设的条目；此时 preset_settings_openai 仍是原预设名（本模块不覆盖该键），
  *   于是呈现「列表变了、预设名没变」→ 用户极易误点保存，把临时预设条目写进自己的真实预设文件。
- * 做法：apply 期间用 pointer-events:none 屏蔽鼠标点击 + 变暗提示，restore 后还原。
- *   不改动 oai_settings 任何数据，纯 CSS 层拦截，无污染风险、可安全回滚。
- * ⚠️ 只能挡住真实鼠标点击；jQuery 合成的 .trigger('click')（如 preset-manager.js:1047 重命名预设时触发）
- *   不受 pointer-events 影响，但该操作低频，临界区仅数百毫秒，可接受。
+ * 需屏蔽的入口（两个）：
+ *   ① ST 原生「更新预设」：#update_oai_preset，div.menu_button → 用 pointer-events:none 挡真实鼠标 + 变暗。
+ *   ② CC「搜索定位」面板自带保存按钮：.cc-pm-search-save（promptEntrySearch.js:414，<button>，
+ *      内部转发 nativeBtn.click() 即 ①）。它是真 <button>，disabled 可同时挡真实点击与程序化 .click()，
+ *      故用 disabled 直接断掉「用户点它 → nativeBtn.click() → 保存」的整条链路（纯 pointer-events 挡不住转发）。
+ *   功能关闭时 ② 不存在，querySelector 取空自动跳过，无副作用。
+ * 做法：apply 期间屏蔽、restore 后还原；不改动 oai_settings 任何数据，纯交互层拦截，无污染风险。
  * @param {boolean} blocked true=屏蔽点击，false=解除屏蔽
  */
 function _blockPresetSaveButton(blocked) {
     try {
-        const btn = document.getElementById('update_oai_preset');
-        if (!btn) return;
-        if (blocked) {
-            btn.style.pointerEvents = 'none';
-            btn.style.opacity = '0.4';
-        } else {
-            btn.style.pointerEvents = '';
-            btn.style.opacity = '';
+        // ① ST 原生「更新预设」按钮（div.menu_button，disabled 无效 → 用 pointer-events）
+        const nativeBtn = document.getElementById('update_oai_preset');
+        if (nativeBtn) {
+            nativeBtn.style.pointerEvents = blocked ? 'none' : '';
+            nativeBtn.style.opacity = blocked ? '0.4' : '';
+        }
+        // ② CC 搜索定位面板保存按钮（<button>，disabled 可挡住其转发 nativeBtn.click() 的链路）
+        const ccSearchSave = document.querySelector('.cc-pm-search-save');
+        if (ccSearchSave) {
+            ccSearchSave.disabled = blocked;
+            ccSearchSave.style.opacity = blocked ? '0.4' : '';
         }
     } catch (e) {
         debugLog(LOG_TAG, `${blocked ? '屏蔽' : '解除屏蔽'}「更新预设」按钮失败（忽略）:`, e);
