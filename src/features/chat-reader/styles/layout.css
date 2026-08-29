@@ -447,10 +447,19 @@
     background: var(--bg-panel, #f9fafb);
 }
 
+/* 标题行：返回+聊天名（左） 与 开始分析/取消（右）同一行，避免按钮单独占一栏 */
+.reader-manage-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .reader-manage-crumb {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
 }
 
 /* 管理详情 / 阅读顶栏返回按钮：均复用 editor-shell 共享的 .btn-back-icon（与其它 editor 一致），
@@ -510,33 +519,8 @@
     margin: 0 auto;
 }
 
-/* 概览卡片 */
-.cc-manage-overview {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 10px;
-    margin-bottom: 18px;
-}
-
-.cc-manage-ov-card {
-    background: var(--bg-card, #fff);
-    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
-    border-radius: 8px;
-    padding: 12px;
-    text-align: center;
-}
-
-.cc-manage-ov-num {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--accent-color, #2563eb);
-}
-
-.cc-manage-ov-label {
-    font-size: 11px;
-    color: var(--text-muted, #9ca3af);
-    margin-top: 4px;
-}
+/* 注：概览卡片（消息数/体积/各项占比）已移除 —— 占比在每个键行显示，避免重复。
+   相关 .cc-manage-ov-* 样式已一并删除。 */
 
 .cc-manage-keys {
     margin-bottom: 18px;
@@ -565,7 +549,7 @@
 
 .cc-manage-tr {
     display: grid;
-    grid-template-columns: minmax(160px, 3fr) 80px 90px 100px 80px 60px;
+    grid-template-columns: minmax(150px, 3fr) 64px 70px 84px 60px 124px;
     gap: 8px;
     align-items: center;
     padding: 7px 10px;
@@ -624,6 +608,132 @@
 .cc-manage-export {
     padding: 2px 8px;
     font-size: 11px;
+}
+
+/* 操作列：导出 / 清理 并排（不被 td 的 overflow:hidden 裁切） */
+.cc-manage-ops {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+    overflow: visible;
+    flex-wrap: wrap;
+}
+
+.cc-manage-clean {
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-error, #ff6b6b);
+}
+
+.cc-manage-clean:disabled {
+    color: var(--text-muted, #9ca3af);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* 来源标签：ccore（本扩展）/ 记忆增强 / 原生 / 第三方 */
+.cc-src-tag {
+    font-style: normal;
+    font-size: 10px;
+    border-radius: 3px;
+    padding: 0 4px;
+    margin-left: 3px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.cc-src-ccore {
+    color: #2563eb;
+    border-color: rgba(37, 99, 235, 0.35);
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.cc-src-stme {
+    color: #7c3aed;
+    border-color: rgba(124, 58, 237, 0.35);
+    background: rgba(124, 58, 237, 0.08);
+}
+
+.cc-src-native {
+    color: var(--text-muted, #9ca3af);
+    border-color: var(--border-light, #e5e7eb);
+}
+
+.cc-src-other {
+    color: #b45309;
+    border-color: rgba(180, 83, 9, 0.3);
+    background: rgba(180, 83, 9, 0.07);
+}
+
+/* 清理完成提示（就地显示，不自动重新分析） */
+.cc-cleaned-tip {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    color: #16a34a;
+    padding: 4px 0 2px;
+}
+
+.cc-warn {
+    color: var(--text-error, #ff6b6b);
+}
+
+/* === 键操作确认弹窗（导出/清理前预览）=== */
+.reader-key-modal {
+    width: min(94%, 560px);
+    max-height: min(86%, calc(100dvh - 90px));
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.reader-key-modal-body {
+    padding: 12px 16px;
+    overflow-y: auto;
+}
+
+.reader-key-modal-summary {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-primary, #111827);
+    margin-bottom: 10px;
+}
+
+.reader-key-modal-samples {
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    color: var(--text-secondary, #4b5563);
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg-app, #f9fafb);
+    border: 1px solid var(--border-light, #f3f4f6);
+    border-radius: 6px;
+    padding: 10px;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.reader-key-modal-samples:empty {
+    display: none;
+}
+
+.reader-key-modal-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .reader-key-modal {
+        max-height: calc(100dvh - 120px);
+        transform: translateY(-28px);
+    }
+
+    .reader-key-modal-samples {
+        max-height: 28vh;
+    }
 }
 
 .cc-manage-preview {

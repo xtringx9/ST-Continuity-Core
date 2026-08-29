@@ -91,15 +91,17 @@
                 <!-- 分析视图：概览 + 开始分析 + 体检报告 -->
                 <div class="reader-manage-detail" id="reader-manage-detail" style="display:none;">
                     <div class="reader-manage-detail-head">
-                        <div class="reader-manage-crumb" id="reader-manage-crumb">
-                            <button class="btn-back-icon" id="reader-manage-back" title="返回选择角色">❮</button>
-                            <span id="reader-manage-chat-label" class="reader-manage-chat-label"></span>
+                        <div class="reader-manage-head-row">
+                            <div class="reader-manage-crumb" id="reader-manage-crumb">
+                                <button class="btn-back-icon" id="reader-manage-back" title="返回选择角色">❮</button>
+                                <span id="reader-manage-chat-label" class="reader-manage-chat-label"></span>
+                            </div>
+                            <div class="reader-manage-actions">
+                                <button class="btn-primary" id="reader-manage-analyze">开始分析</button>
+                                <button class="btn-secondary" id="reader-manage-cancel" style="display:none;">取消</button>
+                            </div>
                         </div>
                         <div class="reader-manage-meta" id="reader-manage-meta"></div>
-                        <div class="reader-manage-actions">
-                            <button class="btn-primary" id="reader-manage-analyze">开始分析</button>
-                            <button class="btn-secondary" id="reader-manage-cancel" style="display:none;">取消</button>
-                        </div>
                         <div class="reader-manage-progress" id="reader-manage-progress" style="display:none;">
                             <div class="reader-manage-progress-bar"><div class="reader-manage-progress-fill" id="reader-manage-progress-fill"></div></div>
                             <div class="reader-manage-progress-text" id="reader-manage-progress-text"></div>
@@ -110,6 +112,24 @@
                     </div>
                 </div>
             </section>
+        </div>
+    </div>
+
+    <!-- 键操作确认弹窗（导出/清理前预览，确认后才执行） -->
+    <div class="modal-mask" id="reader-key-modal" style="display:none;">
+        <div class="modal reader-key-modal">
+            <div class="reader-chat-modal-head">
+                <div class="reader-chat-modal-title" id="reader-key-modal-title">确认操作</div>
+                <button class="reader-chat-modal-close" id="reader-key-modal-close" title="关闭">✕</button>
+            </div>
+            <div class="reader-key-modal-body">
+                <div class="reader-key-modal-summary" id="reader-key-modal-summary"></div>
+                <div class="reader-key-modal-samples" id="reader-key-modal-samples"></div>
+            </div>
+            <div class="reader-key-modal-foot">
+                <button class="btn-secondary" id="reader-key-modal-cancel">取消</button>
+                <button class="btn-primary" id="reader-key-modal-confirm">确认</button>
+            </div>
         </div>
     </div>
 
