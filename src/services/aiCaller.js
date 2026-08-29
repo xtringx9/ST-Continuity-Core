@@ -166,14 +166,19 @@ function _popPushedMessage(pushedUserMessage) {
 }
 
 /**
- * 临时预设被覆盖了 prompt_order/prompts 时，强制 PromptManager 用已恢复的原数据重绘一次，
+ * 临时应用过预设后，强制 PromptManager 用已恢复的原数据重绘一次，
  * 以覆盖 dryRun 组装期间延迟异步渲染可能残留的“临时预设条目”帧。
- * 仅当确实覆盖过 prompt_order/prompts 时才重绘（避免无谓触发 ST UI）。
+ * ⚠️ 2026-08-29：只要本次临时应用过任意预设字段（有备份）就重绘。
+ *   旧判定「仅覆盖 prompt_order/prompts 才重绘」会漏掉两类情况，导致 UI 列表残留临时预设条目：
+ *   ① 异步预设只改了 openai_stream/temperature 等字段，压根没动 prompts/prompt_order；
+ *   ② promptBinding 动过 prompt_order，但无条目命中后备份被撤销（_applyPromptBindingsToPresetOrder 内 splice）。
+ *   而 dryRun 期间 ST 的延迟重绘抓到中间态，仍会把临时条目画到 UI；此时若不重绘回去 → 列表停在临时预设。
+ *   多触发一次 render(false) 仅重绘列表、不触发 tryGenerate/二次组装，开销可忽略。
  * @param {Array<{setting:string, oldValue:*}>|null} presetBackup 本次临时应用的备份数组
  */
 function _refreshPromptManagerAfterPresetRestore(presetBackup) {
-    const touchedList = Array.isArray(presetBackup) && presetBackup.some(f => f.setting === 'prompt_order' || f.setting === 'prompts');
-    if (!touchedList) return;
+    const applied = Array.isArray(presetBackup) && presetBackup.length > 0;
+    if (!applied) return;
     if (!promptManager || typeof promptManager.render !== 'function') return;
     try {
         // afterTryGenerate=false：只重绘列表，不触发 tryGenerate/二次组装
@@ -181,6 +186,35 @@ function _refreshPromptManagerAfterPresetRestore(presetBackup) {
         debugLog(LOG_TAG, '临时预设已还原，强制 PromptManager 用原数据重绘（清除临时预设条目残留）');
     } catch (e) {
         debugLog(LOG_TAG, `恢复预设后刷新 PromptManager UI 失败（忽略）:`, e);
+    }
+}
+
+/**
+ * ⚠️ 2026-08-29 防误保存：临时应用预设期间屏蔽 ST「更新预设」按钮。
+ * 背景：#update_oai_preset（index.html:202，是 div.menu_button 而非 <button>，故 disabled 属性无效）
+ *   点击时以 oai_settings.preset_settings_openai 为文件名、以内存 oai_settings 为内容写盘
+ *   （openai.js:6276-6278）。而 dryRun 组装期间 ST 会延迟重绘 PromptManager，把 UI 条目列表画成
+ *   临时预设的条目；此时 preset_settings_openai 仍是原预设名（本模块不覆盖该键），
+ *   于是呈现「列表变了、预设名没变」→ 用户极易误点保存，把临时预设条目写进自己的真实预设文件。
+ * 做法：apply 期间用 pointer-events:none 屏蔽鼠标点击 + 变暗提示，restore 后还原。
+ *   不改动 oai_settings 任何数据，纯 CSS 层拦截，无污染风险、可安全回滚。
+ * ⚠️ 只能挡住真实鼠标点击；jQuery 合成的 .trigger('click')（如 preset-manager.js:1047 重命名预设时触发）
+ *   不受 pointer-events 影响，但该操作低频，临界区仅数百毫秒，可接受。
+ * @param {boolean} blocked true=屏蔽点击，false=解除屏蔽
+ */
+function _blockPresetSaveButton(blocked) {
+    try {
+        const btn = document.getElementById('update_oai_preset');
+        if (!btn) return;
+        if (blocked) {
+            btn.style.pointerEvents = 'none';
+            btn.style.opacity = '0.4';
+        } else {
+            btn.style.pointerEvents = '';
+            btn.style.opacity = '';
+        }
+    } catch (e) {
+        debugLog(LOG_TAG, `${blocked ? '屏蔽' : '解除屏蔽'}「更新预设」按钮失败（忽略）:`, e);
     }
 }
 
@@ -233,6 +267,9 @@ function _applyPresetForAssembly(presetName) {
         }
     }
     if (fields.length === 0) return null;
+    // ⚠️ 仅在此处（已确认 fields 非空、后续 restore 必然执行）才屏蔽保存按钮，
+    //   保证 _blockPresetSaveButton(true/false) 严格配对，绝不残留屏蔽态。
+    _blockPresetSaveButton(true);
     debugLog(LOG_TAG, `已临时应用 ST OpenAI 预设「${presetName}」，覆盖 ${fields.length} 个组装相关字段`);
     return fields;
 }
@@ -296,6 +333,8 @@ function _restorePresetForAssembly(fields) {
     for (const { setting, oldValue } of fields) {
         oai_settings[setting] = oldValue;
     }
+    // 解除「更新预设」按钮屏蔽（与 _applyPresetForAssembly 内的屏蔽严格配对）
+    _blockPresetSaveButton(false);
     debugLog(LOG_TAG, `已恢复 oai_settings（${fields.length} 个字段回到原值）`);
 }
 
