@@ -40,93 +40,139 @@
     flex: 1;
 }
 
-.reader-sort-group {
-    display: flex;
-    gap: 6px;
-    flex-shrink: 0;
+/* toolbar 整体底部横线（对标其它 editor 的 section 标题） */
+.reader-home-toolbar {
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
 }
 
-.reader-sort-btn {
-    padding: 4px 10px;
+/* 角色搜索框 */
+.reader-char-search {
+    flex-shrink: 0;
+    width: 180px;
+    max-width: 50%;
+    padding: 5px 10px;
     font-size: 12px;
     background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
-    color: var(--text-secondary, #4b5563);
     border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s;
+    outline: none;
+    transition: border-color 0.15s;
 }
 
-.reader-sort-btn:hover {
+.reader-char-search:focus {
     border-color: var(--accent-color, #2563eb);
-    color: var(--accent-color, #2563eb);
 }
 
-.reader-sort-btn.active {
-    background: var(--accent-color, #2563eb);
-    border-color: var(--accent-color, #2563eb);
-    color: var(--bg-app, #fff);
-}
-
-/* 角色卡片网格 */
+/* 角色卡片网格（缩略图铺满的封面卡） */
 .reader-char-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
 }
 
 .reader-char-card {
-    background: var(--bg-card, #fff);
+    position: relative;
+    background: var(--bg-panel, #f9fafb);
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
-    border-radius: 8px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
+    border-radius: 10px;
+    overflow: hidden;
+    aspect-ratio: 1 / 1;
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-    text-align: center;
 }
 
 .reader-char-card:hover {
     border-color: var(--accent-color, #2563eb);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    transform: translateY(-2px);
 }
 
 /* 当前聊天快捷卡片：强调描边 */
 .reader-char-card.reader-char-current {
     border-color: var(--accent-color, #2563eb);
-    box-shadow: 0 0 0 1px var(--accent-color, #2563eb);
+    box-shadow: 0 0 0 2px var(--accent-color, #2563eb);
 }
 
+/* 缩略图铺满整卡 */
 .reader-char-avatar {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    display: block;
     background: var(--bg-panel, #f9fafb);
+}
+
+/* 无头像占位（首字母，铺满整卡） */
+.reader-char-ph {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--text-muted, #9ca3af);
+    background: var(--bg-panel, #f3f4f6);
+}
+
+/* 底部信息覆盖层（角色名，渐变底保证可读） */
+.reader-char-info {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 14px 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.66) 0%, rgba(0, 0, 0, 0.32) 60%, rgba(0, 0, 0, 0) 100%);
 }
 
 .reader-char-name {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-primary, #111827);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+/* 仅用于「当前聊天」快捷卡的一行提示 */
 .reader-char-sub {
     font-size: 11px;
-    color: var(--text-muted, #9ca3af);
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* 聊天选择弹窗：顶部角色原图（高清，按原图比例、不裁剪） */
+.reader-chat-modal-header {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+}
+
+.reader-chat-modal-avatar {
+    max-width: 100%;
+    max-height: 60vh;
+    width: auto;
+    height: auto;
+    border-radius: 12px;
+    object-fit: contain;
+    display: block;
+    background: var(--bg-panel, #f3f4f6);
 }
 
 /* 聊天列表 */
@@ -343,9 +389,8 @@
 
 /* 手机适配 */
 @media (max-width: 768px) {
-    .reader-char-grid {
-        grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-        gap: 8px;
+    .reader-char-search {
+        width: 140px;
     }
 
     .reader-chat-item {
@@ -368,4 +413,279 @@
         padding: 4px 6px;
         font-size: 11px;
     }
+
+    /* 弹窗避免被底部 tab 遮挡：整体限制高度并上移，留出 tab 区域 */
+    .reader-chat-modal {
+        max-height: calc(100dvh - 120px);
+        transform: translateY(-28px);
+    }
 }
+
+/* === 聊天管理 tab（与阅读共享角色/聊天选择样式 .reader-char-* / .reader-chat-*）=== */
+.reader-manage-home {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px clamp(8px, 3vw, 24px);
+    background: var(--bg-app, #fff);
+}
+
+.reader-manage-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-app, #fff);
+}
+
+.reader-manage-detail-head {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--bg-panel, #f9fafb);
+}
+
+.reader-manage-crumb {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 管理详情 / 阅读顶栏返回按钮：均复用 editor-shell 共享的 .btn-back-icon（与其它 editor 一致），
+   不在此重复定义样式。 */
+
+.reader-manage-chat-label {
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    font-size: 13px;
+}
+
+.reader-manage-meta {
+    font-size: 12px;
+    color: var(--text-muted, #9ca3af);
+}
+
+.reader-manage-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.reader-manage-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.reader-manage-progress-bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg-hover, #f3f4f6);
+    overflow: hidden;
+}
+
+.reader-manage-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent-color, #2563eb);
+    transition: width 0.15s;
+}
+
+.reader-manage-progress-text {
+    font-size: 12px;
+    color: var(--text-secondary, #4b5563);
+    white-space: nowrap;
+}
+
+.reader-manage-report {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px clamp(8px, 3vw, 24px);
+}
+
+.cc-manage-report-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* 概览卡片 */
+.cc-manage-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.cc-manage-ov-card {
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+
+.cc-manage-ov-num {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-color, #2563eb);
+}
+
+.cc-manage-ov-label {
+    font-size: 11px;
+    color: var(--text-muted, #9ca3af);
+    margin-top: 4px;
+}
+
+.cc-manage-keys {
+    margin-bottom: 18px;
+}
+
+.cc-manage-keys-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary, #4b5563);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+}
+
+.cc-manage-section-note {
+    font-size: 12px;
+    color: var(--text-muted, #9ca3af);
+    padding: 6px 2px;
+}
+
+.cc-manage-table {
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.cc-manage-tr {
+    display: grid;
+    grid-template-columns: minmax(160px, 3fr) 80px 90px 100px 80px 60px;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.cc-manage-tr:last-child {
+    border-bottom: none;
+}
+
+.cc-manage-tr:nth-child(odd) {
+    background: var(--bg-panel, #f9fafb);
+}
+
+.cc-manage-tr:hover {
+    background: var(--bg-hover, #f3f4f6);
+}
+
+.cc-manage-tr-head {
+    background: var(--bg-nav, #f9fafb) !important;
+    font-weight: 600;
+    color: var(--text-secondary, #4b5563);
+    cursor: default;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.cc-manage-td {
+    color: var(--text-secondary, #4b5563);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cc-manage-td.cc-manage-k {
+    color: var(--text-primary, #111827);
+    font-weight: 500;
+    font-family: var(--font-mono, monospace);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cc-native-tag {
+    font-style: normal;
+    font-size: 10px;
+    color: var(--text-muted, #9ca3af);
+    border: 1px solid var(--border-light, #f3f4f6);
+    border-radius: 3px;
+    padding: 0 3px;
+    margin-left: 2px;
+}
+
+.cc-manage-export {
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
+.cc-manage-preview {
+    grid-column: 1 / -1;
+    background: var(--bg-app, #fff);
+    border-top: 1px dashed var(--border-light, #f3f4f6);
+    padding: 10px;
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    color: var(--text-secondary, #4b5563);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 280px;
+    overflow-y: auto;
+    cursor: text;
+}
+
+/* === 聊天选择弹窗（阅读/管理共用，复用 editor-shell 的 .modal-mask/.modal 通用壳）=== */
+.reader-chat-modal {
+    width: min(94%, 520px);
+    max-height: min(86%, calc(100dvh - 90px));
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.reader-chat-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    flex-shrink: 0;
+}
+
+.reader-chat-modal-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.reader-chat-modal-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--text-muted, #9ca3af);
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+
+.reader-chat-modal-close:hover {
+    color: var(--text-primary, #111827);
+    background: var(--bg-hover, rgba(128, 128, 128, 0.1));
+}
+
+.reader-chat-modal-body {
+    padding: 12px 16px;
+    overflow-y: auto;
+}
+
+/* 弹窗内聊天列表复用 .reader-chat-list / .reader-chat-item（已在上方定义） */

@@ -1,8 +1,9 @@
 <!-- src/features/chat-reader/index.html -->
-<!-- 图文阅读器：独立 iframe 页，复用酒馆渲染产物（messageFormatting），
-     分页阅读（每页 N 条），记忆阅读位置。
+<!-- 图文阅读器 + 聊天管理：独立 iframe 页，复用酒馆渲染产物。
      JS 由父窗口 EntryButton 通过 initChatReader(doc) 驱动。
-     双视图：首页（角色→聊天选择）+ 阅读视图（消息分页 + 翻页栏）。 -->
+     结构对齐 editor-shell：.app-container > .main-nav(竖排tab) + .content-area(2x .view-section)。
+     阅读视图（消息分页）+ 管理视图（聊天键位体检，只读，懒分析）。
+     管理 tab 的 JS 在父窗口（chatManager 模块），与 ChatReader.js 同构。 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 
@@ -23,7 +24,7 @@
         </div>
         <div class="header-actions" style="display:flex; align-items:center; gap:6px;">
             <!-- 阅读视图专属：返回首页 + 页码跳转 -->
-            <button id="reader-back-home" class="btn-secondary" title="返回首页" style="display:none;">← 首页</button>
+            <button id="reader-back-home" class="btn-back-icon" title="返回选择角色" style="display:none;">❮</button>
             <span id="reader-page-info" style="font-size:12px; color:var(--text-muted); white-space:nowrap; display:none;"></span>
             <input type="number" id="reader-page-input" min="1" placeholder="页" style="width:56px; padding:4px 6px; font-size:12px; background:var(--bg-input); color:var(--text-input); border:1px solid var(--border-color); border-radius:4px; display:none;" />
             <button id="reader-page-go" class="btn-secondary" title="跳转到该页" style="display:none;">跳</button>
@@ -31,40 +32,102 @@
         </div>
     </header>
 
-    <!-- ===== 首页：选择角色 → 选择聊天 ===== -->
-    <div class="reader-home" id="reader-home">
-        <div class="reader-home-step" id="reader-step-char">
-            <div class="reader-home-toolbar">
-                <div class="reader-home-title" id="reader-char-title">选择角色</div>
-                <div class="reader-sort-group">
-                    <button class="reader-sort-btn active" id="reader-sort-default" title="按默认顺序">默认</button>
-                    <button class="reader-sort-btn" id="reader-sort-recent" title="按最近聊天时间排序">最近聊天</button>
+    <div class="app-container">
+        <!-- 左侧竖排 tab（对标 editor-shell .main-nav） -->
+        <nav class="main-nav" id="reader-nav">
+            <div class="nav-item active" id="reader-nav-read" data-view="read" title="图文阅读">
+                <span class="nav-text">阅读</span>
+            </div>
+            <div class="nav-item" id="reader-nav-manage" data-view="manage" title="聊天管理">
+                <span class="nav-text">管理</span>
+            </div>
+        </nav>
+
+        <div class="content-area">
+            <!-- ===== 阅读视图 ===== -->
+            <section class="view-section active" id="reader-view-read">
+                <!-- 首页：选择角色（点击角色弹窗选聊天） -->
+                <div class="reader-home" id="reader-home">
+                    <div class="reader-home-step" id="reader-step-char">
+                        <div class="reader-home-toolbar">
+                            <div class="reader-home-title" id="reader-char-title">选择角色</div>
+                            <input type="search" class="reader-char-search" id="reader-char-search" placeholder="搜索角色名…" />
+                        </div>
+                        <div class="reader-char-grid" id="reader-char-grid">
+                            <!-- 角色卡片由 JS 生成 -->
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="reader-char-grid" id="reader-char-grid">
-                <!-- 角色卡片由 JS 生成 -->
-            </div>
-        </div>
-        <div class="reader-home-step" id="reader-step-chat" style="display:none;">
-            <div class="reader-home-title" id="reader-chat-title">选择聊天</div>
-            <div class="reader-chat-list" id="reader-chat-list">
-                <!-- 聊天条目由 JS 生成 -->
-            </div>
+
+                <!-- 阅读视图：消息分页 + 底部翻页栏 -->
+                <div class="reader-body" id="reader-body" style="display:none;">
+                    <!-- 当前页消息：由 JS 渲染 -->
+                </div>
+
+                <footer class="reader-footer" id="reader-footer" style="display:none;">
+                    <button id="reader-prev-page" class="btn-secondary" title="上一页 (←)">◀ 上一页</button>
+                    <div class="reader-footer-center">
+                        <span id="reader-page-current" class="reader-page-indicator"></span>
+                    </div>
+                    <button id="reader-next-page" class="btn-secondary" title="下一页 (→)">下一页 ▶</button>
+                </footer>
+            </section>
+
+            <!-- ===== 管理视图 ===== -->
+            <section class="view-section" id="reader-view-manage">
+                <!-- 首页：选择角色（点击角色弹窗选聊天，再进分析） -->
+                <div class="reader-manage-home" id="reader-manage-home">
+                    <div class="reader-home-step" id="reader-manage-step-char">
+                        <div class="reader-home-toolbar">
+                            <div class="reader-home-title" id="reader-manage-char-title">选择角色</div>
+                            <input type="search" class="reader-char-search" id="reader-manage-char-search" placeholder="搜索角色名…" />
+                        </div>
+                        <div class="reader-char-grid" id="reader-manage-char-grid">
+                            <!-- 角色卡片由 JS 生成 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分析视图：概览 + 开始分析 + 体检报告 -->
+                <div class="reader-manage-detail" id="reader-manage-detail" style="display:none;">
+                    <div class="reader-manage-detail-head">
+                        <div class="reader-manage-crumb" id="reader-manage-crumb">
+                            <button class="btn-back-icon" id="reader-manage-back" title="返回选择角色">❮</button>
+                            <span id="reader-manage-chat-label" class="reader-manage-chat-label"></span>
+                        </div>
+                        <div class="reader-manage-meta" id="reader-manage-meta"></div>
+                        <div class="reader-manage-actions">
+                            <button class="btn-primary" id="reader-manage-analyze">开始分析</button>
+                            <button class="btn-secondary" id="reader-manage-cancel" style="display:none;">取消</button>
+                        </div>
+                        <div class="reader-manage-progress" id="reader-manage-progress" style="display:none;">
+                            <div class="reader-manage-progress-bar"><div class="reader-manage-progress-fill" id="reader-manage-progress-fill"></div></div>
+                            <div class="reader-manage-progress-text" id="reader-manage-progress-text"></div>
+                        </div>
+                    </div>
+                    <div class="reader-manage-report" id="reader-manage-report">
+                        <!-- 体检报告由 JS 渲染 -->
+                    </div>
+                </div>
+            </section>
         </div>
     </div>
 
-    <!-- ===== 阅读视图：消息分页 + 底部翻页栏 ===== -->
-    <div class="reader-body" id="reader-body" style="display:none;">
-        <!-- 当前页消息：由 JS 渲染 -->
-    </div>
-
-    <footer class="reader-footer" id="reader-footer" style="display:none;">
-        <button id="reader-prev-page" class="btn-secondary" title="上一页 (←)">◀ 上一页</button>
-        <div class="reader-footer-center">
-            <span id="reader-page-current" class="reader-page-indicator"></span>
+    <!-- 聊天选择弹窗（阅读/管理共用，点击角色弹出） -->
+    <div class="modal-mask" id="reader-chat-modal" style="display:none;">
+        <div class="modal reader-chat-modal">
+            <div class="reader-chat-modal-head">
+                <div class="reader-chat-modal-title" id="reader-chat-modal-title">选择聊天</div>
+                <button class="reader-chat-modal-close" id="reader-chat-modal-close" title="关闭">✕</button>
+            </div>
+            <div class="reader-chat-modal-header">
+                <img class="reader-chat-modal-avatar" alt="">
+            </div>
+            <div class="reader-chat-modal-body" id="reader-chat-modal-body">
+                <!-- 聊天列表由 JS 生成 -->
+            </div>
         </div>
-        <button id="reader-next-page" class="btn-secondary" title="下一页 (→)">下一页 ▶</button>
-    </footer>
+    </div>
 
 </body>
 
