@@ -4,6 +4,7 @@ import { debugLog } from '../../utils/logger.js';
 import { removeHyphens, removeSpecialSymbols } from '../../utils/stringUtils.js';
 import { tryParseNumber } from '../../utils/numberParser.js';
 import { deduplicateModules } from './deduplicate.js';
+import { dedupSemantic } from './dedupSemanticStep.js';
 import { attachStructuredTimeData, completeTimeVariables } from './time.js';
 import { sortModules, completeIdVariables, processLevelVariables } from './sort.js';
 
@@ -163,13 +164,18 @@ export function normalizeModules(modules, selectedModuleNames = []) {
     debugLog('[Module Processor] 初步标准化模块完成，模块:', normalizedModules);
 
     // 第二步：模块内容去重
-    const deduplicatedModules = deduplicateModules(normalizedModules);
+    let deduplicatedModules = deduplicateModules(normalizedModules);
 
     // 第三步：为包含time变量的模块附加结构化时间数据（包含格式化）
     attachStructuredTimeData(deduplicatedModules);
 
     // 第四步：智能补全time变量
     completeTimeVariables(deduplicatedModules);
+
+    // 第四步补：时间数值化后二次去重（仅全量模块，见 dedupSemanticStep.js）
+    // 复用已数值化的 timeData 时间戳合并 time 格式差异，并绕过 dedupStep 的 notAfterBody(raw) 限制，
+    // 使 embedded 等非 after_body 全量模块按语义合并。性能：<2 条全量模块时短路，不重解析时间。
+    deduplicatedModules = dedupSemantic(deduplicatedModules, modulesData);
 
     // 第四点五步：按模块名分组，同时根据selectedModuleNames进行过滤
     let moduleGroups = {};

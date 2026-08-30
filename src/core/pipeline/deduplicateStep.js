@@ -39,7 +39,14 @@ export function dedupStep(state, module) {
     const isIncrementalModule = moduleConfig && moduleConfig.outputMode === 'incremental';
     const notAfterBody = moduleConfig && moduleConfig.outputPosition !== 'after_body';
 
-    // 构建模块的唯一标识符：基于所有变量值的组合
+    // ⚠️ 历史遗留（dc1c299, 2025-12-12）：原版去重键对所有模块统一为 {moduleName, variables}（从不含 raw）。
+    //   该提交顺手把非 after_body 全量模块的完整 raw 塞进 key，使其退化为「raw 全文逐字节比较」——
+    //   即 body/body_surround/embedded/specific_position 等非 after_body 全量模块几乎不再合并。
+    //   此行为有意保留不回退：非 after_body 全量模块的语义级合并改由 normalize 的
+    //   「时间数值化后二次去重」（dedupSemanticStep.js）统一处理——既绕开本处 raw 限制，
+    //   又复用已数值化的 timeData 解决 time 格式差异。
+    //   若未来要恢复「全量模块一律按值合并」，删除下面 notAfterBody 第三项即可
+    //   （注意同步处理增量与快照 rebuildFrom 路径）。
     const moduleKey = JSON.stringify({
         moduleName: module.moduleName,
         variables: module.variables,
