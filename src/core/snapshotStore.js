@@ -17,6 +17,7 @@
 //     dedup: DedupState,            // deduplicateStep.createDedupState
 //     time: TimeState,              // timeCompletionStep.createTimeState
 //     groupModules: Map<moduleName, Array<module>>,  // 去重+time 后未压缩（sort→补id→levelCompression 延后到 build 时）
+//     semanticDedup: Map<string, module>,            // 语义级二次去重的跨层累积态（见 dedupSemanticStep.js）
 //   }
 //
 // ⚠️ 所有状态必须【深拷贝】存取：快照必须是「某层处理完的纯净快照」（同 occurrenceCache 教训），
@@ -52,6 +53,8 @@ export function createEmptySnapshot() {
         dedup: createDedupState([]),
         time: createTimeState([]),
         groupModules: new Map(),
+        // 语义级二次去重的跨层累积态（key → module），见 dedupSemanticStep.js
+        semanticDedup: new Map(),
     };
 }
 

@@ -42,7 +42,7 @@ function getTimeSignature(module) {
  * @param {Object} module
  * @returns {string}
  */
-function buildSemanticKey(module) {
+export function getSemanticKey(module) {
     const vars = {};
     for (const [name, value] of Object.entries(module.variables)) {
         if (name.toLowerCase().includes('time')) {
@@ -53,6 +53,39 @@ function buildSemanticKey(module) {
         }
     }
     return JSON.stringify({ moduleName: module.moduleName, variables: vars });
+}
+
+/**
+ * 把单条模块并入语义去重 Map（跨层/跨批复用：主管线 dedupSemantic 与快照 rebuildProcessor 共用）。
+ * ⚠️ 增量模块（outputMode==='incremental'）不参与、恒返回 true（由调用方透传），
+ *    其合并归 processIncrementalModules 按 identifier 分组 + merge 自管。
+ * @param {Map} map 语义去重 Map（key → module）
+ * @param {Object} module 已数值化时间（attach+complete 之后）的模块
+ * @param {Array} moduleConfigs 模块配置数组
+ * @returns {boolean} true=新增（调用方应保留）；false=语义重复（调用方应丢弃）
+ */
+export function mergeSemanticModule(map, module, moduleConfigs) {
+    const cfg = moduleConfigs?.find(c => c.name === module.moduleName);
+    if (cfg && cfg.outputMode === 'incremental') return true;
+
+    const key = getSemanticKey(module);
+    const existing = map.get(key);
+    if (existing) {
+        // 累积本模块出现过的楼层
+        if (!existing.messageIndexHistory) existing.messageIndexHistory = [existing.messageIndex];
+        if (!existing.messageIndexHistory.includes(module.messageIndex)) {
+            existing.messageIndexHistory.push(module.messageIndex);
+        }
+        // 全量模块：保留较小 messageIndex（与 dedupStep 全量分支一致）
+        const cur = module.messageIndex;
+        const old = existing.messageIndex;
+        if (cur >= 0 && old >= 0 && cur < old) existing.messageIndex = cur;
+        else if (cur >= 0 && old < 0) existing.messageIndex = cur;
+        return false;
+    }
+    if (!module.messageIndexHistory) module.messageIndexHistory = [module.messageIndex];
+    map.set(key, module);
+    return true;
 }
 
 /**
@@ -81,25 +114,10 @@ export function dedupSemantic(modules, moduleConfigs) {
     }
 
     const map = new Map();
+    const kept = [];
     for (const m of fullModules) {
-        const key = buildSemanticKey(m);
-        const existing = map.get(key);
-        if (existing) {
-            // 累积本模块出现过的楼层
-            if (!existing.messageIndexHistory) existing.messageIndexHistory = [existing.messageIndex];
-            if (!existing.messageIndexHistory.includes(m.messageIndex)) {
-                existing.messageIndexHistory.push(m.messageIndex);
-            }
-            // 全量模块：保留较小 messageIndex（与 dedupStep 全量分支一致）
-            const cur = m.messageIndex;
-            const old = existing.messageIndex;
-            if (cur >= 0 && old >= 0 && cur < old) existing.messageIndex = cur;
-            else if (cur >= 0 && old < 0) existing.messageIndex = cur;
-        } else {
-            if (!m.messageIndexHistory) m.messageIndexHistory = [m.messageIndex];
-            map.set(key, m);
-        }
+        if (mergeSemanticModule(map, m, moduleConfigs)) kept.push(m);
     }
 
-    return [...map.values(), ...otherModules];
+    return [...kept, ...otherModules];
 }

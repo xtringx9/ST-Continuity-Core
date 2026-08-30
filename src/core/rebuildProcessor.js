@@ -28,6 +28,7 @@ import { getChatCacheKey, getOccurrence } from './occurrenceCache.js';
 import { getSnapshot, putSnapshot, findNearestCheckpoint, createEmptySnapshot, isCheckpointFloor } from './snapshotStore.js';
 import { normalizeRawModule } from './pipeline/normalizeRawStep.js';
 import { dedupStep } from './pipeline/deduplicateStep.js';
+import { mergeSemanticModule } from './pipeline/dedupSemanticStep.js';
 import { attachTimeToState, completeTimeToState } from './pipeline/timeCompletionStep.js';
 import { idCompletionStep, createIdCompletionState } from './pipeline/idCompletionStep.js';
 import { compressLevelToState } from './pipeline/levelCompressionStep.js';
@@ -39,6 +40,55 @@ import { debugLog } from '../utils/logger.js';
 /** time 解析器（真实实现注入） */
 import { parseTimeDetailed, completeTimeDataWithStandard } from '../utils/timeParser.js';
 const timeParsers = { parseTimeDetailed, completeTimeDataWithStandard };
+
+/** 从模块变量中取第一个含 time 的变量值（与 timeCompletionStep 同源） */
+function getTimeVariable(module) {
+    if (!module?.variables) return null;
+    for (const [variableName, timeVal] of Object.entries(module.variables)) {
+        if (variableName.toLowerCase().includes('time') && timeVal) {
+            return { variableName, timeVal };
+        }
+    }
+    return null;
+}
+
+/**
+ * 冷启动预置时间基准（对齐主路径「全段两阶段」语义）。
+ * ⚠️ 快照逐层 attach 只看「当层新增」模块：若 timeReferenceStandard 基准模块出现在较晚楼层，
+ *    基准确定前已处理的模块（如 exec 的 time 原文含错误 weekday）不会被基准回算纠正，
+ *    与主路径（基准确定后全段统一应用）结果不一致。此处基准未定（standardFound=false）时
+ *    预扫 [0..end] 的 occurrence，按主路径同口径（第一个 isComplete 的 timeReferenceStandard）
+ *    确定基准，使逐层 attach 全程用同一基准。
+ * @param {Object} state 累积态（就地改 state.time）
+ * @param {string} chatKey occurrence key
+ * @param {Array} modulesData 模块配置
+ * @param {number} end 截止楼层
+ */
+function preSeedStandardTime(state, chatKey, modulesData, end) {
+    if (state.time.standardFound || !state.time.referenceModuleName) return;
+    for (let f = 0; f <= end; f++) {
+        for (const { name } of getActiveSources()) {
+            const raws = getOccurrence(chatKey, name, f);
+            if (!Array.isArray(raws)) continue;
+            for (const raw of raws) {
+                const norm = normalizeRawModule(raw, modulesData);
+                if (!norm || norm.moduleName !== state.time.referenceModuleName) continue;
+                const tv = getTimeVariable(norm);
+                if (!tv) continue;
+                try {
+                    const t = timeParsers.parseTimeDetailed(tv.timeVal);
+                    if (t && t.isValid && t.isComplete) {
+                        state.time = { ...state.time, standardTimeData: t, standardFound: true };
+                        debugLog(`[rebuildFrom] 预置时间基准：${state.time.referenceModuleName} @层${f} = ${tv.timeVal}`);
+                        return;
+                    }
+                } catch (e) {
+                    // 解析失败继续找
+                }
+            }
+        }
+    }
+}
 
 // ⚠️ 每层耗时分段在 rebuildFrom 每次调用内独立计时（perf 对象），避免跨调用叠加污染。
 
@@ -96,20 +146,29 @@ function processFloor(state, floor, chatKey, perf) {
 
     // 3. complete（per messageIndex 组，对新增模块）
     completeTimeToState(added, modulesData, timeParsers);
+
+    // 3.5 语义级二次去重（与主管线 dedupSemantic 对齐，见 dedupSemanticStep.js）
+    //    必须放在时间数值化之后（需要 timeData 时间戳）、append groupModules 之前；
+    //    跨层累积在 state.semanticDedup（随快照存取）。增量模块透传。
+    const finalAdded = [];
+    for (const m of added) {
+        if (mergeSemanticModule(state.semanticDedup, m, modulesData)) finalAdded.push(m);
+    }
     perf.time += performance.now() - tT0;
+    if (finalAdded.length === 0) return;
 
     // 4. 组全集增量 append（只 append 新增模块，不 sort/id/compress）。
     //    ⚠️ 性能关键：把 sort/补id/level-compress 延后到 buildStructuredResult 每组合一次。
     //    旧版每层对 touched 组【全量重跑】sort/id/compress（O(层×组全集)，冷启动 6.5s 的元凶），
     //    且 compress 就地改 visibility/timeline，逐层重跑会叠加污染 —— 延后到最终一次性跑（在副本上）更快也更正确。
     const tG0 = performance.now();
-    for (const m of added) {
+    for (const m of finalAdded) {
         if (!state.groupModules.has(m.moduleName)) state.groupModules.set(m.moduleName, []);
         state.groupModules.get(m.moduleName).push(m);
     }
     perf.group += performance.now() - tG0;
     // 记录本批新增模块名（touched 组），供 build 增量判断哪些组合并需重算
-    for (const m of added) {
+    for (const m of finalAdded) {
         if (!perf.touched) perf.touched = new Set();
         perf.touched.add(m.moduleName);
     }
@@ -209,10 +268,11 @@ export function buildStructuredResult(groupModules, modulesData, selectedModuleN
  * 从最近 checkpoint 增量重建到 end。
  * @param {number} targetFloor 失效起点（改动的层）；从最近的未失效 checkpoint（≤targetFloor）增量到 end
  * @param {boolean} [needResults=true] 是否每层产出中间 structuredResult（false 只求末层 snapshot）
+ * @param {number|null} [endIndex] 截止楼层（对齐主路径调用方 range.end；null/缺省=到 chat.length-1）
  * @returns {{ snapshot: Object, results: Array<{floor:number, content:Object}>, perf: Object, touched: Set<string>, chatKey: string, totalMs: number }}
  *   snapshot：最终累积态；results：每层 structuredResult；perf：各阶段耗时；touched：本次新增模块名集合（增量 build 用）
  */
-export function rebuildFrom(targetFloor, needResults = true) {
+export function rebuildFrom(targetFloor, needResults = true, endIndex) {
     const chatKey = getChatCacheKey();
     const C = findNearestCheckpoint(targetFloor);
     let state = C !== null && C >= 0 ? getSnapshot(C) : createEmptySnapshot();
@@ -223,7 +283,10 @@ export function rebuildFrom(targetFloor, needResults = true) {
     const perf = { layers: 0, read: 0, dedup: 0, time: 0, group: 0, snapshot: 0 };
     const tTotal0 = performance.now();
 
-    const end = chatLength() - 1;
+    // ⚠️ 截止楼层与主路径对齐：调用方可传 endIndex（主路径约定「末条是 AI 消息时不计入」——
+    //    moduleCacheManager / promptGenerator 均按 chat.length-1-(isUser?0:1) 算 range.end）；
+    //    缺省/null 则到 chat.length-1（与主路径 end=null 到末尾一致）。
+    const end = endIndex != null ? Math.min(endIndex, chatLength() - 1) : chatLength() - 1;
     const results = [];
     const modulesData = configManager.getModules() || [];
     // ⚠️ 修复（env 差2根因）：createEmptySnapshot 的 dedup 是 createDedupState([])（moduleConfigs 空）。
@@ -232,6 +295,19 @@ export function rebuildFrom(targetFloor, needResults = true) {
     // 主管线 deduplicateModules 用 getModules() 作 moduleConfigs，key 含 raw、变体各自保留 → 数量对不上（245 vs 243）。
     // 这里统一把 dedup 状态的 moduleConfigs 设为真实模块配置，保证 notAfterBody 判定与主管线一致。
     state.dedup.moduleConfigs = modulesData;
+    // ⚠️ 修复：createEmptySnapshot 的 time 用 createTimeState([])（moduleConfigs 空）→ referenceModuleName 恒 null，
+    //    快照永远找不到时间基准（timeReferenceStandard），所有模块保留原文 weekday 不被纠正——与主管线不一致
+    //    （主管线 attachStructuredTimeData 用 createTimeState(getModules())）。用真实模块配置补全。
+    if (!state.time.referenceModuleName) {
+        const refConfig = modulesData.find(c => c.timeReferenceStandard === true);
+        state.time.referenceModuleName = refConfig?.name || null;
+    }
+    // 语义二次去重的跨层累积态（旧快照 / 空态可能无该字段，按需初始化）。
+    // 随快照一起 structuredClone 存取（Map 可克隆），保证从 checkpoint 续算时跨层去重连续。
+    if (!state.semanticDedup) state.semanticDedup = new Map();
+    // 冷启动预置时间基准：对齐主路径「全段两阶段」（基准确定后全段统一应用）。
+    // 避免 timeReferenceStandard 在较晚层时，基准前模块（如 exec 原文错误 weekday）未被纠正。
+    preSeedStandardTime(state, chatKey, modulesData, end);
     // ⚠️ 修复：chatMeta 负数起始态（level>0 的 sum）全在层 0。
     // 从 checkpoint(≥0) 续算时若 f 从 C+1 开始会跳过层 0 → 负数起始态丢失 → 无法 level 压缩。
     // rebuildFrom(0)（全量验证）强制从层 0 开始；targetFloor>0 才用 checkpoint 优化。

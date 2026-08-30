@@ -232,6 +232,23 @@ export function runModulePipeline(opts = {}) {
                 debugLog(`[runModulePipeline] 多源合并 raw 模块：${rawModules.length} 个（源：${sources.map(s => s.name).join(',')}）`);
             }
             extractMs = performance.now() - tExtract0;
+        } else if (USE_OCCURRENCE_CACHE) {
+            // ⚠️ useSnapshot+auto：不构建 rawModules（省 clone/过滤陪跑），但 occurrence 必须预热——
+            //    rebuildFrom 只读 occurrence，不预热则缓存 miss → 快照空。
+            //    getLayerRawsCached miss 才提取填充、HIT 直接返回（失效层在下次调用自动重填）。
+            const tExtract0 = performance.now();
+            const sources = getActiveSources();
+            if (sources && sources.length > 0) {
+                const chatKey = getChatCacheKey();
+                const from = Math.max(0, start);
+                const to = end !== null ? Math.min(end, chat.length - 1) : chat.length - 1;
+                for (const { name, impl } of sources) {
+                    for (let f = from; f <= to; f++) {
+                        getLayerRawsCached(chatKey, name, impl, f);
+                    }
+                }
+            }
+            extractMs = performance.now() - tExtract0;
         }
 
         // ---- 处理 ----
@@ -257,7 +274,9 @@ export function runModulePipeline(opts = {}) {
                     // 3.2：用 dirty 起点（失效楼层）增量续算——从最近 checkpoint 续算 dirty..end，省 dirty 前的累积态重算；
                     // 干净（dirty=null）时从 0（冷启动走 checkpoint 加速）。续算成功置干净。
                     const dirty = getSnapshotDirtyFloor();
-                    const rebuild = rebuildFrom(dirty ?? 0, false);
+                    // ⚠️ 截止楼层传调用方 range.end：主路径调用方约定「末条 AI 消息不计入」
+                    //    （moduleCacheManager/promptGenerator 按 chat.length-1-(isUser?0:1)），快照必须同语义。
+                    const rebuild = rebuildFrom(dirty ?? 0, false, end);
                     resetSnapshotDirty();
                     const tBuild0 = performance.now();
                     // 增量 build：仅重算 touched 组，未变组复用缓存（末层失效时可大幅降低 build 成本）
