@@ -174,7 +174,6 @@ export function showToast(docOrMessage, message, type = 'info', duration = TOAST
     /** @type {'success'|'error'|'warning'|'info'} */
     let t = type;
     let dur = duration;
-    if (dur === 'auto') dur = calcAutoDuration(text);
     if (docOrMessage && typeof docOrMessage !== 'string' && docOrMessage.nodeType === 9) {
         // 旧签名：第 1 参是 Document
         text = String(message ?? '');
@@ -188,6 +187,9 @@ export function showToast(docOrMessage, message, type = 'info', duration = TOAST
             ? typeFromMsg : 'info';
         dur = typeof type === 'number' ? type : duration;
     }
+    // ⚠️ 'auto' 动态时长：必须在 text 确定之后计算（此前提前计算会拿到空串 → 退化为最短时长，
+    //    且新签名分支会再把 dur 覆盖回去，导致 'auto' 从未生效——presetSaveDiff 的旧调用即如此）。
+    if (dur === 'auto') dur = calcAutoDuration(text);
 
     const mountDoc = _resolveMountDoc(typeof docOrMessage === 'string' ? null : docOrMessage);
     if (!mountDoc) return () => {};
