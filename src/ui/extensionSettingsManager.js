@@ -20,6 +20,7 @@ import { initWorldBookBinding, removeWorldBookBinding } from "../features/world-
 import { initPromptBinding, removePromptBinding } from "../features/prompt-binding/promptBinding.js";
 import { initPromptEntryActions, removePromptEntryActions } from "../features/prompt-entry-actions/promptEntryActions.js";
 import { initPromptEntrySearch, removePromptEntrySearch } from "../features/prompt-entry-search/promptEntrySearch.js";
+import { initPresetSaveDiff, removePresetSaveDiff } from "../features/preset-save-diff/presetSaveDiff.js";
 import { initPresetBinding, removePresetBinding } from "../features/preset-binding/presetBinding.js";
 import { initChatu8Launcher, removeChatu8Launcher } from "../features/chatu8-launcher/chatu8Launcher.js";
 import { initApiManager, removeApiManager } from "../features/api-manager/ApiManager.js";
@@ -64,6 +65,7 @@ export function loadSettingsToUI() {
     $("#continuity_prompt_binding").prop("checked", extensionConfig.stFeatureEnhance?.promptBinding?.enabled !== false);
     $("#continuity_prompt_entry_actions").prop("checked", extensionConfig.stFeatureEnhance?.promptEntryActions?.enabled !== false);
     $("#continuity_prompt_entry_search").prop("checked", extensionConfig.stFeatureEnhance?.promptEntrySearch?.enabled !== false);
+    $("#continuity_preset_save_diff").prop("checked", configManager.getStFeatureEnhanceConfig().presetSaveDiff?.enabled === true);
     $("#continuity_preset_binding").prop("checked", extensionConfig.stFeatureEnhance?.presetBinding?.enabled !== false);
     $("#continuity_nai_preset_switcher").prop("checked", configManager.isNaiPresetSwitcherEnabled());
     $("#continuity_chatu8_launcher").prop("checked", configManager.isChatu8LauncherEnabled());
@@ -437,6 +439,20 @@ export function onPromptEntrySearchToggle(event) {
         initPromptEntrySearch();
     } else {
         removePromptEntrySearch();
+    }
+}
+
+export function onPresetSaveDiffToggle(event) {
+    const enabled = Boolean($(event.target).prop("checked"));
+    const extensionConfig = configManager.getExtensionConfig();
+    extensionConfig.stFeatureEnhance ||= {};
+    extensionConfig.stFeatureEnhance.presetSaveDiff = { ...(extensionConfig.stFeatureEnhance.presetSaveDiff || {}), enabled };
+    configManager.setExtensionConfig(extensionConfig);
+
+    if (enabled) {
+        initPresetSaveDiff();
+    } else {
+        removePresetSaveDiff();
     }
 }
 

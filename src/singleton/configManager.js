@@ -50,6 +50,9 @@ export const DEFAULT_EXTENSION_CONFIG = {
         promptEntrySearch: { // 提示词预设条目·搜索定位（按名称/内容搜索 + 上一下一/下拉跳转 + 回顶/跳底）
             enabled: false,
         },
+        presetSaveDiff: { // 提示词预设·保存时条目差异提示（捕获拦截保存按钮，比对条目增删改/顺序/启用，提示条显示变动条数）
+            enabled: false,
+        },
         presetBinding: { // 预设·绑定当前聊天：按打开的聊天切换 ST 当前预设（与 async 无关）
             enabled: false,
             defaultPreset: '', // 未绑定聊天的回退预设（最近一次用户手动切换的预设；init 时空则记录当前值）

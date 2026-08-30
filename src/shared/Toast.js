@@ -21,6 +21,18 @@
 const TOAST_CONTAINER_CLASS = 'cc-toast-container';
 const TOAST_STYLE_ID = 'cc-toast-injected-style';
 const TOAST_DEFAULT_DURATION = 3000;
+// —— 动态时长：仅当 showToast 显式传入 duration='auto' 时按内容长度计算；默认/显式数字时长不受影响 ——
+const TOAST_MIN_DURATION = 3000;
+const TOAST_MAX_DURATION = 12000;
+const TOAST_DURATION_PER_UNIT = 70; // 每个视觉单位（中文/全角≈2、英文/半角≈1）的毫秒数
+
+/** 按文本视觉长度计算 toast 显示时长（中文按 2 单位计），结果夹在 [TOAST_MIN_DURATION, TOAST_MAX_DURATION] */
+function calcAutoDuration(text) {
+    const s = String(text ?? '');
+    let units = 0;
+    for (const ch of s) units += ch.codePointAt(0) > 0xFF ? 2 : 1;
+    return Math.min(TOAST_MAX_DURATION, Math.max(TOAST_MIN_DURATION, units * TOAST_DURATION_PER_UNIT));
+}
 
 const TOAST_ICONS = {
     success: '✓',
@@ -70,7 +82,7 @@ const TOAST_CSS = `
 }
 .${TOAST_CONTAINER_CLASS} .cc-toast {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     padding: 10px 14px;
     background: var(--bg-card, #fff);
@@ -162,6 +174,7 @@ export function showToast(docOrMessage, message, type = 'info', duration = TOAST
     /** @type {'success'|'error'|'warning'|'info'} */
     let t = type;
     let dur = duration;
+    if (dur === 'auto') dur = calcAutoDuration(text);
     if (docOrMessage && typeof docOrMessage !== 'string' && docOrMessage.nodeType === 9) {
         // 旧签名：第 1 参是 Document
         text = String(message ?? '');
