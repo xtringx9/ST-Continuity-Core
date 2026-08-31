@@ -18,6 +18,7 @@ import { renderCharPicker, openChatModal, closeChatModal, chatTimeValue } from '
 import { compileRegex, matchAll, fillTemplate } from './regexBridge.js';
 import { getAvatarThumbUrl } from '../../shared/characterBridge.js';
 import { timestampToMoment } from '../../../../../../utils.js';
+import configManager from '../../singleton/configManager.js';
 
 const LOG_TAG = '[ChatManager]';
 
@@ -151,9 +152,16 @@ let manageSubtabsEl = null;
 let extractPatternEl = null;
 let extractFlagsEl = null;
 let extractTemplateEl = null;
-let extractRoleUserEl = null;
-let extractRoleAssistantEl = null;
-let extractRoleSystemEl = null;
+let extractIncludeUserEl = null;
+let extractIncludeAiEl = null;
+// 模板套件（全局可复用）
+let extractTplSelectEl = null;
+let extractTplLoadBtn = null;
+let extractTplSaveasBtn = null;
+let extractTplRenameBtn = null;
+let extractTplDeleteBtn = null;
+let extractTplNameEl = null;
+let mActiveTplId = null;
 let extractRunBtn = null;
 let extractCopyBtn = null;
 let extractWarnEl = null;
@@ -231,9 +239,20 @@ function bindManageDom() {
     extractPatternEl = doc.getElementById('extract-pattern');
     extractFlagsEl = doc.getElementById('extract-flags');
     extractTemplateEl = doc.getElementById('extract-template');
-    extractRoleUserEl = doc.getElementById('extract-role-user');
-    extractRoleAssistantEl = doc.getElementById('extract-role-assistant');
-    extractRoleSystemEl = doc.getElementById('extract-role-system');
+    extractIncludeUserEl = doc.getElementById('extract-include-user');
+    extractIncludeAiEl = doc.getElementById('extract-include-ai');
+    extractTplSelectEl = doc.getElementById('extract-tpl-select');
+    extractTplLoadBtn = doc.getElementById('extract-tpl-load');
+    extractTplSaveasBtn = doc.getElementById('extract-tpl-saveas');
+    extractTplRenameBtn = doc.getElementById('extract-tpl-rename');
+    extractTplDeleteBtn = doc.getElementById('extract-tpl-delete');
+    extractTplNameEl = doc.getElementById('extract-tpl-name');
+    extractTplSelectEl?.addEventListener('change', loadSelectedTemplate);
+    extractTplLoadBtn?.addEventListener('click', loadSelectedTemplate);
+    extractTplSaveasBtn?.addEventListener('click', saveAsTemplate);
+    extractTplRenameBtn?.addEventListener('click', renameTemplate);
+    extractTplDeleteBtn?.addEventListener('click', deleteTemplate);
+    refreshExtractTplSelect();
     extractRunBtn = doc.getElementById('extract-run');
     extractCopyBtn = doc.getElementById('extract-copy');
     extractWarnEl = doc.getElementById('extract-warn');
@@ -602,10 +621,8 @@ async function runExtract() {
     const { ok, regex, error } = compileRegex(pattern, extractFlagsEl?.value ?? '');
     if (!ok) { showExtractWarn(`正则无效：${error}`); return; }
 
-    const roles = new Set();
-    if (extractRoleUserEl?.checked) roles.add('user');
-    if (extractRoleAssistantEl?.checked) roles.add('assistant');
-    if (extractRoleSystemEl?.checked) roles.add('system');
+    const includeUser = !!extractIncludeUserEl?.checked;
+    const includeAI = !!extractIncludeAiEl?.checked;
 
     const data = await getChatLines();
     if (!data) { showExtractWarn('无法读取聊天文件（请先选择聊天）'); return; }
@@ -621,7 +638,9 @@ async function runExtract() {
         try { mes = JSON.parse(line); } catch (e) { continue; }
         const floor = hasMetaLine ? i - 1 : i;
         const role = getRoleOf(mes);
-        if (!roles.has(role)) continue;
+        const isUser = role === 'user';
+        if (isUser && !includeUser) continue;
+        if (!isUser && !includeAI) continue;
         const text = typeof mes?.mes === 'string' ? mes.mes : '';
         // contentUnit（swipes 预留：将来 mes.swipes 各分支各产一个 unit）
         const unit = { floorIndex: floor, kind: 'mes', swipeId: mes?.swipe_id ?? null, text };
@@ -657,7 +676,7 @@ function renderExtractResults(results, unmatched) {
         item.className = 'cc-extract-item';
         const head = doc.createElement('div');
         head.className = 'cc-extract-head';
-        head.textContent = `[楼层#${r.floor}] ${r.role}`;
+        head.textContent = `[楼层#${r.floor}] ${roleLabel(r.role)}`;
         const body = doc.createElement('div');
         body.className = 'cc-extract-body';
         let t = r.filled;
@@ -695,6 +714,85 @@ function fallbackCopy(text) {
     ta.select();
     try { doc.execCommand('copy'); } catch (e) { /* ignore */ }
     ta.remove();
+}
+
+function roleLabel(role) {
+    return role === 'user' ? '用户' : 'AI';
+}
+
+function genExtractTplId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'tpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function refreshExtractTplSelect() {
+    if (!extractTplSelectEl) return;
+    const list = configManager.getChatToolsConfig().extractTemplates || [];
+    const cur = mActiveTplId;
+    extractTplSelectEl.innerHTML = '<option value="">— 未保存 —</option>' +
+        list.map(t => `<option value="${escapeHtml(t.id)}" ${t.id === cur ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
+    extractTplSelectEl.value = cur || '';
+}
+
+function loadSelectedTemplate() {
+    const id = extractTplSelectEl?.value;
+    if (!id) { mActiveTplId = null; return; }
+    const t = (configManager.getChatToolsConfig().extractTemplates || []).find(x => x.id === id);
+    if (!t) { mActiveTplId = null; return; }
+    mActiveTplId = t.id;
+    if (extractPatternEl) extractPatternEl.value = t.pattern;
+    if (extractFlagsEl) extractFlagsEl.value = t.flags;
+    if (extractTemplateEl) extractTemplateEl.value = t.template;
+    if (extractIncludeUserEl) extractIncludeUserEl.checked = !!t.includeUser;
+    if (extractIncludeAiEl) extractIncludeAiEl.checked = !!t.includeAI;
+}
+
+function saveAsTemplate() {
+    const name = (extractTplNameEl?.value ?? '').trim() ||
+        `模板${(configManager.getChatToolsConfig().extractTemplates?.length || 0) + 1}`;
+    const t = {
+        id: genExtractTplId(),
+        name,
+        pattern: extractPatternEl?.value ?? '',
+        flags: extractFlagsEl?.value ?? 'g',
+        template: extractTemplateEl?.value ?? '',
+        includeUser: !!extractIncludeUserEl?.checked,
+        includeAI: !!extractIncludeAiEl?.checked,
+    };
+    const cfg = configManager.getChatToolsConfig();
+    cfg.extractTemplates = cfg.extractTemplates || [];
+    const idx = cfg.extractTemplates.findIndex(x => x.name === name);
+    if (idx >= 0) cfg.extractTemplates[idx] = t; else cfg.extractTemplates.push(t);
+    configManager.setChatToolsConfig(cfg);
+    mActiveTplId = t.id;
+    if (extractTplNameEl) extractTplNameEl.value = '';
+    refreshExtractTplSelect();
+    showExtractWarn(`已保存模板「${name}」`);
+}
+
+function renameTemplate() {
+    const id = extractTplSelectEl?.value;
+    if (!id) { showExtractWarn('请先在模板下拉选择要重命名的模板'); return; }
+    const name = (extractTplNameEl?.value ?? '').trim();
+    if (!name) { showExtractWarn('请在模板名输入框填写新名称'); return; }
+    const cfg = configManager.getChatToolsConfig();
+    const t = (cfg.extractTemplates || []).find(x => x.id === id);
+    if (!t) { showExtractWarn('模板不存在'); return; }
+    t.name = name;
+    configManager.setChatToolsConfig(cfg);
+    refreshExtractTplSelect();
+    showExtractWarn(`已重命名为「${name}」`);
+}
+
+function deleteTemplate() {
+    const id = extractTplSelectEl?.value;
+    if (!id) { showExtractWarn('请先在模板下拉选择要删除的模板'); return; }
+    const cfg = configManager.getChatToolsConfig();
+    cfg.extractTemplates = (cfg.extractTemplates || []).filter(x => x.id !== id);
+    configManager.setChatToolsConfig(cfg);
+    mActiveTplId = null;
+    refreshExtractTplSelect();
+    showExtractWarn('已删除模板');
 }
 
 /**

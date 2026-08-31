@@ -552,6 +552,30 @@
     color: var(--text-input, #111827);
 }
 
+/* 提取：模板套件栏（全局可复用模板的载入/另存为/重命名/删除） */
+.extract-tpl-bar {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    flex: 1 1 100%;
+    gap: 8px;
+    min-width: 0;
+}
+.extract-tpl-bar > label { margin-bottom: 0; }
+.extract-tpl-select {
+    min-width: 160px;
+    max-width: 260px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 6px;
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    font-size: 13px;
+}
+.extract-tpl-bar input[type="text"] {
+    width: 130px;
+}
+
 .extract-warn {
     white-space: pre-wrap;
     background: #fef3c7;

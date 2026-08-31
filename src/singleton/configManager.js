@@ -7,6 +7,7 @@ import { normalizeGeneratorConfig, DEFAULT_GENERATOR_CONFIG_VALUES } from '../co
 import { normalizePhoneConfig, DEFAULT_PHONE_CONFIG_VALUES } from '../config/phoneConfigTemplate.js';
 import { normalizeCharacterBindingConfig, DEFAULT_CHARACTER_BINDING_VALUES } from '../config/characterBindingTemplate.js';
 import { normalizeNaiPresetConfig, DEFAULT_NAI_PRESET_CONFIG } from '../config/naiPresetConfigTemplate.js';
+import { normalizeChatToolsConfig, DEFAULT_CHAT_TOOLS_VALUES, CHAT_TOOLS_KEY } from '../config/chatToolsConfigTemplate.js';
 
 // 扩展基本信息
 export const extensionName = "ST-Continuity-Core";
@@ -111,6 +112,8 @@ class ConfigManager {
         this.characterBindingAutoSaveTimeout = null;
         this.naiPresetConfig = null; // 智绘姬NAI预设切换·预设数据（独立顶层键 nai_preset_config）
         this.isNaiPresetConfigLoaded = false;
+        this.chatToolsConfig = null; // 聊天/阅读工具配置缓存（独立顶层键 chat_tools）
+        this.isChatToolsConfigLoaded = false;
         this.autoSaveTimeout = null; // 自动保存的超时ID
         this.autoSaveDelay = 1000; // 自动保存延迟（毫秒）
         this.generatorAutoSaveTimeout = null; // 生成内容配置自动保存的超时ID
@@ -518,6 +521,7 @@ class ConfigManager {
         this.loadGeneratorConfig();
         this.loadPhoneConfig();
         this.loadCharacterBindingConfig();
+        this.loadChatToolsConfig();
         this.loadNaiPresetConfig();
         this.isLoaded = true;
 
@@ -1732,6 +1736,64 @@ class ConfigManager {
             return true;
         } catch (error) {
             errorLog('保存角色绑定配置失败:', error);
+            return false;
+        }
+    }
+
+    // ===== 聊天工具配置（chat_tools）=====
+
+    /**
+     * 加载聊天工具配置到内存缓存
+     */
+    loadChatToolsConfig() {
+        try {
+            debugLog(`开始加载聊天工具配置，配置键名: ${CHAT_TOOLS_KEY}`);
+            if (extension_settings[extensionName] && extension_settings[extensionName][CHAT_TOOLS_KEY]) {
+                this.chatToolsConfig = normalizeChatToolsConfig(extension_settings[extensionName][CHAT_TOOLS_KEY]);
+                this.isChatToolsConfigLoaded = true;
+                debugLog('聊天工具配置已从扩展设置加载到内存缓存');
+                return;
+            }
+            this.chatToolsConfig = { ...DEFAULT_CHAT_TOOLS_VALUES };
+            this.isChatToolsConfigLoaded = true;
+        } catch (error) {
+            errorLog('加载聊天工具配置失败:', error);
+            this.chatToolsConfig = { ...DEFAULT_CHAT_TOOLS_VALUES };
+            this.isChatToolsConfigLoaded = true;
+        }
+    }
+
+    getChatToolsConfig() {
+        if (!this.isChatToolsConfigLoaded) {
+            this.loadChatToolsConfig();
+        }
+        return this.chatToolsConfig;
+    }
+
+    setChatToolsConfig(newConfig) {
+        this.chatToolsConfig = normalizeChatToolsConfig(newConfig);
+        this.saveChatToolsConfigNow();
+    }
+
+    saveChatToolsConfigNow() {
+        if (!ENABLE_DEV_SAVE_GUARD) {
+            infoLog('[DEV_GUARD] 当前为开发模式，已阻止聊天工具配置保存。');
+            return false;
+        }
+        try {
+            if (!this.isChatToolsConfigLoaded) {
+                this.loadChatToolsConfig();
+            }
+            this.chatToolsConfig = normalizeChatToolsConfig(this.chatToolsConfig);
+            if (!extension_settings[extensionName]) {
+                extension_settings[extensionName] = {};
+            }
+            extension_settings[extensionName][CHAT_TOOLS_KEY] = this.chatToolsConfig;
+            saveSettings();
+            debugLog('聊天工具配置已保存');
+            return true;
+        } catch (error) {
+            errorLog('保存聊天工具配置失败:', error);
             return false;
         }
     }
