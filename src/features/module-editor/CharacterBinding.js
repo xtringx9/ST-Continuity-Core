@@ -33,6 +33,7 @@ import {
 import { createEmptyBoundVariable } from '../../config/characterBindingTemplate.js';
 import { applyCurrentVariables } from '../variable-binding/variableBindingState.js';
 import { getAvatarThumbUrl } from '../../shared/characterBridge.js';
+import { timestampToMoment } from '../../../../../../utils.js';
 
 // 全局文档引用（指向 iframe 的 document）
 let doc = null;
@@ -390,11 +391,14 @@ async function renderDetail() {
         const char = getRealCharacters().find(c => c.name === selected.charName);
         if (char?.avatar) {
             const chats = await getChatNamesForChar(selected.charName, char.avatar);
-            // 按最后消息时间从新到旧排序（之前是接口原始顺序，并非日期序）；当前聊天随后置顶
+            // 按最后消息时间从新到旧排序（复用 ST 的 timestampToMoment，兼容 last_mes 各种历史格式）；当前聊天随后置顶
             chats.sort((a, b) => {
-                const ta = a.last_mes ? (Date.parse(a.last_mes) || Number(a.last_mes) || 0) : 0;
-                const tb = b.last_mes ? (Date.parse(b.last_mes) || Number(b.last_mes) || 0) : 0;
-                return tb - ta;
+                const tv = (x) => {
+                    if (x == null || x === '') return 0;
+                    try { const m = timestampToMoment(x); return m && m.isValid() ? m.valueOf() : 0; }
+                    catch { return 0; }
+                };
+                return tv(b.last_mes) - tv(a.last_mes);
             });
             // 当前聊天置顶
             if (current.chatFile) {

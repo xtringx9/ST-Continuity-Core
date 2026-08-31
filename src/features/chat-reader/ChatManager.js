@@ -14,7 +14,7 @@
 import { characters, getPastCharacterChats, getRequestHeaders } from '../../../../../../../script.js';
 import { getCurrentChatDetails } from '../../../../../../../script.js';
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
-import { renderCharPicker, openChatModal, closeChatModal } from './ChatReader.js';
+import { renderCharPicker, openChatModal, closeChatModal, chatTimeValue } from './ChatReader.js';
 import { compileRegex, matchAll, fillTemplate } from './regexBridge.js';
 import { getAvatarThumbUrl } from '../../shared/characterBridge.js';
 import { timestampToMoment } from '../../../../../../utils.js';
@@ -494,12 +494,8 @@ async function populateChatSelect(char, isCurrent) {
     const idx = mActiveCharIdx;
     let chats = [];
     try { chats = (await getPastCharacterChats(idx)) || []; } catch (e) { chats = []; }
-    // 按最后消息时间从新到旧排序（之前是接口原始顺序，并非日期序）
-    chats.sort((a, b) => {
-        const ta = a.last_mes ? (Date.parse(a.last_mes) || Number(a.last_mes) || 0) : 0;
-        const tb = b.last_mes ? (Date.parse(b.last_mes) || Number(b.last_mes) || 0) : 0;
-        return tb - ta;
-    });
+    // 按最后消息时间从新到旧排序（复用阅读弹窗同款 chatTimeValue，兼容 last_mes 各种历史格式）
+    chats.sort((a, b) => chatTimeValue(b.last_mes) - chatTimeValue(a.last_mes));
     if (!chats.length) {
         const opt = doc.createElement('option');
         opt.value = '';

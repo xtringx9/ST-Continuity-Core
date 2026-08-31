@@ -967,7 +967,7 @@ function formatChatTime(ts) {
  * @param {string|number} ts
  * @returns {number}
  */
-function chatTimeValue(ts) {
+export function chatTimeValue(ts) {
     if (ts === undefined || ts === null || ts === '') return 0;
     try {
         const m = timestampToMoment(ts);
