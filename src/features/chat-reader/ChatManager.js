@@ -569,7 +569,7 @@ function resetManageChatPanel() {
     mChatList = [];
 }
 
-/** 子tab 切换（体检 / 提取），复用共享 .detail-tab-item / .detail-tab-panel */
+/** 子tab 切换（分析 / 提取），复用共享 .detail-tab-item / .detail-tab-panel */
 function bindSubtabs() {
     if (!manageSubtabsEl) return;
     manageSubtabsEl.querySelectorAll('.detail-tab-item').forEach((tab) => {

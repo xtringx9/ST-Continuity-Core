@@ -173,6 +173,7 @@
 .binding-chat-select-row {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 8px 16px;
     border-bottom: 1px solid var(--border-light);
@@ -185,7 +186,10 @@
 }
 
 .binding-chat-select {
-    flex: 1;
+    flex: 1 1 120px;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     padding: 5px 8px;
     border-radius: 4px;
     border: 1px solid var(--border-color);

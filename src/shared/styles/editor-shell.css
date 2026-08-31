@@ -889,6 +889,8 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     margin: 10px 12px;
     padding: 6px 8px;
     width: calc(100% - 24px);
+    box-sizing: border-box;
+    max-width: 100%;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
     border-radius: 4px;
     background: var(--bg-input, #fff);
@@ -1059,5 +1061,10 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     body.mobile-view-detail-manage .md-main {
         display: flex;
         flex-direction: column;
+    }
+
+    /* 移动端：管理页详情头部「返回角色列表」图标（与绑定页同款 .btn-back-icon + .mobile-only） */
+    body.mobile-view-detail-manage .mobile-only {
+        display: flex !important;
     }
 }
