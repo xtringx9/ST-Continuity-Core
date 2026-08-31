@@ -73,43 +73,82 @@
                 </footer>
             </section>
 
-            <!-- ===== 管理视图 ===== -->
+            <!-- ===== 管理视图（主从：左角色树 + 右详情[聊天下拉 + 体检/提取子tab]） ===== -->
             <section class="view-section" id="reader-view-manage">
-                <!-- 首页：选择角色（点击角色弹窗选聊天，再进分析） -->
-                <div class="reader-manage-home" id="reader-manage-home">
-                    <div class="reader-home-step" id="reader-manage-step-char">
-                        <div class="reader-home-toolbar">
-                            <div class="reader-home-title" id="reader-manage-char-title">选择角色</div>
-                            <input type="search" class="reader-char-search" id="reader-manage-char-search" placeholder="搜索角色名…" />
+                <div class="md-split">
+                    <!-- 左：角色树（搜索 + 列表） -->
+                    <aside class="md-aside">
+                        <div class="md-toolbar">
+                            <input type="search" class="reader-char-search" id="manage-char-search" placeholder="搜索角色名…" />
                         </div>
-                        <div class="reader-char-grid" id="reader-manage-char-grid">
-                            <!-- 角色卡片由 JS 生成 -->
+                        <div class="md-list" id="manage-char-list">
+                            <!-- 角色卡片由 JS 复用 renderCharPicker 生成 -->
                         </div>
-                    </div>
-                </div>
-
-                <!-- 分析视图：概览 + 开始分析 + 体检报告 -->
-                <div class="reader-manage-detail" id="reader-manage-detail" style="display:none;">
-                    <div class="reader-manage-detail-head">
-                        <div class="reader-manage-head-row">
-                            <div class="reader-manage-crumb" id="reader-manage-crumb">
-                                <button class="btn-back-icon" id="reader-manage-back" title="返回选择角色">❮</button>
-                                <span id="reader-manage-chat-label" class="reader-manage-chat-label"></span>
+                    </aside>
+                    <!-- 右：详情（聊天下拉 + 子tab） -->
+                    <section class="md-main">
+                        <div class="manage-detail-head">
+                            <select class="manage-chat-select" id="manage-chat-select" disabled>
+                                <option value="">请先在左侧选择角色…</option>
+                            </select>
+                        </div>
+                        <div class="subtabs" id="manage-subtabs">
+                            <div class="subtab active" data-target="manage-tab-health">体检</div>
+                            <div class="subtab" data-target="manage-tab-extract">提取</div>
+                        </div>
+                        <!-- 体检 -->
+                        <div class="subtab-panel active" id="manage-tab-health">
+                            <div class="reader-manage-head-row">
+                                <div class="reader-manage-crumb" id="reader-manage-crumb">
+                                    <button class="btn-back-icon mobile-only" id="reader-manage-back" title="重置聊天选择">❮</button>
+                                    <span id="reader-manage-chat-label" class="reader-manage-chat-label"></span>
+                                </div>
+                                <div class="reader-manage-actions">
+                                    <button class="btn-primary" id="reader-manage-analyze">开始分析</button>
+                                    <button class="btn-secondary" id="reader-manage-cancel" style="display:none;">取消</button>
+                                </div>
                             </div>
-                            <div class="reader-manage-actions">
-                                <button class="btn-primary" id="reader-manage-analyze">开始分析</button>
-                                <button class="btn-secondary" id="reader-manage-cancel" style="display:none;">取消</button>
+                            <div class="reader-manage-meta" id="reader-manage-meta"></div>
+                            <div class="reader-manage-progress" id="reader-manage-progress" style="display:none;">
+                                <div class="reader-manage-progress-bar"><div class="reader-manage-progress-fill" id="reader-manage-progress-fill"></div></div>
+                                <div class="reader-manage-progress-text" id="reader-manage-progress-text"></div>
+                            </div>
+                            <div class="reader-manage-report" id="reader-manage-report">
+                                <!-- 体检报告由 JS 渲染 -->
                             </div>
                         </div>
-                        <div class="reader-manage-meta" id="reader-manage-meta"></div>
-                        <div class="reader-manage-progress" id="reader-manage-progress" style="display:none;">
-                            <div class="reader-manage-progress-bar"><div class="reader-manage-progress-fill" id="reader-manage-progress-fill"></div></div>
-                            <div class="reader-manage-progress-text" id="reader-manage-progress-text"></div>
+                        <!-- 提取 -->
+                        <div class="subtab-panel" id="manage-tab-extract">
+                            <div class="extract-controls">
+                                <div class="form-group">
+                                    <label>正则</label>
+                                    <input type="text" id="extract-pattern" placeholder="例 (?<name>[^：]+)：(.*)" />
+                                </div>
+                                <div class="form-group">
+                                    <label>flags</label>
+                                    <input type="text" id="extract-flags" value="g" style="max-width:90px;" />
+                                </div>
+                                <div class="form-group">
+                                    <label>模板</label>
+                                    <textarea id="extract-template" rows="3" placeholder="例 |模块名|字段:$1|  （$0整段 $1..$n组 ${name}命名 $$字面）"></textarea>
+                                </div>
+                                <div class="form-group extract-role-group">
+                                    <label>角色</label>
+                                    <span class="extract-role-opts">
+                                        <label><input type="checkbox" id="extract-role-user" checked /> 用户</label>
+                                        <label><input type="checkbox" id="extract-role-assistant" checked /> 助手</label>
+                                        <label><input type="checkbox" id="extract-role-system" /> 系统</label>
+                                    </span>
+                                </div>
+                                <div class="reader-manage-actions">
+                                    <button class="btn-primary" id="extract-run">提取</button>
+                                    <button class="btn-secondary" id="extract-copy" disabled>复制全部</button>
+                                </div>
+                            </div>
+                            <div class="extract-warn" id="extract-warn" style="display:none;"></div>
+                            <div class="reader-manage-report" id="extract-results"></div>
                         </div>
-                    </div>
-                    <div class="reader-manage-report" id="reader-manage-report">
-                        <!-- 体检报告由 JS 渲染 -->
-                    </div>
+                    </section>
                 </div>
             </section>
         </div>

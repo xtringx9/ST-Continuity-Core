@@ -155,6 +155,9 @@
     white-space: nowrap;
 }
 
+/* 管理左栏角色列表已改用 editor-shell 的共享 .binding-tree-* 样式（与角色绑定页同一套），
+   见 editor-shell.css，故此处不再有独立作用域样式。 */
+
 /* 聊天选择弹窗：顶部角色原图（高清，按原图比例、不裁剪） */
 .reader-chat-modal-header {
     display: none;
@@ -422,30 +425,8 @@
 }
 
 /* === 聊天管理 tab（与阅读共享角色/聊天选择样式 .reader-char-* / .reader-chat-*）=== */
-.reader-manage-home {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px clamp(8px, 3vw, 24px);
-    background: var(--bg-app, #fff);
-}
-
-.reader-manage-detail {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: var(--bg-app, #fff);
-}
-
-.reader-manage-detail-head {
-    flex-shrink: 0;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    background: var(--bg-panel, #f9fafb);
-}
+/* 注：.reader-manage-home / .reader-manage-detail / .reader-manage-detail-head
+   已在主从布局改造中移除（HTML 不再使用），其样式一并删除。 */
 
 /* 标题行：返回+聊天名（左） 与 开始分析/取消（右）同一行，避免按钮单独占一栏 */
 .reader-manage-head-row {
@@ -517,6 +498,97 @@
 .cc-manage-report-inner {
     max-width: 1000px;
     margin: 0 auto;
+}
+
+/* === 提取子tab === */
+.extract-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 4px 2px 14px;
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    margin-bottom: 12px;
+}
+
+.extract-controls .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 220px;
+    flex: 1 1 260px;
+}
+
+.extract-controls .form-group > label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #4b5563);
+}
+
+.extract-controls input[type="text"],
+.extract-controls textarea {
+    padding: 7px 9px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 6px;
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.extract-role-group .extract-role-opts {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding-top: 6px;
+}
+
+.extract-role-group .extract-role-opts label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-input, #111827);
+}
+
+.extract-warn {
+    white-space: pre-wrap;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.cc-extract-item {
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: var(--bg-app, #fff);
+}
+
+.cc-extract-head {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #4b5563);
+    background: var(--bg-panel, #f9fafb);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+}
+
+.cc-extract-body {
+    padding: 8px 10px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+    max-height: 320px;
+    overflow-y: auto;
 }
 
 /* 注：概览卡片（消息数/体积/各项占比）已移除 —— 占比在每个键行显示，避免重复。

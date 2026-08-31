@@ -71,39 +71,8 @@
     overflow: hidden;
 }
 
-.binding-tree-char > .binding-tree-row {
-    padding: 6px 10px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.binding-tree-char > .binding-tree-row:hover {
-    background-color: var(--bg-hover);
-}
-
-.binding-tree-row.active {
-    background-color: var(--bg-hover);
-    border-left: 3px solid var(--accent-color);
-    padding-left: 7px;
-}
-
-.binding-tree-name {
-    flex: 1;
-}
-
-.binding-tree-current {
-    color: var(--accent-color);
-    font-size: 11px;
-}
-
-.binding-tree-missing {
-    color: var(--red, #ff4444);
-    font-size: 11px;
-    margin-left: 4px;
-}
+/* 以下角色树行/列表样式已抽到 editor-shell.css（.binding-tree-*），供角色绑定页与
+   chat-reader 管理页左栏共用，避免两套重复样式。此处仅保留面板与按钮等布局。 */
 
 .binding-char-del {
     margin-left: auto;

@@ -762,6 +762,164 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     display: none !important;
 }
 
+/* === 主从布局（左角色树 + 右详情）+ 子tab ===
+ * chat-reader 管理页与 module-editor 角色绑定页共用的主从结构。
+ * 左栏 .md-aside 放角色树（搜索 + 列表），右栏 .md-main 放详情
+ * （顶部聊天下拉 + 一行 .subtab 子tab + 对应 .subtab-panel）。 */
+.md-split {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    height: 100%;
+}
+
+.md-aside {
+    width: 260px;
+    flex-shrink: 0;
+    background-color: var(--bg-panel, #f9fafb);
+    border-right: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.md-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.md-toolbar {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    display: flex;
+    gap: 8px;
+}
+
+.md-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+/* 子tab（模块属性/变量管理、体检/提取 等同构） */
+.subtabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px 0;
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    flex-shrink: 0;
+}
+
+.subtab {
+    padding: 6px 14px;
+    cursor: pointer;
+    color: var(--text-secondary, #4b5563);
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.subtab:hover {
+    background: var(--bg-hover, #f3f4f6);
+}
+
+.subtab.active {
+    color: var(--accent-color, #2563eb);
+    background: var(--bg-app, #fff);
+    border-color: var(--border-light, #f3f4f6);
+    border-bottom-color: var(--bg-app, #fff);
+    margin-bottom: -1px;
+}
+
+.subtab-panel {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.subtab-panel.active {
+    display: block;
+}
+
+/* 顶部聊天下拉（主从右栏通用） */
+.md-main .manage-chat-select {
+    margin: 10px 12px;
+    padding: 6px 8px;
+    width: calc(100% - 24px);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 4px;
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    font-size: 13px;
+}
+
+.manage-detail-head {
+    flex-shrink: 0;
+}
+
+/* === 角色树列表（module-editor 角色绑定页 与 chat-reader 管理页左栏 共用）===
+ * 类名沿用 .binding-tree-*，定义抽到 editor-shell，保证两边同一套样式。
+ * 小头像 .binding-tree-avatar 也在此定义，行高由文字行决定，加头像不撑高。 */
+.binding-tree-char > .binding-tree-row {
+    padding: 6px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--border-light, #f3f4f6);
+}
+
+.binding-tree-char > .binding-tree-row:hover {
+    background-color: var(--bg-hover, #f3f4f6);
+}
+
+.binding-tree-row.active {
+    background-color: var(--bg-hover, #f3f4f6);
+    border-left: 3px solid var(--accent-color, #2563eb);
+    padding-left: 7px;
+}
+
+.binding-tree-avatar {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--bg-panel, #f3f4f6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted, #9ca3af);
+}
+
+.binding-tree-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.binding-tree-current {
+    color: var(--accent-color, #2563eb);
+    font-size: 11px;
+}
+
+.binding-tree-missing {
+    color: var(--red, #ff4444);
+    font-size: 11px;
+    margin-left: 4px;
+}
+
 /* === 手机适配（参考 module-editor） === */
 @media (max-width: 768px) {
     .app-container {
@@ -839,5 +997,21 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 
     .toolbox-container {
         padding: 15px;
+    }
+
+    /* 主从布局在手机端改为上下堆叠：左栏角色树占上半，右栏详情占下半 */
+    .md-split {
+        flex-direction: column;
+    }
+
+    .md-aside {
+        width: 100%;
+        height: 42%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    }
+
+    .subtab-panel {
+        padding: 10px;
     }
 }

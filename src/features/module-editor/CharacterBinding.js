@@ -32,6 +32,7 @@ import {
 } from '../../core/chatModuleEntryStore.js';
 import { createEmptyBoundVariable } from '../../config/characterBindingTemplate.js';
 import { applyCurrentVariables } from '../variable-binding/variableBindingState.js';
+import { getAvatarThumbUrl } from '../../shared/characterBridge.js';
 
 // 全局文档引用（指向 iframe 的 document）
 let doc = null;
@@ -42,6 +43,7 @@ let treeListEl = null;
 let detailEl = null;
 let selected = null;                 // { scope, charName, chatFile }
 const expandedMods = new Set();      // 已展开的模块名
+let treeSearchQuery = '';            // 角色树搜索词（实时过滤）
 
 /**
  * 初始化角色绑定页
@@ -55,6 +57,15 @@ export function initCharacterBinding(iframeDocument) {
 
     // 实时记忆角色树滚动位置（关闭/重新打开编辑器时还原）
     treeListEl.addEventListener('scroll', () => persistScroll(treeListEl, BINDING_TREE_SCROLL_KEY));
+
+    // 角色树搜索：输入即过滤（修复此前搜索框失效）
+    const searchEl = doc.getElementById('binding-tree-search');
+    if (searchEl) {
+        searchEl.addEventListener('input', () => {
+            treeSearchQuery = (searchEl.value || '').trim();
+            renderTree();
+        });
+    }
 
     renderTree();
 
@@ -134,6 +145,11 @@ async function renderTree() {
 
     const current = getCurrentChat();
     let realChars = getRealCharacters();
+    // 角色树搜索过滤（大小写不敏感）
+    if (treeSearchQuery) {
+        const q = treeSearchQuery.toLowerCase();
+        realChars = realChars.filter(c => (c.name || '').toLowerCase().includes(q));
+    }
     // 当前角色置顶（如有）
     if (current.charName) {
         const idx = realChars.findIndex(c => c.name === current.charName);
@@ -152,7 +168,8 @@ async function renderTree() {
 
     // 2) 配置中存在但已找不到的角色（改名/删除后残留），仅显示角色节点
     const danglingNames = [...new Set(bindings.map(b => b.charName))]
-        .filter(name => name && !realNames.has(name));
+        .filter(name => name && !realNames.has(name))
+        .filter(name => !treeSearchQuery || name.toLowerCase().includes(treeSearchQuery.toLowerCase()));
     for (const name of danglingNames) {
         treeListEl.appendChild(buildCharNode(name, current, true));
     }
@@ -176,11 +193,22 @@ function restoreBindingTreeScroll() {
     restoreScroll(treeListEl, BINDING_TREE_SCROLL_KEY);
 }
 
+function firstChar(s) {
+    return (s || '?').trim().charAt(0).toUpperCase();
+}
+
 function buildCharNode(name, current, isDangling) {
     const node = doc.createElement('div');
     node.className = 'binding-tree-char';
+    const realChar = !isDangling ? (getRealCharacters().find(c => c.name === name) || null) : null;
+    const ph = firstChar(name);
+    const avFile = realChar && realChar.avatar && realChar.avatar !== 'none' ? realChar.avatar : '';
+    const avatarHtml = avFile
+        ? `<img class="binding-tree-avatar" src="${escapeAttr(getAvatarThumbUrl(avFile))}" data-ph="${escapeAttr(ph)}">`
+        : `<span class="binding-tree-avatar">${escapeHtml(ph)}</span>`;
     node.innerHTML = `
         <div class="binding-tree-row" data-char="${escapeAttr(name)}">
+            ${avatarHtml}
             <span class="binding-tree-name">${escapeHtml(name)}</span>
             ${isDangling ? `<span class="binding-tree-missing" title="${translate('ccore_binding_missing_char')}">⚠</span>` : ''}
             ${name === current.charName ? `<span class="binding-tree-current" title="${translate('ccore_binding_current_chat')}">●</span>` : ''}
@@ -191,6 +219,14 @@ function buildCharNode(name, current, isDangling) {
         </div>
         `;
     node.querySelector('.binding-tree-row').addEventListener('click', () => selectNode('character', name, null));
+    node.querySelectorAll('img.binding-tree-avatar').forEach(img => {
+        img.onerror = () => {
+            const s = doc.createElement('span');
+            s.className = 'binding-tree-avatar';
+            s.textContent = img.dataset.ph || '';
+            img.replaceWith(s);
+        };
+    });
     const del = node.querySelector('.binding-char-del');
     if (del) del.addEventListener('click', e => { e.stopPropagation(); deleteCharBinding(name); });
     const repoint = node.querySelector('.binding-char-repoint');

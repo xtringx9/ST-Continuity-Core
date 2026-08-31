@@ -5,6 +5,7 @@ import configManager, { extensionName } from "../singleton/configManager.js";
 import { debugLog, errorLog, infoLog } from "../utils/logger.js";
 import { extension_settings } from "../../../../../extensions.js";
 import { replaceVariables } from "../utils/variableReplacer.js";
+import { showToast } from "../shared/Toast.js";
 import { getGenerationContextEndFloor, getGenerationContextMode } from "../core/generationContext.js";
 
 /**
@@ -814,7 +815,8 @@ function getOutputModePrompt(module) {
  */
 function extractModuleDataForPrompt(skipEmpty = false) {
     if (!chat || chat.length < 1) return null;
-    const isUserMessage = chat[chat.length - 1].is_user || chat[chat.length - 1].role === 'user';
+    const lastMsg = chat[chat.length - 1];
+    const isUserMessage = lastMsg.is_user || lastMsg.role === 'user';
     let endIndex = chat.length - 1 - (isUserMessage ? 0 : 1);
     // 生成期上下文截断：重新生成模块时，宏只读到「目标层前一楼」的数据（目标层模块正要生成）
     const genEndFloor = getGenerationContextEndFloor();
@@ -822,6 +824,12 @@ function extractModuleDataForPrompt(skipEmpty = false) {
         endIndex = genEndFloor;
         debugLog(`[生成上下文] moduleData 宏截断到楼层 ${endIndex}`);
     }
+    // ⚠️ 临时诊断（定位 module_data 偶发包含末条）：单条 toast 分行显示，实际 endIndex 最醒目
+    showToast(
+        `[MODULE_DATA诊断]\nchat.length=${chat.length} | 末条idx=${chat.length - 1} | is_user=${lastMsg.is_user} | role=${lastMsg.role} | isUserMessage=${isUserMessage} | genEndFloor=${genEndFloor}\n【实际 endIndex = ${endIndex}】`,
+        'info',
+        'auto',
+    );
     // 提取全部聊天记录的所有模块数据（一次性获取）
     const moduleFilters = getContextBottomFilteredModuleConfigs(); // 只提取符合条件的模块
     const selectedModuleNames = moduleFilters.map(config => config.name);

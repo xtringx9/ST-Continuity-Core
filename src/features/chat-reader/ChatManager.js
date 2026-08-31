@@ -15,6 +15,8 @@ import { characters, getPastCharacterChats, getRequestHeaders } from '../../../.
 import { getCurrentChatDetails } from '../../../../../../../script.js';
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
 import { renderCharPicker, openChatModal, closeChatModal } from './ChatReader.js';
+import { compileRegex, matchAll, fillTemplate } from './regexBridge.js';
+import { getAvatarThumbUrl } from '../../shared/characterBridge.js';
 import { timestampToMoment } from '../../../../../../utils.js';
 
 const LOG_TAG = '[ChatManager]';
@@ -130,12 +132,8 @@ let doc = null;
 // 导航与首页元素
 let navReadEl = null;
 let navManageEl = null;
-let manageHomeEl = null;
-let mCharTitleEl = null;
-let mCharGridEl = null;
 let mCharSearchEl = null;
 // 详情/分析
-let detailEl = null;
 let crumbEl = null;
 let chatLabelEl = null;
 let metaEl = null;
@@ -145,6 +143,23 @@ let progressEl = null;
 let progressFillEl = null;
 let progressTextEl = null;
 let reportEl = null;
+// 管理：主从布局
+let manageCharListEl = null;
+let manageChatSelectEl = null;
+let manageSubtabsEl = null;
+// 提取子tab
+let extractPatternEl = null;
+let extractFlagsEl = null;
+let extractTemplateEl = null;
+let extractRoleUserEl = null;
+let extractRoleAssistantEl = null;
+let extractRoleSystemEl = null;
+let extractRunBtn = null;
+let extractCopyBtn = null;
+let extractWarnEl = null;
+let extractResultsEl = null;
+let mChatList = [];               // 当前角色聊天列表（供下拉回查 chatMeta）
+let mLastExtract = null;          // 最近一次提取结果（复制用）
 
 // 管理上下文（复用阅读器的角色/聊天选择逻辑，但不渲染正文）
 let mActiveChar = null;       // 选中的角色对象（历史聊天用）
@@ -198,11 +213,9 @@ function switchView(view) {
 }
 
 function bindManageDom() {
-    manageHomeEl = doc.getElementById('reader-manage-home');
-    mCharTitleEl = doc.getElementById('reader-manage-char-title');
-    mCharGridEl = doc.getElementById('reader-manage-char-grid');
-    mCharSearchEl = doc.getElementById('reader-manage-char-search');
-    detailEl = doc.getElementById('reader-manage-detail');
+    manageCharListEl = doc.getElementById('manage-char-list');
+    mCharSearchEl = doc.getElementById('manage-char-search');
+    manageChatSelectEl = doc.getElementById('manage-chat-select');
     crumbEl = doc.getElementById('reader-manage-crumb');
     chatLabelEl = doc.getElementById('reader-manage-chat-label');
     metaEl = doc.getElementById('reader-manage-meta');
@@ -212,13 +225,29 @@ function bindManageDom() {
     progressFillEl = doc.getElementById('reader-manage-progress-fill');
     progressTextEl = doc.getElementById('reader-manage-progress-text');
     reportEl = doc.getElementById('reader-manage-report');
+    // 提取子tab
+    extractPatternEl = doc.getElementById('extract-pattern');
+    extractFlagsEl = doc.getElementById('extract-flags');
+    extractTemplateEl = doc.getElementById('extract-template');
+    extractRoleUserEl = doc.getElementById('extract-role-user');
+    extractRoleAssistantEl = doc.getElementById('extract-role-assistant');
+    extractRoleSystemEl = doc.getElementById('extract-role-system');
+    extractRunBtn = doc.getElementById('extract-run');
+    extractCopyBtn = doc.getElementById('extract-copy');
+    extractWarnEl = doc.getElementById('extract-warn');
+    extractResultsEl = doc.getElementById('extract-results');
+    manageSubtabsEl = doc.getElementById('manage-subtabs');
 
     if (mCharSearchEl) {
         mCharSearchEl.addEventListener('input', () => renderManageCharGrid(mCharSearchEl.value));
     }
+    manageChatSelectEl?.addEventListener('change', onManageChatChange);
     analyzeBtn?.addEventListener('click', () => startAnalysis());
     cancelBtn?.addEventListener('click', cancelAnalysis);
     doc.getElementById('reader-manage-back')?.addEventListener('click', backToManageChatList);
+    bindSubtabs();
+    extractRunBtn?.addEventListener('click', runExtract);
+    extractCopyBtn?.addEventListener('click', copyExtract);
 }
 
 /* =====================================================
@@ -226,11 +255,8 @@ function bindManageDom() {
  * ===================================================== */
 
 function showManageHome() {
-    if (manageHomeEl) manageHomeEl.style.display = '';
-    if (detailEl) detailEl.style.display = 'none';
-    if (reportEl) reportEl.innerHTML = '';
-    mLastReport = null;
     renderManageCharGrid('');
+    resetManageChatPanel();
 }
 
 /**
@@ -251,24 +277,66 @@ function formatTime(ts) {
 }
 
 function renderManageCharGrid(query) {
-    renderCharPicker({
-        doc,
-        gridEl: mCharGridEl,
-        titleEl: mCharTitleEl,
-        query,
-        onPick: (idx) => selectManageCharacter(idx),
-        onPickCurrent: () => openCurrentChatManage(),
-    });
+    if (!manageCharListEl) return;
+    manageCharListEl.innerHTML = '';
+    const q = (query || '').trim().toLowerCase();
+
+    for (let idx = 0; idx < characters.length; idx++) {
+        const char = characters[idx];
+        if (!char) continue;
+        if (q && !(char.name || '').toLowerCase().includes(q)) continue;
+        const item = doc.createElement('div');
+        item.className = 'binding-tree-char';
+        const row = doc.createElement('div');
+        row.className = 'binding-tree-row';
+        row.dataset.idx = String(idx);
+        row.appendChild(makeAvatar(char.avatar, char.name));
+        const name = doc.createElement('span');
+        name.className = 'binding-tree-name';
+        name.textContent = char.name || '';
+        row.appendChild(name);
+        row.addEventListener('click', () => {
+            manageCharListEl.querySelectorAll('.binding-tree-row.active').forEach(r => r.classList.remove('active'));
+            row.classList.add('active');
+            selectManageCharacter(idx);
+        });
+        item.appendChild(row);
+        manageCharListEl.appendChild(item);
+    }
 }
 
-function openCurrentChatManage() {
+/** 生成小头像（img 或首字母占位），载入失败自动回退占位 */
+function makeAvatar(avatarFile, name) {
+    const ph = (name || '?').trim().charAt(0).toUpperCase();
+    const url = (avatarFile && avatarFile !== 'none') ? getAvatarThumbUrl(avatarFile) : '';
+    if (url) {
+        const img = doc.createElement('img');
+        img.className = 'binding-tree-avatar';
+        img.src = url;
+        img.dataset.ph = ph;
+        img.onerror = () => {
+            const s = doc.createElement('span');
+            s.className = 'binding-tree-avatar';
+            s.textContent = ph;
+            img.replaceWith(s);
+        };
+        return img;
+    }
+    const span = doc.createElement('span');
+    span.className = 'binding-tree-avatar';
+    span.textContent = ph;
+    return span;
+}
+
+async function openCurrentChatManage() {
     const current = getCurrentChatDetails();
     if (!current) return;
     mCurrentChat = true;
     mActiveChar = null;
     mActiveCharIdx = -1;
     mActiveChatName = current.sessionName || '';
-    enterManageDetail(null, /*activeChat=*/ true);
+    mActiveChatMeta = null;
+    await populateChatSelect(null, /*isCurrent=*/ true);
 }
 
 async function selectManageCharacter(idx) {
@@ -277,20 +345,12 @@ async function selectManageCharacter(idx) {
     mCurrentChat = false;
     mActiveChar = char;
     mActiveCharIdx = idx;
-    openChatModal({
-        title: `选择聊天（${char.name}）`,
-        getChats: () => getPastCharacterChats(idx),
-        onPick: (chatMeta) => {
-            mActiveChatName = String(chatMeta.file_name || '').replace(/\.jsonl$/i, '');
-            mActiveChatMeta = chatMeta;
-            enterManageDetail(chatMeta, false);
-        },
-    });
+    mActiveChatMeta = null;
+    await populateChatSelect(char, /*isCurrent=*/ false);
 }
 
 function backToManageChatList() {
-    // 详情视图的「← 选择角色」：关闭任何残留弹窗，回到角色网格
-    closeChatModal();
+    // 重置右侧聊天选择（左角色树保持），回到未选聊天状态
     showManageHome();
 }
 
@@ -299,14 +359,14 @@ function backToManageChatList() {
  * ===================================================== */
 
 async function enterManageDetail(chatMeta, isCurrent) {
-    if (manageHomeEl) manageHomeEl.style.display = 'none';
-    if (detailEl) detailEl.style.display = '';
     if (reportEl) reportEl.innerHTML = '';
+    if (extractResultsEl) extractResultsEl.innerHTML = '';
     mLastReport = null;
+    mLastExtract = null;
 
     const label = isCurrent
         ? (getCurrentChatDetails()?.sessionName || '当前聊天')
-        : (chatMeta?.file_name || '').replace(/\.jsonl$/i, '');
+        : (chatMeta?.file_name || mActiveChatName || '').replace(/\.jsonl$/i, '');
     if (chatLabelEl) chatLabelEl.textContent = label;
     if (metaEl) {
         const parts = [];
@@ -325,8 +385,7 @@ async function enterManageDetail(chatMeta, isCurrent) {
         metaEl.textContent = parts.join(' · ');
     }
     if (analyzeBtn) analyzeBtn.style.display = '';
-    if (cancelBtn) cancelBtn.style.display = 'none';
-    if (progressEl) progressEl.style.display = 'none';
+    if (extractRunBtn) extractRunBtn.disabled = false;
 }
 
 async function startAnalysis() {
@@ -337,18 +396,9 @@ async function startAnalysis() {
     if (reportEl) reportEl.innerHTML = '<div class="reader-loading">正在读取聊天文件…</div>';
 
     try {
-        let lines = null; // ['<jsonl 文本行>', ...]，首行为元数据
-        if (mCurrentChat) {
-            // 当前聊天：直接读内存 chat（含首行元数据）
-            const chat = await getMemoryChat();
-            if (!chat) throw new Error('无法读取当前聊天');
-            lines = chat.map((m) => JSON.stringify(m));
-        } else {
-            const raw = await fetchChatJsonl(mActiveChatName, mActiveChar);
-            if (raw == null) throw new Error('读取聊天文件失败');
-            // 逐行切片（不 split 成数组，避免 N 个字符串常驻）
-            lines = sliceLines(raw);
-        }
+        const data = await getChatLines();
+        if (!data) throw new Error('读取聊天文件失败');
+        const lines = data.lines;
 
         const report = await scanLines(lines, (done, total) => {
             if (token !== mScanToken) throw new Error('cancelled');
@@ -378,6 +428,250 @@ async function startAnalysis() {
 function cancelAnalysis() {
     mScanToken++;
     if (reportEl && !reportEl.innerHTML) reportEl.innerHTML = '<div class="reader-loading">已取消分析</div>';
+}
+
+/* =====================================================
+ * 管理：读取聊天（体检 / 提取 共用）
+ * ===================================================== */
+
+/**
+ * 读取当前选中聊天的 jsonl 行数组。
+ * @returns {Promise<{lines:string[],hasMetaLine:boolean,isCurrent:boolean}|null>}
+ */
+async function getChatLines() {
+    if (mCurrentChat) {
+        const chat = await getMemoryChat();
+        if (!chat) return null;
+        return { lines: chat.map((m) => JSON.stringify(m)), hasMetaLine: false, isCurrent: true };
+    }
+    if (!mActiveChar) return null;
+    const raw = await fetchChatJsonl(mActiveChatName, mActiveChar);
+    if (raw == null) return null;
+    return { lines: sliceLines(raw), hasMetaLine: true, isCurrent: false };
+}
+
+/* =====================================================
+ * 管理：右侧聊天下拉（主从布局，内联选择，不弹窗）
+ * ===================================================== */
+
+/**
+ * 填充右侧聊天下拉：当前聊天 → 单个「当前聊天」选项；历史角色 → 拉聊天列表。
+ * @param {object|null} char 角色对象（isCurrent 时传 null）
+ * @param {boolean} isCurrent 是否为当前打开聊天
+ */
+async function populateChatSelect(char, isCurrent) {
+    if (!manageChatSelectEl) return;
+    manageChatSelectEl.innerHTML = '';
+    if (isCurrent) {
+        const cur = getCurrentChatDetails();
+        const name = cur?.sessionName || '当前聊天';
+        const opt = doc.createElement('option');
+        opt.value = '__current__';
+        opt.textContent = `当前聊天：${name}`;
+        manageChatSelectEl.appendChild(opt);
+        manageChatSelectEl.disabled = false;
+        mChatList = [];
+        mActiveChatName = name;
+        onManageChatChange();
+        return;
+    }
+    const idx = mActiveCharIdx;
+    let chats = [];
+    try { chats = (await getPastCharacterChats(idx)) || []; } catch (e) { chats = []; }
+    if (!chats.length) {
+        const opt = doc.createElement('option');
+        opt.value = '';
+        opt.textContent = '该角色没有历史聊天';
+        manageChatSelectEl.appendChild(opt);
+        manageChatSelectEl.disabled = true;
+        return;
+    }
+    manageChatSelectEl.disabled = false;
+    mChatList = chats;
+    for (const c of chats) {
+        const fn = String(c.file_name || '').replace(/\.jsonl$/i, '');
+        const opt = doc.createElement('option');
+        opt.value = fn;
+        opt.textContent = fn;
+        manageChatSelectEl.appendChild(opt);
+    }
+    manageChatSelectEl.value = String(chats[0].file_name || '').replace(/\.jsonl$/i, '');
+    onManageChatChange();
+}
+
+/** 下拉变更：解析选中聊天并载入右侧详情 */
+function onManageChatChange() {
+    if (!manageChatSelectEl) return;
+    const v = manageChatSelectEl.value;
+    if (!v) { resetManageChatPanel(); return; }
+    if (v === '__current__') {
+        mCurrentChat = true;
+        mActiveChar = null;
+        mActiveCharIdx = -1;
+        mActiveChatName = getCurrentChatDetails()?.sessionName || '';
+        mActiveChatMeta = null;
+    } else {
+        mCurrentChat = false;
+        mActiveChatName = v;
+        mActiveChatMeta = findChatMeta(v);
+    }
+    enterManageDetail(mActiveChatMeta, mCurrentChat);
+}
+
+function findChatMeta(name) {
+    return mChatList.find((c) => String(c.file_name || '').replace(/\.jsonl$/i, '') === name) || null;
+}
+
+/** 重置右侧面板（保留左角色树），回到未选聊天状态 */
+function resetManageChatPanel() {
+    if (chatLabelEl) chatLabelEl.textContent = '';
+    if (metaEl) metaEl.textContent = '';
+    if (reportEl) reportEl.innerHTML = '';
+    if (extractResultsEl) extractResultsEl.innerHTML = '';
+    if (extractWarnEl) { extractWarnEl.style.display = 'none'; extractWarnEl.textContent = ''; }
+    if (analyzeBtn) analyzeBtn.style.display = '';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (progressEl) progressEl.style.display = 'none';
+    if (extractRunBtn) extractRunBtn.disabled = true;
+    if (extractCopyBtn) extractCopyBtn.disabled = true;
+    if (manageChatSelectEl) {
+        manageChatSelectEl.disabled = true;
+        manageChatSelectEl.innerHTML = '<option value="">请先在左侧选择角色…</option>';
+    }
+    mLastReport = null;
+    mLastExtract = null;
+    mActiveChatName = '';
+    mActiveChatMeta = null;
+    mCurrentChat = false;
+    mActiveChar = null;
+    mActiveCharIdx = -1;
+    mChatList = [];
+}
+
+/** 子tab 切换（体检 / 提取） */
+function bindSubtabs() {
+    if (!manageSubtabsEl) return;
+    manageSubtabsEl.querySelectorAll('.subtab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.target;
+            manageSubtabsEl.querySelectorAll('.subtab').forEach((t) => t.classList.toggle('active', t === tab));
+            doc.querySelectorAll('.subtab-panel').forEach((p) => p.classList.toggle('active', p.id === target));
+        });
+    });
+}
+
+/* =====================================================
+ * 管理：提取子tab（正则 + 模板 → 按角色过滤 → 结果 + 未匹配提醒）
+ * 抽象 contentUnit={floorIndex,kind,swipeId,text}：现仅 mes，
+ * 将来扩展 swipes 时只需在此处把每个 swipe 分支补为独立 unit。
+ * ===================================================== */
+
+function getRoleOf(mes) {
+    if (mes?.is_system) return 'system';
+    if (mes?.is_user) return 'user';
+    return 'assistant';
+}
+
+async function runExtract() {
+    const pattern = extractPatternEl?.value?.trim();
+    const tpl = extractTemplateEl?.value ?? '';
+    if (!pattern) { showExtractWarn('请输入正则'); return; }
+    const { ok, regex, error } = compileRegex(pattern, extractFlagsEl?.value ?? '');
+    if (!ok) { showExtractWarn(`正则无效：${error}`); return; }
+
+    const roles = new Set();
+    if (extractRoleUserEl?.checked) roles.add('user');
+    if (extractRoleAssistantEl?.checked) roles.add('assistant');
+    if (extractRoleSystemEl?.checked) roles.add('system');
+
+    const data = await getChatLines();
+    if (!data) { showExtractWarn('无法读取聊天文件（请先选择聊天）'); return; }
+    const { lines, hasMetaLine } = data;
+
+    const results = [];
+    const unmatched = [];
+    const startIdx = hasMetaLine ? 1 : 0;
+    for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line) continue;
+        let mes;
+        try { mes = JSON.parse(line); } catch (e) { continue; }
+        const floor = hasMetaLine ? i - 1 : i;
+        const role = getRoleOf(mes);
+        if (!roles.has(role)) continue;
+        const text = typeof mes?.mes === 'string' ? mes.mes : '';
+        // contentUnit（swipes 预留：将来 mes.swipes 各分支各产一个 unit）
+        const unit = { floorIndex: floor, kind: 'mes', swipeId: mes?.swipe_id ?? null, text };
+        const matches = matchAll(unit.text, regex);
+        if (matches.length === 0) { unmatched.push(floor); continue; }
+        for (const m of matches) {
+            results.push({ floor, role, filled: fillTemplate(tpl, m) });
+        }
+    }
+    mLastExtract = results;
+    renderExtractResults(results, unmatched);
+}
+
+function renderExtractResults(results, unmatched) {
+    if (!extractResultsEl) return;
+    if (results.length === 0) {
+        showExtractWarn(unmatched.length > 0 ? '所选角色范围内没有命中任何匹配' : '没有可提取的内容（请先选择聊天并确认角色过滤）');
+        extractResultsEl.innerHTML = '';
+        if (extractCopyBtn) extractCopyBtn.disabled = true;
+        return;
+    }
+    let warn = '';
+    if (unmatched.length > 0) {
+        warn = `以下楼层（在所选角色范围内）未提取到匹配，共 ${unmatched.length} 层：\n${unmatched.join(', ')}`;
+    }
+    showExtractWarn(warn, !!warn);
+
+    const PREVIEW_MAX = 2000;
+    const container = doc.createElement('div');
+    container.className = 'cc-manage-report-inner';
+    results.forEach((r) => {
+        const item = doc.createElement('div');
+        item.className = 'cc-extract-item';
+        const head = doc.createElement('div');
+        head.className = 'cc-extract-head';
+        head.textContent = `[楼层#${r.floor}] ${r.role}`;
+        const body = doc.createElement('div');
+        body.className = 'cc-extract-body';
+        let t = r.filled;
+        if (t.length > PREVIEW_MAX) t = `${t.slice(0, PREVIEW_MAX)}\n…（已截断，共 ${t.length} 字符）`;
+        body.textContent = t;
+        item.append(head, body);
+        container.appendChild(item);
+    });
+    extractResultsEl.innerHTML = '';
+    extractResultsEl.appendChild(container);
+    if (extractCopyBtn) extractCopyBtn.disabled = false;
+}
+
+function showExtractWarn(msg, visible) {
+    if (!extractWarnEl) return;
+    if (!msg) { extractWarnEl.style.display = 'none'; extractWarnEl.textContent = ''; return; }
+    extractWarnEl.textContent = msg;
+    extractWarnEl.style.display = visible === false ? 'none' : 'block';
+}
+
+function copyExtract() {
+    if (!mLastExtract || mLastExtract.length === 0) return;
+    const text = mLastExtract.map((r) => r.filled).join('\n');
+    if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const ta = doc.createElement('textarea');
+    ta.value = text;
+    doc.body.appendChild(ta);
+    ta.select();
+    try { doc.execCommand('copy'); } catch (e) { /* ignore */ }
+    ta.remove();
 }
 
 /**
