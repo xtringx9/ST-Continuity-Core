@@ -125,17 +125,31 @@ function getChatNamesForChar(charName, avatar) {
             const response = await fetch('/api/characters/chats', {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ avatar_url: avatar, simple: true }),
+                body: JSON.stringify({ avatar_url: avatar }),
             });
             if (!response.ok) return [];
             const data = await response.json();
-            return Object.values(data || {}).map(x => String(x.file_name || '').replace(/\.jsonl$/, ''));
+            // 返回完整元数据：文件名 / 楼层数 chat_items / 文件大小 file_size / 最后消息 last_mes
+            return Object.values(data || {}).map(x => ({
+                name: String(x.file_name || '').replace(/\.jsonl$/, ''),
+                chat_items: x.chat_items,
+                file_size: x.file_size,
+                last_mes: x.last_mes,
+            }));
         } catch {
             return [];
         }
     })();
     chatCache.set(charName, p);
     return p;
+}
+
+function fmtChatMetaDate(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 async function renderTree() {
@@ -378,23 +392,35 @@ async function renderDetail() {
             const chats = await getChatNamesForChar(selected.charName, char.avatar);
             // 当前聊天置顶
             if (current.chatFile) {
-                const idx = chats.indexOf(current.chatFile);
+                const idx = chats.findIndex(c => c.name === current.chatFile);
                 if (idx > 0) { const [c] = chats.splice(idx, 1); chats.unshift(c); }
             }
             chatOptions = chats;
         }
     } else {
-        // 非当前角色：列出配置里残留的聊天绑定（无法枚举真实聊天）
+        // 非当前角色：列出配置里残留的聊天绑定（无法枚举真实聊天，元数据留空）
         chatOptions = configManager.getBindings()
             .filter(x => x.charName === selected.charName && x.scope === 'chat' && x.chatFile)
-            .map(x => x.chatFile);
+            .map(x => ({ name: x.chatFile, chat_items: null, file_size: null, last_mes: null }));
     }
+
+    const isChatScope = selected.scope === 'chat';
+    // 角色级只显示「模块覆盖 / 变量设置」；聊天级额外显示「模块条目 / 聊天操作」
+    const tabDefs = isChatScope
+        ? [['binding-tab-modules', '模块覆盖'], ['binding-tab-vars', '变量设置'], ['binding-tab-entries', '模块条目'], ['binding-tab-chatops', '聊天操作']]
+        : [['binding-tab-modules', '模块覆盖'], ['binding-tab-vars', '变量设置']];
+    const tabItemsHtml = tabDefs.map(([t, label], i) => `<div class="detail-tab-item ${i === 0 ? 'active' : ''}" data-target="${t}">${label}</div>`).join('');
 
     const scopeOptions = [
         `<option value="" ${!selected.chatFile ? 'selected' : ''}>${translate('ccore_binding_all_chats')}</option>`,
         ...chatOptions.map(chat => {
-            const isCur = isCurrentChar && chat === current.chatFile;
-            return `<option value="${escapeAttr(chat)}" ${selected.chatFile === chat ? 'selected' : ''}>${isCur ? '● ' : ''}${escapeHtml(chat)}</option>`;
+            const isCur = isCurrentChar && chat.name === current.chatFile;
+            const meta = [];
+            if (chat.chat_items != null) meta.push(`${chat.chat_items}楼`);
+            if (chat.file_size) meta.push(String(chat.file_size));
+            if (chat.last_mes) meta.push(fmtChatMetaDate(chat.last_mes));
+            const label = meta.length ? `${chat.name}（${meta.join(' · ')}）` : chat.name;
+            return `<option value="${escapeAttr(chat.name)}" ${selected.chatFile === chat.name ? 'selected' : ''}>${isCur ? '● ' : ''}${escapeHtml(label)}</option>`;
         }),
     ].join('');
 
@@ -409,10 +435,13 @@ async function renderDetail() {
     const modNames = [...names].sort((a, b) => (moduleOrderMap.get(a) ?? 0) - (moduleOrderMap.get(b) ?? 0));
 
     detailEl.innerHTML = `
-        <div class="binding-detail-header">
-            <button class="mobile-only btn-back-icon" id="binding-back-btn" title="${translate('ccore_binding_back_to_chars')}">❮</button>
-            <h3>${title}</h3>
-            <span class="binding-detail-scope">${scopeLabel}</span>
+        <div class="detail-tabs" id="binding-detail-tabs">
+            <div class="sticky-title-group">
+                <button class="mobile-only btn-back-icon" id="binding-back-btn" title="${translate('ccore_binding_back_to_chars')}">❮</button>
+                <span class="sticky-module-name" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
+                <span class="binding-detail-scope">${scopeLabel}</span>
+            </div>
+            ${tabItemsHtml}
         </div>
         <div class="binding-chat-select-row">
             <label class="binding-chat-select-label">${translate('ccore_binding_chat_select')}</label>
@@ -422,29 +451,36 @@ async function renderDetail() {
             ${buildCurrentChatJumpBtn()}
         </div>
         <div class="binding-detail-body" id="binding-detail-body">
-            <div class="form-section-title binding-section-head">
-                <span>${translate('ccore_binding_section_modules')}</span>
-                <div class="binding-section-head-actions">
-                    <button class="btn-secondary binding-add-btn" id="binding-add-btn">＋ ${translate('ccore_binding_add_module')}</button>
-                    <button class="btn-secondary binding-reset-btn" id="binding-reset-btn" title="${translate('ccore_binding_reset')}">${translate('ccore_binding_reset')}</button>
+            <div class="detail-tab-panel active" id="binding-tab-modules">
+                <div class="form-section-title binding-section-head">
+                    <span>${translate('ccore_binding_section_modules')}</span>
+                    <div class="binding-section-head-actions">
+                        <button class="btn-secondary binding-add-btn" id="binding-add-btn">＋ ${translate('ccore_binding_add_module')}</button>
+                        <button class="btn-secondary binding-reset-btn" id="binding-reset-btn" title="${translate('ccore_binding_reset')}">${translate('ccore_binding_reset')}</button>
+                    </div>
+                </div>
+                <div class="binding-section-body">
+                    <div class="binding-mod-list" id="binding-mod-list">
+                        ${modNames.length
+                            ? modNames.map(renderModuleBlock).join('')
+                            : `<p style="color:var(--text-muted);">${translate('ccore_binding_empty')}</p>`}
+                    </div>
                 </div>
             </div>
-            <div class="binding-section-body">
-                <div class="binding-mod-list" id="binding-mod-list">
-                    ${modNames.length
-                        ? modNames.map(renderModuleBlock).join('')
-                        : `<p style="color:var(--text-muted);">${translate('ccore_binding_empty')}</p>`}
+            <div class="detail-tab-panel" id="binding-tab-vars">
+                ${renderVarBindingSection()}
+            </div>
+            ${isChatScope ? `
+            <div class="detail-tab-panel" id="binding-tab-entries">
+                ${renderChatModuleEntriesSection(true)}
+            </div>
+            <div class="detail-tab-panel" id="binding-tab-chatops">
+                <div class="form-section-title">${translate('ccore_binding_section_chatops')}</div>
+                <div class="binding-section-body">
+                    <p style="color:var(--text-muted);">${translate('ccore_binding_section_chatops_hint')}</p>
+                    <button class="btn-secondary chat-op-migrate-wb" style="padding:4px 10px;font-size:12px;margin-top:6px;">${translate('ccore_btn_migrate_worldbook_chat')}</button>
                 </div>
-            </div>
-            ${renderVarBindingSection()}
-            ${renderChatModuleEntriesSection(selected.scope === 'chat')}
-            <div class="form-section-title">${translate('ccore_binding_section_chatops')}</div>
-            <div class="binding-section-body">
-                <p style="color:var(--text-muted);">${translate('ccore_binding_section_chatops_hint')}</p>
-                ${selected.scope === 'chat' ? `
-                <button class="btn-secondary chat-op-migrate-wb" style="padding:4px 10px;font-size:12px;margin-top:6px;">${translate('ccore_btn_migrate_worldbook_chat')}</button>
-                ` : ''}
-            </div>
+            </div>` : ''}
         </div>
     `;
 
@@ -484,6 +520,7 @@ async function renderDetail() {
     bindChatModuleEntries();
     bindVarBinding();
     bindChatOpMigrateButton();
+    bindBindingTabs();
 }
 
 /** 绑定「聊天操作」区的搬迁世界书模块按钮（仅聊天级 scope 显示） */
@@ -494,6 +531,19 @@ function bindChatOpMigrateButton() {
         const count = migrateWorldBookModulesToChatEntries();
         showToast(`${translate('ccore_btn_migrate_worldbook_chat')} 完成，复制 ${count} 条到当前聊天`, 'success');
         renderDetail(); // 刷新条目列表显示新搬迁的条目
+    });
+}
+
+/** 绑定详情顶部的 tab 切换（模块覆盖/变量设置/模块条目/聊天操作） */
+function bindBindingTabs() {
+    const tabsEl = detailEl.querySelector('#binding-detail-tabs');
+    if (!tabsEl) return;
+    tabsEl.querySelectorAll('.detail-tab-item').forEach((tab) => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.target;
+            tabsEl.querySelectorAll('.detail-tab-item').forEach((t) => t.classList.toggle('active', t === tab));
+            detailEl.querySelectorAll('.detail-tab-panel').forEach((p) => p.classList.toggle('active', p.id === target));
+        });
     });
 }
 

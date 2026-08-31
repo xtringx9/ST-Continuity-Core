@@ -238,7 +238,7 @@ function bindManageDom() {
     extractCopyBtn = doc.getElementById('extract-copy');
     extractWarnEl = doc.getElementById('extract-warn');
     extractResultsEl = doc.getElementById('extract-results');
-    manageSubtabsEl = doc.getElementById('manage-subtabs');
+    manageSubtabsEl = doc.getElementById('manage-detail-tabs');
 
     if (mCharSearchEl) {
         mCharSearchEl.addEventListener('input', () => renderManageCharGrid(mCharSearchEl.value));
@@ -373,6 +373,11 @@ async function enterManageDetail(chatMeta, isCurrent) {
         ? (getCurrentChatDetails()?.sessionName || '当前聊天')
         : (chatMeta?.file_name || mActiveChatName || '').replace(/\.jsonl$/i, '');
     if (chatLabelEl) chatLabelEl.textContent = label;
+    const headerCharEl = doc.getElementById('reader-manage-char-label');
+    if (headerCharEl) {
+        const charName = mActiveChar?.name || (isCurrent ? (getCurrentChatDetails()?.charName || '') : '');
+        headerCharEl.textContent = charName || '未命名角色';
+    }
     if (metaEl) {
         const parts = [];
         if (isCurrent) {
@@ -470,9 +475,15 @@ async function populateChatSelect(char, isCurrent) {
     if (isCurrent) {
         const cur = getCurrentChatDetails();
         const name = cur?.sessionName || '当前聊天';
+        let text = `当前聊天：${name}`;
+        try {
+            const memChat = await getMemoryChat();
+            const floors = Array.isArray(memChat) ? memChat.length : 0;
+            if (floors > 0) text += ` · ${floors}楼`;
+        } catch { /* 取不到内存聊天则忽略 */ }
         const opt = doc.createElement('option');
         opt.value = '__current__';
-        opt.textContent = `当前聊天：${name}`;
+        opt.textContent = text;
         manageChatSelectEl.appendChild(opt);
         manageChatSelectEl.disabled = false;
         mChatList = [];
@@ -495,9 +506,14 @@ async function populateChatSelect(char, isCurrent) {
     mChatList = chats;
     for (const c of chats) {
         const fn = String(c.file_name || '').replace(/\.jsonl$/i, '');
+        const parts = [];
+        if (c.chat_items != null) parts.push(`${c.chat_items}楼`);
+        if (c.file_size) parts.push(String(c.file_size));
+        if (c.last_mes) parts.push(formatTime(c.last_mes));
+        const meta = parts.join(' · ');
         const opt = doc.createElement('option');
         opt.value = fn;
-        opt.textContent = fn;
+        opt.textContent = meta ? `${fn}　(${meta})` : fn;
         manageChatSelectEl.appendChild(opt);
     }
     manageChatSelectEl.value = String(chats[0].file_name || '').replace(/\.jsonl$/i, '');
@@ -553,14 +569,14 @@ function resetManageChatPanel() {
     mChatList = [];
 }
 
-/** 子tab 切换（体检 / 提取） */
+/** 子tab 切换（体检 / 提取），复用共享 .detail-tab-item / .detail-tab-panel */
 function bindSubtabs() {
     if (!manageSubtabsEl) return;
-    manageSubtabsEl.querySelectorAll('.subtab').forEach((tab) => {
+    manageSubtabsEl.querySelectorAll('.detail-tab-item').forEach((tab) => {
         tab.addEventListener('click', () => {
             const target = tab.dataset.target;
-            manageSubtabsEl.querySelectorAll('.subtab').forEach((t) => t.classList.toggle('active', t === tab));
-            doc.querySelectorAll('.subtab-panel').forEach((p) => p.classList.toggle('active', p.id === target));
+            manageSubtabsEl.querySelectorAll('.detail-tab-item').forEach((t) => t.classList.toggle('active', t === tab));
+            doc.querySelectorAll('.detail-tab-panel').forEach((p) => p.classList.toggle('active', p.id === target));
         });
     });
 }

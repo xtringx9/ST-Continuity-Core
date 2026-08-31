@@ -765,7 +765,7 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 /* === 主从布局（左角色树 + 右详情）+ 子tab ===
  * chat-reader 管理页与 module-editor 角色绑定页共用的主从结构。
  * 左栏 .md-aside 放角色树（搜索 + 列表），右栏 .md-main 放详情
- * （顶部聊天下拉 + 一行 .subtab 子tab + 对应 .subtab-panel）。 */
+ * （顶部聊天下拉 + 一行 .detail-tab-item 子tab + 对应 .detail-tab-panel）。 */
 .md-split {
     flex: 1;
     display: flex;
@@ -813,47 +813,75 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 }
 
 /* 子tab（模块属性/变量管理、体检/提取 等同构） */
-.subtabs {
+/* === 详情 Tab（共享：模块管理右栏「模块属性/变量管理」、
+ * 角色绑定「模块覆盖/变量设置/模块条目/聊天操作」、聊天管理「体检/提取」等同构）。
+ * 由 module-editor 的 .subtab 体系抽离，统一视觉与交互。 === */
+.detail-tabs {
     display: flex;
+    align-items: center;
     gap: 4px;
-    padding: 8px 12px 0;
-    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--bg-app, #fff);
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    padding: 0 12px;
     flex-shrink: 0;
 }
 
-.subtab {
-    padding: 6px 14px;
+/* 左栏标题组（返回按钮 + 名称），靠 margin-right:auto 把右侧 tab 推到最右 */
+.sticky-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.sticky-module-name {
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary, #111827);
+}
+
+.detail-tab-item {
+    padding: 8px 12px;
     cursor: pointer;
     color: var(--text-secondary, #4b5563);
-    border: 1px solid transparent;
-    border-bottom: none;
-    border-radius: 6px 6px 0 0;
     font-size: 13px;
     font-weight: 500;
-    transition: all 0.15s;
-}
-
-.subtab:hover {
-    background: var(--bg-hover, #f3f4f6);
-}
-
-.subtab.active {
-    color: var(--accent-color, #2563eb);
-    background: var(--bg-app, #fff);
-    border-color: var(--border-light, #f3f4f6);
-    border-bottom-color: var(--bg-app, #fff);
+    border-bottom: 2px solid transparent;
     margin-bottom: -1px;
+    transition: all 0.2s;
 }
 
-.subtab-panel {
+.detail-tab-item:hover {
+    color: var(--text-primary, #111827);
+}
+
+.detail-tab-item.active {
+    color: var(--accent-color, #2563eb);
+    border-bottom-color: var(--accent-color, #2563eb);
+}
+
+.detail-tab-panel {
     display: none;
+}
+
+.detail-tab-panel.active {
+    display: block;
+}
+
+/* 聊天管理右栏的子tab面板需自滚动填充（模块/绑定右栏由 .detail-content 滚动，不在此处理） */
+.md-main .detail-tab-panel {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 12px;
-}
-
-.subtab-panel.active {
-    display: block;
 }
 
 /* 顶部聊天下拉（主从右栏通用） */
@@ -1031,9 +1059,5 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     body.mobile-view-detail-manage .md-main {
         display: flex;
         flex-direction: column;
-    }
-
-    .subtab-panel {
-        padding: 10px;
     }
 }
