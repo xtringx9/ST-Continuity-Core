@@ -599,10 +599,10 @@
 }
 
 .cc-manage-keys-title {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
-    color: var(--text-secondary, #4b5563);
-    margin-bottom: 8px;
+    color: var(--accent-color, #2563eb);
+    margin: 16px 0 10px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--border-light, #f3f4f6);
 }

@@ -774,7 +774,7 @@ input[type="number"]::-webkit-inner-spin-button:hover {
 }
 
 .md-aside {
-    width: 260px;
+    width: 200px;
     flex-shrink: 0;
     background-color: var(--bg-panel, #f9fafb);
     border-right: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
@@ -789,6 +789,7 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     flex-direction: column;
     overflow: hidden;
     min-width: 0;
+    background: var(--bg-app, #fff);
 }
 
 .md-toolbar {
@@ -802,6 +803,13 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     flex: 1;
     overflow-y: auto;
     padding: 10px;
+}
+
+/* 左栏搜索框满宽（与角色绑定页 .list-toolbar 内搜索框一致） */
+.md-toolbar .reader-char-search {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* 子tab（模块属性/变量管理、体检/提取 等同构） */
@@ -999,16 +1007,30 @@ input[type="number"]::-webkit-inner-spin-button:hover {
         padding: 15px;
     }
 
-    /* 主从布局在手机端改为上下堆叠：左栏角色树占上半，右栏详情占下半 */
-    .md-split {
-        flex-direction: column;
-    }
-
+    /* 手机端：左栏/右栏单栏切换（与角色绑定页 body.mobile-view-detail-binding 同构，
+       复用 .mobile-view-detail-manage，由 ChatManager 在选中角色/当前聊天时添加、返回时移除） */
     .md-aside {
         width: 100%;
-        height: 42%;
         border-right: none;
         border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    }
+
+    .md-main {
+        width: 100%;
+    }
+
+    /* 默认显示左栏、隐藏右栏 */
+    body:not(.mobile-view-detail-manage) .md-main {
+        display: none;
+    }
+
+    body.mobile-view-detail-manage .md-aside {
+        display: none;
+    }
+
+    body.mobile-view-detail-manage .md-main {
+        display: flex;
+        flex-direction: column;
     }
 
     .subtab-panel {

@@ -209,6 +209,8 @@ function switchView(view) {
     doc.getElementById('reader-view-manage')?.classList.toggle('active', view === 'manage');
     if (view === 'manage') {
         showManageHome();
+    } else {
+        doc.body.classList.remove('mobile-view-detail-manage');
     }
 }
 
@@ -255,6 +257,7 @@ function bindManageDom() {
  * ===================================================== */
 
 function showManageHome() {
+    doc.body.classList.remove('mobile-view-detail-manage');
     renderManageCharGrid('');
     resetManageChatPanel();
 }
@@ -337,6 +340,7 @@ async function openCurrentChatManage() {
     mActiveChatName = current.sessionName || '';
     mActiveChatMeta = null;
     await populateChatSelect(null, /*isCurrent=*/ true);
+    doc.body.classList.add('mobile-view-detail-manage');
 }
 
 async function selectManageCharacter(idx) {
@@ -347,6 +351,7 @@ async function selectManageCharacter(idx) {
     mActiveCharIdx = idx;
     mActiveChatMeta = null;
     await populateChatSelect(char, /*isCurrent=*/ false);
+    doc.body.classList.add('mobile-view-detail-manage');
 }
 
 function backToManageChatList() {
