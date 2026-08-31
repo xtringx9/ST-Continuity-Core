@@ -808,6 +808,45 @@
     }
 }
 
+/* 移动端：分析页报告表格改为卡片布局（键名一行 + 元数据一行 + 操作一行），
+   避免「导出/清理」操作列被 6 列 grid 的最小宽度裁切而看不见 */
+@media (max-width: 768px) {
+    .cc-manage-table { overflow: visible; }
+    .cc-manage-tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 10px;
+        padding: 10px;
+    }
+    .cc-manage-tr-head { display: none; }
+    .cc-manage-td {
+        white-space: normal;
+        overflow: visible;
+    }
+    .cc-manage-td.cc-manage-k {
+        flex: 1 1 100%;
+        white-space: normal;
+        word-break: break-all;
+        font-size: 13px;
+    }
+    /* 类型 / 命中楼层 / 字节 / 占比 并排成一行 */
+    .cc-manage-tr > .cc-manage-td:not(.cc-manage-k):not(.cc-manage-ops) {
+        flex: 0 1 auto;
+        white-space: nowrap;
+    }
+    /* 无表头时给元数据加小标签，便于阅读 */
+    .cc-manage-tr > .cc-manage-td:nth-child(2)::before { content: "类型 "; color: var(--text-muted, #9ca3af); }
+    .cc-manage-tr > .cc-manage-td:nth-child(3)::before { content: "楼层 "; color: var(--text-muted, #9ca3af); }
+    .cc-manage-tr > .cc-manage-td:nth-child(4)::before { content: "字节 "; color: var(--text-muted, #9ca3af); }
+    .cc-manage-tr > .cc-manage-td:nth-child(5)::before { content: "占比 "; color: var(--text-muted, #9ca3af); }
+    .cc-manage-ops {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+        margin-top: 4px;
+    }
+}
+
 .cc-manage-preview {
     grid-column: 1 / -1;
     background: var(--bg-app, #fff);

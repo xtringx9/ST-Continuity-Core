@@ -494,6 +494,12 @@ async function populateChatSelect(char, isCurrent) {
     const idx = mActiveCharIdx;
     let chats = [];
     try { chats = (await getPastCharacterChats(idx)) || []; } catch (e) { chats = []; }
+    // 按最后消息时间从新到旧排序（之前是接口原始顺序，并非日期序）
+    chats.sort((a, b) => {
+        const ta = a.last_mes ? (Date.parse(a.last_mes) || Number(a.last_mes) || 0) : 0;
+        const tb = b.last_mes ? (Date.parse(b.last_mes) || Number(b.last_mes) || 0) : 0;
+        return tb - ta;
+    });
     if (!chats.length) {
         const opt = doc.createElement('option');
         opt.value = '';

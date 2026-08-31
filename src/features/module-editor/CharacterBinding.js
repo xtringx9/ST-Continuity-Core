@@ -390,6 +390,12 @@ async function renderDetail() {
         const char = getRealCharacters().find(c => c.name === selected.charName);
         if (char?.avatar) {
             const chats = await getChatNamesForChar(selected.charName, char.avatar);
+            // 按最后消息时间从新到旧排序（之前是接口原始顺序，并非日期序）；当前聊天随后置顶
+            chats.sort((a, b) => {
+                const ta = a.last_mes ? (Date.parse(a.last_mes) || Number(a.last_mes) || 0) : 0;
+                const tb = b.last_mes ? (Date.parse(b.last_mes) || Number(b.last_mes) || 0) : 0;
+                return tb - ta;
+            });
             // 当前聊天置顶
             if (current.chatFile) {
                 const idx = chats.findIndex(c => c.name === current.chatFile);
