@@ -11,7 +11,7 @@
 //
 // 主题：与其它编辑器一致，由 syncChatReaderTheme 统一处理（本模块不重复绑定）。
 
-import { characters, getPastCharacterChats, getRequestHeaders, this_chid } from '../../../../../../../script.js';
+import { characters, getPastCharacterChats, getRequestHeaders } from '../../../../../../../script.js';
 import { getCurrentChatDetails } from '../../../../../../../script.js';
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
 import { renderCharPicker, openChatModal, closeChatModal, chatTimeValue } from './ChatReader.js';
@@ -894,11 +894,11 @@ function promptSaveAsNew() {
     });
 }
 
-/** 默认模板名：优先取当前角色名，否则回退「模板N」 */
+/** 默认模板名：优先取阅读器当前选中角色名（被处理聊天所属角色，而非酒馆当前打开角色 this_chid），否则回退「模板N」 */
 function getDefaultTplName() {
     try {
-        if (this_chid != null && characters[this_chid]?.name) {
-            return characters[this_chid].name;
+        if (mActiveChar?.name) {
+            return mActiveChar.name;
         }
     } catch (e) { /* ignore */ }
     const list = configManager.getChatToolsConfig().extractTemplates || [];
