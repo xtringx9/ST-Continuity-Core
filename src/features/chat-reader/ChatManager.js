@@ -161,9 +161,9 @@ let extractIncludeHiddenEl = null;
 let extractTplSelectEl = null;
 let extractTplSaveBtn = null;
 let extractTplDeleteBtn = null;
-let extractReplTargetEl = null;
-let extractReplFromEl = null;
-let extractReplToEl = null;
+let extractTplRenameBtn = null;
+let extractReplListEl = null;
+let extractReplAddBtn = null;
 let mActiveTplId = null;
 let extractRunBtn = null;
 let extractCopyBtn = null;
@@ -249,18 +249,20 @@ function bindManageDom() {
     extractTplSelectEl = doc.getElementById('extract-tpl-select');
     extractTplSaveBtn = doc.getElementById('extract-tpl-save');
     extractTplDeleteBtn = doc.getElementById('extract-tpl-delete');
+    extractTplRenameBtn = doc.getElementById('extract-tpl-rename');
     manageDoc = doc;
-    extractReplTargetEl = doc.getElementById('extract-repl-target');
-    extractReplFromEl = doc.getElementById('extract-repl-from');
-    extractReplToEl = doc.getElementById('extract-repl-to');
+    extractReplListEl = doc.getElementById('extract-repl-list');
+    extractReplAddBtn = doc.getElementById('extract-repl-add');
+    extractReplAddBtn?.addEventListener('click', () => addReplRuleRow());
     // 正则里的命名组变化时，同步「二次替换 → 作用于」下拉
     extractPatternEl?.addEventListener('input', refreshReplTargets);
     // 选中即载入（无需「载入」按钮）；保存会连同名称一起写回，故改名=重命名
     extractTplSelectEl?.addEventListener('change', loadSelectedTemplate);
     extractTplSaveBtn?.addEventListener('click', saveTemplate);
     extractTplDeleteBtn?.addEventListener('click', deleteTemplate);
+    extractTplRenameBtn?.addEventListener('click', renameTemplate);
     refreshExtractTplSelect();
-    refreshReplTargets();
+    renderReplRules([]);   // 初始显示一行空替换
     extractRunBtn = doc.getElementById('extract-run');
     extractCopyBtn = doc.getElementById('extract-copy');
     extractWarnEl = doc.getElementById('extract-warn');
@@ -652,9 +654,7 @@ async function runExtract() {
     const includeUser = !!extractIncludeUserEl?.checked;
     const includeAI = !!extractIncludeAiEl?.checked;
     const includeHidden = !!extractIncludeHiddenEl?.checked;
-    const replTarget = extractReplTargetEl?.value || '';
-    const replFrom = extractReplFromEl?.value ?? '';
-    const replTo = extractReplToEl?.value ?? '';
+    const replRules = collectReplRules();
 
     let data;
     try {
@@ -690,10 +690,16 @@ async function runExtract() {
             const matches = matchAll(unit.text, regex);
             if (matches.length === 0) { unmatched.push(floor); continue; }
             for (const m of matches) {
-                // 二次替换：指定组时在填充前改该组内容；作用于整条输出时在填充后替换
-                const m2 = applyGroupReplace(m, replTarget, replFrom, replTo);
+                // 二次替换：逐条规则；作用于命名组时在填充前改该组内容，作用于「全部输出」时在填充后替换
+                let m2 = m;
+                const starRules = [];
+                for (const r of replRules) {
+                    if (!r.target || !r.from) continue;
+                    if (r.target === '*') { starRules.push(r); continue; }
+                    m2 = applyGroupReplace(m2, r.target, r.from, r.to);
+                }
                 let filled = fillTemplate(tpl, m2);
-                if (replTarget === '*' && replFrom) filled = filled.split(replFrom).join(replTo);
+                for (const r of starRules) filled = filled.split(r.from).join(r.to ?? '');
                 results.push({ floor, role, filled });
             }
         }
@@ -793,23 +799,96 @@ function refreshExtractTplSelect() {
     extractTplSelectEl.value = cur || '';
     // 保存始终可点（无选中模板时弹窗引导新增）；只要有模板可删，删除即可点（删除时按「选中项，否则列表第一项」定位）
     if (extractTplDeleteBtn) extractTplDeleteBtn.disabled = list.length === 0;
+    // 重命名需先选中某个模板
+    if (extractTplRenameBtn) extractTplRenameBtn.disabled = !cur;
 }
 
-/** 「二次替换 → 作用于」下拉：选项来自正则里的命名组，外加「全部输出」 */
-function refreshReplTargets() {
-    if (!extractReplTargetEl) return;
-    const pat = extractPatternEl?.value || '';
+/** 从正则里收集命名组名（供「二次替换 → 作用于」下拉） */
+function collectNamedGroups(pat) {
     const names = [];
     const re = /\(\?<([A-Za-z_$][\w$]*)>/g;
     let mm;
-    while ((mm = re.exec(pat))) {
+    while ((mm = re.exec(pat || ''))) {
         if (!names.includes(mm[1])) names.push(mm[1]);
     }
-    const cur = extractReplTargetEl.value;
-    extractReplTargetEl.innerHTML = '<option value="">— 不替换 —</option>' +
+    return names;
+}
+
+/** 刷新单个「作用于」下拉选项（保留当前选择，失效则清空） */
+function refreshReplTargetOptions(sel, names) {
+    if (!sel) return;
+    if (!names) names = collectNamedGroups(extractPatternEl?.value || '');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— 不替换 —</option>' +
         '<option value="*">全部输出</option>' +
         names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-    extractReplTargetEl.value = cur && (cur === '*' || names.includes(cur)) ? cur : '';
+    sel.value = cur && (cur === '*' || names.includes(cur)) ? cur : '';
+}
+
+/** 正则变化 / 初始化时，刷新所有「二次替换」行的「作用于」下拉 */
+function refreshReplTargets() {
+    if (!extractReplListEl) return;
+    const names = collectNamedGroups(extractPatternEl?.value || '');
+    extractReplListEl.querySelectorAll('.extract-repl-target').forEach(sel => refreshReplTargetOptions(sel, names));
+}
+
+/** 追加一行二次替换规则（rule 缺省为空行） */
+function addReplRuleRow(rule) {
+    if (!extractReplListEl) return;
+    rule = rule || { target: '', from: '', to: '' };
+    const doc = manageDoc;
+    const row = doc.createElement('div');
+    row.className = 'extract-repl-row';
+    row.innerHTML =
+        '<select class="extract-repl-target" title="作用于哪个捕获组（选项取自正则里的命名组）"></select>' +
+        '<input type="text" class="extract-repl-from" placeholder="查找" />' +
+        '<input type="text" class="extract-repl-to" placeholder="替换为" />' +
+        '<button type="button" class="extract-repl-del" title="删除该行">×</button>';
+    const sel = row.querySelector('.extract-repl-target');
+    const from = row.querySelector('.extract-repl-from');
+    const to = row.querySelector('.extract-repl-to');
+    const del = row.querySelector('.extract-repl-del');
+    del.addEventListener('click', () => {
+        row.remove();
+        if (extractReplListEl && extractReplListEl.children.length === 0) addReplRuleRow();
+    });
+    extractReplListEl.appendChild(row);
+    from.value = rule.from || '';
+    to.value = rule.to || '';
+    refreshReplTargetOptions(sel);   // 先按当前正则构建「作用于」选项
+    if (rule.target) sel.value = rule.target;   // 选项就绪后再赋值，值才能生效（空 select 设值会被浏览器重置）
+}
+
+/** 渲染整组二次替换规则；空数组时保留一行空行 */
+function renderReplRules(rules) {
+    if (!extractReplListEl) return;
+    extractReplListEl.innerHTML = '';
+    const arr = Array.isArray(rules) ? rules : [];
+    if (arr.length === 0) { addReplRuleRow(); return; }
+    for (const r of arr) addReplRuleRow(r);
+}
+
+/** 收集当前所有二次替换规则行 */
+function collectReplRules() {
+    if (!extractReplListEl) return [];
+    const out = [];
+    extractReplListEl.querySelectorAll('.extract-repl-row').forEach(row => {
+        out.push({
+            target: row.querySelector('.extract-repl-target')?.value || '',
+            from: row.querySelector('.extract-repl-from')?.value ?? '',
+            to: row.querySelector('.extract-repl-to')?.value ?? '',
+        });
+    });
+    return out;
+}
+
+/** 旧模板兼容：单值 replTarget/replFrom/replTo → 规则数组 */
+function normalizeReplRules(t) {
+    if (Array.isArray(t?.replRules)) return t.replRules;
+    if (t?.replTarget || t?.replFrom || t?.replTo) {
+        return [{ target: t.replTarget || '', from: t.replFrom || '', to: t.replTo || '' }];
+    }
+    return [];
 }
 
 function loadSelectedTemplate() {
@@ -817,12 +896,14 @@ function loadSelectedTemplate() {
     if (!id) {
         mActiveTplId = null;
         refreshExtractTplSelect();
+        renderReplRules([]);
         return;
     }
     const t = (configManager.getChatToolsConfig().extractTemplates || []).find(x => x.id === id);
     if (!t) {
         mActiveTplId = null;
         refreshExtractTplSelect();
+        renderReplRules([]);
         return;
     }
     mActiveTplId = t.id;
@@ -832,10 +913,9 @@ function loadSelectedTemplate() {
     if (extractIncludeUserEl) extractIncludeUserEl.checked = !!t.includeUser;
     if (extractIncludeAiEl) extractIncludeAiEl.checked = !!t.includeAI;
     if (extractIncludeHiddenEl) extractIncludeHiddenEl.checked = !!t.includeHidden;
-    if (extractReplTargetEl) extractReplTargetEl.value = t.replTarget || '';
-    if (extractReplFromEl) extractReplFromEl.value = t.replFrom || '';
-    if (extractReplToEl) extractReplToEl.value = t.replTo || '';
-    refreshReplTargets();
+    renderReplRules(normalizeReplRules(t));
+    // 选中模板后启用「重命名」（切到"未保存"时 mActiveTplId=null 会禁用）
+    if (extractTplRenameBtn) extractTplRenameBtn.disabled = !mActiveTplId;
 }
 
 function currentTemplateFields() {
@@ -846,9 +926,7 @@ function currentTemplateFields() {
         includeUser: !!extractIncludeUserEl?.checked,
         includeAI: !!extractIncludeAiEl?.checked,
         includeHidden: !!extractIncludeHiddenEl?.checked,
-        replTarget: extractReplTargetEl?.value || '',
-        replFrom: extractReplFromEl?.value ?? '',
-        replTo: extractReplToEl?.value ?? '',
+        replRules: collectReplRules(),
     };
 }
 
@@ -912,7 +990,19 @@ function saveTemplateOverwrite(id) {
     const cfg = configManager.getChatToolsConfig();
     const t = (cfg.extractTemplates || []).find(x => x.id === id);
     if (!t) { showExtractWarn('模板不存在'); return; }
-    Object.assign(t, currentTemplateFields());
+    // 原模板的替换规则（兼容旧单值字段），用于下方安全网
+    const prevRules = Array.isArray(t.replRules)
+        ? t.replRules
+        : (t.replTarget ? [{ target: t.replTarget || '', from: t.replFrom || '', to: t.replTo || '' }] : []);
+    const fields = currentTemplateFields();
+    // 安全网：当前某行「作用于」为空、但原模板同位置有非空分组时，保留原值——
+    // 防止「载入时下拉因显示异常为空 → 直接覆盖保存」把已有分组静默清空
+    if (Array.isArray(fields.replRules)) {
+        fields.replRules = fields.replRules.map((r, i) =>
+            (!r.target && prevRules[i]?.target) ? { ...r, target: prevRules[i].target } : r);
+    }
+    delete t.replTarget; delete t.replFrom; delete t.replTo;   // 迁移：清理旧单值字段
+    Object.assign(t, fields);
     configManager.setChatToolsConfig(cfg);
     mActiveTplId = t.id;
     refreshExtractTplSelect();
@@ -939,6 +1029,34 @@ function saveAsTemplate(name) {
     showToast.success(`已另存为新模板「${nm}」`);
 }
 
+/** 重命名当前选中的模板（仅改名字段，其余配置不动） */
+function renameTemplate() {
+    const id = extractTplSelectEl?.value || mActiveTplId;
+    if (!id) { showExtractWarn('请先在下拉框选择一个模板'); return; }
+    const cfg = configManager.getChatToolsConfig();
+    const t = (cfg.extractTemplates || []).find(x => x.id === id);
+    if (!t) { showExtractWarn('模板不存在'); return; }
+    const dlg = new IframeDialog(manageDoc);
+    dlg.open({
+        title: '重命名模板',
+        content: `<div style="margin-bottom:8px;">模板名称</div>` +
+            `<input type="text" id="extract-tpl-newname" value="${escapeHtml(t.name)}" ` +
+            `style="width:100%;padding:6px 8px;background:var(--bg-input);color:var(--text-input);border:1px solid var(--border-color);border-radius:4px;font-size:13px;" />`,
+        buttons: [
+            { text: '取消', className: 'btn-secondary', onClick: (d) => d.close() },
+            { text: '确定', className: 'btn-primary', onClick: (d) => {
+                const name = d.dialogElement.querySelector('#extract-tpl-newname').value.trim();
+                d.close();
+                if (!name) { showExtractWarn('模板名不能为空'); return; }
+                t.name = name;   // 仅改名字段，其余配置保留
+                configManager.setChatToolsConfig(cfg);
+                refreshExtractTplSelect();
+                showToast.success(`已重命名为「${name}」`);
+            } },
+        ],
+    });
+}
+
 /** 删除：二次确认弹窗 */
 function deleteTemplate() {
     const list = configManager.getChatToolsConfig().extractTemplates || [];
@@ -952,7 +1070,7 @@ function deleteTemplate() {
         content: `<p>确定要删除模板「${escapeHtml(name)}」吗？</p><p style="opacity:.7">此操作不可恢复。</p>`,
         buttons: [
             { text: '取消', className: 'btn-primary', onClick: (d) => d.close() },
-            { text: '删除', className: 'btn-danger', onClick: (d) => {
+            { text: '删除', className: 'btn-secondary', onClick: (d) => {
                 d.close();
                 const cfg = configManager.getChatToolsConfig();
                 cfg.extractTemplates = (cfg.extractTemplates || []).filter(x => x.id !== id);
@@ -963,6 +1081,12 @@ function deleteTemplate() {
             } },
         ],
     });
+    // 「删除」改为普通按钮，并将焦点默认落在「取消」，降低手误删除风险
+    setTimeout(() => {
+        const cancelBtn = [...(dlg.dialogElement?.querySelectorAll('.iframe-dialog-footer button') || [])]
+            .find(b => b.textContent.trim() === '取消');
+        if (cancelBtn) cancelBtn.focus();
+    }, 20);
 }
 
 /**

@@ -556,8 +556,20 @@
 #extract-tpl-name { flex: 0 1 132px; width: 132px; }
 .extract-tpl-select { flex: 1 1 170px; min-width: 120px; }
 
-/* 二次替换：作用于下拉 + 查找 / 替换为 */
-.extract-repl-target {
+/* 二次替换：多行规则列表 */
+.extract-repl-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1 1 100%;
+}
+.extract-repl-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.extract-repl-row .extract-repl-target {
     flex: 0 1 150px;
     max-width: 180px;
     box-sizing: border-box;
@@ -568,8 +580,8 @@
     color: var(--text-input, #111827);
     font-size: 13px;
 }
-#extract-repl-from,
-#extract-repl-to {
+.extract-repl-row .extract-repl-from,
+.extract-repl-row .extract-repl-to {
     flex: 1 1 110px;
     box-sizing: border-box;
     padding: 4px 8px;
@@ -578,6 +590,28 @@
     background: var(--bg-input, #fff);
     color: var(--text-input, #111827);
     font-size: 13px;
+}
+.extract-repl-del {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    line-height: 1;
+    padding: 0;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 4px;
+    background: var(--bg-input, #fff);
+    color: var(--danger-color, #c0392b);
+    cursor: pointer;
+    font-size: 15px;
+}
+.extract-repl-del:hover {
+    background: var(--danger-color, #c0392b);
+    color: #fff;
+}
+.extract-repl-add {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    margin-top: 2px;
 }
 
 .extract-field textarea {

@@ -16,6 +16,29 @@ export const DEFAULT_CHAT_TOOLS_VALUES = {
 
 export function normalizeExtractTemplate(t) {
     if (!t || typeof t !== 'object') return null;
+    // 二次替换规则（多行数组）：每个元素 { target, from, to }
+    //   target = 命名组名 / '*'（整条输出）；from = 查找（字面串）；to = 替换为
+    //   兼容旧单值字段 replTarget/replFrom/replTo（归一化时并入数组）
+    let replRules;
+    if (Array.isArray(t.replRules)) {
+        replRules = t.replRules
+            .map(r => (r && typeof r === 'object')
+                ? {
+                    target: typeof r.target === 'string' ? r.target : '',
+                    from: typeof r.from === 'string' ? r.from : '',
+                    to: typeof r.to === 'string' ? r.to : '',
+                }
+                : null)
+            .filter(Boolean);
+    } else if (t.replTarget || t.replFrom || t.replTo) {
+        replRules = [{
+            target: typeof t.replTarget === 'string' ? t.replTarget : '',
+            from: typeof t.replFrom === 'string' ? t.replFrom : '',
+            to: typeof t.replTo === 'string' ? t.replTo : '',
+        }];
+    } else {
+        replRules = [];
+    }
     return {
         id: typeof t.id === 'string' && t.id ? t.id : genTemplateId(),
         name: typeof t.name === 'string' && t.name ? t.name : '未命名模板',
@@ -27,10 +50,8 @@ export function normalizeExtractTemplate(t) {
         includeAI: t.includeAI === undefined ? true : Boolean(t.includeAI),
         // 是否包含隐藏楼层（is_system 消息）；默认不含
         includeHidden: t.includeHidden === undefined ? false : Boolean(t.includeHidden),
-        // 二次替换（可选）：作用于哪个命名组（'*' = 整条输出），查找 → 替换为
-        replTarget: typeof t.replTarget === 'string' ? t.replTarget : '',
-        replFrom: typeof t.replFrom === 'string' ? t.replFrom : '',
-        replTo: typeof t.replTo === 'string' ? t.replTo : '',
+        // 二次替换（多行规则数组）
+        replRules,
     };
 }
 
