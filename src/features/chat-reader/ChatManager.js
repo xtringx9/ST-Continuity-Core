@@ -894,12 +894,14 @@ function promptSaveAsNew() {
     });
 }
 
-/** 默认模板名：优先取阅读器当前选中角色名（被处理聊天所属角色，而非酒馆当前打开角色 this_chid），否则回退「模板N」 */
+/** 默认模板名：取阅读器当前处理聊天的角色名（与详情头部 reader-manage-char-label 同来源）
+ *  - 历史聊天：mActiveChar?.name
+ *  - 当前聊天(__current__ 模式，mActiveChar 被置 null)：getCurrentChatDetails()?.characterName
+ * 否则回退「模板N」 */
 function getDefaultTplName() {
     try {
-        if (mActiveChar?.name) {
-            return mActiveChar.name;
-        }
+        const name = mActiveChar?.name || (mCurrentChat ? (getCurrentChatDetails()?.characterName || '') : '');
+        if (name) return name;
     } catch (e) { /* ignore */ }
     const list = configManager.getChatToolsConfig().extractTemplates || [];
     return `模板${list.length + 1}`;
