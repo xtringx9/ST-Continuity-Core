@@ -18,6 +18,7 @@ import { renderCharPicker, openChatModal, closeChatModal, chatTimeValue } from '
 import { compileRegex, matchAll, fillTemplate, applyGroupReplace } from './regexBridge.js';
 import { getAvatarThumbUrl } from '../../shared/characterBridge.js';
 import { showToast } from '../../shared/Toast.js';
+import { IframeDialog } from '../../shared/IframeDialog.js';
 import { timestampToMoment } from '../../../../../../utils.js';
 import configManager from '../../singleton/configManager.js';
 
@@ -155,10 +156,10 @@ let extractFlagsEl = null;
 let extractTemplateEl = null;
 let extractIncludeUserEl = null;
 let extractIncludeAiEl = null;
+let extractIncludeHiddenEl = null;
 // 模板套件（全局可复用）
 let extractTplSelectEl = null;
 let extractTplSaveBtn = null;
-let extractTplSaveasBtn = null;
 let extractTplDeleteBtn = null;
 let extractTplNameEl = null;
 let extractReplTargetEl = null;
@@ -167,6 +168,7 @@ let extractReplToEl = null;
 let mActiveTplId = null;
 let extractRunBtn = null;
 let extractCopyBtn = null;
+let manageDoc = null;   // 父窗口操作 iframe 文档的句柄（IframeDialog 弹窗用）
 let extractWarnEl = null;
 let extractResultsEl = null;
 let mChatList = [];               // 当前角色聊天列表（供下拉回查 chatMeta）
@@ -244,10 +246,11 @@ function bindManageDom() {
     extractTemplateEl = doc.getElementById('extract-template');
     extractIncludeUserEl = doc.getElementById('extract-include-user');
     extractIncludeAiEl = doc.getElementById('extract-include-ai');
+    extractIncludeHiddenEl = doc.getElementById('extract-include-hidden');
     extractTplSelectEl = doc.getElementById('extract-tpl-select');
     extractTplSaveBtn = doc.getElementById('extract-tpl-save');
-    extractTplSaveasBtn = doc.getElementById('extract-tpl-saveas');
     extractTplDeleteBtn = doc.getElementById('extract-tpl-delete');
+    manageDoc = doc;
     extractTplNameEl = doc.getElementById('extract-tpl-name');
     extractReplTargetEl = doc.getElementById('extract-repl-target');
     extractReplFromEl = doc.getElementById('extract-repl-from');
@@ -257,7 +260,6 @@ function bindManageDom() {
     // 选中即载入（无需「载入」按钮）；保存会连同名称一起写回，故改名=重命名
     extractTplSelectEl?.addEventListener('change', loadSelectedTemplate);
     extractTplSaveBtn?.addEventListener('click', saveTemplate);
-    extractTplSaveasBtn?.addEventListener('click', saveAsTemplate);
     extractTplDeleteBtn?.addEventListener('click', deleteTemplate);
     refreshExtractTplSelect();
     refreshReplTargets();
@@ -651,6 +653,7 @@ async function runExtract() {
 
     const includeUser = !!extractIncludeUserEl?.checked;
     const includeAI = !!extractIncludeAiEl?.checked;
+    const includeHidden = !!extractIncludeHiddenEl?.checked;
     const replTarget = extractReplTargetEl?.value || '';
     const replFrom = extractReplFromEl?.value ?? '';
     const replTo = extractReplToEl?.value ?? '';
@@ -677,8 +680,8 @@ async function runExtract() {
             let mes;
             try { mes = JSON.parse(line); } catch (e) { continue; }
             const floor = hasMetaLine ? i - 1 : i;
-            // is_system 标记的消息隐藏：不提取、也不计入「未命中」
-            if (mes?.is_system) continue;
+            // is_system 标记的消息：默认隐藏（不提取、不计入「未命中」）；勾选「包含隐藏楼层」时纳入
+            if (mes?.is_system && !includeHidden) continue;
             const role = getRoleOf(mes);
             const isUser = role === 'user';   // 优先按 is_user 判定来源
             if (isUser && !includeUser) continue;
@@ -790,8 +793,7 @@ function refreshExtractTplSelect() {
     extractTplSelectEl.innerHTML = '<option value="">— 未保存 —</option>' +
         list.map(t => `<option value="${escapeHtml(t.id)}" ${t.id === cur ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
     extractTplSelectEl.value = cur || '';
-    // 未选中模板时，保存/删除不可点
-    if (extractTplSaveBtn) extractTplSaveBtn.disabled = !cur;
+    // 保存始终可点（无选中模板时弹窗引导新增）；删除仅在选中模板时可点
     if (extractTplDeleteBtn) extractTplDeleteBtn.disabled = !cur;
 }
 
@@ -834,6 +836,7 @@ function loadSelectedTemplate() {
     if (extractTemplateEl) extractTemplateEl.value = t.template;
     if (extractIncludeUserEl) extractIncludeUserEl.checked = !!t.includeUser;
     if (extractIncludeAiEl) extractIncludeAiEl.checked = !!t.includeAI;
+    if (extractIncludeHiddenEl) extractIncludeHiddenEl.checked = !!t.includeHidden;
     if (extractReplTargetEl) extractReplTargetEl.value = t.replTarget || '';
     if (extractReplFromEl) extractReplFromEl.value = t.replFrom || '';
     if (extractReplToEl) extractReplToEl.value = t.replTo || '';
@@ -848,16 +851,57 @@ function currentTemplateFields() {
         template: extractTemplateEl?.value ?? '',
         includeUser: !!extractIncludeUserEl?.checked,
         includeAI: !!extractIncludeAiEl?.checked,
+        includeHidden: !!extractIncludeHiddenEl?.checked,
         replTarget: extractReplTargetEl?.value || '',
         replFrom: extractReplFromEl?.value ?? '',
         replTo: extractReplToEl?.value ?? '',
     };
 }
 
-/** 保存：把当前字段（含名称）写回已选中的模板 —— 改名字即等于重命名 */
+/** 保存按钮：弹窗选择「覆盖当前 / 新增」，逻辑类似 API 管理 */
 function saveTemplate() {
-    const id = extractTplSelectEl?.value || mActiveTplId;
-    if (!id) { showExtractWarn('请先在模板下拉选择要保存到的模板'); return; }
+    const cur = extractTplSelectEl?.value || mActiveTplId;
+    if (cur) {
+        const t = (configManager.getChatToolsConfig().extractTemplates || []).find(x => x.id === cur);
+        const curName = t?.name || '当前模板';
+        const dlg = new IframeDialog(manageDoc);
+        dlg.open({
+            title: '保存模板',
+            content: `<p>要把当前提取设置保存为？</p><p style="opacity:.7">当前模板：「${escapeHtml(curName)}」</p>`,
+            buttons: [
+                { text: '取消', className: 'btn-secondary', onClick: (d) => d.close() },
+                { text: '另存为新模板', className: 'btn-secondary', onClick: (d) => { d.close(); promptSaveAsNew(); } },
+                { text: `覆盖「${curName}」`, className: 'btn-primary', onClick: (d) => { d.close(); saveTemplateOverwrite(cur); } },
+            ],
+        });
+    } else {
+        promptSaveAsNew();
+    }
+}
+
+/** 输入新模板名 → 新增（弹窗） */
+function promptSaveAsNew() {
+    const dlg = new IframeDialog(manageDoc);
+    const list = configManager.getChatToolsConfig().extractTemplates || [];
+    const defaultName = `模板${list.length + 1}`;
+    dlg.open({
+        title: '另存为新模板',
+        content: `<div style="margin-bottom:8px;">模板名称</div>` +
+            `<input type="text" id="extract-tpl-newname" value="${escapeHtml(defaultName)}" ` +
+            `style="width:100%;padding:6px 8px;background:var(--bg-input);color:var(--text-input);border:1px solid var(--border-color);border-radius:4px;font-size:13px;" />`,
+        buttons: [
+            { text: '取消', className: 'btn-secondary', onClick: (d) => d.close() },
+            { text: '确定', className: 'btn-primary', onClick: (d) => {
+                const name = d.dialogElement.querySelector('#extract-tpl-newname').value.trim();
+                d.close();
+                saveAsTemplate(name);
+            } },
+        ],
+    });
+}
+
+/** 覆盖当前选中的模板（保留名称，整体写回当前 UI 设置） */
+function saveTemplateOverwrite(id) {
     const f = currentTemplateFields();
     if (!f.name) { showExtractWarn('请先填写模板名'); return; }
     const cfg = configManager.getChatToolsConfig();
@@ -867,38 +911,52 @@ function saveTemplate() {
     configManager.setChatToolsConfig(cfg);
     mActiveTplId = t.id;
     refreshExtractTplSelect();
-    showExtractWarn(`已保存模板「${t.name}」`);
+    showToast.success(`已保存模板「${t.name}」`);
 }
 
-/** 另存为：用当前字段新建一个模板（不影响已选中的那个；同名自动加序号） */
-function saveAsTemplate() {
+/** 另存为新模板（name 由弹窗提供，空则自动命名） */
+function saveAsTemplate(name) {
     const f = currentTemplateFields();
     const cfg = configManager.getChatToolsConfig();
     cfg.extractTemplates = cfg.extractTemplates || [];
-    let name = f.name || `模板${cfg.extractTemplates.length + 1}`;
-    if (cfg.extractTemplates.some(x => x.name === name)) {
+    let nm = (name || f.name || `模板${cfg.extractTemplates.length + 1}`).trim();
+    if (cfg.extractTemplates.some(x => x.name === nm)) {
         let n = 2;
-        while (cfg.extractTemplates.some(x => x.name === `${name} ${n}`)) n++;
-        name = `${name} ${n}`;
+        while (cfg.extractTemplates.some(x => x.name === `${nm} ${n}`)) n++;
+        nm = `${nm} ${n}`;
     }
-    const t = { id: genExtractTplId(), ...f, name };
+    const t = { id: genExtractTplId(), ...f, name: nm };
     cfg.extractTemplates.push(t);
     configManager.setChatToolsConfig(cfg);
     mActiveTplId = t.id;
-    if (extractTplNameEl) extractTplNameEl.value = name;
+    if (extractTplNameEl) extractTplNameEl.value = nm;
     refreshExtractTplSelect();
-    showExtractWarn(`已另存为新模板「${name}」`);
+    showToast.success(`已另存为新模板「${nm}」`);
 }
 
+/** 删除：二次确认弹窗 */
 function deleteTemplate() {
-    const id = extractTplSelectEl?.value;
+    const id = extractTplSelectEl?.value || mActiveTplId;
     if (!id) { showExtractWarn('请先在模板下拉选择要删除的模板'); return; }
-    const cfg = configManager.getChatToolsConfig();
-    cfg.extractTemplates = (cfg.extractTemplates || []).filter(x => x.id !== id);
-    configManager.setChatToolsConfig(cfg);
-    mActiveTplId = null;
-    refreshExtractTplSelect();
-    showExtractWarn('已删除模板');
+    const t = (configManager.getChatToolsConfig().extractTemplates || []).find(x => x.id === id);
+    const name = t?.name || '该模板';
+    const dlg = new IframeDialog(manageDoc);
+    dlg.open({
+        title: '删除模板',
+        content: `<p>确定要删除模板「${escapeHtml(name)}」吗？</p><p style="opacity:.7">此操作不可恢复。</p>`,
+        buttons: [
+            { text: '取消', className: 'btn-primary', onClick: (d) => d.close() },
+            { text: '删除', className: 'btn-danger', onClick: (d) => {
+                d.close();
+                const cfg = configManager.getChatToolsConfig();
+                cfg.extractTemplates = (cfg.extractTemplates || []).filter(x => x.id !== id);
+                configManager.setChatToolsConfig(cfg);
+                mActiveTplId = null;
+                refreshExtractTplSelect();
+                showToast.success('已删除模板');
+            } },
+        ],
+    });
 }
 
 /**

@@ -25,6 +25,8 @@ export function normalizeExtractTemplate(t) {
         // 消息来源：用户消息 / AI消息（AI = 助手 + 系统）
         includeUser: Boolean(t.includeUser),
         includeAI: t.includeAI === undefined ? true : Boolean(t.includeAI),
+        // 是否包含隐藏楼层（is_system 消息）；默认不含
+        includeHidden: t.includeHidden === undefined ? false : Boolean(t.includeHidden),
         // 二次替换（可选）：作用于哪个命名组（'*' = 整条输出），查找 → 替换为
         replTarget: typeof t.replTarget === 'string' ? t.replTarget : '',
         replFrom: typeof t.replFrom === 'string' ? t.replFrom : '',

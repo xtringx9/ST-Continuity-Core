@@ -132,7 +132,6 @@
                                         <input type="text" id="extract-tpl-name" placeholder="模板名" />
                                         <div class="extract-btn-group">
                                             <button class="btn-secondary" id="extract-tpl-save">保存</button>
-                                            <button class="btn-secondary" id="extract-tpl-saveas">另存为</button>
                                             <button class="btn-secondary" id="extract-tpl-delete">删除</button>
                                         </div>
                                     </div>
@@ -166,6 +165,7 @@
                                         <span class="extract-role-opts">
                                             <label><input type="checkbox" id="extract-include-user" /> 用户消息</label>
                                             <label><input type="checkbox" id="extract-include-ai" checked /> AI消息</label>
+                                            <label title="是否把 is_system 隐藏楼层也纳入提取范围"><input type="checkbox" id="extract-include-hidden" /> 包含隐藏楼层</label>
                                         </span>
                                         <div class="reader-manage-actions">
                                             <button class="btn-primary" id="extract-run">提取</button>
