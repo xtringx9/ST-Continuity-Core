@@ -501,79 +501,97 @@
 }
 
 /* === 提取子tab === */
+/* 提取：规整的「标签 | 控件」行布局（紧凑、等高、高密度） */
 .extract-controls {
     display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    padding: 4px 2px 14px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 2px 0 12px;
     border-bottom: 1px solid var(--border-light, #f3f4f6);
     margin-bottom: 12px;
 }
 
-.extract-controls .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 220px;
-    flex: 1 1 260px;
+.extract-row {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
 }
 
-.extract-controls .form-group > label {
+.extract-label {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary, #4b5563);
+    text-align: right;
+    white-space: nowrap;
 }
 
-.extract-controls input[type="text"],
-.extract-controls textarea {
-    padding: 7px 9px;
-    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
-    border-radius: 6px;
-    background: var(--bg-input, #fff);
-    color: var(--text-input, #111827);
-    font-size: 13px;
-    font-family: inherit;
-    resize: vertical;
-}
-
-.extract-role-group .extract-role-opts {
+.extract-field {
     display: flex;
-    gap: 14px;
-    align-items: center;
-    padding-top: 6px;
-}
-
-.extract-role-group .extract-role-opts label {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--text-input, #111827);
-}
-
-/* 提取：模板套件栏（全局可复用模板的载入/另存为/重命名/删除） */
-.extract-tpl-bar {
-    flex-direction: row;
     align-items: center;
     flex-wrap: wrap;
-    flex: 1 1 100%;
     gap: 8px;
     min-width: 0;
 }
-.extract-tpl-bar > label { margin-bottom: 0; }
+
+.extract-field input[type="text"],
+.extract-field textarea,
 .extract-tpl-select {
-    min-width: 160px;
-    max-width: 260px;
+    box-sizing: border-box;
     padding: 5px 8px;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
     border-radius: 6px;
     background: var(--bg-input, #fff);
     color: var(--text-input, #111827);
     font-size: 13px;
+    font-family: inherit;
+    min-width: 0;
 }
-.extract-tpl-bar input[type="text"] {
-    width: 130px;
+
+#extract-pattern { flex: 1 1 220px; }
+.extract-flags { flex: 0 0 84px; width: 84px; }
+#extract-tpl-name { flex: 0 1 132px; width: 132px; }
+.extract-tpl-select { flex: 1 1 170px; max-width: 280px; }
+
+.extract-field textarea {
+    flex: 1 1 100%;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+/* 模板套件：按钮组右对齐 */
+.extract-btn-group {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.extract-btn-group .btn-secondary {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.extract-role-opts {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.extract-role-opts label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-input, #111827);
+    white-space: nowrap;
+}
+
+/* 提取 / 复制按钮右对齐（换行时也保持靠右） */
+.extract-field .reader-manage-actions {
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .extract-warn {
@@ -591,7 +609,7 @@
 .cc-extract-item {
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
     border-radius: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     overflow: hidden;
     background: var(--bg-app, #fff);
 }

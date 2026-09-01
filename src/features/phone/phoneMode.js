@@ -365,6 +365,19 @@ const TYPE_PREFIX = {
 };
 
 /**
+ * 时间 → 可比较数字（yyyymmddHHMM），用于会话按最新消息排序；无时间返回 0 排最后
+ * @param {string} t "YYYY-MM-DD[ HH:MM[:SS]]"
+ * @returns {number}
+ */
+function timeRank(t) {
+    const m = String(t == null ? '' : t).match(/(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{1,2}))?/);
+    if (!m) return 0;
+    return parseInt(
+        `${m[1]}${String(m[2]).padStart(2, '0')}${String(m[3]).padStart(2, '0')}` +
+        `${String(m[4] || '00').padStart(2, '0')}${String(m[5] || '00').padStart(2, '0')}`, 10);
+}
+
+/**
  * 按「对方」分组会话（true IM 语义）：
  * 优先级：私聊(dm 有值) > 群聊(grp 有值) > 兜底(sender)：
  *   - dm 有值 = 私聊 → 会话 = (sender, dm) 的「双方组合」，无序对同一会话（A发B收 与 B发A收 同窗）
@@ -440,8 +453,11 @@ function groupMessagesToConversations(messages, userName) {
         const last = conv.messages[conv.messages.length - 1];
         const prefix = last ? (TYPE_PREFIX[String(last.type || '').toLowerCase()] || '') : '';
         conv.preview = last ? prefix + last.content : '';
+        conv.lastTime = last ? last.time : '';
         out.push(conv);
     }
+    // 按最后一条消息时间倒序（最新会话在上，真实 IM 会话列表）；无时间消息排最后
+    out.sort((a, b) => timeRank(b.lastTime) - timeRank(a.lastTime));
     return out;
 }
 

@@ -123,39 +123,46 @@
                         <!-- 提取 -->
                         <div class="detail-tab-panel" id="manage-tab-extract">
                             <div class="extract-controls">
-                                <div class="form-group extract-tpl-bar">
-                                    <label>模板</label>
-                                    <select class="extract-tpl-select" id="extract-tpl-select">
-                                        <option value="">— 未保存 —</option>
-                                    </select>
-                                    <button class="btn-secondary" id="extract-tpl-load">载入</button>
-                                    <input type="text" id="extract-tpl-name" placeholder="模板名" />
-                                    <button class="btn-secondary" id="extract-tpl-saveas">另存为</button>
-                                    <button class="btn-secondary" id="extract-tpl-rename">重命名</button>
-                                    <button class="btn-secondary" id="extract-tpl-delete">删除</button>
+                                <div class="extract-row">
+                                    <label class="extract-label">模板</label>
+                                    <div class="extract-field">
+                                        <select class="extract-tpl-select" id="extract-tpl-select">
+                                            <option value="">— 未保存 —</option>
+                                        </select>
+                                        <input type="text" id="extract-tpl-name" placeholder="模板名" />
+                                        <div class="extract-btn-group">
+                                            <button class="btn-secondary" id="extract-tpl-load">载入</button>
+                                            <button class="btn-secondary" id="extract-tpl-saveas">另存为</button>
+                                            <button class="btn-secondary" id="extract-tpl-rename">重命名</button>
+                                            <button class="btn-secondary" id="extract-tpl-delete">删除</button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>正则</label>
-                                    <input type="text" id="extract-pattern" placeholder="例 (?<name>[^：]+)：(.*)" />
+                                <div class="extract-row">
+                                    <label class="extract-label">正则</label>
+                                    <div class="extract-field">
+                                        <input type="text" id="extract-pattern" placeholder="例 (?<name>[^：]+)：(.*)" />
+                                        <input type="text" id="extract-flags" class="extract-flags" value="g" title="正则 flags，如 g / gi / gm" />
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>flags</label>
-                                    <input type="text" id="extract-flags" value="g" style="max-width:90px;" />
+                                <div class="extract-row">
+                                    <label class="extract-label">输出模板</label>
+                                    <div class="extract-field">
+                                        <textarea id="extract-template" rows="2" placeholder="例 |模块名|字段:$1|（$0 整段 / $1..$n 分组 / ${name} 命名组 / $$ 字面 $）"></textarea>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>模板</label>
-                                    <textarea id="extract-template" rows="3" placeholder="例 |模块名|字段:$1|  （$0整段 $1..$n组 ${name}命名 $$字面）"></textarea>
-                                </div>
-                                <div class="form-group extract-role-group">
-                                    <label>消息来源</label>
-                                    <span class="extract-role-opts">
-                                        <label><input type="checkbox" id="extract-include-user" /> 用户消息</label>
-                                        <label><input type="checkbox" id="extract-include-ai" checked /> AI消息</label>
-                                    </span>
-                                </div>
-                                <div class="reader-manage-actions">
-                                    <button class="btn-primary" id="extract-run">提取</button>
-                                    <button class="btn-secondary" id="extract-copy" disabled>复制全部</button>
+                                <div class="extract-row">
+                                    <label class="extract-label">消息来源</label>
+                                    <div class="extract-field">
+                                        <span class="extract-role-opts">
+                                            <label><input type="checkbox" id="extract-include-user" /> 用户消息</label>
+                                            <label><input type="checkbox" id="extract-include-ai" checked /> AI消息</label>
+                                        </span>
+                                        <div class="reader-manage-actions">
+                                            <button class="btn-primary" id="extract-run">提取</button>
+                                            <button class="btn-secondary" id="extract-copy" disabled>复制全部</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="extract-warn" id="extract-warn" style="display:none;"></div>
