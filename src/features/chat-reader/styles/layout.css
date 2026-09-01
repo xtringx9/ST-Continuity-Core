@@ -554,7 +554,7 @@
 #extract-pattern { flex: 1 1 220px; }
 .extract-flags { flex: 0 0 84px; width: 84px; }
 #extract-tpl-name { flex: 0 1 132px; width: 132px; }
-.extract-tpl-select { flex: 0 1 auto; width: auto; min-width: 120px; max-width: 320px; }
+.extract-tpl-select { flex: 1 1 170px; min-width: 120px; }
 
 /* 二次替换：作用于下拉 + 查找 / 替换为 */
 .extract-repl-target {
@@ -570,8 +570,7 @@
 }
 #extract-repl-from,
 #extract-repl-to {
-    flex: 0 1 110px;
-    width: 110px;
+    flex: 1 1 110px;
     box-sizing: border-box;
     padding: 4px 8px;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
