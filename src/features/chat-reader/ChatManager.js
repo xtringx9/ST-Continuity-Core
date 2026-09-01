@@ -17,6 +17,7 @@ import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
 import { renderCharPicker, openChatModal, closeChatModal, chatTimeValue } from './ChatReader.js';
 import { compileRegex, matchAll, fillTemplate, applyGroupReplace } from './regexBridge.js';
 import { getAvatarThumbUrl } from '../../shared/characterBridge.js';
+import { showToast } from '../../shared/Toast.js';
 import { timestampToMoment } from '../../../../../../utils.js';
 import configManager from '../../singleton/configManager.js';
 
@@ -635,18 +636,18 @@ function bindSubtabs() {
  * 将来扩展 swipes 时只需在此处把每个 swipe 分支补为独立 unit。
  * ===================================================== */
 
+// 角色按 is_user 二分：true = 用户消息，false = AI 来源消息（助手/系统）。
+// 注意：is_system 不是角色，而是「该消息是否隐藏」的标记，由 runExtract 在来源过滤前跳过。
 function getRoleOf(mes) {
-    if (mes?.is_system) return 'system';
-    if (mes?.is_user) return 'user';
-    return 'assistant';
+    return mes?.is_user ? 'user' : 'assistant';
 }
 
 async function runExtract() {
     const pattern = extractPatternEl?.value?.trim();
     const tpl = extractTemplateEl?.value ?? '';
-    if (!pattern) { showExtractWarn('请输入正则'); return; }
+    if (!pattern) { showExtractWarn(''); showToast.warning('请输入正则'); return; }
     const { ok, regex, error } = compileRegex(pattern, extractFlagsEl?.value ?? '');
-    if (!ok) { showExtractWarn(`正则无效：${error}`); return; }
+    if (!ok) { showExtractWarn(''); showToast.error(`正则无效：${error}`); return; }
 
     const includeUser = !!extractIncludeUserEl?.checked;
     const includeAI = !!extractIncludeAiEl?.checked;
@@ -654,38 +655,61 @@ async function runExtract() {
     const replFrom = extractReplFromEl?.value ?? '';
     const replTo = extractReplToEl?.value ?? '';
 
-    const data = await getChatLines();
-    if (!data) { showExtractWarn('无法读取聊天文件（请先选择聊天）'); return; }
+    let data;
+    try {
+        data = await getChatLines();
+    } catch (e) {
+        const msg = `读取聊天文件失败：${String(e?.message || e)}`;
+        showExtractWarn(msg);
+        showToast.error(msg);
+        return;
+    }
+    if (!data) { showExtractWarn(''); showToast.error('无法读取聊天文件（请先选择聊天）'); return; }
     const { lines, hasMetaLine } = data;
 
     const results = [];
     const unmatched = [];
     const startIdx = hasMetaLine ? 1 : 0;
-    for (let i = startIdx; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line) continue;
-        let mes;
-        try { mes = JSON.parse(line); } catch (e) { continue; }
-        const floor = hasMetaLine ? i - 1 : i;
-        const role = getRoleOf(mes);
-        const isUser = role === 'user';
-        if (isUser && !includeUser) continue;
-        if (!isUser && !includeAI) continue;
-        const text = typeof mes?.mes === 'string' ? mes.mes : '';
-        // contentUnit（swipes 预留：将来 mes.swipes 各分支各产一个 unit）
-        const unit = { floorIndex: floor, kind: 'mes', swipeId: mes?.swipe_id ?? null, text };
-        const matches = matchAll(unit.text, regex);
-        if (matches.length === 0) { unmatched.push(floor); continue; }
-        for (const m of matches) {
-            // 二次替换：指定组时在填充前改该组内容；作用于整条输出时在填充后替换
-            const m2 = applyGroupReplace(m, replTarget, replFrom, replTo);
-            let filled = fillTemplate(tpl, m2);
-            if (replTarget === '*' && replFrom) filled = filled.split(replFrom).join(replTo);
-            results.push({ floor, role, filled });
+    try {
+        for (let i = startIdx; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line) continue;
+            let mes;
+            try { mes = JSON.parse(line); } catch (e) { continue; }
+            const floor = hasMetaLine ? i - 1 : i;
+            // is_system 标记的消息隐藏：不提取、也不计入「未命中」
+            if (mes?.is_system) continue;
+            const role = getRoleOf(mes);
+            const isUser = role === 'user';   // 优先按 is_user 判定来源
+            if (isUser && !includeUser) continue;
+            if (!isUser && !includeAI) continue;
+            const text = typeof mes?.mes === 'string' ? mes.mes : '';
+            // contentUnit（swipes 预留：将来 mes.swipes 各分支各产一个 unit）
+            const unit = { floorIndex: floor, kind: 'mes', swipeId: mes?.swipe_id ?? null, text };
+            const matches = matchAll(unit.text, regex);
+            if (matches.length === 0) { unmatched.push(floor); continue; }
+            for (const m of matches) {
+                // 二次替换：指定组时在填充前改该组内容；作用于整条输出时在填充后替换
+                const m2 = applyGroupReplace(m, replTarget, replFrom, replTo);
+                let filled = fillTemplate(tpl, m2);
+                if (replTarget === '*' && replFrom) filled = filled.split(replFrom).join(replTo);
+                results.push({ floor, role, filled });
+            }
         }
+    } catch (e) {
+        const msg = `提取失败：${String(e?.message || e)}`;
+        showExtractWarn(msg);
+        showToast.error(msg);
+        return;
     }
     mLastExtract = results;
     renderExtractResults(results, unmatched);
+    // 完成通知：长「未命中列表」仍走面板内联 showExtractWarn，toast 只报摘要
+    if (results.length > 0) {
+        showToast.success(`提取完成，共 ${results.length} 条匹配` + (unmatched.length ? `（${unmatched.length} 层未命中）` : ''));
+    } else {
+        showToast.info('提取完成，但没有命中任何匹配');
+    }
 }
 
 function renderExtractResults(results, unmatched) {
