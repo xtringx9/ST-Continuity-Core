@@ -522,10 +522,11 @@
 
 .extract-label {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-secondary, #4b5563);
-    text-align: right;
+    text-align: left;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .extract-field {
@@ -540,9 +541,9 @@
 .extract-field textarea,
 .extract-tpl-select {
     box-sizing: border-box;
-    padding: 5px 8px;
+    padding: 4px 8px;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
-    border-radius: 6px;
+    border-radius: 4px;
     background: var(--bg-input, #fff);
     color: var(--text-input, #111827);
     font-size: 13px;
@@ -553,16 +554,16 @@
 #extract-pattern { flex: 1 1 220px; }
 .extract-flags { flex: 0 0 84px; width: 84px; }
 #extract-tpl-name { flex: 0 1 132px; width: 132px; }
-.extract-tpl-select { flex: 1 1 170px; max-width: 280px; }
+.extract-tpl-select { flex: 0 1 auto; width: auto; min-width: 120px; max-width: 320px; }
 
 /* 二次替换：作用于下拉 + 查找 / 替换为 */
 .extract-repl-target {
     flex: 0 1 150px;
     max-width: 180px;
     box-sizing: border-box;
-    padding: 5px 8px;
+    padding: 4px 8px;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
-    border-radius: 6px;
+    border-radius: 4px;
     background: var(--bg-input, #fff);
     color: var(--text-input, #111827);
     font-size: 13px;
@@ -572,9 +573,9 @@
     flex: 0 1 110px;
     width: 110px;
     box-sizing: border-box;
-    padding: 5px 8px;
+    padding: 4px 8px;
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
-    border-radius: 6px;
+    border-radius: 4px;
     background: var(--bg-input, #fff);
     color: var(--text-input, #111827);
     font-size: 13px;
@@ -586,11 +587,10 @@
     line-height: 1.5;
 }
 
-/* 模板套件：按钮组右对齐 */
+/* 模板套件：按钮组紧贴下拉框右侧（不推到最右，避免中间留空） */
 .extract-btn-group {
     display: flex;
     gap: 6px;
-    margin-left: auto;
     flex-wrap: wrap;
 }
 
