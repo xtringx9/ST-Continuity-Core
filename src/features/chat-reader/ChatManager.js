@@ -164,6 +164,7 @@ let extractTplDeleteBtn = null;
 let extractTplRenameBtn = null;
 let extractReplListEl = null;
 let extractReplAddBtn = null;
+let dragSrcRow = null;   // 二次替换拖拽排序：当前被拖拽的行
 let mActiveTplId = null;
 let extractRunBtn = null;
 let extractCopyBtn = null;
@@ -254,6 +255,11 @@ function bindManageDom() {
     extractReplListEl = doc.getElementById('extract-repl-list');
     extractReplAddBtn = doc.getElementById('extract-repl-add');
     extractReplAddBtn?.addEventListener('click', () => addReplRuleRow());
+    extractReplListEl?.addEventListener('dragover', onReplListDragOver);   // 二次替换行拖拽排序
+    doc.getElementById('extract-regex-help')?.addEventListener('click', () => {
+        copyTextToClipboard(REGEX_PROMPT_TEMPLATE);
+        showToast.success('已复制「写正则提示词」模板');
+    });
     // 正则里的命名组变化时，同步「二次替换 → 作用于」下拉
     extractPatternEl?.addEventListener('input', refreshReplTargets);
     // 选中即载入（无需「载入」按钮）；保存会连同名称一起写回，故改名=重命名
@@ -840,6 +846,7 @@ function addReplRuleRow(rule) {
     const row = doc.createElement('div');
     row.className = 'extract-repl-row';
     row.innerHTML =
+        '<span class="extract-repl-drag" title="拖拽排序">⠿</span>' +
         '<select class="extract-repl-target" title="作用于哪个捕获组（选项取自正则里的命名组）"></select>' +
         '<input type="text" class="extract-repl-from" placeholder="查找" />' +
         '<input type="text" class="extract-repl-to" placeholder="替换为" />' +
@@ -857,6 +864,7 @@ function addReplRuleRow(rule) {
     to.value = rule.to || '';
     refreshReplTargetOptions(sel);   // 先按当前正则构建「作用于」选项
     if (rule.target) sel.value = rule.target;   // 选项就绪后再赋值，值才能生效（空 select 设值会被浏览器重置）
+    enableRowDrag(row);   // 行内左侧手柄可拖拽排序
 }
 
 /** 渲染整组二次替换规则；空数组时保留一行空行 */
@@ -880,6 +888,88 @@ function collectReplRules() {
         });
     });
     return out;
+}
+
+/** 通用「写正则提示词」模板，点击 ? 按钮复制到剪贴板（只列我们这套特有规则，通用可复用） */
+const REGEX_PROMPT_TEMPLATE = `ST-Continuity-Core 聊天阅读器「提取」正则规则（请据此生成 JS 正则 + 输出模板 + 可选二次替换）：
+
+1) 主正则用 JavaScript 具名捕获组，组名即模板占位符：
+   (?<time>...)  ⇔  模板里写 \${time}
+   组名仅限字母/数字/下划线，必须与模板 \${name} 一一对应。
+
+2) 输出模板：自由文本 + \${组名} 插值，例如
+   [sum|level:0|loc:\${loc}|time:\${time}|char:\${char}|event:\${event}|key:]
+
+3) "剩余全部"内容用非贪婪 + 前瞻截断（不要贪心吞到结尾）：
+   (?<event>[\\s\\S]*?)(?=\\s*(?:结尾标记|</tag>))
+
+4) 单行字段用 [^\\n\\r]+；需跨行匹配加 s 标志，全局替换加 g。
+
+5) 二次替换（可选、可多行、逐行顺序执行，作用于某捕获组或"全部输出"）：
+   find → replace，常用于分隔符归一化（如 、→,）。
+
+请贴入真实原文样本，并逐段说明正则作用。`;
+
+/** 让二次替换行可通过左侧手柄拖拽排序（拖拽只在该行手柄上发起，不影响输入框/下拉操作） */
+function enableRowDrag(row) {
+    const handle = row.querySelector('.extract-repl-drag');
+    if (!handle) return;
+    handle.addEventListener('mousedown', () => row.setAttribute('draggable', 'true'));
+    row.addEventListener('mouseup', () => row.removeAttribute('draggable'));
+    row.addEventListener('dragstart', (e) => {
+        dragSrcRow = row;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', ''); } catch (_) {}
+    });
+    row.addEventListener('dragend', () => {
+        row.removeAttribute('draggable');
+        row.classList.remove('dragging');
+        dragSrcRow = null;
+    });
+}
+
+/** 计算拖拽时应插入到哪个元素之前（基于鼠标 Y 坐标） */
+function getDragAfterElement(container, y) {
+    const els = [...container.querySelectorAll('.extract-repl-row:not(.dragging)')];
+    return els.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) return { offset, element: child };
+        return closest;
+    }, { offset: -Infinity, element: null }).element;
+}
+
+/** 容器级 dragover：实时把拖拽行移动到目标位置（顺序即保存时的顺序） */
+function onReplListDragOver(e) {
+    if (!dragSrcRow) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const after = getDragAfterElement(extractReplListEl, e.clientY);
+    if (after == null) extractReplListEl.appendChild(dragSrcRow);
+    else extractReplListEl.insertBefore(dragSrcRow, after);
+}
+
+/** 复制文本到剪贴板（优先 navigator.clipboard，iframe 内回退到 textarea+execCommand） */
+function copyTextToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopyText(text));
+        return;
+    }
+    fallbackCopyText(text);
+}
+function fallbackCopyText(text) {
+    const doc = manageDoc || document;
+    const ta = doc.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    ta.style.opacity = '0';
+    doc.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { doc.execCommand('copy'); } catch (_) {}
+    doc.body.removeChild(ta);
 }
 
 /** 旧模板兼容：单值 replTarget/replFrom/replTo → 规则数组 */

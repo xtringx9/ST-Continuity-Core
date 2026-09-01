@@ -614,6 +614,42 @@
     margin-top: 2px;
 }
 
+/* 正则输入框右侧的「?」：点击复制写正则提示词模板 */
+.extract-help-btn {
+    flex: 0 0 auto;
+    align-self: center;
+    width: 22px;
+    height: 22px;
+    line-height: 20px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.4));
+    background: var(--bg-input, #fff);
+    color: var(--text-muted, #888);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.extract-help-btn:hover {
+    color: var(--text, #333);
+    border-color: var(--text-muted, #888);
+}
+
+/* 二次替换：拖拽排序 */
+.extract-repl-drag {
+    flex: 0 0 auto;
+    align-self: center;
+    cursor: grab;
+    color: var(--text-muted, #999);
+    font-size: 15px;
+    line-height: 1;
+    user-select: none;
+    padding: 0 2px;
+}
+.extract-repl-drag:active { cursor: grabbing; }
+.extract-repl-row.dragging { opacity: 0.4; }
+.extract-repl-row[draggable="true"] { cursor: grabbing; }
+
 .extract-field textarea {
     flex: 1 1 100%;
     resize: vertical;
