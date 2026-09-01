@@ -161,7 +161,6 @@ let extractIncludeHiddenEl = null;
 let extractTplSelectEl = null;
 let extractTplSaveBtn = null;
 let extractTplDeleteBtn = null;
-let extractTplNameEl = null;
 let extractReplTargetEl = null;
 let extractReplFromEl = null;
 let extractReplToEl = null;
@@ -251,7 +250,6 @@ function bindManageDom() {
     extractTplSaveBtn = doc.getElementById('extract-tpl-save');
     extractTplDeleteBtn = doc.getElementById('extract-tpl-delete');
     manageDoc = doc;
-    extractTplNameEl = doc.getElementById('extract-tpl-name');
     extractReplTargetEl = doc.getElementById('extract-repl-target');
     extractReplFromEl = doc.getElementById('extract-repl-from');
     extractReplToEl = doc.getElementById('extract-repl-to');
@@ -793,8 +791,8 @@ function refreshExtractTplSelect() {
     extractTplSelectEl.innerHTML = '<option value="">— 未保存 —</option>' +
         list.map(t => `<option value="${escapeHtml(t.id)}" ${t.id === cur ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
     extractTplSelectEl.value = cur || '';
-    // 保存始终可点（无选中模板时弹窗引导新增）；删除仅在选中模板时可点
-    if (extractTplDeleteBtn) extractTplDeleteBtn.disabled = !cur;
+    // 保存始终可点（无选中模板时弹窗引导新增）；只要有模板可删，删除即可点（删除时按「选中项，否则列表第一项」定位）
+    if (extractTplDeleteBtn) extractTplDeleteBtn.disabled = list.length === 0;
 }
 
 /** 「二次替换 → 作用于」下拉：选项来自正则里的命名组，外加「全部输出」 */
@@ -818,19 +816,16 @@ function loadSelectedTemplate() {
     const id = extractTplSelectEl?.value;
     if (!id) {
         mActiveTplId = null;
-        if (extractTplNameEl) extractTplNameEl.value = '';
         refreshExtractTplSelect();
         return;
     }
     const t = (configManager.getChatToolsConfig().extractTemplates || []).find(x => x.id === id);
     if (!t) {
         mActiveTplId = null;
-        if (extractTplNameEl) extractTplNameEl.value = '';
         refreshExtractTplSelect();
         return;
     }
     mActiveTplId = t.id;
-    if (extractTplNameEl) extractTplNameEl.value = t.name;
     if (extractPatternEl) extractPatternEl.value = t.pattern;
     if (extractFlagsEl) extractFlagsEl.value = t.flags;
     if (extractTemplateEl) extractTemplateEl.value = t.template;
@@ -845,7 +840,6 @@ function loadSelectedTemplate() {
 
 function currentTemplateFields() {
     return {
-        name: (extractTplNameEl?.value ?? '').trim(),
         pattern: extractPatternEl?.value ?? '',
         flags: extractFlagsEl?.value ?? 'g',
         template: extractTemplateEl?.value ?? '',
@@ -879,11 +873,10 @@ function saveTemplate() {
     }
 }
 
-/** 输入新模板名 → 新增（弹窗） */
+/** 输入新模板名 → 新增（弹窗，默认名取当前角色名） */
 function promptSaveAsNew() {
     const dlg = new IframeDialog(manageDoc);
-    const list = configManager.getChatToolsConfig().extractTemplates || [];
-    const defaultName = `模板${list.length + 1}`;
+    const defaultName = getDefaultTplName();
     dlg.open({
         title: '另存为新模板',
         content: `<div style="margin-bottom:8px;">模板名称</div>` +
@@ -894,32 +887,43 @@ function promptSaveAsNew() {
             { text: '确定', className: 'btn-primary', onClick: (d) => {
                 const name = d.dialogElement.querySelector('#extract-tpl-newname').value.trim();
                 d.close();
+                if (!name) { showExtractWarn('模板名不能为空'); return; }
                 saveAsTemplate(name);
             } },
         ],
     });
 }
 
-/** 覆盖当前选中的模板（保留名称，整体写回当前 UI 设置） */
+/** 默认模板名：优先取当前角色名，否则回退「模板N」 */
+function getDefaultTplName() {
+    try {
+        if (typeof this_chid !== 'undefined' && characters[this_chid]?.name) {
+            return characters[this_chid].name;
+        }
+    } catch (e) { /* ignore */ }
+    const list = configManager.getChatToolsConfig().extractTemplates || [];
+    return `模板${list.length + 1}`;
+}
+
+/** 覆盖当前选中的模板（保留模板名，整体写回当前 UI 设置） */
 function saveTemplateOverwrite(id) {
-    const f = currentTemplateFields();
-    if (!f.name) { showExtractWarn('请先填写模板名'); return; }
     const cfg = configManager.getChatToolsConfig();
     const t = (cfg.extractTemplates || []).find(x => x.id === id);
     if (!t) { showExtractWarn('模板不存在'); return; }
-    Object.assign(t, f);
+    Object.assign(t, currentTemplateFields());
     configManager.setChatToolsConfig(cfg);
     mActiveTplId = t.id;
     refreshExtractTplSelect();
     showToast.success(`已保存模板「${t.name}」`);
 }
 
-/** 另存为新模板（name 由弹窗提供，空则自动命名） */
+/** 另存为新模板（name 由弹窗提供；空则回退默认名；同名自动加序号避免误覆盖） */
 function saveAsTemplate(name) {
     const f = currentTemplateFields();
     const cfg = configManager.getChatToolsConfig();
     cfg.extractTemplates = cfg.extractTemplates || [];
-    let nm = (name || f.name || `模板${cfg.extractTemplates.length + 1}`).trim();
+    const fallback = `模板${cfg.extractTemplates.length + 1}`;
+    let nm = (name || fallback).trim() || fallback;
     if (cfg.extractTemplates.some(x => x.name === nm)) {
         let n = 2;
         while (cfg.extractTemplates.some(x => x.name === `${nm} ${n}`)) n++;
@@ -929,16 +933,16 @@ function saveAsTemplate(name) {
     cfg.extractTemplates.push(t);
     configManager.setChatToolsConfig(cfg);
     mActiveTplId = t.id;
-    if (extractTplNameEl) extractTplNameEl.value = nm;
     refreshExtractTplSelect();
     showToast.success(`已另存为新模板「${nm}」`);
 }
 
 /** 删除：二次确认弹窗 */
 function deleteTemplate() {
-    const id = extractTplSelectEl?.value || mActiveTplId;
-    if (!id) { showExtractWarn('请先在模板下拉选择要删除的模板'); return; }
-    const t = (configManager.getChatToolsConfig().extractTemplates || []).find(x => x.id === id);
+    const list = configManager.getChatToolsConfig().extractTemplates || [];
+    const id = extractTplSelectEl?.value || mActiveTplId || list[0]?.id || '';
+    if (!id) { showExtractWarn('当前没有可删除的模板'); return; }
+    const t = list.find(x => x.id === id);
     const name = t?.name || '该模板';
     const dlg = new IframeDialog(manageDoc);
     dlg.open({
