@@ -60,6 +60,27 @@ export function fillTemplate(tpl, m) {
 }
 
 /**
+ * 二次替换：把某个「命名组」捕获到的内容先做一次字符串替换，再交给模板填充。
+ * 必须在 fillTemplate 之前调用 —— 填充完成后已定位不到某个组。
+ * target 为空或 '*' 时不处理（'*' = 作用于整条输出，由调用方在填充后自行替换）。
+ * @param {RegExpMatchArray} m 单个匹配
+ * @param {string} target 目标组名
+ * @param {string} from 查找
+ * @param {string} [to] 替换为
+ * @returns 新的匹配对象（数组 + groups）；原匹配不被修改
+ */
+export function applyGroupReplace(m, target, from, to) {
+    if (!target || target === '*' || !from) return m;
+    const groups = { ...(m.groups || {}) };
+    if (groups[target] == null) return m;
+    groups[target] = String(groups[target]).split(from).join(to ?? '');
+    // fillTemplate 只用到 m[0]、m.slice(1)、m.groups → 复制数组后挂上 groups 即可
+    const out = Array.from(m);
+    out.groups = groups;
+    return out;
+}
+
+/**
  * 整文替换（逐匹配用 fillTemplate 填充 replacement）。
  * @param {string} text
  * @param {string} pattern

@@ -131,9 +131,8 @@
                                         </select>
                                         <input type="text" id="extract-tpl-name" placeholder="模板名" />
                                         <div class="extract-btn-group">
-                                            <button class="btn-secondary" id="extract-tpl-load">载入</button>
+                                            <button class="btn-secondary" id="extract-tpl-save">保存</button>
                                             <button class="btn-secondary" id="extract-tpl-saveas">另存为</button>
-                                            <button class="btn-secondary" id="extract-tpl-rename">重命名</button>
                                             <button class="btn-secondary" id="extract-tpl-delete">删除</button>
                                         </div>
                                     </div>
@@ -149,6 +148,16 @@
                                     <label class="extract-label">输出模板</label>
                                     <div class="extract-field">
                                         <textarea id="extract-template" rows="2" placeholder="例 |模块名|字段:$1|（$0 整段 / $1..$n 分组 / ${name} 命名组 / $$ 字面 $）"></textarea>
+                                    </div>
+                                </div>
+                                <div class="extract-row">
+                                    <label class="extract-label">二次替换</label>
+                                    <div class="extract-field">
+                                        <select class="extract-repl-target" id="extract-repl-target" title="作用于哪个捕获组（选项取自正则里的命名组）">
+                                            <option value="">— 不替换 —</option>
+                                        </select>
+                                        <input type="text" id="extract-repl-from" placeholder="查找" />
+                                        <input type="text" id="extract-repl-to" placeholder="替换为" />
                                     </div>
                                 </div>
                                 <div class="extract-row">

@@ -158,6 +158,8 @@
 /* 管理左栏角色列表已改用 editor-shell 的共享 .binding-tree-* 样式（与角色绑定页同一套），
    见 editor-shell.css，故此处不再有独立作用域样式。 */
 
+
+
 /* 聊天选择弹窗：顶部角色原图（高清，按原图比例、不裁剪） */
 .reader-chat-modal-header {
     display: none;
@@ -553,6 +555,31 @@
 #extract-tpl-name { flex: 0 1 132px; width: 132px; }
 .extract-tpl-select { flex: 1 1 170px; max-width: 280px; }
 
+/* 二次替换：作用于下拉 + 查找 / 替换为 */
+.extract-repl-target {
+    flex: 0 1 150px;
+    max-width: 180px;
+    box-sizing: border-box;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 6px;
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    font-size: 13px;
+}
+#extract-repl-from,
+#extract-repl-to {
+    flex: 0 1 110px;
+    width: 110px;
+    box-sizing: border-box;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 6px;
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    font-size: 13px;
+}
+
 .extract-field textarea {
     flex: 1 1 100%;
     resize: vertical;
@@ -570,6 +597,11 @@
 .extract-btn-group .btn-secondary {
     padding: 4px 10px;
     font-size: 12px;
+}
+
+.extract-btn-group .btn-secondary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .extract-role-opts {

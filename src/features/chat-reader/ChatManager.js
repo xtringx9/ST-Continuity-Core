@@ -15,7 +15,7 @@ import { characters, getPastCharacterChats, getRequestHeaders } from '../../../.
 import { getCurrentChatDetails } from '../../../../../../../script.js';
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
 import { renderCharPicker, openChatModal, closeChatModal, chatTimeValue } from './ChatReader.js';
-import { compileRegex, matchAll, fillTemplate } from './regexBridge.js';
+import { compileRegex, matchAll, fillTemplate, applyGroupReplace } from './regexBridge.js';
 import { getAvatarThumbUrl } from '../../shared/characterBridge.js';
 import { timestampToMoment } from '../../../../../../utils.js';
 import configManager from '../../singleton/configManager.js';
@@ -156,11 +156,13 @@ let extractIncludeUserEl = null;
 let extractIncludeAiEl = null;
 // 模板套件（全局可复用）
 let extractTplSelectEl = null;
-let extractTplLoadBtn = null;
+let extractTplSaveBtn = null;
 let extractTplSaveasBtn = null;
-let extractTplRenameBtn = null;
 let extractTplDeleteBtn = null;
 let extractTplNameEl = null;
+let extractReplTargetEl = null;
+let extractReplFromEl = null;
+let extractReplToEl = null;
 let mActiveTplId = null;
 let extractRunBtn = null;
 let extractCopyBtn = null;
@@ -242,17 +244,22 @@ function bindManageDom() {
     extractIncludeUserEl = doc.getElementById('extract-include-user');
     extractIncludeAiEl = doc.getElementById('extract-include-ai');
     extractTplSelectEl = doc.getElementById('extract-tpl-select');
-    extractTplLoadBtn = doc.getElementById('extract-tpl-load');
+    extractTplSaveBtn = doc.getElementById('extract-tpl-save');
     extractTplSaveasBtn = doc.getElementById('extract-tpl-saveas');
-    extractTplRenameBtn = doc.getElementById('extract-tpl-rename');
     extractTplDeleteBtn = doc.getElementById('extract-tpl-delete');
     extractTplNameEl = doc.getElementById('extract-tpl-name');
+    extractReplTargetEl = doc.getElementById('extract-repl-target');
+    extractReplFromEl = doc.getElementById('extract-repl-from');
+    extractReplToEl = doc.getElementById('extract-repl-to');
+    // 正则里的命名组变化时，同步「二次替换 → 作用于」下拉
+    extractPatternEl?.addEventListener('input', refreshReplTargets);
+    // 选中即载入（无需「载入」按钮）；保存会连同名称一起写回，故改名=重命名
     extractTplSelectEl?.addEventListener('change', loadSelectedTemplate);
-    extractTplLoadBtn?.addEventListener('click', loadSelectedTemplate);
+    extractTplSaveBtn?.addEventListener('click', saveTemplate);
     extractTplSaveasBtn?.addEventListener('click', saveAsTemplate);
-    extractTplRenameBtn?.addEventListener('click', renameTemplate);
     extractTplDeleteBtn?.addEventListener('click', deleteTemplate);
     refreshExtractTplSelect();
+    refreshReplTargets();
     extractRunBtn = doc.getElementById('extract-run');
     extractCopyBtn = doc.getElementById('extract-copy');
     extractWarnEl = doc.getElementById('extract-warn');
@@ -303,10 +310,24 @@ function renderManageCharGrid(query) {
     manageCharListEl.innerHTML = '';
     const q = (query || '').trim().toLowerCase();
 
-    for (let idx = 0; idx < characters.length; idx++) {
-        const char = characters[idx];
+    // 当前角色：与角色绑定页一致 —— 当前角色置顶（行尾加「●」标记），不另起一行
+    const curCharName = getCurrentChatDetails()?.characterName || '';
+
+    // 1) 构造 {char, idx} 列表（idx 为 characters 原始下标，点击时传给 selectManageCharacter）
+    let list = characters.map((char, i) => ({ char, idx: i }));
+    // 2) 搜索过滤（大小写不敏感）
+    if (q) list = list.filter(({ char }) => (char.name || '').toLowerCase().includes(q));
+    // 3) 当前角色置顶（如有）
+    if (curCharName) {
+        const ci = list.findIndex(({ char }) => char && char.name === curCharName);
+        if (ci > 0) {
+            const [cur] = list.splice(ci, 1);
+            list.unshift(cur);
+        }
+    }
+
+    for (const { char, idx } of list) {
         if (!char) continue;
-        if (q && !(char.name || '').toLowerCase().includes(q)) continue;
         const item = doc.createElement('div');
         item.className = 'binding-tree-char';
         const row = doc.createElement('div');
@@ -317,6 +338,14 @@ function renderManageCharGrid(query) {
         name.className = 'binding-tree-name';
         name.textContent = char.name || '';
         row.appendChild(name);
+        // 当前角色：与角色绑定页同一套 .binding-tree-current 的 ● 标记
+        if (curCharName && char.name === curCharName) {
+            const dot = doc.createElement('span');
+            dot.className = 'binding-tree-current';
+            dot.textContent = '●';
+            dot.title = '当前角色';
+            row.appendChild(dot);
+        }
         row.addEventListener('click', () => {
             manageCharListEl.querySelectorAll('.binding-tree-row.active').forEach(r => r.classList.remove('active'));
             row.classList.add('active');
@@ -328,9 +357,9 @@ function renderManageCharGrid(query) {
 }
 
 /** 生成小头像（img 或首字母占位），载入失败自动回退占位 */
-function makeAvatar(avatarFile, name) {
+function makeAvatar(avatarFile, name, urlOverride) {
     const ph = (name || '?').trim().charAt(0).toUpperCase();
-    const url = (avatarFile && avatarFile !== 'none') ? getAvatarThumbUrl(avatarFile) : '';
+    const url = urlOverride || ((avatarFile && avatarFile !== 'none') ? getAvatarThumbUrl(avatarFile) : '');
     if (url) {
         const img = doc.createElement('img');
         img.className = 'binding-tree-avatar';
@@ -350,17 +379,7 @@ function makeAvatar(avatarFile, name) {
     return span;
 }
 
-async function openCurrentChatManage() {
-    const current = getCurrentChatDetails();
-    if (!current) return;
-    mCurrentChat = true;
-    mActiveChar = null;
-    mActiveCharIdx = -1;
-    mActiveChatName = current.sessionName || '';
-    mActiveChatMeta = null;
-    await populateChatSelect(null, /*isCurrent=*/ true);
-    doc.body.classList.add('mobile-view-detail-manage');
-}
+
 
 async function selectManageCharacter(idx) {
     if (!characters[idx]) return;
@@ -394,7 +413,7 @@ async function enterManageDetail(chatMeta, isCurrent) {
     if (chatLabelEl) chatLabelEl.textContent = label;
     const headerCharEl = doc.getElementById('reader-manage-char-label');
     if (headerCharEl) {
-        const charName = mActiveChar?.name || (isCurrent ? (getCurrentChatDetails()?.charName || '') : '');
+        const charName = mActiveChar?.name || (isCurrent ? (getCurrentChatDetails()?.characterName || '') : '');
         headerCharEl.textContent = charName || '未命名角色';
     }
     if (metaEl) {
@@ -494,7 +513,7 @@ async function populateChatSelect(char, isCurrent) {
     if (isCurrent) {
         const cur = getCurrentChatDetails();
         const name = cur?.sessionName || '当前聊天';
-        let text = `当前聊天：${name}`;
+        let text = `● 当前聊天：${name}`;
         try {
             const memChat = await getMemoryChat();
             const floors = Array.isArray(memChat) ? memChat.length : 0;
@@ -524,6 +543,13 @@ async function populateChatSelect(char, isCurrent) {
         return;
     }
     manageChatSelectEl.disabled = false;
+    // 当前聊天置顶并加「●」标记（与角色绑定页聊天下拉保持一致）
+    const curNow = getCurrentChatDetails();
+    const isCurrentChar = !!curNow?.characterName && mActiveChar?.name === curNow.characterName;
+    if (isCurrentChar && curNow.sessionName) {
+        const ci = chats.findIndex(c => String(c.file_name || '').replace(/\.jsonl$/i, '') === curNow.sessionName);
+        if (ci > 0) { const [c] = chats.splice(ci, 1); chats.unshift(c); }
+    }
     mChatList = chats;
     for (const c of chats) {
         const fn = String(c.file_name || '').replace(/\.jsonl$/i, '');
@@ -532,9 +558,10 @@ async function populateChatSelect(char, isCurrent) {
         if (c.file_size) parts.push(String(c.file_size));
         if (c.last_mes) parts.push(formatTime(c.last_mes));
         const meta = parts.join(' · ');
+        const isCur = isCurrentChar && fn === curNow.sessionName;
         const opt = doc.createElement('option');
         opt.value = fn;
-        opt.textContent = meta ? `${fn}　(${meta})` : fn;
+        opt.textContent = `${isCur ? '● ' : ''}${meta ? `${fn}　(${meta})` : fn}`;
         manageChatSelectEl.appendChild(opt);
     }
     manageChatSelectEl.value = String(chats[0].file_name || '').replace(/\.jsonl$/i, '');
@@ -623,6 +650,9 @@ async function runExtract() {
 
     const includeUser = !!extractIncludeUserEl?.checked;
     const includeAI = !!extractIncludeAiEl?.checked;
+    const replTarget = extractReplTargetEl?.value || '';
+    const replFrom = extractReplFromEl?.value ?? '';
+    const replTo = extractReplToEl?.value ?? '';
 
     const data = await getChatLines();
     if (!data) { showExtractWarn('无法读取聊天文件（请先选择聊天）'); return; }
@@ -647,7 +677,11 @@ async function runExtract() {
         const matches = matchAll(unit.text, regex);
         if (matches.length === 0) { unmatched.push(floor); continue; }
         for (const m of matches) {
-            results.push({ floor, role, filled: fillTemplate(tpl, m) });
+            // 二次替换：指定组时在填充前改该组内容；作用于整条输出时在填充后替换
+            const m2 = applyGroupReplace(m, replTarget, replFrom, replTo);
+            let filled = fillTemplate(tpl, m2);
+            if (replTarget === '*' && replFrom) filled = filled.split(replFrom).join(replTo);
+            results.push({ floor, role, filled });
         }
     }
     mLastExtract = results;
@@ -657,14 +691,14 @@ async function runExtract() {
 function renderExtractResults(results, unmatched) {
     if (!extractResultsEl) return;
     if (results.length === 0) {
-        showExtractWarn(unmatched.length > 0 ? '所选角色范围内没有命中任何匹配' : '没有可提取的内容（请先选择聊天并确认角色过滤）');
+        showExtractWarn(unmatched.length > 0 ? '所选消息来源范围内没有命中任何匹配' : '没有可提取的内容（请先选择聊天并确认消息来源过滤）');
         extractResultsEl.innerHTML = '';
         if (extractCopyBtn) extractCopyBtn.disabled = true;
         return;
     }
     let warn = '';
     if (unmatched.length > 0) {
-        warn = `以下楼层（在所选角色范围内）未提取到匹配，共 ${unmatched.length} 层：\n${unmatched.join(', ')}`;
+        warn = `以下楼层（在所选消息来源范围内）未提取到匹配，共 ${unmatched.length} 层：\n${unmatched.join(', ')}`;
     }
     showExtractWarn(warn, !!warn);
 
@@ -732,56 +766,104 @@ function refreshExtractTplSelect() {
     extractTplSelectEl.innerHTML = '<option value="">— 未保存 —</option>' +
         list.map(t => `<option value="${escapeHtml(t.id)}" ${t.id === cur ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
     extractTplSelectEl.value = cur || '';
+    // 未选中模板时，保存/删除不可点
+    if (extractTplSaveBtn) extractTplSaveBtn.disabled = !cur;
+    if (extractTplDeleteBtn) extractTplDeleteBtn.disabled = !cur;
+}
+
+/** 「二次替换 → 作用于」下拉：选项来自正则里的命名组，外加「全部输出」 */
+function refreshReplTargets() {
+    if (!extractReplTargetEl) return;
+    const pat = extractPatternEl?.value || '';
+    const names = [];
+    const re = /\(\?<([A-Za-z_$][\w$]*)>/g;
+    let mm;
+    while ((mm = re.exec(pat))) {
+        if (!names.includes(mm[1])) names.push(mm[1]);
+    }
+    const cur = extractReplTargetEl.value;
+    extractReplTargetEl.innerHTML = '<option value="">— 不替换 —</option>' +
+        '<option value="*">全部输出</option>' +
+        names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    extractReplTargetEl.value = cur && (cur === '*' || names.includes(cur)) ? cur : '';
 }
 
 function loadSelectedTemplate() {
     const id = extractTplSelectEl?.value;
-    if (!id) { mActiveTplId = null; return; }
+    if (!id) {
+        mActiveTplId = null;
+        if (extractTplNameEl) extractTplNameEl.value = '';
+        refreshExtractTplSelect();
+        return;
+    }
     const t = (configManager.getChatToolsConfig().extractTemplates || []).find(x => x.id === id);
-    if (!t) { mActiveTplId = null; return; }
+    if (!t) {
+        mActiveTplId = null;
+        if (extractTplNameEl) extractTplNameEl.value = '';
+        refreshExtractTplSelect();
+        return;
+    }
     mActiveTplId = t.id;
+    if (extractTplNameEl) extractTplNameEl.value = t.name;
     if (extractPatternEl) extractPatternEl.value = t.pattern;
     if (extractFlagsEl) extractFlagsEl.value = t.flags;
     if (extractTemplateEl) extractTemplateEl.value = t.template;
     if (extractIncludeUserEl) extractIncludeUserEl.checked = !!t.includeUser;
     if (extractIncludeAiEl) extractIncludeAiEl.checked = !!t.includeAI;
+    if (extractReplTargetEl) extractReplTargetEl.value = t.replTarget || '';
+    if (extractReplFromEl) extractReplFromEl.value = t.replFrom || '';
+    if (extractReplToEl) extractReplToEl.value = t.replTo || '';
+    refreshReplTargets();
 }
 
-function saveAsTemplate() {
-    const name = (extractTplNameEl?.value ?? '').trim() ||
-        `模板${(configManager.getChatToolsConfig().extractTemplates?.length || 0) + 1}`;
-    const t = {
-        id: genExtractTplId(),
-        name,
+function currentTemplateFields() {
+    return {
+        name: (extractTplNameEl?.value ?? '').trim(),
         pattern: extractPatternEl?.value ?? '',
         flags: extractFlagsEl?.value ?? 'g',
         template: extractTemplateEl?.value ?? '',
         includeUser: !!extractIncludeUserEl?.checked,
         includeAI: !!extractIncludeAiEl?.checked,
+        replTarget: extractReplTargetEl?.value || '',
+        replFrom: extractReplFromEl?.value ?? '',
+        replTo: extractReplToEl?.value ?? '',
     };
-    const cfg = configManager.getChatToolsConfig();
-    cfg.extractTemplates = cfg.extractTemplates || [];
-    const idx = cfg.extractTemplates.findIndex(x => x.name === name);
-    if (idx >= 0) cfg.extractTemplates[idx] = t; else cfg.extractTemplates.push(t);
-    configManager.setChatToolsConfig(cfg);
-    mActiveTplId = t.id;
-    if (extractTplNameEl) extractTplNameEl.value = '';
-    refreshExtractTplSelect();
-    showExtractWarn(`已保存模板「${name}」`);
 }
 
-function renameTemplate() {
-    const id = extractTplSelectEl?.value;
-    if (!id) { showExtractWarn('请先在模板下拉选择要重命名的模板'); return; }
-    const name = (extractTplNameEl?.value ?? '').trim();
-    if (!name) { showExtractWarn('请在模板名输入框填写新名称'); return; }
+/** 保存：把当前字段（含名称）写回已选中的模板 —— 改名字即等于重命名 */
+function saveTemplate() {
+    const id = extractTplSelectEl?.value || mActiveTplId;
+    if (!id) { showExtractWarn('请先在模板下拉选择要保存到的模板'); return; }
+    const f = currentTemplateFields();
+    if (!f.name) { showExtractWarn('请先填写模板名'); return; }
     const cfg = configManager.getChatToolsConfig();
     const t = (cfg.extractTemplates || []).find(x => x.id === id);
     if (!t) { showExtractWarn('模板不存在'); return; }
-    t.name = name;
+    Object.assign(t, f);
     configManager.setChatToolsConfig(cfg);
+    mActiveTplId = t.id;
     refreshExtractTplSelect();
-    showExtractWarn(`已重命名为「${name}」`);
+    showExtractWarn(`已保存模板「${t.name}」`);
+}
+
+/** 另存为：用当前字段新建一个模板（不影响已选中的那个；同名自动加序号） */
+function saveAsTemplate() {
+    const f = currentTemplateFields();
+    const cfg = configManager.getChatToolsConfig();
+    cfg.extractTemplates = cfg.extractTemplates || [];
+    let name = f.name || `模板${cfg.extractTemplates.length + 1}`;
+    if (cfg.extractTemplates.some(x => x.name === name)) {
+        let n = 2;
+        while (cfg.extractTemplates.some(x => x.name === `${name} ${n}`)) n++;
+        name = `${name} ${n}`;
+    }
+    const t = { id: genExtractTplId(), ...f, name };
+    cfg.extractTemplates.push(t);
+    configManager.setChatToolsConfig(cfg);
+    mActiveTplId = t.id;
+    if (extractTplNameEl) extractTplNameEl.value = name;
+    refreshExtractTplSelect();
+    showExtractWarn(`已另存为新模板「${name}」`);
 }
 
 function deleteTemplate() {
