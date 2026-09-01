@@ -4,7 +4,7 @@
 // 桌面图标走 iconKey 注册；会话列表 + 聊天窗口结构与通用皮肤一致，配色品牌化。
 import { skinIcon, uiIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock, mergeChatParts } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -25,14 +25,15 @@ function isGroupConversation(conv) {
     return conv.messages.some((m) => m.grp);
 }
 
-/** 单条消息气泡（左右布局 + 时间贴气泡底部） */
-function bubble(m, groupConv) {
+/** 单条消息气泡（左右布局 + 时间贴气泡底部；meta.merged 收紧间距，meta.last=false 为组内中间消息不显示时间） */
+function bubble(m, groupConv, meta) {
     const mine = m.isMine ? 'mine' : 'theirs';
     const content = renderMessageContent(m);
-    const time = m.time ? `<div class="sms-time pm-time-inline">${esc(msgClock(m.time))}</div>` : '';
+    const time = meta && meta.last === false ? '' : (m.time ? `<div class="sms-time pm-time-inline">${esc(msgClock(m.time))}</div>` : '');
     const name = !m.isMine && groupConv && m.from ? `<div class="sms-name">${esc(m.from)}</div>` : '';
     const avatar = `<span class="sms-avatar">${initial(m.isMine ? '我' : m.from)}</span>`;
-    return `<div class="sms-msg ${mine}">
+    const cls = meta && meta.merged ? ' merged' : '';
+    return `<div class="sms-msg ${mine}${cls}">
         ${avatar}
         <div class="sms-body">
             ${name}
@@ -71,9 +72,9 @@ export function buildSmsSkin() {
 
             const chats = conversations.map((conv, i) => {
                 const group = isGroupConversation(conv);
-                const parts = groupByDate(conv.messages).map((p) => p.kind === 'date'
+                const parts = mergeChatParts(groupByDate(conv.messages)).map((p) => p.kind === 'date'
                     ? dateDivider('sms', p.date)
-                    : bubble(p.msg, group)).join('');
+                    : bubble(p.msg, group, p)).join('');
                 return `<div class="sms-chat" data-conv="${i}" hidden>
                     ${chatHeader('sms', esc(conv.title || '会话'))}
                     <div class="sms-msgs">${parts || '<div class="sms-empty">暂无消息</div>'}</div>

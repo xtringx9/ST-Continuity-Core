@@ -6,7 +6,7 @@
 // 外壳层（phoneRenderer NAV_SCRIPT）负责 home ↔ App ↔ 会话 导航，皮肤只管内容。
 import { skinIcon, uiIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock, mergeChatParts } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -40,16 +40,17 @@ function groupAvatar(members) {
     return `<span class="wx-gavatar">${cells}${more}</span>`;
 }
 
-/** 单条消息气泡（左右布局 + 时间贴气泡底部） */
-function bubble(m, groupConv) {
+/** 单条消息气泡（左右布局 + 时间贴气泡底部；meta.merged 收紧间距，meta.last=false 为组内中间消息不显示时间） */
+function bubble(m, groupConv, meta) {
     const mine = m.isMine ? 'mine' : 'theirs';
     const content = renderMessageContent(m);
-    const time = m.time ? `<div class="wx-time pm-time-inline">${esc(msgClock(m.time))}</div>` : '';
+    const time = meta && meta.last === false ? '' : (m.time ? `<div class="wx-time pm-time-inline">${esc(msgClock(m.time))}</div>` : '');
     // 群聊对方消息显示发送者名（自己/私聊不显示）
     const name = !m.isMine && groupConv && m.from ? `<div class="wx-name">${esc(m.from)}</div>` : '';
     const avatar = `<span class="wx-avatar">${initial(m.isMine ? '我' : m.from)}</span>`;
+    const cls = meta && meta.merged ? ' merged' : '';
     // 头像固定放最前，视觉位置由 CSS order 决定（theirs=左，mine=右）
-    return `<div class="wx-msg ${mine}">
+    return `<div class="wx-msg ${mine}${cls}">
         ${avatar}
         <div class="wx-body">
             ${name}
@@ -88,9 +89,9 @@ export function buildWechatSkin() {
 
             const chats = conversations.map((conv, i) => {
                 const group = isGroupConversation(conv);
-                const parts = groupByDate(conv.messages).map((p) => p.kind === 'date'
+                const parts = mergeChatParts(groupByDate(conv.messages)).map((p) => p.kind === 'date'
                     ? dateDivider('wx', p.date)
-                    : bubble(p.msg, group)).join('');
+                    : bubble(p.msg, group, p)).join('');
                 return `<div class="wx-chat" data-conv="${i}" hidden>
                     ${chatHeader('wx', esc(conv.title || '会话'))}
                     <div class="wx-msgs">${parts || '<div class="wx-empty">暂无消息</div>'}</div>

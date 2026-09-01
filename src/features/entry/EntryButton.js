@@ -517,10 +517,11 @@ export class EntryButton {
     }
 
     /**
-     * 根据当前是否在聊天页，刷新菜单内各按钮的禁用状态。
+     * 根据当前是否在聊天页，刷新菜单内各按钮的显隐状态。
      *
-     * 非聊天页：汇总/手机按钮置灰禁用（编辑器、生成内容配置是全局配置，不依赖聊天）。
-     * 通过 dataset.disabled 标记状态，常驻的 click/hover 监听据此实时判断。
+     * 依赖聊天数据的入口（汇总/手机）在非聊天页直接隐藏；全局工具（编辑器、
+     * 生成记录、图文阅读器、NAI 预设）不受聊天页限制，始终显示。
+     * 通过 dataset.disabled 标记，常驻的 click/hover 监听据此实时判断（hidden 时点击无效）。
      */
     _refreshMenuItemsState() {
         if (!this._activeMenu) return;
@@ -530,14 +531,12 @@ export class EntryButton {
             const title = btn.dataset.title || '';
             // 全局工具（不受聊天页限制）：editor / nai-preset / reader / history。
             // reader 有首页（角色→聊天选择）；history 是全局生成记录，均无需先打开聊天。
-            const disabled = !inChat && action !== 'editor' && action !== 'nai-preset' && action !== 'reader' && action !== 'history';
-            btn.dataset.disabled = disabled ? 'true' : 'false';
-            if (disabled) {
-                btn.style.opacity = '0.4';
-                btn.style.cursor = 'not-allowed';
-                btn.style.backgroundColor = '';
-                btn.title = `${title}（需先打开聊天）`;
+            const hidden = !inChat && action !== 'editor' && action !== 'nai-preset' && action !== 'reader' && action !== 'history';
+            btn.dataset.disabled = hidden ? 'true' : 'false';
+            if (hidden) {
+                btn.style.display = 'none';
             } else {
+                btn.style.display = 'flex';
                 btn.style.opacity = '';
                 btn.style.cursor = 'pointer';
                 btn.title = title;

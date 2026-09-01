@@ -152,12 +152,15 @@
     overflow-y: auto;
     padding: 14px 12px;
     background: #f3f5f8;
+    /* flex 列：打断相邻消息的 margin 折叠，使 merged 负 margin 真正收紧间距 */
+    display: flex;
+    flex-direction: column;
 }
 .qq-msg {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    margin: 10px 0;
+    margin: 0 0 10px;   /* 组间距 10px */
 }
 .qq-msg .qq-avatar {
     width: 38px;
@@ -196,6 +199,8 @@
 .qq-msg.mine .qq-bubble {
     background: #a1e2ff;
 }
+/* 连续消息粘连：负 margin 抵消上一条的 bottom，净距 ≈6px（头像/气泡样式不变） */
+.qq-msg.merged { margin-top: -4px; }
 
 /* ============ 消息类型卡片（结构样式在 message-types.css，此处仅品牌色覆盖） ============ */
 .qq-time {

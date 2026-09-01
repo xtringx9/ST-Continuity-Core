@@ -199,6 +199,11 @@ function buildMessages(scene, moduleData, userName) {
     for (const entry of entries) {
         const vars = (entry && entry.moduleData && entry.moduleData.variables) || {};
         const from = resolveField(fm, vars, 'sender');
+        // 复用管线已解析的时间戳（timeData.startTime.timestamp，ms）做排序/合并；不可用回退字符串解析
+        const timeData = entry && entry.moduleData && entry.moduleData.timeData;
+        const ts = (timeData && timeData.isValid && timeData.startTime && typeof timeData.startTime.timestamp === 'number')
+            ? timeData.startTime.timestamp
+            : 0;
         const msg = {
             plat: resolveField(fm, vars, 'plat'),
             from,
@@ -208,6 +213,7 @@ function buildMessages(scene, moduleData, userName) {
             dm: resolveField(fm, vars, 'dm'),
             grp: resolveField(fm, vars, 'grp'),
             mems: resolveField(fm, vars, 'mems'),
+            ts,
         };
         // 空内容楼层不渲染（与存储 skipEmpty 策略一致）
         if (!msg.content) continue;
@@ -454,10 +460,15 @@ function groupMessagesToConversations(messages, userName) {
         const prefix = last ? (TYPE_PREFIX[String(last.type || '').toLowerCase()] || '') : '';
         conv.preview = last ? prefix + last.content : '';
         conv.lastTime = last ? last.time : '';
+        conv.lastTs = last ? (last.ts || 0) : 0;
         out.push(conv);
     }
-    // 按最后一条消息时间倒序（最新会话在上，真实 IM 会话列表）；无时间消息排最后
-    out.sort((a, b) => timeRank(b.lastTime) - timeRank(a.lastTime));
+    // 按最后一条消息时间倒序（最新会话在上，真实 IM 会话列表）：优先管线时间戳，无则回退字符串解析
+    out.sort((a, b) => {
+        const ar = a.lastTs || timeRank(a.lastTime);
+        const br = b.lastTs || timeRank(b.lastTime);
+        return br - ar;
+    });
     return out;
 }
 

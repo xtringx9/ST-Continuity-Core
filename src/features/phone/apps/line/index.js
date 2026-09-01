@@ -4,7 +4,7 @@
 // 皮肤只管内容，外壳层负责导航；会话卡展示群成员（mems），聊天窗口气泡左右两侧。
 import { skinIcon, uiIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock, mergeChatParts } from '../chatChrome.js';
 
 function esc(str) {
     if (str == null) return '';
@@ -25,13 +25,14 @@ function isGroupConversation(conv) {
     return conv.messages.some((m) => m.grp);
 }
 
-/** 单条消息气泡（左右布局 + 时间贴气泡底部） */
-function bubble(m, groupConv) {
+/** 单条消息气泡（左右布局 + 时间贴气泡底部；meta.merged 收紧间距，meta.last=false 为组内中间消息不显示时间） */
+function bubble(m, groupConv, meta) {
     const mine = m.isMine ? 'mine' : 'theirs';
     const content = renderMessageContent(m);
-    const time = m.time ? `<div class="ln-time pm-time-inline">${esc(msgClock(m.time))}</div>` : '';
+    const time = meta && meta.last === false ? '' : (m.time ? `<div class="ln-time pm-time-inline">${esc(msgClock(m.time))}</div>` : '');
     const name = !m.isMine && groupConv && m.from ? `<div class="ln-name">${esc(m.from)}</div>` : '';
-    return `<div class="ln-msg ${mine}">
+    const cls = meta && meta.merged ? ' merged' : '';
+    return `<div class="ln-msg ${mine}${cls}">
         <span class="ln-avatar">${initial(m.isMine ? '我' : m.from)}</span>
         <div class="ln-body">
             ${name}
@@ -75,9 +76,9 @@ export function buildLineSkin() {
 
             const chats = conversations.map((conv, i) => {
                 const group = isGroupConversation(conv);
-                const parts = groupByDate(conv.messages).map((p) => p.kind === 'date'
+                const parts = mergeChatParts(groupByDate(conv.messages)).map((p) => p.kind === 'date'
                     ? dateDivider('ln', p.date)
-                    : bubble(p.msg, group)).join('');
+                    : bubble(p.msg, group, p)).join('');
                 return `<div class="ln-chat" data-conv="${i}" hidden>
                     ${chatHeader('ln', esc(conv.title || '会话'))}
                     <div class="ln-msgs">${parts || '<div class="ln-empty">暂无消息</div>'}</div>

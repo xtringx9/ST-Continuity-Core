@@ -6,7 +6,7 @@
 // 气泡类型（text/voice/img/money/loc/call/file）由 messageTypes.js 卡片化渲染。
 import { skinIcon, uiIcon } from '../icons.js';
 import { renderMessageContent } from '../messageTypes.js';
-import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock } from '../chatChrome.js';
+import { groupByDate, dateDivider, chatComposer, chatHeader, fmtTime, msgClock, mergeChatParts } from '../chatChrome.js';
 
 /**
  * HTML 转义（防 XSS / 破坏结构）
@@ -23,13 +23,16 @@ function escapeHtml(str) {
 
 /**
  * 单条消息气泡（text 型；其余 type 由 renderMessageContent 卡片化渲染）
+ * meta.merged 收紧间距；meta.last=false 为组内中间消息不显示时间
  * @param {Object} m { from, content, time, type, isMine }
+ * @param {Object} [meta]
  * @returns {string}
  */
-function bubble(m) {
+function bubble(m, meta) {
     const content = renderMessageContent(m);
-    const time = m.time ? `<div class="g-msg-time pm-time-inline">${escapeHtml(msgClock(m.time))}</div>` : '';
-    return `<div class="g-msg ${m.isMine ? 'mine' : 'theirs'}">
+    const time = meta && meta.last === false ? '' : (m.time ? `<div class="g-msg-time pm-time-inline">${escapeHtml(msgClock(m.time))}</div>` : '');
+    const cls = meta && meta.merged ? ' merged' : '';
+    return `<div class="g-msg ${m.isMine ? 'mine' : 'theirs'}${cls}">
         <div class="g-bubble">${content}</div>
         ${time}
     </div>`;
@@ -72,9 +75,9 @@ export function buildGenericSkin() {
             }).join('');
 
             const chats = conversations.map((conv, i) => {
-                const parts = groupByDate(conv.messages).map((p) => p.kind === 'date'
+                const parts = mergeChatParts(groupByDate(conv.messages)).map((p) => p.kind === 'date'
                     ? dateDivider('g', p.date)
-                    : bubble(p.msg)).join('');
+                    : bubble(p.msg, p)).join('');
                 return `<div class="g-chat" data-conv="${i}" hidden>
                     ${chatHeader('g', escapeHtml(conv.title || '会话'))}
                     <div class="g-msgs">${parts || '<div class="g-empty">暂无消息</div>'}</div>
