@@ -2,7 +2,7 @@
 import { runModulePipeline } from "../core/pipeline/runModulePipeline.js";
 import { chat } from "../../../../../../script.js";
 import configManager, { extensionName } from "../singleton/configManager.js";
-import { debugLog, errorLog, infoLog } from "../utils/logger.js";
+import { debugLog, errorLog, infoLog, isDebugLogsEnabled } from "../utils/logger.js";
 import { extension_settings } from "../../../../../extensions.js";
 import { replaceVariables } from "../utils/variableReplacer.js";
 import { showToast } from "../shared/Toast.js";
@@ -825,11 +825,13 @@ function extractModuleDataForPrompt(skipEmpty = false) {
         debugLog(`[生成上下文] moduleData 宏截断到楼层 ${endIndex}`);
     }
     // ⚠️ 临时诊断（定位 module_data 偶发包含末条）：单条 toast 分行显示，实际 endIndex 最醒目
-    showToast(
-        `[MODULE_DATA诊断]\nchat.length=${chat.length} | 末条idx=${chat.length - 1} | is_user=${lastMsg.is_user} | role=${lastMsg.role} | isUserMessage=${isUserMessage} | genEndFloor=${genEndFloor}\n【实际 endIndex = ${endIndex}】`,
-        'info',
-        'auto',
-    );
+    if (isDebugLogsEnabled()) {
+        showToast(
+            `[MODULE_DATA诊断]\nchat.length=${chat.length} | 末条idx=${chat.length - 1} | is_user=${lastMsg.is_user} | role=${lastMsg.role} | isUserMessage=${isUserMessage} | genEndFloor=${genEndFloor}\n【实际 endIndex = ${endIndex}】`,
+            'info',
+            'auto',
+        );
+    }
     // 提取全部聊天记录的所有模块数据（一次性获取）
     const moduleFilters = getContextBottomFilteredModuleConfigs(); // 只提取符合条件的模块
     const selectedModuleNames = moduleFilters.map(config => config.name);
