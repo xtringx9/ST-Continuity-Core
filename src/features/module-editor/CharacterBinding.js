@@ -45,6 +45,7 @@ let detailEl = null;
 let selected = null;                 // { scope, charName, chatFile }
 const expandedMods = new Set();      // 已展开的模块名
 let treeSearchQuery = '';            // 角色树搜索词（实时过滤）
+let activeBindingTab = 'binding-tab-modules';   // 当前详情页活动 Tab（跨重渲染记忆，与模块配置详情一致）
 
 /**
  * 初始化角色绑定页
@@ -419,7 +420,9 @@ async function renderDetail() {
     const tabDefs = isChatScope
         ? [['binding-tab-modules', '模块覆盖'], ['binding-tab-vars', '变量设置'], ['binding-tab-entries', '模块条目'], ['binding-tab-chatops', '聊天操作']]
         : [['binding-tab-modules', '模块覆盖'], ['binding-tab-vars', '变量设置']];
-    const tabItemsHtml = tabDefs.map(([t, label], i) => `<div class="detail-tab-item ${i === 0 ? 'active' : ''}" data-target="${t}">${label}</div>`).join('');
+    // 记忆上次选中的 Tab；若它在当前 scope 下不存在（如从聊天级切回角色级，无「模块条目/聊天操作」），回退到第一个
+    const activeTab = tabDefs.some(([t]) => t === activeBindingTab) ? activeBindingTab : tabDefs[0][0];
+    const tabItemsHtml = tabDefs.map(([t, label]) => `<div class="detail-tab-item ${t === activeTab ? 'active' : ''}" data-target="${t}">${label}</div>`).join('');
 
     const scopeOptions = [
         `<option value="" ${!selected.chatFile ? 'selected' : ''}>${translate('ccore_binding_all_chats')}</option>`,
@@ -461,7 +464,7 @@ async function renderDetail() {
             ${buildCurrentChatJumpBtn()}
         </div>
         <div class="binding-detail-body" id="binding-detail-body">
-            <div class="detail-tab-panel active" id="binding-tab-modules">
+            <div class="detail-tab-panel ${activeTab === 'binding-tab-modules' ? 'active' : ''}" id="binding-tab-modules">
                 <div class="form-section-title binding-section-head">
                     <span>${translate('ccore_binding_section_modules')}</span>
                     <div class="binding-section-head-actions">
@@ -477,14 +480,14 @@ async function renderDetail() {
                     </div>
                 </div>
             </div>
-            <div class="detail-tab-panel" id="binding-tab-vars">
+            <div class="detail-tab-panel ${activeTab === 'binding-tab-vars' ? 'active' : ''}" id="binding-tab-vars">
                 ${renderVarBindingSection()}
             </div>
             ${isChatScope ? `
-            <div class="detail-tab-panel" id="binding-tab-entries">
+            <div class="detail-tab-panel ${activeTab === 'binding-tab-entries' ? 'active' : ''}" id="binding-tab-entries">
                 ${renderChatModuleEntriesSection(true)}
             </div>
-            <div class="detail-tab-panel" id="binding-tab-chatops">
+            <div class="detail-tab-panel ${activeTab === 'binding-tab-chatops' ? 'active' : ''}" id="binding-tab-chatops">
                 <div class="form-section-title">${translate('ccore_binding_section_chatops')}</div>
                 <div class="binding-section-body">
                     <p style="color:var(--text-muted);">${translate('ccore_binding_section_chatops_hint')}</p>
@@ -551,6 +554,7 @@ function bindBindingTabs() {
     tabsEl.querySelectorAll('.detail-tab-item').forEach((tab) => {
         tab.addEventListener('click', () => {
             const target = tab.dataset.target;
+            activeBindingTab = target;   // 记忆选择，重渲染后保持（对齐模块配置详情页行为）
             tabsEl.querySelectorAll('.detail-tab-item').forEach((t) => t.classList.toggle('active', t === tab));
             detailEl.querySelectorAll('.detail-tab-panel').forEach((p) => p.classList.toggle('active', p.id === target));
         });
