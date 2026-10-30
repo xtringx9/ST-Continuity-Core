@@ -120,8 +120,11 @@ export const WORLD_BOOK_ENTRIES = {
             order: 2,
             position: 4,
             disable: false,
+            // excludeRecursion=true：本条目是蓝灯，无需被递归再次激活
             excludeRecursion: true,
-            preventRecursion: true,
+            // ⚠️ 必须 false：preventRecursion=true 时 ST 不把本条 content（宏展开后的模块数据）
+            // 放进递归缓冲（world-info.js:4765），世界书关键词绿灯就永远扫不到异步模块数据。
+            preventRecursion: false,
             probability: 100,
             useProbability: true,
             depth: 9999,
