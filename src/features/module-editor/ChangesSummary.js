@@ -254,6 +254,7 @@ const asyncKeyToI18n = {
     'pushUserMessageAsLast': 'ccore_settings_push_user_message_as_last',
     'askPromptBeforeGenerate': 'ccore_settings_ask_prompt_before_generate',
     'autoGenerateOnMessageEnd': 'ccore_settings_auto_generate_on_message_end',
+    'autoGenerateTrigger': 'ccore_settings_auto_generate_trigger',
     'presetName': 'ccore_settings_generation_preset',
     'promptGroups': 'ccore_async_prompt_groups_title',
     'customApi': 'ccore_settings_custom_api_summary',
@@ -306,7 +307,7 @@ function compareAsyncConfigs(originalAsyncConfig, currentAsyncConfig, originalAs
         'snapshotInterval', 'generationMode', 'useIndependentApi',
         'rawSystemPrompt', 'rawUserPromptTemplate', 'showDebug',
         'pushUserMessageAsLast', 'askPromptBeforeGenerate',
-        'autoGenerateOnMessageEnd', 'presetName', 'promptGroups',
+        'autoGenerateOnMessageEnd', 'autoGenerateTrigger', 'presetName', 'promptGroups',
     ];
     for (const key of scalarKeys) {
         if (JSON.stringify(orig[key]) !== JSON.stringify(curr[key])) {

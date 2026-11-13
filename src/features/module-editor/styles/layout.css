@@ -1279,13 +1279,19 @@ section.module-detail-panel {
     transform: translateX(20px);
 }
 
-/* 生成行为区：左列两个下拉框（生成方式/生成预设），右列两个开关 */
+/* 生成行为区：左右两列各自纵向排布（互不拉伸 → 右侧多出校验下拉时左侧不会跟着变高） */
 .async-behavior-grid {
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
-    grid-template-rows: repeat(2, auto);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
     gap: 10px 16px;
+}
+
+.async-behavior-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
 }
 
 /* 生成方式：label 与下拉同行 */
@@ -1356,6 +1362,35 @@ section.module-detail-panel {
 .async-settings .async-toggle span {
     font-size: 13px;
     color: var(--text-primary);
+}
+
+/* 自动生成开关格：开关 + 校验方式下拉纵向排列，下拉紧贴开关下方 */
+.async-auto-gen-cell {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.async-auto-gen-cell .async-toggle {
+    width: 100%;
+}
+
+.async-auto-trigger {
+    width: 100%;
+    padding-left: 22px; /* 与开关文字左对齐（14px 复选框 + 8px 间距） */
+}
+
+.async-auto-trigger select {
+    width: 100%;
+    padding: 3px 6px;
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: inherit;
+    box-sizing: border-box;
+    cursor: pointer;
 }
 
 .async-group-hint {

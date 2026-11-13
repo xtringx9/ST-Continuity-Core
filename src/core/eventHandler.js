@@ -17,6 +17,7 @@ import { getChatCacheKey, invalidateOccurrence, invalidateSourceAll, clearOccurr
 import { markSnapshotDirty, resetSnapshotDirty, clearSnapshots } from "./snapshotStore.js";
 import { clearBuildCache } from "./rebuildProcessor.js";
 import { taskRegistry } from "./taskRegistry.js";
+import { isBodyProperlyClosed } from "../utils/tagTailCheck.js";
 
 /** 编辑前文本缓存：mesId → 编辑框打开时的 chat[mesId].mes（MESSAGE_UPDATED 前对比增量用） */
 const _editTextCache = new Map();
@@ -338,6 +339,26 @@ export class EventHandler {
                         if (!runMsg.mes || !String(runMsg.mes).trim()) {
                             debugLog(`[EVENTS]楼层 ${runIdx} 回复内容为空（可能生成失败/中断），跳过自动生成`);
                             return;
+                        }
+                        // ⚠️ 2026-11-12 正文完整收尾校验（autoGenerateTrigger='tailCheck'）：
+                        //   仅当最新正文以 contentTag 闭合标签收尾（尾部只允许完整模块块/details/cotTag 块）才生成。
+                        //   判定从尾部向内剥，不全文搜索 —— 思维链里提前出现的 </content> 不会被误认成已收尾。
+                        //   校验不通过静默跳过（仅 debugLog），避免截断/中止楼层白跑一次 AI 调用。
+                        if ((asyncConfig.autoGenerateTrigger || 'always') === 'tailCheck') {
+                            const gs = configManager.getGlobalSettings() || {};
+                            const verdict = isBodyProperlyClosed(runMsg.mes, {
+                                contentTags: gs.contentTag || [],
+                                moduleTags: [
+                                    gs.moduleTag,
+                                    gs.moduleUpdateTag,
+                                    ...(Array.isArray(gs.compatibleModuleTags) ? gs.compatibleModuleTags : []),
+                                ],
+                                cotTags: Array.isArray(gs.cotTags) ? gs.cotTags : [],
+                            });
+                            if (!verdict.ok) {
+                                debugLog(`[EVENTS]楼层 ${runIdx} 正文未完整收尾（${verdict.reason}），跳过自动生成`);
+                                return;
+                            }
                         }
                         // ⚠️ 2026-08-23 防重复生成：仅当目标楼层当前外层 swipe（正文 swipe_id）在 modules
                         //   存储下「版本数为零」（从未生成过）才自动生成；已有版本则跳过，避免覆盖/浪费调用。

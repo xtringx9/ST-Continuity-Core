@@ -80,6 +80,19 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
     // ⚠️ 2026-08-26 「从 API 配置应用」：仅在 api-manager 功能启用且存在配置时显示该控件
     const apiManagerEnabled = configManager.isApiManagerEnabled();
     const apiProfiles = (configManager.getExtensionConfig()?.stFeatureEnhance?.apiManager?.profiles || []).filter(p => p && p.id);
+    // 自动生成校验方式的动态文案（2026-11-12）：标签名实时取自 globalSettings.contentTag，
+    // 不写死 </content>（用户可能配置任意正文标签，甚至多个）。
+    // ⚠️ contentTag 正常是数组，但导入的旧配置可能是字符串，统一收敛成数组。
+    const rawContentTags = configManager.getGlobalSettings()?.contentTag;
+    const contentTags = (Array.isArray(rawContentTags) ? rawContentTags : (rawContentTags ? [rawContentTags] : []))
+        .map(t => String(t || '').trim())
+        .filter(Boolean);
+    const tagsText = contentTags.map(t => `&lt;/${escapeHtml(t)}&gt;`).join(' / ');
+    const tailCheckLabel = contentTags.length
+        ? translate('ccore_option_auto_generate_tail_check').replace('{{tags}}', tagsText)
+        : translate('ccore_option_auto_generate_tail_check_nocfg');
+    const triggerTitle = translate('ccore_settings_auto_generate_trigger_title')
+        .replace('{{tags}}', tagsText || '—');
     const apiProfileOptions = apiManagerEnabled
         ? `<select id="async-api-profile" class="text_pole" style="width:100%;">
                 <option value="">${translate('ccore_async_api_profile_ph')}</option>
@@ -152,30 +165,41 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
 
                 <div class="form-section-title">${translate('ccore_async_behavior_title')}</div>
                 <div class="form-grid async-behavior-grid">
-                    <div class="async-inline-field">
-                        <label for="async-generation-mode">${translate('ccore_settings_generation_mode')}</label>
-                        <select id="async-generation-mode">
-                            <option value="pipeline" ${asyncConfig.generationMode !== 'raw' ? 'selected' : ''}>${translate('ccore_option_pipeline')}</option>
-                            <option value="raw" ${asyncConfig.generationMode === 'raw' ? 'selected' : ''}>${translate('ccore_option_raw')}</option>
-                        </select>
+                    <div class="async-behavior-col">
+                        <div class="async-inline-field">
+                            <label for="async-generation-mode">${translate('ccore_settings_generation_mode')}</label>
+                            <select id="async-generation-mode">
+                                <option value="pipeline" ${asyncConfig.generationMode !== 'raw' ? 'selected' : ''}>${translate('ccore_option_pipeline')}</option>
+                                <option value="raw" ${asyncConfig.generationMode === 'raw' ? 'selected' : ''}>${translate('ccore_option_raw')}</option>
+                            </select>
+                        </div>
+                        <div class="async-inline-field">
+                            <label for="async-preset-name">${translate('ccore_settings_generation_preset')}</label>
+                            <select id="async-preset-name">
+                                <option value="">${translate('ccore_settings_ai_preset_default')}</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="async-inline-field">
-                        <label for="async-preset-name">${translate('ccore_settings_generation_preset')}</label>
-                        <select id="async-preset-name">
-                            <option value="">${translate('ccore_settings_ai_preset_default')}</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="async-toggle">
-                            <input type="checkbox" id="async-auto-generate" ${asyncConfig.autoGenerateOnMessageEnd !== false ? 'checked' : ''}>
-                            <span>${translate('ccore_settings_auto_generate_on_message_end')}</span>
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label class="async-toggle">
-                            <input type="checkbox" id="async-show-debug" ${asyncConfig.showDebug !== false ? 'checked' : ''}>
-                            <span>${translate('ccore_settings_show_debug')}</span>
-                        </label>
+                    <div class="async-behavior-col">
+                        <div class="form-group async-auto-gen-cell">
+                            <label class="async-toggle">
+                                <input type="checkbox" id="async-auto-generate" ${asyncConfig.autoGenerateOnMessageEnd !== false ? 'checked' : ''}>
+                                <span>${translate('ccore_settings_auto_generate_on_message_end')}</span>
+                            </label>
+                            <!-- 校验方式紧贴开关下方（勾选后才出现），标签名取自全局设置的正文标签 -->
+                            <div class="async-auto-trigger" id="async-auto-generate-trigger-field" style="display:none;">
+                                <select id="async-auto-generate-trigger" title="${triggerTitle}">
+                                    <option value="always" ${asyncConfig.autoGenerateTrigger !== 'tailCheck' ? 'selected' : ''}>${translate('ccore_option_auto_generate_always')}</option>
+                                    <option value="tailCheck" ${asyncConfig.autoGenerateTrigger === 'tailCheck' ? 'selected' : ''}>${tailCheckLabel}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="async-toggle">
+                                <input type="checkbox" id="async-show-debug" ${asyncConfig.showDebug !== false ? 'checked' : ''}>
+                                <span>${translate('ccore_settings_show_debug')}</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="form-group form-full-width" id="async-raw-block" style="display:none;">
@@ -337,6 +361,10 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         if (presetField) presetField.style.display = mode === 'raw' ? 'none' : '';
         const useApi = container.querySelector('#async-use-independent-api').checked;
         container.querySelector('#async-custom-api-block').style.display = useApi ? '' : 'none';
+        // 自动生成校验方式：仅「消息接收完成时自动生成」勾选时才有意义
+        const autoGenOn = container.querySelector('#async-auto-generate').checked;
+        const triggerField = container.querySelector('#async-auto-generate-trigger-field');
+        if (triggerField) triggerField.style.display = autoGenOn ? '' : 'none';
     };
 
     // === 变更收集 ===
@@ -344,6 +372,8 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         asyncConfig.generationMode = container.querySelector('#async-generation-mode').value;
         asyncConfig.presetName = container.querySelector('#async-preset-name').value;
         asyncConfig.autoGenerateOnMessageEnd = container.querySelector('#async-auto-generate').checked;
+        // 自动生成前是否做「正文完整收尾」校验（'always' | 'tailCheck'）
+        asyncConfig.autoGenerateTrigger = container.querySelector('#async-auto-generate-trigger').value;
         asyncConfig.rawSystemPrompt = container.querySelector('#async-raw-system-prompt').value;
         asyncConfig.rawUserPromptTemplate = container.querySelector('#async-raw-user-prompt').value;
         asyncConfig.useIndependentApi = container.querySelector('#async-use-independent-api').checked;
@@ -368,7 +398,7 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
     };
 
     // 只绑定基础字段（提示词组由各组自身监听处理，避免重复标脏）
-    container.querySelectorAll('#async-enabled, #async-auto-generate, #async-generation-mode, #async-preset-name, #async-raw-system-prompt, #async-raw-user-prompt, #async-use-independent-api, #async-show-debug, #async-custom-api-url, #async-custom-api-key, #async-custom-api-source, #async-custom-api-temperature, #async-custom-api-max-tokens').forEach(el => {
+    container.querySelectorAll('#async-enabled, #async-auto-generate, #async-auto-generate-trigger, #async-generation-mode, #async-preset-name, #async-raw-system-prompt, #async-raw-user-prompt, #async-use-independent-api, #async-show-debug, #async-custom-api-url, #async-custom-api-key, #async-custom-api-source, #async-custom-api-temperature, #async-custom-api-max-tokens').forEach(el => {
         el.addEventListener('input', collect);
         el.addEventListener('change', () => {
             collect();

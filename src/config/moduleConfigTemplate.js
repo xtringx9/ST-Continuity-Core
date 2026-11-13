@@ -71,7 +71,11 @@ export const DEFAULT_ASYNC_CONFIG = {
     showDebug: true, // 生成完成后是否弹出面板手动确认（false=自动存储）
     pushUserMessageAsLast: false, // 重新生成时：true=生成指令 push 进 chat 作为最后 user 消息；false=经 quietPrompt 传入（UI 暂隐藏，保留配置）
     askPromptBeforeGenerate: false, // 点击小 Cc 生成按钮时弹出输入框（UI 暂隐藏，保留配置）
-    autoGenerateOnMessageEnd: true, // 聊天消息收到完毕（GENERATION_ENDED）时自动触发模块异步生成
+    autoGenerateOnMessageEnd: true, // 聊天消息收到完毕（MESSAGE_RECEIVED）时自动触发模块异步生成
+    // 自动生成前是否做「正文完整收尾」校验（2026-11-12）：
+    //   'always'    直接生成（无判断，历史行为）
+    //   'tailCheck' 仅当最新正文以 contentTag 闭合标签收尾时才生成（截断/中止楼层静默跳过）
+    autoGenerateTrigger: 'always',
     // 提示词组：[{ id, name(简名), role(消息角色), prompt(提示词), isDefault }]
     // 默认含一条「仅输出 module_update」的组（未显式配置/缺省时使用；用户删除后不再回填）
     promptGroups: [
@@ -129,6 +133,8 @@ export function normalizeAsyncConfig(config) {
     return {
         ...base,
         presetName: String(base.presetName || ''), // ST OpenAI 预设名（空=用当前预设）
+        // 自动生成触发方式：非法/缺省一律回退 'always'（保持历史行为）
+        autoGenerateTrigger: ['always', 'tailCheck'].includes(base.autoGenerateTrigger) ? base.autoGenerateTrigger : 'always',
         customApi: {
             apiurl: String(api.apiurl || ''),
             secretId: normSecretId,
