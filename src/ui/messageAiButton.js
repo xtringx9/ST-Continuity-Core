@@ -1,6 +1,7 @@
 // src/ui/messageAiButton.js
 // 为每条消息添加模块操作按钮（Cc 菜单触发器 + 展开的多框菜单）
-// Cc 点击 → 同行右侧展开：[模块框: 重新生成 编辑 版本切换] [各 generator 框: 重新生成 编辑 版本切换] ...
+// Cc 点击 → 同行右侧展开：[模块框: 版本切换 重新生成 弹窗生成 编辑 继续 转移] [各 generator 框: label 版本切换 重新生成 弹窗生成 编辑 继续] ...
+// 「继续」= 照搬 ST 正文 continue 机制，以当前激活版本已存文本为前缀续写并覆盖回该版本（与编辑框版本栏的继续按钮共用 continueGeneratorContent）
 
 import { chat, eventSource, event_types, saveChatDebounced } from '../../../../../../script.js';
 import { Popup, POPUP_TYPE, POPUP_RESULT } from '../../../../../popup.js';
@@ -282,7 +283,7 @@ function toggleInlineMenu(triggerButton, mesId) {
 /**
  * 创建 inline 菜单（多框横向排列）
  *
- * 布局：[模块框: 重新生成 编辑 版本切换] [gen1框: 重新生成 编辑 版本切换] ...
+ * 布局：[模块框: 版本切换 重新生成 弹窗生成 编辑 继续 转移] [gen1框: label 版本切换 重新生成 弹窗生成 编辑 继续] ...
  * 每个框是独立的带边框容器，框之间有间距(gap:4px)，框内按钮紧贴(gap:0)。
  * 模块框始终存在；generator 框从 generator_config 读取启用的 generators 动态生成。
  */
@@ -304,6 +305,7 @@ function createInlineMenu(triggerButton, mesId) {
     const moduleActions = [
         { action: 'regenerate', icon: moduleRegenIcon, title: '生成模块', needAsync: true },
         { action: 'edit', icon: 'fa-pen-to-square', title: '编辑模块', needAsync: true },
+        { action: 'continue', icon: 'fa-forward', title: '继续生成模块', needAsync: true },
         { action: 'relocateAfterBody', icon: 'fa-arrow-down', title: '转移', needAsync: true },
     ];
     menu.append(createMenuBox(moduleActions, asyncEnabled, triggerButton, mesId, null, 'modules'));
@@ -315,6 +317,7 @@ function createInlineMenu(triggerButton, mesId) {
         const genActions = [
             { action: `generate:${gen.name}`, icon: genRegenIcon, title: `生成${gen.displayName}`, needAsync: true },
             { action: `edit:${gen.name}`, icon: 'fa-pen-to-square', title: `编辑${gen.displayName}`, needAsync: true },
+            { action: `continue:${gen.name}`, icon: 'fa-forward', title: `继续生成${gen.displayName}`, needAsync: true },
         ];
         menu.append(createMenuBox(genActions, asyncEnabled, triggerButton, mesId, gen.displayName, gen.name));
     }
@@ -813,12 +816,22 @@ async function onMenuAction(action, triggerButton, mesId, clickedBtn) {
         return;
     }
 
+    // continue:xxx — 继续生成其他内容(xxx = generator.name)
+    if (action.startsWith('continue:')) {
+        const generatorName = action.substring('continue:'.length);
+        onContinueGenerate(mesId, generatorName);
+        return;
+    }
+
     switch (action) {
         case 'regenerate':
             await onRegenerate(clickedBtn, mesId);
             break;
         case 'edit':
             onEditModules(mesId);
+            break;
+        case 'continue':
+            onContinueGenerate(mesId);
             break;
         case 'relocateAfterBody':
             onRelocateAfterBodyToFloor(mesId);
@@ -1173,6 +1186,95 @@ async function onEditModules(mesId) {
 }
 
 /**
+ * Cc 菜单「继续」动作：以该 generator 当前激活版本的已存文本为前缀续写，结果覆盖回同一版本。
+ * 与编辑框版本栏的「继续」共用 continueGeneratorContent。
+ * @param {number} mesId
+ * @param {string} [generatorName='modules']
+ */
+function onContinueGenerate(mesId, generatorName = 'modules') {
+    const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
+    const targetSwipe = getActiveGeneratorSwipe(mesId, generatorName, outerSwipeId);
+    const prefix = String(readGeneratorContent(mesId, generatorName, outerSwipeId, targetSwipe) || '').trim();
+    if (!prefix) {
+        showToast.warning('当前版本内容为空，无需继续');
+        return;
+    }
+    continueGeneratorContent(mesId, generatorName, prefix, targetSwipe);
+}
+
+/**
+ * 续写生成（照搬 ST 正文「继续」机制）：以 prefix 为种子让模型接着写，
+ * 结果 = prefix + 续写，写回 targetSwipe。
+ *
+ * - 强制 showDebug=false 自动落盘：否则续写只会生成 pending 不写回，与「覆盖当前版本」语义不符
+ * - 生成延到下一宏任务：generate 的同步段含提示词组装，当场执行会阻塞当前任务
+ *   （调用方先关编辑框/收菜单后要下一帧才绘制，看起来"卡一下"）
+ *
+ * @param {number} mesId
+ * @param {string} generatorName - 'modules' 或 generator.name
+ * @param {string} prefix - 已生成文本前缀（非空）
+ * @param {number} targetSwipe - 要覆盖的内层版本 id
+ */
+function continueGeneratorContent(mesId, generatorName, prefix, targetSwipe) {
+    const isModule = generatorName === 'modules';
+    const outerSwipeId = chat[mesId]?.swipe_id ?? 0;
+    setTimeout(() => {
+        (async () => {
+            try {
+                // 与重新生成一致的选项构造
+                const asyncConfig = configManager.getAsyncConfig();
+                let customApi = null;
+                if (asyncConfig.useIndependentApi) {
+                    const apiConfig = asyncConfig.customApi || {};
+                    if (apiConfig.apiurl) customApi = { ...apiConfig };
+                }
+                const genOptions = {
+                    generatorName,
+                    mode: asyncConfig.generationMode || 'pipeline',
+                    customApi,
+                    // ⚠️ 续写必须自动落盘覆盖当前版本：强制 showDebug=false（跳过「弹出面板手动确认」的待处理态）
+                    showDebug: false,
+                    continuePrefix: prefix,
+                    continueOverwriteSwipe: targetSwipe,
+                };
+                if (isModule) {
+                    genOptions.rawSystemPrompt = asyncConfig.rawSystemPrompt || '';
+                    genOptions.rawUserPrompt = asyncConfig.rawUserPromptTemplate || '';
+                    const defaultGroup = (asyncConfig.promptGroups || []).find(g => g.isDefault);
+                    genOptions.pipelineModifier = defaultGroup?.prompt || '';
+                }
+                const result = await moduleAiGenerator.generate(mesId, genOptions);
+                if (result.success) {
+                    // 模块内容变化 → 刷新下游（与「保存/删除」一致）
+                    if (isModule) {
+                        const afterModuleText = readFloorModules(mesId, outerSwipeId);
+                        if (incrementalModulesChanged(prefix, afterModuleText)) {
+                            infoLog(LOG_TAG, `消息 ${mesId} 续写后模块文本变化，刷新下游`);
+                            scheduleMsgBottom('suffix', mesId);
+                            const affectInfo = resolveModuleChangeAffect(afterModuleText);
+                            if (affectInfo.inline) {
+                                const suffixIds = [];
+                                document.querySelectorAll('#chat .mes').forEach(el => {
+                                    const id = Number(el.getAttribute('mesid'));
+                                    if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
+                                });
+                                if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
+                            }
+                        }
+                    }
+                    showToast.success('续写完成');
+                } else {
+                    showToast.error(`续写失败：${result.error || '未知错误'}`);
+                }
+            } catch (err) {
+                errorLog(LOG_TAG, '续写失败:', err);
+                showToast.error(`续写失败：${err.message}`);
+            }
+        })();
+    }, 0);
+}
+
+/**
  * textarea 内容滚到末尾（不抢焦点，避免打断用户 / 触发额外页面滚动）。
  * ⚠️ 脱离文档的 textarea scrollHeight 恒为 0，必须在 append 到 DOM 之后调用才有效。
  * @param {jQuery} $ta
@@ -1433,7 +1535,7 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
     });
 
     // 继续生成（照搬 ST 正文「继续」机制）：以当前编辑版本文本为前缀，让模型接着写，结果覆盖当前版本
-    $editArea.find('.ccore-edit-ver-continue').on('click', async (e) => {
+    $editArea.find('.ccore-edit-ver-continue').on('click', (e) => {
         e.stopPropagation();
         const prefix = String($textarea.val() || '').trim();
         if (!prefix) {
@@ -1445,65 +1547,10 @@ async function onEditGeneratedContent(mesId, generatorName, opts = {}) {
             showToast.warning('无当前版本可继续');
             return;
         }
-        // ⚠️ 编辑框无法像 ST 正文那样实时流式显示追加内容，点击继续后先立刻关框；生成延到下一宏任务后台执行
-        //   （generate 的同步段含提示词组装，若当场执行会阻塞当前任务 → 关闭到下一帧才绘制，看起来"卡一下才关"）。
+        // ⚠️ 编辑框无法像 ST 正文那样实时流式显示追加内容，点击继续后先立刻关框；生成由 continueGeneratorContent 延后执行
         $editArea.remove();
         $iframe.show();
-        setTimeout(() => {
-            (async () => {
-                try {
-                    // 与重新生成一致的选项构造
-                    const asyncConfig = configManager.getAsyncConfig();
-                    let customApi = null;
-                    if (asyncConfig.useIndependentApi) {
-                        const apiConfig = asyncConfig.customApi || {};
-                        if (apiConfig.apiurl) customApi = { ...apiConfig };
-                    }
-                    const genOptions = {
-                        generatorName,
-                        mode: asyncConfig.generationMode || 'pipeline',
-                        customApi,
-                        // ⚠️ 续写必须自动落盘覆盖当前版本：强制 showDebug=false（跳过「弹出面板手动确认」的待处理态），
-                        //   否则续写只会生成 pending 不写回，与「覆盖当前版本」语义不符。
-                        showDebug: false,
-                        continuePrefix: prefix,
-                        continueOverwriteSwipe: continueSwipe,
-                    };
-                    if (isModule) {
-                        genOptions.rawSystemPrompt = asyncConfig.rawSystemPrompt || '';
-                        genOptions.rawUserPrompt = asyncConfig.rawUserPromptTemplate || '';
-                        const defaultGroup = (asyncConfig.promptGroups || []).find(g => g.isDefault);
-                        genOptions.pipelineModifier = defaultGroup?.prompt || '';
-                    }
-                    const result = await moduleAiGenerator.generate(mesId, genOptions);
-                    if (result.success) {
-                        // 模块内容变化 → 刷新下游（与「保存/删除」一致）
-                        if (isModule) {
-                            const afterModuleText = readFloorModules(mesId, outerSwipeId);
-                            if (incrementalModulesChanged(prefix, afterModuleText)) {
-                                infoLog(LOG_TAG, `消息 ${mesId} 续写后模块文本变化，刷新下游`);
-                                scheduleMsgBottom('suffix', mesId);
-                                const affectInfo = resolveModuleChangeAffect(afterModuleText);
-                                if (affectInfo.inline) {
-                                    const suffixIds = [];
-                                    document.querySelectorAll('#chat .mes').forEach(el => {
-                                        const id = Number(el.getAttribute('mesid'));
-                                        if (!Number.isNaN(id) && id >= Number(mesId)) suffixIds.push(id);
-                                    });
-                                    if (suffixIds.length > 0) checkRenderCurrentMessageContext(suffixIds, true);
-                                }
-                            }
-                        }
-                        showToast.success('续写完成');
-                    } else {
-                        showToast.error(`续写失败：${result.error || '未知错误'}`);
-                    }
-                } catch (err) {
-                    errorLog(LOG_TAG, '续写失败:', err);
-                    showToast.error(`续写失败：${err.message}`);
-                }
-            })();
-        }, 0);
+        continueGeneratorContent(mesId, generatorName, prefix, continueSwipe);
     });
 
     loadVersion(currentIndex);
