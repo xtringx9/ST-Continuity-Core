@@ -371,6 +371,16 @@ Cc 菜单的"编辑"操作：
 - 读取 `perMessageStorage.readMessage(mesId, swipeId)` 获取 `moduleTagModules` 的 raw
 - 保存用 `perMessageStorage.updateMessage`，保留 `contentTagModules`/`extraModules` 不变
 
+### 继续生成（续写）
+
+编辑框版本栏的「继续」（`fa-forward`）与小 Cc 菜单每个框的「继续」共用 `messageAiButton.js` 的 `continueGeneratorContent(mesId, generatorName, prefix, targetSwipe)`：
+
+- **前缀来源**：编辑框 = textarea 当前值（可含未保存改动）；菜单 = 该 generator 当前激活版本已存文本（空则 toast 提示，不发起）
+- **落盘**：强制 `showDebug=false` 自动落盘，结果 = `prefix + 续写`，覆盖回同一 innerSwipe（不新建版本）
+- **仅 pipeline 生效**：底层 `moduleAiGenerator` 的 `isContinueMode` 要求 `mode==='pipeline'`，raw 模式等于普通生成
+- **菜单位置**：模块框在「编辑」后（`continue`），generator 框为 `continue:{name}`；标 `needAsync`，异步未开启时置灰
+- **⚠️ 不要给菜单的继续按钮挂 `data-generator`**：`_refreshMenuRegenButtons` / `ccore-pending-cleared` 会按 `taskRegistry` 覆盖 `[data-generator]` 的图标，把 `fa-forward` 冲掉
+
 ### 待处理结果管理（pendingResults）
 
 手动"重新生成"（`skipStorage: true`）成功后，结果不立即写入存储，而是暂存到 `moduleAiGenerator.js` 的 `pendingResults` Map，等用户在调试面板中决定保存或抛弃。
