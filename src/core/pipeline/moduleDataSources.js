@@ -8,12 +8,12 @@
 //   - chatText：扫 chat[].mes 文本 + 世界书条目（同步模式；正文内模块也在此）
 //   - asyncChat：读 floor generators['modules'] 当前激活版本（异步模式；正文后模块）
 //
-// 同步模式只激活 [chatText]；异步模式激活 [chatText, asyncChat]（混合源：正文内 + 正文后）。
+// 源集合固定为 [chatText, asyncChat, chatMeta, charBook]（asyncChat 与 async 开关解耦，见 getActiveSourceNames）。
 // 源头判断（符合「判断放源头、下游不散落」约定）：getActiveSources() 单点路由。
 
 import { chat } from '../../../../../../../script.js';
 import { extractModulesFromChat, parseNestedModules } from '../moduleExtractor.js';
-import configManager from '../../singleton/configManager.js';
+// import configManager from '../../singleton/configManager.js'; // 已停用：asyncChat 恒激活后本文件无使用点
 import { readFloorModules } from '../floorModuleStore.js';
 import { getChatModuleEntryConfig, getChatModuleEntries } from '../chatModuleEntryStore.js';
 import { getCurrentCharBooksEnabledEntries } from '../../utils/worldBookUtils.js';
@@ -42,15 +42,16 @@ export function registerModuleDataSource(name, impl) {
 
 /**
  * 当前激活的数据源数组（源头判断单点）。
- * 同步模式=[chatText]；异步模式=[chatText, asyncChat]（正文内模块仍从正文扫，正文后模块从 floor 读）。
+ * 恒为 [chatText, asyncChat, chatMeta, charBook]（asyncChat 与 asyncModule.enabled 解耦，关掉异步仍读 floor）。
  * 聊天级模块条目（chatMeta）同步/异步都启用——它是聊天级事实，与 async 无关。
  * 顺序：chatText > asyncChat > chatMeta（同层冲突并存，排序靠注册顺序，见 HANDOFF-F2-CHAT-MODULE-ENTRIES）。
  * @returns {string[]}
  */
 export function getActiveSourceNames() {
-    const asyncCfg = configManager.getModuleDomainConfig().asyncModule;
+    // const asyncCfg = configManager.getModuleDomainConfig().asyncModule;
     const names = ['chatText'];
-    if (asyncCfg?.enabled && sources.has('asyncChat')) {
+    // if (asyncCfg?.enabled && sources.has('asyncChat')) { // 原判定：受异步总开关控制，已停用
+    if (sources.has('asyncChat')) {
         names.push('asyncChat');
     }
     if (sources.has('chatMeta')) {
