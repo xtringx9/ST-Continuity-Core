@@ -180,6 +180,51 @@ export function processContainerStyles(moduleData) {
 }
 
 /**
+ * 构建「每层消息底部」的模块级外部容器样式（moduleConfig.externalStyles）。
+ *
+ * 语义分工：
+ * - containerStyles → 汇总/弹窗的整模块容器（整模块聚合，见 processContainerStyles）
+ * - externalStyles  → 消息底部该模块「本层」的容器（只包裹本层条目，不跨层聚合）
+ *
+ * 变量替换与 containerStyles 一致：先解析 ${var.customStyles} 嵌套引用，再替换
+ * ${count}/${displayName}/${var.value} 等，保留 ${customStyles} 占位符后注入条目 HTML。
+ * 差异：${count} 取本层条目数，而不是整模块条目数。
+ *
+ * @param {Object} moduleConfig 模块配置对象
+ * @param {Array<Object>} entries 本层消息中该模块的条目（含 moduleData/customStyles）
+ * @param {string[]} [entryHtmls] 已渲染好的条目 HTML（缺省用 entry.customStyles）
+ * @returns {string} 包裹后的 HTML；externalStyles 为空返回 ''（调用方回退裸拼接）
+ */
+export function buildModuleExternalStyles(moduleConfig, entries, entryHtmls = null) {
+    try {
+        const template = moduleConfig?.externalStyles;
+        if (!template || typeof template !== 'string' || template.trim() === '') return '';
+
+        const list = Array.isArray(entries) ? entries : [];
+        const htmls = Array.isArray(entryHtmls)
+            ? entryHtmls
+            : list.map(entry => entry?.customStyles || '');
+        const joined = htmls.filter(html => html && html.trim()).join('\n');
+
+        let styles = resolveNestedCustomStyles(template, moduleConfig);
+        styles = replaceVariablesInStyles(styles, moduleConfig, {
+            data: list,
+            moduleCount: list.length,
+            messageIndex: list[0]?.moduleData?.messageIndex,
+        }, true);
+
+        if (styles.includes('${customStyles}')) {
+            // 用函数替换，避免条目 HTML 里的 `$&`/`$'` 被 String.replace 当作替换模式展开
+            return styles.replace('${customStyles}', () => joined);
+        }
+        return joined ? `${styles}\n${joined}` : styles;
+    } catch (error) {
+        errorLog('[CUSTOM STYLES] 处理外部容器样式失败:', error);
+        return '';
+    }
+}
+
+/**
  * 解析嵌套的customStyles引用
  * @param {string} styles 样式字符串
  * @param {Object} moduleConfig 模块配置对象

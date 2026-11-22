@@ -28,6 +28,7 @@ import {
     removeContextUIContainers,
 } from './context-ui/containerManager.js';
 import { injectHtmlToIframe } from './context-ui/iframeRenderer.js';
+import { buildModuleExternalStyles } from '../modules/styleCombiner.js';
 import {
     getContextBottomUIFilteredModuleConfigs,
     getMsgUIFilteredModuleConfigs,
@@ -331,6 +332,10 @@ function renderSingleMessageContextBottomUI(messages, container) {
         }
         let externalString = '';
         let internalString = '';
+        // 模块级 externalStyles：同一模块在本层的多条条目共用一个外部容器（按模块聚合）。
+        // externalSequence 保持条目在消息内的原始出现顺序；未配 externalStyles 的模块仍裸拼接。
+        const externalSequence = [];
+        const moduleNodeIndex = new Map();
 
         if (messages.length > 0) {
             // 提升到循环外，避免每条目都深拷贝全部模块 + 解析绑定
@@ -343,31 +348,45 @@ function renderSingleMessageContextBottomUI(messages, container) {
                 // let finalContainer = config && config.isExternalDisplay ? externalContainer : container;
                 let isExternal = (config && config.isExternalDisplay) ?? false;
 
-                // 检查是否有moduleData.raw内容用于匹配
+                // 检查是否有moduleData.raw内容用于匹配（无效则整条跳过，与旧行为一致）
                 if (!entry.moduleData || !entry.moduleData.raw || typeof entry.moduleData.raw !== 'string' || entry.moduleData.raw.trim() === '') {
                     debugLog('renderSingleMessageContext: entry.moduleData.raw为空或无效，无法匹配原文');
+                    return;
                 }
+
                 // 检查是否有customStyles内容用于替换
-                else if (!entry.customStyles || typeof entry.customStyles !== 'string' || entry.customStyles.trim() === '') {
-                    // debugLog('renderSingleMessageContext: entry.customStyles为空或无效，无法替换');
-                    // finalContainer.innerHTML += `<div>${entry.moduleData.raw}</div>`;
-                    if (isExternal) {
-                        externalString += `<div>${entry.moduleData.raw}</div>`;
-                    } else {
-                        internalString += `<div>${entry.moduleData.raw}</div>`;
-                    }
+                const hasCustomStyles = entry.customStyles && typeof entry.customStyles === 'string' && entry.customStyles.trim() !== '';
+                const html = hasCustomStyles ? entry.customStyles : `<div>${entry.moduleData.raw}</div>`;
+
+                if (!isExternal) {
+                    internalString += html;
+                    return;
                 }
-                // 使用entry.moduleData.raw来匹配mes_text div内部的原文，包括后面的<br>标签
-                else {
-                    // container.append(entry.customStyles);
-                    // finalContainer.innerHTML += `${entry.customStyles}`;
-                    if (isExternal) {
-                        externalString += `${entry.customStyles}`;
-                    } else {
-                        internalString += `${entry.customStyles}`;
-                    }
+
+                // 模块级 externalStyles 为空 → 裸拼接，交给全局 externalStyles 包裹（旧行为）
+                const externalTemplate = config?.externalStyles;
+                if (!externalTemplate || typeof externalTemplate !== 'string' || externalTemplate.trim() === '') {
+                    externalSequence.push({ type: 'raw', html });
+                    return;
                 }
+
+                const groupKey = entry.moduleName || '';
+                if (!moduleNodeIndex.has(groupKey)) {
+                    moduleNodeIndex.set(groupKey, externalSequence.length);
+                    externalSequence.push({ type: 'module', config, entries: [], htmls: [] });
+                }
+                const node = externalSequence[moduleNodeIndex.get(groupKey)];
+                node.entries.push(entry);
+                node.htmls.push(html);
             });
+        }
+
+        for (const node of externalSequence) {
+            if (node.type === 'raw') {
+                externalString += node.html;
+            } else {
+                externalString += buildModuleExternalStyles(node.config, node.entries, node.htmls) || node.htmls.join('\n');
+            }
         }
         return { externalString: externalString, internalString: internalString };
     } catch (error) {
