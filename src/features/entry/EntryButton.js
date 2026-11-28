@@ -9,6 +9,7 @@ import { taskRegistry } from '../../core/taskRegistry.js';
 import { getPendingCount, getRunningCount } from '../../services/moduleAiGenerator.js';
 import { openPhoneModeModal } from '../../features/phone/phoneMode.js';
 import { eventSource, event_types } from '../../../../../../../script.js';
+import { getTheme } from '../../shared/themeScheme.js';
 
 export class EntryButton {
     /**
@@ -316,11 +317,10 @@ export class EntryButton {
     }
 
     /**
-     * 更新按钮主题样式
+     * 更新按钮主题样式（方案名由 themeScheme 统一收敛）
      */
     _updateButtonTheme(btn) {
-        const theme = localStorage.getItem('st_continuity_theme') || 'light';
-        btn.setAttribute('data-theme', theme);
+        btn.setAttribute('data-theme', getTheme());
     }
 
     /**
@@ -361,6 +361,11 @@ export class EntryButton {
                 background-color: #ffffff;
                 color: #333333;
                 border-color: #cccccc;
+            }
+            #${this.floatingId}[data-theme="warm"] {
+                background-color: #fffdfa;
+                color: #2f2822;
+                border-color: #d8cbbd;
             }
             #${this.floatingId}[data-theme="dark"] {
                 background-color: #202123;

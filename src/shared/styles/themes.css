@@ -37,7 +37,20 @@
     --danger-color: #ef4444;
     --success-color: #22c55e;
 
-    /* 字体 */
+    /* 强调色的半透明派生（选中底 / 焦点环）。
+     * 换肤/换色方案只需覆盖这一组 + --accent-color，不必改动组件样式。 */
+    --accent-soft: rgba(37, 99, 235, 0.10);
+    --accent-soft-strong: rgba(37, 99, 235, 0.16);
+    --ring-accent: rgba(37, 99, 235, 0.28);
+
+    /* 圆角 / 阴影阶梯（组件统一取这三档，不要各写各的 px） */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 10px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+
+    /* 字体（保持原有系统栈，不做替换） */
     --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
@@ -72,4 +85,50 @@
     --accent-color: #3b82f6;
     /* Blue-500 */
     --accent-hover: #60a5fa;
+
+    /* 深色底上 accent 半透明层需要更高不透明度才看得出选中态 */
+    --accent-soft: rgba(59, 130, 246, 0.20);
+    --accent-soft-strong: rgba(59, 130, 246, 0.30);
+    --ring-accent: rgba(59, 130, 246, 0.38);
+
+    /* 深色下阴影用纯黑，避免发灰 */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+/* 暖灰主题 (Warm / 低饱和灰 + 棕)
+ * 定位：白（light）与黑（dark）之间的中间态，整体偏纸感、低刺激。
+ * 切换顺序 light → warm → dark，见 src/shared/themeScheme.js。 */
+[data-theme="warm"] {
+    color-scheme: light;
+
+    --bg-app: #faf8f5;
+    --bg-panel: #f2ede7;
+    --bg-nav: #f2ede7;
+    --bg-card: #fffdfa;
+    --bg-input: #fffdfa;
+    --bg-hover: #ebe4db;
+    --bg-modal-backdrop: rgba(45, 36, 28, 0.45);
+
+    --text-primary: #2f2822;
+    --text-secondary: #5e5348;
+    --text-muted: #9c8f82;
+    --text-input: #2f2822;
+
+    --border-color: #e0d6ca;
+    --border-light: #ede5dc;
+
+    /* 棕作为强调色：低饱和、和暖灰底同色温 */
+    --accent-color: #8a6a4c;
+    --accent-hover: #9d7b5b;
+    --accent-soft: rgba(138, 106, 76, 0.12);
+    --accent-soft-strong: rgba(138, 106, 76, 0.22);
+    --ring-accent: rgba(138, 106, 76, 0.30);
+
+    --danger-color: #c2533f;
+    --success-color: #5f7f52;
+
+    /* 暖色阴影，避免灰底上出现冷灰投影 */
+    --shadow-sm: 0 1px 2px rgba(62, 48, 38, 0.07);
+    --shadow-md: 0 8px 24px rgba(62, 48, 38, 0.12);
 }

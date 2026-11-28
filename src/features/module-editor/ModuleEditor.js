@@ -21,6 +21,7 @@ import { initGeneratorSettings } from './GeneratorSettings.js';
 import { generateModuleFormat } from '../../modules/promptGenerator.js';
 import { handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd } from './DragHandler.js';
 import { persistScroll, restoreScroll } from '../../shared/scrollPersistence.js';
+import { getTheme, getNextTheme, applyTheme, saveTheme } from '../../shared/themeScheme.js';
 
 // === 状态管理 ===
 let originalModules = []; // 保存时用于比较的原始模块列表
@@ -207,21 +208,19 @@ function bindHeaderEvents() {
         clearBtn.addEventListener('click', clearAllModules);
     }
 
-    // 绑定点击标题切换主题
+    // 绑定点击标题切换主题（light → warm → dark 循环，顺序由 themeScheme 统一维护）
     const headerTitle = doc.querySelector('.header-title') || doc.getElementById('header-title');
     if (headerTitle) {
         // 初始化主题 (读取本地存储)
-        const savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
-        doc.documentElement.setAttribute('data-theme', savedTheme);
+        applyTheme(doc, getTheme());
 
         headerTitle.style.cursor = 'pointer';
         headerTitle.title = translate('ccore_title_toggle_theme');
 
         headerTitle.addEventListener('click', () => {
-            const current = doc.documentElement.getAttribute('data-theme') || 'light';
-            const next = current === 'light' ? 'dark' : 'light';
-            doc.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('st_continuity_theme', next);
+            const current = doc.documentElement.getAttribute('data-theme');
+            const next = saveTheme(getNextTheme(current));
+            applyTheme(doc, next);
             // 派发自定义事件，通知同一窗口下的其他组件（如 EntryButton）
             window.dispatchEvent(new CustomEvent('continuity-theme-change'));
         });
@@ -235,8 +234,7 @@ function bindHeaderEvents() {
  */
 export function syncModuleTheme(iframeDocument) {
     if (!iframeDocument) return;
-    const savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
-    iframeDocument.documentElement.setAttribute('data-theme', savedTheme);
+    applyTheme(iframeDocument, getTheme());
 }
 
 /* ===== 导航：单列 + 分组折叠 ===== */

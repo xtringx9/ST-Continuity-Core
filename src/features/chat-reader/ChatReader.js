@@ -48,6 +48,7 @@ import { DOMPurify } from '../../../../../../../lib.js';
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
 import { initChatManager, setChatManagerDoc } from './ChatManager.js';
 import { getAvatarThumbUrl, getAvatarFullUrl } from '../../shared/characterBridge.js';
+import { getTheme, getNextTheme, applyTheme, saveTheme } from '../../shared/themeScheme.js';
 
 const LOG_TAG = '[ChatReader]';
 
@@ -172,9 +173,7 @@ export function initChatReader(iframeDoc) {
  */
 export function syncChatReaderTheme(iframeDoc) {
     if (!iframeDoc) return;
-    let theme = 'light';
-    try { theme = localStorage.getItem('st_continuity_theme') || 'light'; } catch (e) { /* ignore */ }
-    iframeDoc.documentElement.setAttribute('data-theme', theme);
+    applyTheme(iframeDoc, getTheme());
     // 防重复注册（自定义属性，TS 断言绕过）
     const themeBound = /** @type {Document & {_ccReaderThemeBound?: boolean}} */ (iframeDoc);
     if (!themeBound._ccReaderThemeBound) {
@@ -182,21 +181,20 @@ export function syncChatReaderTheme(iframeDoc) {
         const iframeWin = iframeDoc.defaultView;
         iframeWin?.addEventListener('storage', (e) => {
             if (e.key === 'st_continuity_theme') {
-                iframeDoc.documentElement.setAttribute('data-theme', e.newValue || 'light');
+                applyTheme(iframeDoc, e.newValue);
             }
         });
 
-        // 标题点击切换主题（复用 module-editor / nai 模式）
+        // 标题点击切换主题（light → warm → dark 循环，顺序见 themeScheme）
         const headerTitle = iframeDoc.querySelector('.header-title');
         if (headerTitle) {
             const headerTitleEl = /** @type {HTMLElement} */ (headerTitle);
             headerTitleEl.style.cursor = 'pointer';
             headerTitleEl.title = '点击切换主题';
             headerTitleEl.addEventListener('click', () => {
-                const current = iframeDoc.documentElement.getAttribute('data-theme') || 'light';
-                const next = current === 'light' ? 'dark' : 'light';
-                iframeDoc.documentElement.setAttribute('data-theme', next);
-                try { localStorage.setItem('st_continuity_theme', next); } catch (e) { /* ignore */ }
+                const current = iframeDoc.documentElement.getAttribute('data-theme');
+                const next = saveTheme(getNextTheme(current));
+                applyTheme(iframeDoc, next);
                 iframeWin?.dispatchEvent(new CustomEvent('continuity-theme-change'));
             });
         }

@@ -18,6 +18,7 @@ import { handleTagExport, handleTagImport } from './TagImportExport.js';
 import { initSortControl } from './SortControl.js';
 import { showToast } from '../../shared/Toast.js';
 import { initImageInspect } from './ImageInspect.js';
+import { getTheme, getNextTheme, applyTheme, saveTheme } from '../../shared/themeScheme.js';
 import { initImageManager, renderImageManagerOnDemand } from './ImageManager.js';
 import { initImageFavorites, refreshImageFavorites } from './ImageFavorites.js';
 import { initReadMode, refreshReadMode } from './ReadMode.js';
@@ -86,11 +87,7 @@ export function initNaiPresetSwitcher(iframeDocument) {
  */
 export function syncNaiTheme(iframeDocument) {
     if (!iframeDocument) return;
-    let savedTheme = 'light';
-    try {
-        savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
-    } catch (e) { /* iframe localStorage 不可用时退回默认 */ }
-    iframeDocument.documentElement.setAttribute('data-theme', savedTheme);
+    applyTheme(iframeDocument, getTheme());
 }
 
 /**
@@ -140,24 +137,16 @@ function applyI18nToStaticElements() {
 /* ============ 主题切换（点击标题，复用 module-editor 模式） ============ */
 
 function bindThemeToggle() {
-    let savedTheme = 'light';
-    try {
-        savedTheme = localStorage.getItem('st_continuity_theme') || 'light';
-    } catch (e) { /* iframe localStorage 不可用时退回默认 */ }
-
-    doc.documentElement.setAttribute('data-theme', savedTheme);
+    applyTheme(doc, getTheme());
 
     const headerTitle = doc.querySelector('.header-title') || doc.getElementById('header-title');
     if (headerTitle) {
         headerTitle.style.cursor = 'pointer';
         headerTitle.title = translate('ccore_title_toggle_theme') || '点击切换主题';
         headerTitle.addEventListener('click', () => {
-            const current = doc.documentElement.getAttribute('data-theme') || 'light';
-            const next = current === 'light' ? 'dark' : 'light';
-            doc.documentElement.setAttribute('data-theme', next);
-            try {
-                localStorage.setItem('st_continuity_theme', next);
-            } catch (e) { /* 忽略持久化失败，本次会话仍切换 */ }
+            const current = doc.documentElement.getAttribute('data-theme');
+            const next = saveTheme(getNextTheme(current));
+            applyTheme(doc, next);
             // 通知本 iframe 内其他组件（如 modal 内嵌视图）
             window.dispatchEvent(new CustomEvent('continuity-theme-change'));
         });
