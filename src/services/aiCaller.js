@@ -184,8 +184,11 @@ function _popPushedMessage(pushedUserMessage) {
  *   ② promptBinding 动过 prompt_order，但无条目命中后备份被撤销（_applyPromptBindingsToPresetOrder 内 splice）。
  *   而 dryRun 期间 ST 的延迟重绘抓到中间态，仍会把临时条目画到 UI；此时若不重绘回去 → 列表停在临时预设。
  *   多触发一次 render(false) 仅重绘列表、不触发 tryGenerate/二次组装，开销可忽略。
- * ⚠️ 2026-08-28：入参改为布尔（本次是否真的临时应用过预设），路 a / 路 b 共用。
- * @param {boolean} applied 本次是否临时应用过预设（路 a：备份数组非空；路 b：替换过 serviceSettings）
+ * ⚠️ 2026-08-28：入参改为布尔（本次是否真的临时应用过预设）。
+ * ⚠️ 2026-08-28（性能）：**仅路 a 调用**。路 b 不写 oai_settings，ST 的 dryRun 路径也不会重绘
+ *   （openai.js:1527 只在 dryRun === false 时 render），因此不存在“临时条目残留”，
+ *   而 render(false) 会把整个提示词列表 innerHTML 清空重建 → 每次生成都闪一下且明显耗性能，故跳过。
+ * @param {boolean} applied 本次是否临时应用过预设（路 a：备份数组非空）
  */
 function _refreshPromptManagerAfterPresetRestore(applied) {
     if (!applied) return;
@@ -923,8 +926,9 @@ export const aiCaller = {
                     presetLockReleased = true;
                 }
             }
+            // ⚠️ 2026-08-28：仅路 a 需要回刷（路 b 不写 oai_settings，ST dryRun 也不重绘）
             if (!presetUiRefreshed) {
-                _refreshPromptManagerAfterPresetRestore(!!presetBackup || !!presetPmBackup);
+                _refreshPromptManagerAfterPresetRestore(!!presetBackup);
                 presetUiRefreshed = true;
             }
 
@@ -1033,9 +1037,10 @@ export const aiCaller = {
                     presetLockReleased = true;
                 }
             }
-            // 异常早退路径同样强制重绘，覆盖可能残留的临时预设条目
+            // 异常早退路径同样强制重绘（仅路 a：路 b 不写 oai_settings，ST 的 dryRun 路径也不会重绘，
+            // 回刷只会把 PromptManager 整块重建 → 闪烁/性能浪费，故跳过）
             if (!presetUiRefreshed) {
-                _refreshPromptManagerAfterPresetRestore(!!presetBackup || !!presetPmBackup);
+                _refreshPromptManagerAfterPresetRestore(!!presetBackup);
                 presetUiRefreshed = true;
             }
             // ⚠️ 强制补刷 swipe 箭头（方案B，2026-08-23）：pipeline 曾临时 push 过 is_user:true 指令消息到
