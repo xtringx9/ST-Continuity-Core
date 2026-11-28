@@ -160,34 +160,9 @@ export function initModuleEditor(iframeDocument) {
     // 绑定侧边栏事件 (搜索和添加)
     bindSidebarEvents();
 
-    // ---- 设置初始活动页面 ----
-    const navItems = doc.querySelectorAll('.nav-item');
-    const sections = doc.querySelectorAll('.view-section');
-    navItems.forEach(n => n.classList.remove('active'));
-    sections.forEach(s => s.classList.remove('active'));
-
-    const initialNavItem = doc.querySelector(`.nav-item[data-target="${activeViewSectionId}"]`);
-    const initialSection = doc.getElementById(activeViewSectionId);
-
-    if (initialNavItem && initialSection) {
-        initialNavItem.classList.add('active');
-        initialSection.classList.add('active');
-    } else {
-        // Fallback to the first one if the saved one is invalid
-        const firstNavItem = doc.querySelector('.nav-item');
-        if (firstNavItem) {
-            const firstTargetId = firstNavItem.getAttribute('data-target');
-            firstNavItem.classList.add('active');
-            doc.getElementById(firstTargetId)?.classList.add('active');
-            activeViewSectionId = firstTargetId; // Update state
-        }
-    }
-
-    // 控制"清空模块"按钮的初始显示/隐藏
-    doc.getElementById('header-clear-btn').style.display = (activeViewSectionId === 'view-modules') ? 'inline-block' : 'none';
-
-    // 初始化顶栏按钮组显隐（模块三键仅 模块配置/全局设置/异步配置；生成保存仅 生成内容）
-    updateHeaderActionsForView(activeViewSectionId);
+    // ---- 设置初始活动页面（分组折叠导航：还原分组展开态后再激活视图） ----
+    restoreNavState();
+    activateView(activeViewSectionId, { persist: false });
 
     // 初始化保存按钮状态
     checkForChanges();
@@ -264,22 +239,179 @@ export function syncModuleTheme(iframeDocument) {
     iframeDocument.documentElement.setAttribute('data-theme', savedTheme);
 }
 
+/* ===== 导航：单列 + 分组折叠 ===== */
+// 分组展开态 / 组内上次视图（纯 UI 记忆，不入扩展配置）
+const NAV_EXPANDED_KEY = 'continuity_editor_nav_expanded';
+const NAV_GROUP_LAST_KEY = 'continuity_editor_group_last';
+const MOBILE_NAV_BREAKPOINT = 768;
+
+/** 当前是否为移动端布局（以 iframe 自身窗口宽度为准） */
+function isMobileNavLayout() {
+    const win = doc?.defaultView || window;
+    return win.innerWidth <= MOBILE_NAV_BREAKPOINT;
+}
+
+function readNavStore(key, fallback) {
+    try {
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return parsed && typeof parsed === 'object' ? parsed : fallback;
+    } catch (e) {
+        return fallback;
+    }
+}
+
+function writeNavStore(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+        debugLog('[NAV] 导航记忆写入失败:', e);
+    }
+}
+
+/** 所有可切换的导航项（分组子项 + 顶层项），附所属 .nav-group（无则 null） */
+function getNavEntries() {
+    return [...doc.querySelectorAll('.main-nav .nav-item[data-target]')].map(item => ({
+        viewId: item.getAttribute('data-target'),
+        item,
+        group: item.closest('.nav-group'),
+    }));
+}
+
+/** 所有分组（.nav-group），附组头与子项 */
+function getNavGroups() {
+    return [...doc.querySelectorAll('.main-nav .nav-group')].map(group => ({
+        group,
+        id: group.getAttribute('data-group') || '',
+        head: group.querySelector('.nav-group-head'),
+        items: [...group.querySelectorAll('.nav-item[data-target]')],
+    }));
+}
+
+/** 展开/折叠分组并记忆（移动端只记忆状态，子项由横条承载） */
+function setGroupExpanded(group, expanded) {
+    group.classList.toggle('expanded', expanded);
+    const id = group.getAttribute('data-group');
+    if (!id) return;
+    const stored = readNavStore(NAV_EXPANDED_KEY, {});
+    stored[id] = expanded;
+    writeNavStore(NAV_EXPANDED_KEY, stored);
+}
+
+/** 记忆某分组最后停留的子视图 */
+function rememberGroupLastView(groupId, viewId) {
+    if (!groupId || !viewId) return;
+    const stored = readNavStore(NAV_GROUP_LAST_KEY, {});
+    stored[groupId] = viewId;
+    writeNavStore(NAV_GROUP_LAST_KEY, stored);
+}
+
+/** 取某分组最后停留的子视图（无记忆/记忆失效时取第一个子项） */
+function getGroupLastView(groupEntry) {
+    const stored = readNavStore(NAV_GROUP_LAST_KEY, {});
+    const remembered = groupEntry.id ? stored[groupEntry.id] : null;
+    if (remembered && groupEntry.items.some(i => i.getAttribute('data-target') === remembered)) {
+        return remembered;
+    }
+    const first = groupEntry.items[0];
+    return first ? first.getAttribute('data-target') : null;
+}
+
+/** 还原分组展开态（首次进入时全部折叠，之后由 activateView 展开当前视图所在组） */
+function restoreNavState() {
+    if (!doc) return;
+    const stored = readNavStore(NAV_EXPANDED_KEY, null);
+    getNavGroups().forEach(entry => {
+        const saved = stored && typeof stored[entry.id] === 'boolean' ? stored[entry.id] : false;
+        entry.group.classList.toggle('expanded', saved);
+    });
+}
+
+/** 移动端：把当前分组子项渲染为顶部横向子 tab 条；非分组视图则隐藏 */
+function renderMobileSubbar(viewId) {
+    const bar = doc.getElementById('nav-mobile-subbar');
+    if (!bar) return;
+
+    const entry = getNavEntries().find(e => e.viewId === viewId);
+    const group = entry?.group;
+    bar.innerHTML = '';
+
+    if (!group || !isMobileNavLayout()) {
+        bar.classList.remove('visible');
+        return;
+    }
+
+    group.querySelectorAll('.nav-item[data-target]').forEach(item => {
+        const itemViewId = item.getAttribute('data-target');
+        const btn = doc.createElement('button');
+        btn.type = 'button';
+        btn.className = 'nav-subbar-item';
+        if (itemViewId === viewId) btn.classList.add('active');
+        const label = item.querySelector('.nav-text');
+        btn.textContent = label ? label.textContent : itemViewId;
+        btn.addEventListener('click', () => activateView(itemViewId));
+        bar.appendChild(btn);
+    });
+    bar.classList.add('visible');
+}
+
+/**
+ * 切换到指定视图（桌面/移动通用入口）。
+ * 统一处理：导航高亮、分组展开、视图显隐、顶栏按钮组、清空按钮、滚动还原、持久化。
+ * @param {string} viewId 视图 id（如 'view-generators'）
+ * @param {{persist?: boolean}} [options] persist=false 时不在初始化阶段重写 localStorage
+ */
+function activateView(viewId, { persist = true } = {}) {
+    if (!doc || !doc.getElementById) return;
+
+    const entries = getNavEntries();
+    let target = entries.find(e => e.viewId === viewId);
+    let section = doc.getElementById(viewId);
+
+    // 视图 id 失效（改名/删除）→ 回退到第一个可用视图
+    if (!target || !section) {
+        target = entries[0];
+        if (!target) return;
+        viewId = target.viewId;
+        section = doc.getElementById(viewId);
+        if (!section) return;
+    }
+
+    entries.forEach(e => e.item.classList.remove('active'));
+    doc.querySelectorAll('.main-nav .nav-group').forEach(g => g.classList.remove('active'));
+
+    target.item.classList.add('active');
+    if (target.group) {
+        target.group.classList.add('active');
+        setGroupExpanded(target.group, true);
+        rememberGroupLastView(target.group.getAttribute('data-group'), viewId);
+    }
+
+    doc.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+    section.classList.add('active');
+
+    activeViewSectionId = viewId;
+    if (persist) localStorage.setItem('continuity_editor_last_tab', viewId);
+
+    // 控制"清空模块"按钮的显示/隐藏
+    const clearBtn = doc.getElementById('header-clear-btn');
+    if (clearBtn) clearBtn.style.display = (viewId === 'view-modules') ? 'inline-block' : 'none';
+
+    // 按当前视图切换顶部按钮组：模块三键仅 模块配置/全局设置/异步配置；生成保存仅 生成内容
+    updateHeaderActionsForView(viewId);
+
+    // 进入模块视图时还原上次滚动位置（重新打开编辑器/切回本视图后不再跳回顶部）
+    if (viewId === 'view-modules') restoreModuleListScroll();
+
+    renderMobileSubbar(viewId);
+}
+
 /**
  * 强制把主编辑器切换到指定导航视图（供入口菜单直达某视图，如「生成内容」）。
  * @param {string} viewId 视图 id（如 'view-generators'）
  */
 export function focusModuleEditorView(viewId) {
-    if (!doc || !doc.getElementById) return;
-    const navItems = doc.querySelectorAll('.nav-item');
-    const sections = doc.querySelectorAll('.view-section');
-    navItems.forEach(n => n.classList.remove('active'));
-    sections.forEach(s => s.classList.remove('active'));
-    const nav = doc.querySelector(`.nav-item[data-target="${viewId}"]`);
-    const section = doc.getElementById(viewId);
-    if (nav) nav.classList.add('active');
-    if (section) section.classList.add('active');
-    activeViewSectionId = viewId;
-    localStorage.setItem('continuity_editor_last_tab', viewId);
+    activateView(viewId);
 }
 
 function bindDebugStateButton() {
@@ -299,43 +431,30 @@ function bindDebugStateButton() {
 }
 
 function bindNavigationEvents() {
-    const navItems = doc.querySelectorAll('.nav-item');
-    const sections = doc.querySelectorAll('.view-section');
-
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            // 1. 移除所有 active 状态
-            navItems.forEach(n => n.classList.remove('active'));
-            sections.forEach(s => s.classList.remove('active'));
-
-            // 2. 激活当前项
-            item.classList.add('active');
-            const targetId = item.getAttribute('data-target');
-            const targetSection = doc.getElementById(targetId);
-            if (targetSection) {
-                targetSection.classList.add('active');
+    // 分组头：桌面点击折叠/展开；移动端点击切到该组上次停留的子视图（子项在顶部横条）
+    getNavGroups().forEach(entry => {
+        if (!entry.head) return;
+        entry.head.addEventListener('click', () => {
+            if (isMobileNavLayout()) {
+                const lastView = getGroupLastView(entry);
+                if (lastView) activateView(lastView);
+                return;
             }
-
-            // 保存当前激活的页面ID
-            localStorage.setItem('continuity_editor_last_tab', targetId);
-            activeViewSectionId = targetId;
-
-            // 进入模块视图时还原上次滚动位置（重新打开编辑器/切回本视图后不再跳回顶部）
-            if (targetId === 'view-modules') {
-                restoreModuleListScroll();
-            }
-
-            // 控制"清空模块"按钮的显示/隐藏
-            const clearBtn = doc.getElementById('header-clear-btn');
-            if (clearBtn) {
-                // 假设 'view-modules' 是模块列表页面的 ID
-                clearBtn.style.display = (targetId === 'view-modules') ? 'inline-block' : 'none';
-            }
-
-            // 按当前视图切换顶部按钮组：模块三键仅 模块配置/全局设置/异步配置；生成保存仅 生成内容
-            updateHeaderActionsForView(targetId);
+            setGroupExpanded(entry.group, !entry.group.classList.contains('expanded'));
         });
     });
+
+    // 子项 / 顶层项：切换视图
+    getNavEntries().forEach(({ item, viewId }) => {
+        item.addEventListener('click', () => activateView(viewId));
+    });
+
+    // 宽度变化（横竖屏/窗口缩放）：重算移动端子 tab 条的显隐；每个 iframe doc 只绑一次
+    const win = doc.defaultView;
+    if (win && !doc.__ccoreNavResizeBound) {
+        doc.__ccoreNavResizeBound = true;
+        win.addEventListener('resize', () => renderMobileSubbar(activeViewSectionId));
+    }
 }
 
 /** 模块三键（导入/导出/保存）仅在这些视图显示 */

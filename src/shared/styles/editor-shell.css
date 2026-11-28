@@ -115,6 +115,136 @@ body {
     font-size: 12px;
 }
 
+/* === 左侧主导航：分组折叠模式（可选，给 .main-nav 加 .has-groups） ===
+ * 单列导航的分组变体：分组头（可折叠）+ 树形子项。侧栏宽度沿用 .main-nav 的 50px，不加宽。
+ * 分组靠「分组间分隔线 + 分区标题排版（小字号/加粗/字距）+ 子项左侧引导线」表达层级。
+ * 不加 .has-groups 的 editor（如 nai-preset-switcher）保持上面 50px 平铺样式，互不影响。
+ * 新增 editor 想用分组导航，只需按 .nav-group > .nav-group-head + .nav-sub > .nav-item 的结构写 HTML，
+ * 并在 .main-nav 上加 .has-groups，无需再写私有样式。 */
+.main-nav.has-groups {
+    align-items: stretch;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+/* 每个分组 = 一个分区：整体用下分隔线包裹（折叠/展开都以分隔线收尾） */
+.main-nav.has-groups .nav-group {
+    width: 100%;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+}
+
+/* 分组正好是导航最后一项时不留下悬空的分隔线 */
+.main-nav.has-groups .nav-group:last-child {
+    border-bottom: none;
+}
+
+/* 分组头：分区标题（不是 tab）—— 更小字号、加粗、字距 + 常规显箭头 */
+.main-nav.has-groups .nav-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    height: 32px;
+    margin-bottom: 4px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary, #4b5563);
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.main-nav.has-groups .nav-group-head:hover {
+    background-color: var(--bg-hover, #f3f4f6);
+    color: var(--text-primary, #111827);
+}
+
+/* 分组内含当前视图：组头用 accent 文字提示位置 */
+.main-nav.has-groups .nav-group.active > .nav-group-head {
+    color: var(--accent-color, #2563eb);
+}
+
+.nav-group-label {
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.nav-group-chevron {
+    flex-shrink: 0;
+    font-size: 7px;
+    opacity: 0.6;
+    transition: transform 0.15s ease;
+}
+
+.nav-group.expanded > .nav-group-head .nav-group-chevron {
+    transform: rotate(90deg);
+}
+
+/* 子项容器：左侧引导线表达「这些属于上面的分组」 */
+.main-nav.has-groups .nav-sub {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    margin: 2px 0 6px 2px;
+    padding-left: 3px;
+    border-left: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+}
+
+.main-nav.has-groups .nav-group.expanded > .nav-sub {
+    display: flex;
+}
+
+/* 子项：与平铺 tab 同样的居中块（4 字折两行是既有观感），仅字号略小以示层级 */
+.main-nav.has-groups .nav-sub .nav-item {
+    width: 100%;
+    height: 38px;
+    margin-bottom: 0;
+    padding: 2px 3px;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.25;
+}
+
+.main-nav.has-groups .nav-sub .nav-text {
+    font-size: 11px;
+}
+
+/* 顶层项：保持平铺 tab 原样（分组已用下分隔线收尾，这里无需再加装饰） */
+.main-nav.has-groups .nav-group + .nav-item {
+    margin-top: 0;
+}
+
+/* === 移动端分组子 tab 横条（桌面隐藏） === */
+.nav-mobile-subbar {
+    display: none;
+}
+
+.nav-subbar-item {
+    flex: 0 0 auto;
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+    background-color: var(--bg-input, #fff);
+    color: var(--text-secondary, #4b5563);
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.nav-subbar-item.active {
+    background-color: var(--accent-color, #2563eb);
+    border-color: var(--accent-color, #2563eb);
+    color: var(--bg-app, #fff);
+    font-weight: 600;
+}
+
 /* === 内容区与视图 === */
 .content-area {
     flex: 1;
@@ -1066,5 +1196,90 @@ input[type="number"]::-webkit-inner-spin-button:hover {
     /* 移动端：管理页详情头部「返回角色列表」图标（与绑定页同款 .btn-back-icon + .mobile-only） */
     body.mobile-view-detail-manage .mobile-only {
         display: flex !important;
+    }
+}
+
+/* === 移动端：分组折叠导航（.main-nav.has-groups） ===
+ * 底部栏只放「分组头 + 顶层项」，子项移到内容区上方的横向子 tab 条（#nav-mobile-subbar）。
+ * 放在最后以覆盖上方通用 .main-nav / .nav-item 的移动端取值。 */
+@media (max-width: 768px) {
+    .main-nav.has-groups {
+        width: 100%;
+        height: 50px;
+        flex-direction: row;
+        align-items: stretch;
+        justify-content: space-around;
+        padding: 0;
+        overflow: visible;
+    }
+
+    /* 桌面用分隔线/分区标题区分分组，底部横排栏里不需要，统一成平铺 tab 外观 */
+    .main-nav.has-groups .nav-group {
+        flex: 1;
+        display: flex;
+        padding-bottom: 0;
+        margin-bottom: 0;
+        border-bottom: none;
+    }
+
+    .main-nav.has-groups .nav-group-head {
+        flex: 1;
+        justify-content: center;
+        height: 100%;
+        margin-bottom: 0;
+        padding: 0 4px;
+        border-radius: 0;
+        border-left: 1px solid var(--border-color);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0;
+    }
+
+    .main-nav.has-groups .nav-group + .nav-item {
+        margin-top: 0;
+    }
+
+    .main-nav.has-groups .nav-group:first-child > .nav-group-head {
+        border-left: none;
+    }
+
+    /* 组激活：与平铺 tab 的移动端高亮保持一致（透明底 + 顶部指示条） */
+    .main-nav.has-groups .nav-group.active > .nav-group-head {
+        background-color: transparent;
+        box-shadow: inset 0 3px 0 var(--accent-color);
+    }
+
+    .main-nav.has-groups .nav-group-chevron {
+        display: none;
+    }
+
+    /* 子项已移到横条，底部栏内一律不展开 */
+    .main-nav.has-groups .nav-sub {
+        display: none !important;
+    }
+
+    .main-nav.has-groups > .nav-item {
+        flex: 1;
+        height: 100%;
+        margin-bottom: 0;
+        padding: 0 4px;
+        border-radius: 0;
+        justify-content: center;
+        text-align: center;
+        border-left: 1px solid var(--border-color);
+    }
+
+    .nav-mobile-subbar.visible {
+        display: flex;
+        order: -1;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        background-color: var(--bg-panel, #f9fafb);
+        border-bottom: 1px solid var(--border-color);
+        -webkit-overflow-scrolling: touch;
     }
 }

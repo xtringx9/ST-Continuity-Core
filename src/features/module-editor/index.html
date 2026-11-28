@@ -38,33 +38,51 @@
     </header>
 
     <div class="app-container">
-        <!-- 1. 主导航栏 (Sidebar) -->
-        <nav class="main-nav">
-            <div class="nav-item" data-target="view-modules">
-                <span class="nav-icon">📦</span>
-                <span class="nav-text" data-i18n="ccore_nav_modules">模块定义</span>
+        <!-- 1. 主导航栏 (Sidebar)：单列 + 分组折叠（.has-groups） -->
+        <nav class="main-nav has-groups">
+            <!-- 分组：模块（模块配置 / 全局设置 / 异步配置） -->
+            <div class="nav-group" data-group="module">
+                <div class="nav-group-head" data-group="module">
+                    <span class="nav-group-label" data-i18n="ccore_nav_module">模块</span>
+                    <span class="nav-group-chevron" aria-hidden="true">▶</span>
+                </div>
+                <div class="nav-sub">
+                    <div class="nav-item" data-target="view-modules">
+                        <span class="nav-text" data-i18n="ccore_nav_modules">模块配置</span>
+                    </div>
+                    <div class="nav-item" data-target="view-settings">
+                        <span class="nav-text" data-i18n="ccore_nav_settings">全局设置</span>
+                    </div>
+                    <div class="nav-item" data-target="view-async">
+                        <span class="nav-text" data-i18n="ccore_nav_async">异步配置</span>
+                    </div>
+                </div>
             </div>
+
+            <!-- 分组：剧场（生成内容，后续可加剧场记录/批量生成等子项） -->
+            <div class="nav-group" data-group="theater">
+                <div class="nav-group-head" data-group="theater">
+                    <span class="nav-group-label" data-i18n="ccore_nav_theater">剧场</span>
+                    <span class="nav-group-chevron" aria-hidden="true">▶</span>
+                </div>
+                <div class="nav-sub">
+                    <div class="nav-item" data-target="view-generators">
+                        <span class="nav-text" data-i18n="ccore_nav_generators">生成内容</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 顶层项：不属于任何分组 -->
             <div class="nav-item" data-target="view-profiles">
-                <span class="nav-icon">👥</span>
                 <span class="nav-text" data-i18n="ccore_nav_profiles">角色绑定</span>
             </div>
-            <div class="nav-item" data-target="view-settings">
-                <span class="nav-icon">⚙️</span>
-                <span class="nav-text" data-i18n="ccore_nav_settings">全局设置</span>
-            </div>
-            <div class="nav-item" data-target="view-generators">
-                <span class="nav-icon">🎬</span>
-                <span class="nav-text" data-i18n="ccore_nav_generators">生成内容</span>
-            </div>
-            <div class="nav-item" data-target="view-async">
-                <span class="nav-icon">⚡</span>
-                <span class="nav-text" data-i18n="ccore_nav_async">异步配置</span>
-            </div>
             <div class="nav-item" data-target="view-tools">
-                <span class="nav-icon">🛠️</span>
                 <span class="nav-text" data-i18n="ccore_nav_tools">工具箱</span>
             </div>
         </nav>
+
+        <!-- 移动端：当前分组子 tab 横条（桌面隐藏；由 ModuleEditor 渲染） -->
+        <div id="nav-mobile-subbar" class="nav-mobile-subbar"></div>
 
         <!-- 2. 内容区域 -->
         <main class="content-area">
@@ -101,7 +119,7 @@
                 <!-- 左侧：生成内容列表 -->
                 <aside class="module-list-panel">
                     <div class="list-toolbar">
-                        <input type="text" data-i18n-placeholder="ccore_search_generator" placeholder="搜索生成内容..."
+                        <input type="text" id="gen-search" data-i18n-placeholder="ccore_search_generator" placeholder="搜索生成内容..."
                             style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
                         <button id="btn-add-generator" style="padding: 6px 10px; cursor: pointer;">+</button>
                     </div>

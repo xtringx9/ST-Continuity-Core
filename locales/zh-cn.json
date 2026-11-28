@@ -1,4 +1,6 @@
 {
+    "ccore_nav_module": "模块",
+    "ccore_nav_theater": "剧场",
     "ccore_nav_modules": "模块配置",
     "ccore_nav_generators": "生成内容",
     "ccore_nav_profiles": "角色绑定",

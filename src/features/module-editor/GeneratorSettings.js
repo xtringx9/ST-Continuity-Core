@@ -16,6 +16,7 @@ let doc = null;
 let currentGenerators = [];
 let selectedGenId = null;
 let savedGeneratorsJson = ''; // 保存后的 JSON 字符串（用于 hasChanges 检测）
+let genSearchTerm = ''; // 左侧列表搜索关键词（仅过滤列表显示，不影响数据）
 
 /**
  * 初始化「生成内容」视图。由 ModuleEditor.initModuleEditor 调用。
@@ -40,6 +41,15 @@ export function initGeneratorSettings(iframeDocument) {
         addBtn.addEventListener('click', addGenerator);
     }
 
+    // 绑定左侧搜索框（仅过滤列表；清空即恢复全部）
+    const searchInput = doc.getElementById('gen-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            genSearchTerm = (searchInput.value || '').trim().toLowerCase();
+            renderGeneratorList();
+        });
+    }
+
     // 绑定顶栏独立「保存」按钮（仅生成内容 tab 显示；不触碰 module 保存）。
     // 顶栏按钮常驻 DOM，仅在 init 绑定一次即可（detail 重渲不会重建它）。
     const headerSaveBtn = doc.getElementById('header-gen-save-btn');
@@ -56,6 +66,8 @@ export function initGeneratorSettings(iframeDocument) {
 function checkForChanges() {
     // ⚠️ 先把手头表单内容写回 currentGenerators，否则改动检测不到（保存按钮将一直为灰）
     collectCurrentDetail();
+    // 名称是列表项标签的来源，改完即时同步（避免必须重渲列表才看到新名字）
+    syncSelectedListItem();
     const saveBtn = doc.getElementById('header-gen-save-btn');
     if (!saveBtn) return;
     const hasChanges = JSON.stringify(currentGenerators) !== savedGeneratorsJson;
@@ -71,20 +83,25 @@ function checkForChanges() {
 
 /**
  * 渲染左侧列表（复用 module-list-item / module-item-content / toggle-switch class）
+ * 搜索词只过滤显示，不改变 currentGenerators 与其顺序。
  */
 function renderGeneratorList() {
     const listEl = doc.getElementById('gen-list');
     if (!listEl) return;
     listEl.innerHTML = '';
 
-    if (currentGenerators.length === 0) {
+    const visible = genSearchTerm
+        ? currentGenerators.filter(gen => `${gen.displayName || ''} ${gen.name || ''}`.toLowerCase().includes(genSearchTerm))
+        : currentGenerators;
+
+    if (visible.length === 0) {
         listEl.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--text-secondary); font-size: 12px;">${escapeHtml(translate('ccore_gen_empty'))}</div>`;
         return;
     }
 
-    currentGenerators.forEach(gen => {
+    visible.forEach(gen => {
         const item = doc.createElement('div');
-        item.className = 'module-list-item';
+        item.className = 'module-list-item gen-list-item';
         if (gen.id === selectedGenId) item.classList.add('active');
         if (gen.enabled === false) item.classList.add('disabled');
         item.dataset.genId = gen.id;
@@ -92,8 +109,8 @@ function renderGeneratorList() {
         item.innerHTML = `
             <div class="module-item-content">
                 <div class="module-item-header">
-                    <span class="module-item-name">${escapeHtml(gen.displayName || gen.name || translate('ccore_gen_msg_new'))}</span>
-                    <small style="opacity: 0.5; font-size: 0.8em;">#${escapeHtml(gen.name || '')}</small>
+                    <span class="module-item-name gen-item-name">${escapeHtml(gen.displayName || gen.name || translate('ccore_gen_msg_new'))}</span>
+                    <small class="gen-item-id" style="opacity: 0.5; font-size: 0.8em;">#${escapeHtml(gen.name || '')}</small>
                 </div>
             </div>
             <div class="module-item-actions">
@@ -305,12 +322,32 @@ function renderFilterList(gen) {
         `).join('');
     }
 
+    // 过滤行会随「新增过滤」局部重渲，故监听必须在这里绑定（detail 初次渲染时的统一绑定覆盖不到新行）
+    container.querySelectorAll('.gen-filter-pattern, .gen-filter-flags, .gen-filter-replacement').forEach(el => {
+        el.addEventListener('input', checkForChanges);
+        el.addEventListener('change', checkForChanges);
+    });
+
     container.querySelectorAll('.gen-filter-del').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const idx = parseInt(e.target.dataset.filterIdx, 10);
             deleteFilter(idx);
         });
     });
+}
+
+/**
+ * 把选中项的 displayName/name 同步到左侧列表项标签（不重渲列表，避免打断输入）。
+ */
+function syncSelectedListItem() {
+    const gen = currentGenerators.find(g => g.id === selectedGenId);
+    if (!gen) return;
+    const item = doc.querySelector(`#gen-list .gen-list-item[data-gen-id="${gen.id}"]`);
+    if (!item) return;
+    const nameEl = item.querySelector('.gen-item-name');
+    const idEl = item.querySelector('.gen-item-id');
+    if (nameEl) nameEl.textContent = gen.displayName || gen.name || translate('ccore_gen_msg_new');
+    if (idEl) idEl.textContent = `#${gen.name || ''}`;
 }
 
 /**
@@ -407,6 +444,11 @@ function addGenerator() {
     };
     currentGenerators.push(newGen);
     selectedGenId = newGen.id;
+
+    // 新建项名称为空，可能被当前搜索词过滤掉 → 清空搜索，保证新项可见可编辑
+    genSearchTerm = '';
+    const searchInput = doc.getElementById('gen-search');
+    if (searchInput) searchInput.value = '';
 
     renderGeneratorList();
     renderGeneratorDetail();
