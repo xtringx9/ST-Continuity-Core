@@ -48,6 +48,17 @@ body {
     background: var(--bg-panel, #f9fafb);
 }
 
+/* 顶栏右侧按钮组：必须由 shell 提供 flex 布局。
+ * 之前只有 module-editor 私有 layout.css / chat-reader 内联样式里有，nai 缺这条时
+ * 按钮是 inline-block、关闭按钮是块级 flex，会被挤到第二行。 */
+.header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
 /* 顶栏按钮：统一 26px 高、12px 字、6px 圆角；顶栏内不投影，保持扁平干净 */
 .app-header .header-actions button:not(.header-close-btn) {
     height: 26px;
@@ -55,6 +66,7 @@ body {
     font-size: 12px;
     font-weight: 500;
     line-height: 1;
+    white-space: nowrap;
     border-radius: var(--radius-md, 6px);
     box-shadow: none;
 }
@@ -93,6 +105,11 @@ body {
     cursor: pointer;
     /* 用于点击切换主题 */
     user-select: none;
+    /* 标题过长时省略而不是把右侧按钮挤走 */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* === 容器（导航 + 内容） === */
