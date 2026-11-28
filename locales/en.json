@@ -200,6 +200,7 @@
     "ccore_settings_generation_mode": "Generation Method:",
     "ccore_option_pipeline": "ST Pipeline",
     "ccore_option_raw": "Custom Prompt",
+    "ccore_async_generation_mode_legacy_raw": "Saved value is \"Custom Prompt\" (option hidden). Saving switches back to \"ST Pipeline\".",
     "ccore_settings_generation_mode_hint": "Pipeline mode uses ST's character card/world info/preset; Custom mode allows fully custom prompts.",
     "ccore_settings_raw_system_prompt": "System Prompt:",
     "ccore_settings_raw_user_prompt": "User Prompt Template:",

@@ -93,6 +93,10 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
         : translate('ccore_option_auto_generate_tail_check_nocfg');
     const triggerTitle = translate('ccore_settings_auto_generate_trigger_title')
         .replace('{{tags}}', tagsText || '—');
+    // raw（自定义提示词）模式已从界面隐藏，代码路径保留（2026-11-28，暂时弃用但可能重启）。
+    // 旧配置里存着 raw 的，只提示、不静默丢弃：保存时按界面值写回 pipeline。
+    // 重新启用只需两步：在 #async-generation-mode 里加回 <option value="raw">，删掉下方那行提示块。
+    const legacyRawMode = asyncConfig.generationMode === 'raw';
     const apiProfileOptions = apiManagerEnabled
         ? `<select id="async-api-profile" class="text_pole" style="width:100%;">
                 <option value="">${translate('ccore_async_api_profile_ph')}</option>
@@ -169,10 +173,10 @@ export function renderAsyncSettings(doc, asyncConfig, asyncModule, onChange) {
                         <div class="async-inline-field">
                             <label for="async-generation-mode">${translate('ccore_settings_generation_mode')}</label>
                             <select id="async-generation-mode">
-                                <option value="pipeline" ${asyncConfig.generationMode !== 'raw' ? 'selected' : ''}>${translate('ccore_option_pipeline')}</option>
-                                <option value="raw" ${asyncConfig.generationMode === 'raw' ? 'selected' : ''}>${translate('ccore_option_raw')}</option>
+                                <option value="pipeline" selected>${translate('ccore_option_pipeline')}</option>
                             </select>
                         </div>
+                        ${legacyRawMode ? `<div class="async-group-hint">${escapeHtml(translate('ccore_async_generation_mode_legacy_raw'))}</div>` : ''}
                         <div class="async-inline-field">
                             <label for="async-preset-name">${translate('ccore_settings_generation_preset')}</label>
                             <select id="async-preset-name">
