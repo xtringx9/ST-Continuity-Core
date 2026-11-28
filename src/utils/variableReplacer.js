@@ -18,6 +18,18 @@ export function setMsgModuleResolver(fn) {
     msgModuleResolver = fn;
 }
 
+// {{ccore_msg_gen}} / {{ccore_msg_gen::名称}} 宏：同样由 moduleAiGenerator 注入解析器，
+// 避免 variableReplacer 反向依赖 floorModuleStore。
+// 语义：取「目标楼层上该生成内容已经存下来的正文」（当前激活的内层版本；没存过 → 空串）。
+let msgGenResolver = null;
+/**
+ * 注册 {{ccore_msg_gen}} 宏的解析器（生成期专用）。
+ * @param {(mesId:number, genName:string)=>string} fn genName 为空串表示"当前正在生成的 generator 自己"
+ */
+export function setMsgGenResolver(fn) {
+    msgGenResolver = fn;
+}
+
 // 导入SillyTavern的getContext函数
 let getContext;
 try {
@@ -214,15 +226,20 @@ export function replaceVariables(prompt) {
 /**
  * 通用提示词宏展开（2026-08-18 新增；2026-08-21 自有宏改名为 {{ccore_msg_module}} 并改为管线现算）：
  * 先展开「自家自定义宏」，再交给 ST 全套宏展开。
- * 目前自家宏：{{ccore_msg_module}} → 指定楼层 mesId 的模块数据（经注入的解析器现算，与
- * {{CONTINUITY_MSG_MODULE_X}} 同源管线）。未注入解析器时回退为空（保持兼容）。
+ * 自家宏：
+ *   {{ccore_msg_module}}       → 指定楼层 mesId 的模块数据（经注入的解析器现算）
+ *   {{ccore_msg_gen}}          → 当前正在生成的 generator 在该楼层已存的正文
+ *   {{ccore_msg_gen::名称}}    → 指定 generator 在该楼层已存的正文
+ * 未注入解析器时回退为空（保持兼容）。
  * 用于提示词组/弹窗等生成的 quietPrompt——使其既支持模块宏又支持 ST 标准宏
  * （{{user}}/{{char}}/{{time}} 等），且不依赖 ST 组装路径（组装失败自建数组时同样生效）。
  * @param {string} text 原始提示词
- * @param {number} mesId 目标楼层（{{ccore_msg_module}} 注入用）
+ * @param {number} mesId 目标楼层（宏取值对象）
+ * @param {object} [options]
+ * @param {string} [options.genName=''] 当前正在生成的 generator 名（{{ccore_msg_gen}} 不带参数时用它；空=不解析）
  * @returns {string}
  */
-export function expandPrompts(text, mesId) {
+export function expandPrompts(text, mesId, options = {}) {
     if (!text || typeof text !== 'string') return text;
     // 1. 自家宏
     let out = text;
@@ -238,6 +255,33 @@ export function expandPrompts(text, mesId) {
             debugLog(`变量替换器: {{ccore_msg_module}} → ${moduleData.length} 字符（楼层 ${mesId}）`);
         } catch (e) {
             debugLog("变量替换器: {{ccore_msg_module}} 展开失败", e);
+        }
+    }
+    // {{ccore_msg_gen}} / {{ccore_msg_gen::名称}}：取该楼层已存的生成内容正文
+    if (out.includes('{{ccore_msg_gen')) {
+        try {
+            const macroRe = /\{\{ccore_msg_gen(?:::\s*([A-Za-z0-9_]+))?\}\}/g;
+            out = out.replace(macroRe, (_match, argName) => {
+                if (!msgGenResolver) {
+                    debugLog('变量替换器: {{ccore_msg_gen}} 解析器未注入，跳过（生成期需经 moduleAiGenerator 注册）');
+                    return '';
+                }
+                const target = argName || options.genName || '';
+                if (!target) {
+                    debugLog('变量替换器: {{ccore_msg_gen}} 无目标 generator（既未带参数也非生成内容场景），按空串处理');
+                    return '';
+                }
+                const value = msgGenResolver(mesId, target) || '';
+                debugLog(`变量替换器: {{ccore_msg_gen}}(${target}) → ${value.length} 字符（楼层 ${mesId}）`);
+                return value;
+            });
+            // 兜底：写法不合法（如标识含空格/中文）时不要把宏原文喂给模型
+            out = out.replace(/\{\{ccore_msg_gen[^}]*\}\}/g, (leftover) => {
+                debugLog(`变量替换器: 未识别的宏已清空：${leftover}`);
+                return '';
+            });
+        } catch (e) {
+            debugLog("变量替换器: {{ccore_msg_gen}} 展开失败", e);
         }
     }
     // 2. ST 全套宏

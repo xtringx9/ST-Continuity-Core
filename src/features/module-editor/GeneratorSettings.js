@@ -17,6 +17,10 @@ let currentGenerators = [];
 let selectedGenId = null;
 let savedGeneratorsJson = ''; // 保存后的 JSON 字符串（用于 hasChanges 检测）
 let genSearchTerm = ''; // 左侧列表搜索关键词（仅过滤列表显示，不影响数据）
+// 提示词列表的展开态（下标集合）。默认空 = 全部折叠，只显示条目名；切 generator 时清空。
+const expandedPromptIdx = new Set();
+// 上一次渲染详情区的 generator id（用于判断是否切换了 generator）
+let lastDetailGenId = null;
 
 /**
  * 初始化「生成内容」视图。由 ModuleEditor.initModuleEditor 调用。
@@ -166,6 +170,14 @@ function renderGeneratorDetail() {
     }
 
     const displayName = gen.displayName || gen.name || translate('ccore_gen_msg_new');
+    // 切到另一个 generator 时清空提示词展开态（下标是相对的，跨 generator 复用会错位）
+    if (lastDetailGenId !== gen.id) {
+        expandedPromptIdx.clear();
+        lastDetailGenId = gen.id;
+    }
+    // 提示词模式：兼容旧值 'select'（当时没有多选面板，实际行为就是全部合并）
+    const promptMode = (gen.promptMode === 'all' || gen.promptMode === 'select') ? 'all'
+        : (gen.promptMode === 'fixed' ? 'fixed' : 'random');
     detailEl.innerHTML = `
         <div class="settings-container module-detail-view">
             <div class="detail-tabs">
@@ -190,8 +202,9 @@ function renderGeneratorDetail() {
                 <div class="form-group">
                     <label>${escapeHtml(translate('ccore_gen_label_prompt_mode'))}</label>
                     <select id="gen-prompt-mode">
-                        <option value="random" ${gen.promptMode === 'random' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_random'))}</option>
-                        <option value="select" ${gen.promptMode === 'select' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_select'))}</option>
+                        <option value="random" ${promptMode === 'random' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_random'))}</option>
+                        <option value="all" ${promptMode === 'all' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_all'))}</option>
+                        <option value="fixed" ${promptMode === 'fixed' ? 'selected' : ''}>${escapeHtml(translate('ccore_gen_option_fixed'))}</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -221,6 +234,7 @@ function renderGeneratorDetail() {
                 <h3>
                     <span>${escapeHtml(translate('ccore_gen_title_prompts'))} (${(gen.prompts || []).length})</span>
                 </h3>
+                <div class="prompts-hint">${escapeHtml(translate('ccore_gen_prompts_macro_hint'))}</div>
                 <div id="prompts-container"></div>
                 <div class="btn-add-prompt" id="btn-add-prompt">${escapeHtml(translate('ccore_gen_btn_add_prompt'))}</div>
             </div>
@@ -230,6 +244,17 @@ function renderGeneratorDetail() {
 
     renderPrompts(gen);
     renderFilterList(gen);
+
+    // 「设为当前条目」的单选只在「指定条目」模式下生效，非该模式时把单选淡出，避免"勾了却没用"的误解
+    const modeEl = doc.getElementById('gen-prompt-mode');
+    const syncPromptModeUi = () => {
+        const wrap = doc.getElementById('prompts-container');
+        if (wrap && modeEl) wrap.classList.toggle('prompts-not-fixed', modeEl.value !== 'fixed');
+    };
+    if (modeEl) {
+        modeEl.addEventListener('change', syncPromptModeUi);
+        syncPromptModeUi();
+    }
 
     // 绑定详情区输入事件 → checkForChanges
     detailEl.querySelectorAll('input, select, textarea').forEach(el => {
@@ -262,39 +287,100 @@ function renderGeneratorDetail() {
 }
 
 /**
- * 渲染 prompts 列表
+ * 提示词字数标签（折叠态也能看出这条有多长）
+ * @param {string} content
+ * @returns {string}
+ */
+function promptCharsLabel(content) {
+    return translate('ccore_gen_prompt_chars').replace('{{count}}', String(String(content || '').length));
+}
+
+/**
+ * 渲染 prompts 列表。
+ * 默认折叠：每行只显示「设为当前条目的单选 + 条目名 + 字数 + 展开箭头 + 删除」，点箭头才出 textarea。
+ * ⚠️ 折叠时 textarea 不在 DOM 里，因此正文以 gen.prompts 为准：输入事件直接回写数组，
+ *    collectCurrentDetail 也不能再按 DOM 重建数组（否则会清空未展开条目的内容）。
  */
 function renderPrompts(gen) {
     const container = doc.getElementById('prompts-container');
     if (!container) return;
     container.innerHTML = '';
 
-    if (!gen.prompts || gen.prompts.length === 0) {
+    const prompts = Array.isArray(gen.prompts) ? gen.prompts : [];
+    if (prompts.length === 0) {
         container.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:5px;">${escapeHtml(translate('ccore_gen_no_prompts'))}</div>`;
         return;
     }
 
-    gen.prompts.forEach((prompt, index) => {
+    const activeIdx = Math.min(Math.max(Number(gen.activePromptIndex) || 0, 0), prompts.length - 1);
+
+    prompts.forEach((prompt, index) => {
+        const expanded = expandedPromptIdx.has(index);
         const item = doc.createElement('div');
-        item.className = 'prompt-item';
+        item.className = 'prompt-item' + (expanded ? ' is-expanded' : '');
+        item.dataset.promptIndex = index;
         item.innerHTML = `
             <div class="prompt-header">
+                <input type="radio" class="prompt-active-radio" name="gen-active-prompt" data-prompt-index="${index}" ${index === activeIdx ? 'checked' : ''} title="${escapeHtml(translate('ccore_gen_active_entry'))}">
                 <input type="text" class="prompt-label-input" value="${escapeHtml(prompt.label || '')}" placeholder="${escapeHtml(translate('ccore_gen_prompt_label_placeholder'))}" data-prompt-index="${index}" data-field="label">
+                <span class="prompt-meta">${escapeHtml(promptCharsLabel(prompt.content))}</span>
+                <button type="button" class="prompt-toggle" data-prompt-index="${index}" title="${escapeHtml(translate('ccore_gen_prompt_toggle'))}">${expanded ? '▾' : '▸'}</button>
                 <div class="btn-delete-prompt" data-prompt-index="${index}">${escapeHtml(translate('ccore_gen_title_delete'))}</div>
             </div>
-            <textarea data-prompt-index="${index}" data-field="content" placeholder="${escapeHtml(translate('ccore_gen_prompt_content_placeholder'))}">${escapeHtml(prompt.content || '')}</textarea>
+            ${expanded ? `<textarea class="prompt-content-input" data-prompt-index="${index}" data-field="content" placeholder="${escapeHtml(translate('ccore_gen_prompt_content_placeholder'))}">${escapeHtml(prompt.content || '')}</textarea>` : ''}
         `;
         container.appendChild(item);
     });
 
-    // 绑定 prompts 输入事件 → checkForChanges
-    container.querySelectorAll('input, textarea').forEach(el => {
-        el.addEventListener('input', checkForChanges);
+    // 条目名：实时回写数组
+    container.querySelectorAll('.prompt-label-input').forEach(el => {
+        el.addEventListener('input', (e) => {
+            const idx = Number(e.target.dataset.promptIndex);
+            if (gen.prompts[idx]) gen.prompts[idx].label = e.target.value;
+            checkForChanges();
+        });
+    });
+
+    // 正文：实时回写数组 + 就地刷新字数
+    container.querySelectorAll('.prompt-content-input').forEach(el => {
+        el.addEventListener('input', (e) => {
+            const idx = Number(e.target.dataset.promptIndex);
+            if (!gen.prompts[idx]) return;
+            gen.prompts[idx].content = e.target.value;
+            const meta = e.target.closest('.prompt-item')?.querySelector('.prompt-meta');
+            if (meta) meta.textContent = promptCharsLabel(e.target.value);
+            checkForChanges();
+        });
+    });
+
+    // 「设为当前条目」（互斥）：勾选即切到「指定条目」模式，否则勾了不生效会让人困惑
+    container.querySelectorAll('.prompt-active-radio').forEach(el => {
+        el.addEventListener('change', (e) => {
+            gen.activePromptIndex = Number(e.target.dataset.promptIndex) || 0;
+            if (gen.promptMode !== 'fixed') {
+                gen.promptMode = 'fixed';
+                const modeEl = doc.getElementById('gen-prompt-mode');
+                if (modeEl) modeEl.value = 'fixed';
+                // 程序化改 select 不会触发 change，这里手动解除淡出
+                container.classList.remove('prompts-not-fixed');
+            }
+            checkForChanges();
+        });
+    });
+
+    // 展开/折叠
+    container.querySelectorAll('.prompt-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const idx = Number(e.currentTarget.dataset.promptIndex);
+            if (expandedPromptIdx.has(idx)) expandedPromptIdx.delete(idx);
+            else expandedPromptIdx.add(idx);
+            renderPrompts(gen);
+        });
     });
 
     container.querySelectorAll('.btn-delete-prompt').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const idx = parseInt(e.target.dataset.promptIndex, 10);
+            const idx = parseInt(e.currentTarget.dataset.promptIndex, 10);
             deletePrompt(idx);
         });
     });
@@ -372,15 +458,17 @@ function collectCurrentDetail() {
     if (customStylesEl) gen.customStyles = customStylesEl.value;
     if (multiStylesEl) gen.multiContainerStyles = multiStylesEl.value;
 
-    const labelInputs = doc.querySelectorAll('.prompt-label-input');
-    const contentTextareas = doc.querySelectorAll('textarea[data-field="content"]');
-    gen.prompts = [];
-    for (let i = 0; i < labelInputs.length; i++) {
-        gen.prompts.push({
-            label: labelInputs[i].value,
-            content: contentTextareas[i] ? contentTextareas[i].value : '',
-        });
-    }
+    // 提示词：列表默认折叠，未展开的条目在 DOM 里没有 textarea → 不能用 DOM 重建数组，
+    // 只对仍然存在的控件做一次兜底同步（正常输入已由 input 事件实时回写）。
+    const prompts = Array.isArray(gen.prompts) ? gen.prompts : (gen.prompts = []);
+    prompts.forEach((p, i) => {
+        const labelEl = doc.querySelector(`.prompt-label-input[data-prompt-index="${i}"]`);
+        const contentEl = doc.querySelector(`.prompt-content-input[data-prompt-index="${i}"]`);
+        if (labelEl) p.label = labelEl.value;
+        if (contentEl) p.content = contentEl.value;
+    });
+    const activeRadio = doc.querySelector('.prompt-active-radio:checked');
+    if (activeRadio) gen.activePromptIndex = Number(activeRadio.dataset.promptIndex) || 0;
 
     const patternInputs = doc.querySelectorAll('.gen-filter-pattern');
     const flagsInputs = doc.querySelectorAll('.gen-filter-flags');
@@ -437,6 +525,7 @@ function addGenerator() {
         enabled: true,
         prompts: [],
         promptMode: 'random',
+        activePromptIndex: 0,
         presetName: '',
         customStyles: '',
         multiContainerStyles: '',
@@ -495,10 +584,16 @@ function addPrompt() {
     if (!gen) return;
 
     gen.prompts = gen.prompts || [];
+    const newIndex = gen.prompts.length;
     gen.prompts.push({ label: '', content: '' });
+    // 新建的这条默认展开，方便直接写正文
+    expandedPromptIdx.add(newIndex);
+    if (!Number.isInteger(gen.activePromptIndex) || gen.activePromptIndex < 0) gen.activePromptIndex = 0;
 
     renderPrompts(gen);
     checkForChanges();
+    const labelEl = doc.querySelector(`.prompt-label-input[data-prompt-index="${newIndex}"]`);
+    if (labelEl) labelEl.focus();
 }
 
 /**
@@ -511,6 +606,23 @@ function deletePrompt(index) {
     if (!gen || !gen.prompts) return;
 
     gen.prompts.splice(index, 1);
+
+    // 「当前条目」与展开态都按数组下标记录，删一条后必须跟着平移，否则会指向错误的那一条
+    if (gen.prompts.length === 0) {
+        gen.activePromptIndex = 0;
+    } else if (gen.activePromptIndex > index) {
+        gen.activePromptIndex -= 1;
+    } else if (gen.activePromptIndex === index) {
+        gen.activePromptIndex = Math.min(index, gen.prompts.length - 1);
+    }
+    const shifted = new Set();
+    expandedPromptIdx.forEach(i => {
+        if (i === index) return;
+        shifted.add(i > index ? i - 1 : i);
+    });
+    expandedPromptIdx.clear();
+    shifted.forEach(i => expandedPromptIdx.add(i));
+
     renderPrompts(gen);
     checkForChanges();
 }

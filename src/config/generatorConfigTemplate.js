@@ -42,9 +42,14 @@ export const GENERATOR_CONFIG_TEMPLATE = {
             },
             promptMode: {
                 type: 'string',
-                enum: ['random', 'select'],
+                enum: ['random', 'all', 'fixed'],
                 default: 'random',
-                description: '提示词选择模式: random=随机选一个, select=面板多选合并一次调用'
+                description: '提示词选择模式: random=随机选一条, all=全部合并成一次调用, fixed=用 activePromptIndex 指定的那一条（旧值 select 归一为 all）'
+            },
+            activePromptIndex: {
+                type: 'number',
+                default: 0,
+                description: '「指定条目」模式下使用的提示词下标（越界/负数归一化到合法范围）'
             },
             presetName: {
                 type: 'string',
@@ -126,7 +131,8 @@ export function validateGeneratorConfig(config) {
             warnings.push(`${prefix}: prompts字段应为数组`);
         }
 
-        const validModes = ['random', 'select'];
+        // 'select' 是旧值（语义即"全部合并"），normalize 时会归一成 'all'，这里只做兼容放行
+        const validModes = ['random', 'all', 'fixed', 'select'];
         if (gen.promptMode && !validModes.includes(gen.promptMode)) {
             warnings.push(`${prefix}: promptMode应为 ${validModes.join(', ')} 之一`);
         }
@@ -143,6 +149,31 @@ export function validateGeneratorConfig(config) {
     });
 
     return { isValid: errors.length === 0, errors, warnings };
+}
+
+/**
+ * 提示词模式归一：random=随机一条 / all=全部合并 / fixed=指定条目。
+ * 旧值 'select' 此前没有多选面板，实际行为就是"全部合并"，因此直接映射到 'all'。
+ * @param {string} mode
+ * @returns {'random'|'all'|'fixed'}
+ */
+function normalizePromptMode(mode) {
+    if (mode === 'all' || mode === 'select') return 'all';
+    if (mode === 'fixed') return 'fixed';
+    return 'random';
+}
+
+/**
+ * 「指定条目」索引归一：非负数、不越界；没有提示词时给 0（生成侧会再判空）。
+ * @param {*} index
+ * @param {Array} prompts
+ * @returns {number}
+ */
+function normalizeActivePromptIndex(index, prompts) {
+    const max = Array.isArray(prompts) ? prompts.length - 1 : -1;
+    const n = Number(index);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return max < 0 ? 0 : Math.min(Math.floor(n), max);
 }
 
 /**
@@ -176,7 +207,9 @@ export function normalizeGeneratorConfig(config) {
                     content: p.content || ''
                 }))
                 : [],
-            promptMode: gen.promptMode || 'random',
+            promptMode: normalizePromptMode(gen.promptMode),
+            // 「指定条目」模式下使用的那一条（下标；删除/越界由 normalize 收敛）
+            activePromptIndex: normalizeActivePromptIndex(gen.activePromptIndex, gen.prompts),
             presetName: gen.presetName || '',
             customStyles: typeof gen.customStyles === 'string' ? gen.customStyles : '',
             multiContainerStyles: typeof gen.multiContainerStyles === 'string' ? gen.multiContainerStyles : '',

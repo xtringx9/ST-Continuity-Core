@@ -9,7 +9,7 @@ import { aiCaller } from './aiCaller.js';
 import configManager from '../singleton/configManager.js';
 import generatedContentCache from '../singleton/generatedContentCache.js';
 import { chat, getCurrentChatDetails } from '../../../../../../script.js';
-import { expandPrompts, setMsgModuleResolver } from '../utils/variableReplacer.js';
+import { expandPrompts, setMsgModuleResolver, setMsgGenResolver } from '../utils/variableReplacer.js';
 import { debugLog, warnLog, errorLog, infoLog } from '../utils/logger.js';
 import { readFloorModules, readGeneratorContent, appendGeneratorContent, overwriteGeneratorContent, writeGeneratorContent, getActiveGeneratorSwipe } from '../core/floorModuleStore.js';
 import { setGenerationContextEndFloor, setGenerationContextMode, clearGenerationContext } from '../core/generationContext.js';
@@ -22,6 +22,16 @@ import { generateChatModuleDataForFloor } from '../modules/promptGenerator.js';
 // ⚠️ expandPrompts 在 pipeline 里、生成上下文 mode 置为 async-alone 之前即展开，
 //    此刻 getPromptMode() 可能返回 async-body → 触发空返回且过滤掉 after_body，故显式指定。
 setMsgModuleResolver(mesId => generateChatModuleDataForFloor(mesId, 'async-alone'));
+
+// 注册 {{ccore_msg_gen}} 自有宏的解析器：读目标楼层上该 generator 已存的正文
+// （当前激活的内层版本；没存过 → 空串）。让提示词能引用本层已有产出，例如"基于上一版改写"
+// 或"让 A 参考 B 在本层写了什么"。只读存储，不触发任何生成/缓存刷新。
+setMsgGenResolver((mesId, genName) => {
+    if (!genName) return '';
+    const outerSwipeId = chat?.[mesId]?.swipe_id ?? 0;
+    const innerSwipeId = getActiveGeneratorSwipe(mesId, genName, outerSwipeId);
+    return readGeneratorContent(mesId, genName, outerSwipeId, innerSwipeId) || '';
+});
 
 const LOG_TAG = 'ModuleAiGenerator';
 
@@ -87,14 +97,16 @@ function _extractTopLevelModules(text) {
 */
 
 /**
- * 展开生成提示词中的宏（2026-08-18 升级为通用；2026-08-21 自有宏改名 {{ccore_msg_module}}）：先自家宏再 ST 全套宏。
+ * 展开生成提示词中的宏（2026-08-18 升级为通用；2026-08-21 自有宏改名 {{ccore_msg_module}}；
+ * 2026-11-28 新增 {{ccore_msg_gen}}/{{ccore_msg_gen::名称}}）：先自家宏再 ST 全套宏。
  * 委托 utils/variableReplacer.expandPrompts（保留此薄封装，调用点不变）。
  * @param {string} text 提示词文本
  * @param {number} mesId 目标楼层
+ * @param {string} [genName=''] 当前生成的 generator 名（{{ccore_msg_gen}} 不带参数时用它；模块传空）
  * @returns {string}
  */
-function _expandPromptMacros(text, mesId) {
-    return expandPrompts(text, mesId);
+function _expandPromptMacros(text, mesId, genName = '') {
+    return expandPrompts(text, mesId, { genName });
 }
 
 // === 待处理结果状态管理 ===
@@ -717,18 +729,24 @@ export const moduleAiGenerator = {
             }
             effectivePresetName = effectivePresetName || generator.presetName || null;
 
-            // 按 promptMode 选提示词
+            // 按 promptMode 选提示词：random=随机一条 / all=全部合并 / fixed=指定条目
+            // 旧值 'select' 已在 normalize 归一成 'all'，这里按 all 兜底（无多选面板）
             let selectedItems = [];
             if (selectedPrompts && selectedPrompts.length > 0) {
-                // select 模式：外部传入已选 label 数组
+                // 外部显式指定 label 数组（预留：将来做多选面板时用）
                 selectedItems = generator.prompts.filter(p => selectedPrompts.includes(p.label));
             } else if (generator.promptMode === 'random') {
                 // random 模式：随机选一个
                 if (generator.prompts.length > 0) {
                     selectedItems = [generator.prompts[Math.floor(Math.random() * generator.prompts.length)]];
                 }
+            } else if (generator.promptMode === 'fixed') {
+                // fixed 模式：用界面上「设为当前条目」勾选的那一条（越界/空数组时留空，走统一报错）
+                const idx = Math.min(Math.max(Number(generator.activePromptIndex) || 0, 0), generator.prompts.length - 1);
+                const pinned = generator.prompts[idx];
+                if (pinned) selectedItems = [pinned];
             } else {
-                // select 模式但未传入：用所有 prompts
+                // all 模式（含旧 select）：全部提示词合并成一次调用
                 selectedItems = generator.prompts;
             }
 
@@ -790,8 +808,9 @@ export const moduleAiGenerator = {
                 return { success: false, text: '', debug: null, storedCount: 0 };
             }
 
-            // 生成指令作为最后一条 user 消息（先展开简单宏，如 {{ccore_msg_module}} → 该楼层正文现算的模块数据）
-            const quietPrompt = _expandPromptMacros(effectivePipelineModifier, truncateToMesId);
+            // 生成指令作为最后一条 user 消息（先展开简单宏，如 {{ccore_msg_module}} → 该楼层正文现算的模块数据；
+            // {{ccore_msg_gen}} 需要知道当前 generator 名，模块场景传空 = 不带参数的 gen 宏解析为空）
+            const quietPrompt = _expandPromptMacros(effectivePipelineModifier, truncateToMesId, isModule ? '' : generatorName);
 
             // 开关：true=push 进 chat 作为最后 user 消息（{{lastUserMessage}} 可取）；false=经 quietPrompt（system 角色末尾）
             const pushAsLastUser = !!configManager.getAsyncConfig().pushUserMessageAsLast;

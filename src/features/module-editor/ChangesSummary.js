@@ -501,6 +501,7 @@ const generatorKeyToI18nKey = {
     'name': 'ccore_gen_label_name',
     'displayName': 'ccore_label_display_name',
     'promptMode': 'ccore_gen_label_prompt_mode',
+    'activePromptIndex': 'ccore_gen_label_active_prompt',
     'presetName': 'ccore_settings_generation_preset',
     'enabled': 'ccore_label_enabled',
     'prompts': 'ccore_gen_title_prompts',

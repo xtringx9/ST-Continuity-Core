@@ -374,6 +374,15 @@
     padding-bottom: 5px;
 }
 
+/* 提示词可用宏提示 */
+.prompts-hint {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    word-break: break-word;
+}
+
 .prompt-item {
     border: 1px solid var(--border-color);
     padding: 8px;
@@ -398,6 +407,49 @@
     background: var(--bg-app);
     color: var(--text-input);
     font-size: 13px;
+}
+
+/* 提示词折叠行：[当前条目单选][条目名][字数][展开箭头][删除] */
+.prompt-item .prompt-active-radio {
+    flex: 0 0 auto;
+    margin: 0;
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+/* 非「指定条目」模式时，单选不生效 → 淡出提示 */
+.prompts-not-fixed .prompt-active-radio {
+    opacity: 0.45;
+}
+
+.prompt-item .prompt-meta {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.prompt-item .prompt-toggle {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-app);
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.prompt-item .prompt-toggle:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.prompt-item.is-expanded textarea {
+    margin-top: 6px;
 }
 
 .prompt-item textarea {
