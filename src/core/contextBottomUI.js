@@ -38,7 +38,7 @@ import { buildNestedAnchorIndex, replaceNestedByAnchors } from './context-ui/nes
 import { renderCurrentMessageContext } from './context-ui/inlineMessageRenderer.js';
 import { IframeModal } from '../shared/IframeModal.js';
 import { renderMarkdownToSafeHtml } from '../shared/messageRenderer.js';
-
+import { splitHtmlDocument, buildDocumentFrame } from '../shared/htmlDocument.js';
 // context-bottom-ui.css 路径（与原底部汇总一致，复用同一套样式）
 const contextBottomCssUrl = new URL('../../assets/css/context-bottom-ui.css', import.meta.url).href;
 
@@ -139,22 +139,43 @@ function genEscapeHtml(text) {
         .replace(/'/g, '&#039;');
 }
 
-/**
- * 生成内容正文渲染：走与 ST 正文同源的 markdown + 消毒管线（shared/messageRenderer）。
- * - 换行/粗斜体/引用/表格/代码块按 markdown 处理（showdown simpleLineBreaks，纯文本单换行也保留）
- * - 文本自带的 <style> 会被保留，但其选择器统一加 `.ccore-generator-block ` 前缀，
- *   避免污染同一个 iframe 里的模块块；脚本一律被 DOMPurify 清掉
- * - 渲染失败时回退为转义纯文本（保证不把原文当 HTML 注入）
- * @param {string} text 已过 filters 的原文
- * @returns {string} 可安全 innerHTML 的 HTML
- */
-function renderGeneratorText(text) {
+/** markdown 片段渲染（整页模式的前后文字也走这里）；失败回退为转义纯文本 */
+function renderMarkdownFragment(text) {
     try {
         return renderMarkdownToSafeHtml(text, { stylePrefix: '.ccore-generator-block ' });
     } catch (e) {
         errorLog('[GeneratorRender] markdown 渲染失败，回退纯文本', e);
         return genEscapeHtml(text);
     }
+}
+
+/**
+ * 生成内容正文渲染。
+ * 两条路径：
+ *   ① 含整页 HTML（模型给了 <!DOCTYPE>/<html>，或用 ``` 围栏包着整页）→ 独立 srcdoc 子 iframe：
+ *      它有自己的 :root/html/body，文档自带的主题变量、body 背景、媒体查询全按原样生效，
+ *      且不会污染外层消息与同层模块（shared/htmlDocument）。
+ *      文档前后的其它文字不会被丢弃：前置/后置文字各自走 markdown，再按原顺序拼接。
+ *   ② 其余 → 与 ST 正文同源的 markdown + 消毒管线（shared/messageRenderer）：
+ *      文本自带的 <style> 会保留，但选择器统一加 `.ccore-generator-block ` 前缀避免串味。
+ * 两条路径都失败时回退为转义纯文本（保证不把原文当 HTML 注入）。
+ * @param {string} text 已过 filters 的原文
+ * @returns {string} 可安全 innerHTML 的 HTML
+ */
+function renderGeneratorText(text) {
+    const split = splitHtmlDocument(text);
+    if (split) {
+        try {
+            const parts = [];
+            if (split.before) parts.push(renderMarkdownFragment(split.before));
+            parts.push(buildDocumentFrame(split.doc));
+            if (split.after) parts.push(renderMarkdownFragment(split.after));
+            return parts.join('');
+        } catch (e) {
+            errorLog('[GeneratorRender] 整页 HTML 渲染失败，整段回退 markdown', e);
+        }
+    }
+    return renderMarkdownFragment(text);
 }
 
 /** 顺序应用生成内容的过滤正则（只影响展示文本，不改动落库原文）。 */

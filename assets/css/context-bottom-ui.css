@@ -264,6 +264,17 @@ details.module-data[open]>summary::before {
     word-wrap: break-word;
 }
 
+/* 12. 整页生成内容（模型输出完整 HTML 文档时，塞进独立 srcdoc 子 iframe）
+   高度由文档内的脚本回写 frameElement.style.height，故这里只给宽度和兜底最小高度 */
+.ccore-gen-doc {
+    display: block;
+    width: 100%;
+    /* 兜底高度只在文档脚本量高之前生效；脚本会把 min-height 归零并按内容精确设高 */
+    min-height: 60px;
+    border: 0;
+    background: transparent;
+}
+
 /* 未配 customStyles 时的回退层。
    ⚠️ 2026-11-28：生成内容已统一走 markdown 渲染（showdown + DOMPurify，与 ST 正文同源），
    所以这里**不能**用 white-space: pre-wrap —— <p> 之间的源码换行会被当成空白行撑出双倍行距。
