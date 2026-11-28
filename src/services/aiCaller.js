@@ -12,9 +12,12 @@ import {
     event_types,
     chat,
     name1,
+    saveSettings,
+    saveSettingsDebounced,
     showSwipeButtons,
     substituteParams,
 } from '../../../../../../script.js';
+import { cancelDebounce } from '../../../../../utils.js';
 import {
     sendOpenAIRequest,
     oai_settings,
@@ -39,27 +42,23 @@ const LOG_TAG = 'AiCaller';
 //   任一时刻只有一个调用占用 oai_settings，restore 必然回到原始值。
 //   锁只覆盖 apply→restore 窗口（含 await Generate），发送阶段（sendOpenAIRequest）在 restore
 //   之后，不占锁，避免把网络等待也串行化。
-let presetLock = Promise.resolve();
-let presetLockRelease = null;
+// ⚠️ 2026-08-28 修复：旧实现用全局变量 presetLockRelease 记录「当前持有者的 release」，≥2 个并发
+//   等锁时会互相覆盖——A 释放时解析的是 B 的 resolver，而 B 等的是 A 的 promise，B/C 永久挂起
+//   （表现为异步生成偶发不返回）。改为「排队尾 + 每个等锁者各自持有自己的 release」。
+let presetLockTail = Promise.resolve();
 
 /**
  * 获取预设临界区锁：等待前一个持有者释放后再进入，保证串行。
- * 与 releasePresetLock 配对；释放由调用方在 restore 后（含异常 finally）保证。
+ * @returns {Promise<function(): void>} 本次持有的释放函数（必须与 acquire 成对调用，异常路径亦然）
  */
 async function acquirePresetLock() {
-    const prev = presetLock;
     let release;
-    presetLock = new Promise((resolve) => { release = resolve; });
-    presetLockRelease = release;
+    const myTurn = new Promise((resolve) => { release = resolve; });
+    const prev = presetLockTail;
+    // 队尾挂上「上一段结束后才轮到本次」，下一段等锁者会排在本次之后
+    presetLockTail = prev.then(() => myTurn);
     await prev;
-}
-
-/** 释放预设临界区锁（幂等由调用方 presetLockReleased 标志保证）。 */
-function releasePresetLock() {
-    if (presetLockRelease) {
-        presetLockRelease();
-        presetLockRelease = null;
-    }
+    return release;
 }
 
 /** 深拷贝应用值：对象/数组字段绝不按引用赋给 oai_settings，避免污染已保存的预设本体。 */
@@ -348,6 +347,28 @@ function _restorePresetForAssembly(fields) {
 }
 
 /**
+ * 防落盘自愈（2026-08-28）：临时预设窗口内若有 settings 保存被 flush，settings.json 里已是
+ * 临时预设的脏值（ST 的 saveSettings 直接序列化实时 oai_settings，见 script.js:7047-7072）。
+ * 用还原后的 oai_settings 立即重存一次覆盖脏值；同时把「窗口前被 cancelDebounce 取消掉的
+ * 待落盘改动」一并补存，避免丢失。
+ * ⚠️ 调用方必须在 restore 之后、**释放预设锁之前**调用：saveSettings 的函数体在首个 await 前
+ *   就同步完成 JSON 序列化（fetch 的 body 参数），此刻 oai_settings 已还原且下一段等锁者尚未进入
+ *   → 序列化瞬间绝不落在别人的临时预设窗口里。
+ * ⚠️ 不 await：网络落地不是关键，关键是序列化已经用还原值完成，避免把网络等待塞进临界区。
+ * @param {boolean} shouldHeal 本流程是否走过「取消待保存 + 临时写 oai_settings」这套动作
+ *   （= presetName 非空；为空时既没取消保存也没改 oai_settings，无需自愈）
+ */
+function _healSettingsAfterPresetWindow(shouldHeal) {
+    if (!shouldHeal) return;
+    try {
+        saveSettings();
+        debugLog(LOG_TAG, '已在预设还原后重存 settings（覆盖窗口期可能被写脏的值）');
+    } catch (e) {
+        errorLog(LOG_TAG, '预设还原后重存 settings 失败（忽略）:', e);
+    }
+}
+
+/**
  * AI 调用器
  *
  * 用法：
@@ -570,6 +591,9 @@ export const aiCaller = {
         let presetBackup = null;
         // ⚠️ 2026-08-27 单飞锁（方案 A）：预设临界区锁释放标志，与 presetRestored 对齐，确保每 acquire 必 release。
         let presetLockReleased = false;
+        // ⚠️ 2026-08-28：本次 acquire 拿到的 release 函数（每个等锁者各自持有，不再用全局变量）
+        /** @type {function(): void|null} */
+        let presetLockReleaseFn = null;
         // ⚠️ 2026-08-23 PromptManager UI 残留修复：临时预设覆盖了 prompt_order/prompts 时，
         //   dryRun 组装会触发 renderPromptManager 的延迟异步重绘，可能抓到“已覆盖、未恢复”的中间态，
         //   把临时预设的条目画出来（数据已还原、UI 残留到下一次 renderDebounced）。故在恢复预设后强制用
@@ -679,7 +703,20 @@ export const aiCaller = {
             // ⚠️ 2026-08-27 单飞锁（方案 A）：进入预设临界区前先获取锁，保证 apply→Generate→restore 串行，
             //   避免重叠调用把 oai_settings 永久停在临时候选预设（被 ST saveSettings 落盘即"预设被覆盖保存"）。
             //   锁在 restore 后（含 finally 兜底）release；网络发送阶段在 restore 之后，不占锁。
-            await acquirePresetLock();
+            // ⚠️ 2026-08-28：acquire 现在返回本次的 release 函数（旧实现用全局 presetLockRelease，
+            //   并发 ≥2 时会互相覆盖导致永久挂起）。
+            presetLockReleaseFn = await acquirePresetLock();
+            // 防落盘（2026-08-28）：进入窗口前取消一次已排队的 debounced 设置保存，避免它在
+            //   「临时预设已写入 oai_settings」的窗口内 flush（ST 的 saveSettings 直接序列化实时
+            //   oai_settings，见 script.js:7047-7072）。被取消的改动不会丢：restore 后会由
+            //   _healSettingsAfterPresetWindow 用「还原后的值 + 其它未落盘改动」立即重存。
+            if (presetName) {
+                try {
+                    cancelDebounce(saveSettingsDebounced);
+                } catch (e) {
+                    debugLog(LOG_TAG, '取消待落盘的 debounced 保存失败（忽略）:', e);
+                }
+            }
             // 临时应用指定 ST OpenAI 预设（presetName）→ dryRun 组装用该预设的 prompts/prompt_order/上下文设置
             // ⚠️ 只影响组装：组装完成后立即恢复（提前清理块），finally 兜底；不触发 OAI_PRESET_CHANGED 事件
             presetBackup = _applyPresetForAssembly(presetName);
@@ -783,9 +820,13 @@ export const aiCaller = {
             if (!presetRestored) {
                 _restorePresetForAssembly(presetBackup);
                 presetRestored = true; // 标记已恢复，finally 据此跳过（避免重复恢复）
+                // 防落盘：窗口期若有保存 flush 过，settings.json 已是临时预设的脏值 → 用还原值立即重存
+                // （此刻仍持锁、oai_settings 已还原，序列化瞬间不会落在别人的窗口里）
+                _healSettingsAfterPresetWindow(!!presetName);
                 // ⚠️ 2026-08-27 临界区结束：restore 成功后立即释放单飞锁，让下一个并发生成进入。
                 if (!presetLockReleased) {
-                    releasePresetLock();
+                    presetLockReleaseFn?.();
+                    presetLockReleaseFn = null;
                     presetLockReleased = true;
                 }
             }
@@ -889,9 +930,12 @@ export const aiCaller = {
             if (!presetRestored) {
                 _restorePresetForAssembly(presetBackup);
                 presetRestored = true;
+                // 防落盘：异常早退路径同样自愈（窗口期可能已有保存落地）
+                _healSettingsAfterPresetWindow(!!presetName);
                 // ⚠️ 2026-08-27 异常早退路径同样释放单飞锁，避免死锁（后续生成永久阻塞在 acquire）。
                 if (!presetLockReleased) {
-                    releasePresetLock();
+                    presetLockReleaseFn?.();
+                    presetLockReleaseFn = null;
                     presetLockReleased = true;
                 }
             }
