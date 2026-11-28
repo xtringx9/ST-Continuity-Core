@@ -304,12 +304,13 @@ aside.module-list-panel {
     flex: 1;
     overflow-y: auto;
     /* 列表内部滚动 */
-    padding: 10px;
+    /* 右侧不留内边距：让列表项（含启用开关）尽量贴住面板右边缘，滚动条直接占最右侧 */
+    padding: 10px 0 10px 10px;
 }
 
 /* 列表项 */
 .module-list-item {
-    padding: 6px 10px;
+    padding: 6px 8px 6px 10px;
     margin-bottom: 0;
     background-color: transparent;
     border: none;
