@@ -61,6 +61,17 @@ async function acquirePresetLock() {
     return release;
 }
 
+// ===== 临时预设应用方式（2026-08-28，A/B 对比用，改这一行即可切换）=====
+// ST 的 dryRun 组装只认「活动的设置对象」，要让它读非当前预设只有两条路：
+//   'serviceSettings'（路 b）：只临时替换 promptManager.serviceSettings 的引用 → oai_settings
+//       一个字节都不改，settings.json 不可能被写脏（saveSettings 只序列化 oai_settings）。
+//       条目 / 顺序 / 上下文预算照样生效；代价是「组装代码里直接读 oai_settings」的格式类字段
+//       （names_behavior / wi_format / wrap_in_quotes / scenario_format / personality_format /
+//       new_chat_prompt 等）仍用当前预设。
+//   'oaiSettings'（路 a，旧行为）：临时写 oai_settings 字段（温度等请求参数也会被写），
+//       需要配合防落盘（cancelDebounce + restore 后重存）；出问题时切回这里即可。
+const PRESET_APPLY_MODE = 'serviceSettings';
+
 /** 深拷贝应用值：对象/数组字段绝不按引用赋给 oai_settings，避免污染已保存的预设本体。 */
 function _clonePresetValue(value) {
     if (typeof structuredClone === 'function') {
@@ -173,10 +184,10 @@ function _popPushedMessage(pushedUserMessage) {
  *   ② promptBinding 动过 prompt_order，但无条目命中后备份被撤销（_applyPromptBindingsToPresetOrder 内 splice）。
  *   而 dryRun 期间 ST 的延迟重绘抓到中间态，仍会把临时条目画到 UI；此时若不重绘回去 → 列表停在临时预设。
  *   多触发一次 render(false) 仅重绘列表、不触发 tryGenerate/二次组装，开销可忽略。
- * @param {Array<{setting:string, oldValue:*}>|null} presetBackup 本次临时应用的备份数组
+ * ⚠️ 2026-08-28：入参改为布尔（本次是否真的临时应用过预设），路 a / 路 b 共用。
+ * @param {boolean} applied 本次是否临时应用过预设（路 a：备份数组非空；路 b：替换过 serviceSettings）
  */
-function _refreshPromptManagerAfterPresetRestore(presetBackup) {
-    const applied = Array.isArray(presetBackup) && presetBackup.length > 0;
+function _refreshPromptManagerAfterPresetRestore(applied) {
     if (!applied) return;
     if (!promptManager || typeof promptManager.render !== 'function') return;
     try {
@@ -283,34 +294,24 @@ function _applyPresetForAssembly(presetName) {
 }
 
 /**
- * 把当前聊天的提示词条目绑定（promptBinding，存在 floor）应用到目标预设的 prompt_order 条目。
- * 生效原理：组装时 getPromptCollection 用 `entry.enabled` 决定是否纳入（PromptManager.js:1533），
- *   与 applyBindingsToPromptManager 瞬态改 entry.enabled 等效。
- * ⚠️ 深拷贝：修改落在副本上，不污染预设本体（openai_settings[idx]）。
- * ⚠️ 备份保护：只要改了 prompt_order 条目就必须把 prompt_order 加入备份（无论是否被预设覆盖），
- *   否则恢复时 finally 不还原 → 残留污染。若无条目命中则撤销该备份。
- * @param {Array<{setting:string, oldValue:*}>} fields 备份数组（_applyPresetForAssembly 传入，可能已含 prompt_order）
+ * 计算「应用当前聊天条目绑定后」的 prompt_order 深拷贝（不改入参、不碰 oai_settings）。
+ * 生效原理：组装时 getPromptCollection 用 `entry.enabled` 决定是否纳入（PromptManager.js:1533）。
+ * @param {Array} order 源 prompt_order（预设本体 / 组装视图的克隆体均可）
+ * @returns {{ order: Array, appliedCount: number }|null} 无绑定或无命中条目 → null
  */
-function _applyPromptBindingsToPresetOrder(fields) {
+function _buildPromptOrderWithBindings(order) {
     const bindings = getPromptBindings();
-    if (!bindings || typeof bindings !== 'object') return;
+    if (!bindings || typeof bindings !== 'object') return null;
     const entries = Object.entries(bindings).filter(([, mode]) => mode === WB_BIND_MODE.ON || mode === WB_BIND_MODE.OFF);
-    if (entries.length === 0) return;
-
-    const order = oai_settings.prompt_order;
-    if (!Array.isArray(order)) return;
+    if (entries.length === 0) return null;
+    if (!Array.isArray(order)) return null;
 
     // 定位 activeCharacter 对应的 order 列表（global strategy 下 activeCharacter.id=dummyId）
     const activeId = promptManager?.activeCharacter ? String(promptManager.activeCharacter.id) : null;
     const charOrder = activeId !== null ? order.find(l => String(l.character_id) === activeId) : null;
-    if (!charOrder || !Array.isArray(charOrder.order)) return;
+    if (!charOrder || !Array.isArray(charOrder.order)) return null;
 
-    // ⚠️ 备份 prompt_order 原值（引用）；若已被预设覆盖则 fields 已含，勿重复
-    if (!fields.some(f => f.setting === 'prompt_order')) {
-        fields.push({ setting: 'prompt_order', oldValue: oai_settings.prompt_order });
-    }
-
-    // 深拷贝后修改（避免污染预设本体）
+    // 深拷贝后修改（避免污染预设本体 / 组装视图）
     const clonedOrder = structuredClone(order);
     const clonedCharOrder = clonedOrder.find(l => String(l.character_id) === activeId);
     let appliedCount = 0;
@@ -320,9 +321,26 @@ function _applyPromptBindingsToPresetOrder(fields) {
         entry.enabled = (mode === WB_BIND_MODE.ON);
         appliedCount++;
     }
-    oai_settings.prompt_order = clonedOrder;
-    if (appliedCount > 0) {
-        debugLog(LOG_TAG, `promptBinding 已应用：${appliedCount} 个条目按聊天绑定开关（目标预设 prompt_order）`);
+    return { order: clonedOrder, appliedCount };
+}
+
+/**
+ * 路 a 用：把当前聊天的提示词条目绑定应用到 oai_settings.prompt_order（临时覆盖视图）。
+ * ⚠️ 备份保护：只要改了 prompt_order 条目就必须把 prompt_order 加入备份（无论是否被预设覆盖），
+ *   否则恢复时 finally 不还原 → 残留污染。若无条目命中则撤销该备份。
+ * @param {Array<{setting:string, oldValue:*}>} fields 备份数组（_applyPresetForAssembly 传入，可能已含 prompt_order）
+ */
+function _applyPromptBindingsToPresetOrder(fields) {
+    const result = _buildPromptOrderWithBindings(oai_settings.prompt_order);
+    if (!result) return;
+
+    // ⚠️ 备份 prompt_order 原值（引用）；若已被预设覆盖则 fields 已含，勿重复
+    if (!fields.some(f => f.setting === 'prompt_order')) {
+        fields.push({ setting: 'prompt_order', oldValue: oai_settings.prompt_order });
+    }
+    oai_settings.prompt_order = result.order;
+    if (result.appliedCount > 0) {
+        debugLog(LOG_TAG, `promptBinding 已应用：${result.appliedCount} 个条目按聊天绑定开关（目标预设 prompt_order）`);
     } else {
         // 无条目命中：撤销刚加的 prompt_order 备份（引用已换为等价深拷贝，无害）
         const idx = fields.findIndex(f => f.setting === 'prompt_order');
@@ -344,6 +362,72 @@ function _restorePresetForAssembly(fields) {
     // 解除「更新预设」按钮屏蔽（与 _applyPresetForAssembly 内的屏蔽严格配对）
     _blockPresetSaveButton(false);
     debugLog(LOG_TAG, `已恢复 oai_settings（${fields.length} 个字段回到原值）`);
+}
+
+/**
+ * 路 b（2026-08-28）：临时替换 promptManager.serviceSettings 的**引用**，让 ST 的 dryRun 组装读到
+ * 目标预设，而 oai_settings 一个字节都不改（→ settings.json 不可能被写脏）。
+ * 只覆盖「组装唯一经该对象读取」的字段（openai.js:1480-1481 取上下文预算，
+ *   PromptManager.js:1213/1263/1526 取顺序与条目）：prompts / prompt_order /
+ *   openai_max_context / openai_max_tokens。
+ * 其余组装字段是组装代码直接读 oai_settings 的（names_behavior / wi_format / wrap_in_quotes /
+ *   scenario_format / personality_format / new_chat_prompt 等），本路线不跟随目标预设。
+ * @param {string} presetName 目标预设名（openai_setting_names 的 key）
+ * @returns {{ settings: object, changed: number }|null} 备份（供 _restorePresetFromPromptManager）
+ */
+function _applyPresetForAssemblyViaPromptManager(presetName) {
+    if (!presetName || typeof presetName !== 'string') return null;
+    const pm = promptManager;
+    if (!pm || typeof pm !== 'object' || !pm.serviceSettings) {
+        warnLog(LOG_TAG, 'promptManager 未初始化，本次生成使用当前预设');
+        return null;
+    }
+    const idx = openai_setting_names?.[presetName];
+    const preset = idx !== undefined ? openai_settings?.[idx] : null;
+    if (!preset || typeof preset !== 'object') {
+        warnLog(LOG_TAG, `找不到 ST OpenAI 预设: ${presetName}，本次生成使用当前预设`);
+        return null;
+    }
+
+    // ⚠️ 浅拷贝出一份「组装视图」：未列出的字段仍指向当前设置的值，只替换下面这 4 项。
+    const view = { ...pm.serviceSettings };
+    let changed = 0;
+    if (preset.prompts !== undefined) { view.prompts = _clonePresetValue(preset.prompts); changed++; }
+    if (preset.prompt_order !== undefined) { view.prompt_order = _clonePresetValue(preset.prompt_order); changed++; }
+    if (preset.openai_max_context !== undefined) { view.openai_max_context = preset.openai_max_context; changed++; }
+    if (preset.openai_max_tokens !== undefined) { view.openai_max_tokens = preset.openai_max_tokens; changed++; }
+    if (changed === 0) return null;
+
+    // 提示词条目·聊天绑定：改在克隆体的 prompt_order 上（不碰预设本体、不碰 oai_settings）
+    if (configManager.getStFeatureEnhanceConfig()?.promptBinding?.enabled === true) {
+        try {
+            const bound = _buildPromptOrderWithBindings(view.prompt_order);
+            if (bound) {
+                view.prompt_order = bound.order;
+                if (bound.appliedCount > 0) {
+                    debugLog(LOG_TAG, `promptBinding 已应用到路 b 组装视图：${bound.appliedCount} 个条目按聊天绑定开关`);
+                }
+            }
+        } catch (e) {
+            errorLog(LOG_TAG, '应用 promptBinding 到路 b 组装视图失败，已忽略:', e);
+        }
+    }
+
+    const backup = { settings: pm.serviceSettings, changed };
+    pm.serviceSettings = view;
+    debugLog(LOG_TAG, `[路 b] 已临时替换 promptManager.serviceSettings → 预设「${presetName}」（覆盖 ${changed} 个组装字段，oai_settings 未改动）`);
+    return backup;
+}
+
+/**
+ * 路 b 的恢复：把 promptManager.serviceSettings 换回原引用（oai_settings 自始至终未被写过）。
+ * @param {{settings:object}|null} backup _applyPresetForAssemblyViaPromptManager 的返回值
+ */
+function _restorePresetFromPromptManager(backup) {
+    if (!backup || !backup.settings) return;
+    if (!promptManager) return;
+    promptManager.serviceSettings = backup.settings;
+    debugLog(LOG_TAG, '[路 b] 已恢复 promptManager.serviceSettings（oai_settings 全程未被写入）');
 }
 
 /**
@@ -589,6 +673,9 @@ export const aiCaller = {
         let swipeRefreshed = false;
         /** @type {Array<{setting:string, oldValue:*}>|null} */
         let presetBackup = null;
+        // ⚠️ 2026-08-28 路 b：本次替换 promptManager.serviceSettings 的备份（路 a 时恒为 null）
+        /** @type {{settings:object, changed:number}|null} */
+        let presetPmBackup = null;
         // ⚠️ 2026-08-27 单飞锁（方案 A）：预设临界区锁释放标志，与 presetRestored 对齐，确保每 acquire 必 release。
         let presetLockReleased = false;
         // ⚠️ 2026-08-28：本次 acquire 拿到的 release 函数（每个等锁者各自持有，不再用全局变量）
@@ -706,20 +793,25 @@ export const aiCaller = {
             // ⚠️ 2026-08-28：acquire 现在返回本次的 release 函数（旧实现用全局 presetLockRelease，
             //   并发 ≥2 时会互相覆盖导致永久挂起）。
             presetLockReleaseFn = await acquirePresetLock();
-            // 防落盘（2026-08-28）：进入窗口前取消一次已排队的 debounced 设置保存，避免它在
-            //   「临时预设已写入 oai_settings」的窗口内 flush（ST 的 saveSettings 直接序列化实时
-            //   oai_settings，见 script.js:7047-7072）。被取消的改动不会丢：restore 后会由
-            //   _healSettingsAfterPresetWindow 用「还原后的值 + 其它未落盘改动」立即重存。
-            if (presetName) {
-                try {
-                    cancelDebounce(saveSettingsDebounced);
-                } catch (e) {
-                    debugLog(LOG_TAG, '取消待落盘的 debounced 保存失败（忽略）:', e);
+            if (PRESET_APPLY_MODE === 'oaiSettings') {
+                // 路 a：临时写 oai_settings。防落盘：进入窗口前取消一次已排队的 debounced 设置保存，
+                //   避免它在「临时预设已写入 oai_settings」的窗口内 flush（ST 的 saveSettings 直接序列化
+                //   实时 oai_settings，见 script.js:7047-7072）。被取消的改动不会丢：restore 后会由
+                //   _healSettingsAfterPresetWindow 用「还原后的值 + 其它未落盘改动」立即重存。
+                if (presetName) {
+                    try {
+                        cancelDebounce(saveSettingsDebounced);
+                    } catch (e) {
+                        debugLog(LOG_TAG, '取消待落盘的 debounced 保存失败（忽略）:', e);
+                    }
                 }
+                // 临时应用指定 ST OpenAI 预设（presetName）→ dryRun 组装用该预设的 prompts/prompt_order/上下文设置
+                // ⚠️ 只影响组装：组装完成后立即恢复（提前清理块），finally 兜底；不触发 OAI_PRESET_CHANGED 事件
+                presetBackup = _applyPresetForAssembly(presetName);
+            } else {
+                // 路 b：只换 promptManager.serviceSettings 引用，oai_settings 全程不动（无需防落盘）
+                presetPmBackup = _applyPresetForAssemblyViaPromptManager(presetName);
             }
-            // 临时应用指定 ST OpenAI 预设（presetName）→ dryRun 组装用该预设的 prompts/prompt_order/上下文设置
-            // ⚠️ 只影响组装：组装完成后立即恢复（提前清理块），finally 兜底；不触发 OAI_PRESET_CHANGED 事件
-            presetBackup = _applyPresetForAssembly(presetName);
 
             await Generate('quiet', { quiet_prompt: effectiveQuietPrompt, force_name2: true }, true);
 
@@ -818,11 +910,12 @@ export const aiCaller = {
             // ⚠️ 组装完成即恢复临时应用的 ST OpenAI 预设：预设只在 dryRun 组装期间被消费，
             //   组装后替换/发送都不再读 oai_settings → 提前恢复缩短污染窗口（finally 据此跳过）。
             if (!presetRestored) {
-                _restorePresetForAssembly(presetBackup);
+                if (presetPmBackup) _restorePresetFromPromptManager(presetPmBackup);
+                else _restorePresetForAssembly(presetBackup);
                 presetRestored = true; // 标记已恢复，finally 据此跳过（避免重复恢复）
-                // 防落盘：窗口期若有保存 flush 过，settings.json 已是临时预设的脏值 → 用还原值立即重存
+                // 防落盘（仅路 a）：窗口期若有保存 flush 过，settings.json 已是临时预设的脏值 → 用还原值立即重存
                 // （此刻仍持锁、oai_settings 已还原，序列化瞬间不会落在别人的窗口里）
-                _healSettingsAfterPresetWindow(!!presetName);
+                _healSettingsAfterPresetWindow(PRESET_APPLY_MODE === 'oaiSettings' && !!presetName);
                 // ⚠️ 2026-08-27 临界区结束：restore 成功后立即释放单飞锁，让下一个并发生成进入。
                 if (!presetLockReleased) {
                     presetLockReleaseFn?.();
@@ -831,7 +924,7 @@ export const aiCaller = {
                 }
             }
             if (!presetUiRefreshed) {
-                _refreshPromptManagerAfterPresetRestore(presetBackup);
+                _refreshPromptManagerAfterPresetRestore(!!presetBackup || !!presetPmBackup);
                 presetUiRefreshed = true;
             }
 
@@ -928,10 +1021,11 @@ export const aiCaller = {
             }
             // 恢复临时应用的 ST OpenAI 预设：仅当组装完成前尚未恢复（含异常/中止早退路径）
             if (!presetRestored) {
-                _restorePresetForAssembly(presetBackup);
+                if (presetPmBackup) _restorePresetFromPromptManager(presetPmBackup);
+                else _restorePresetForAssembly(presetBackup);
                 presetRestored = true;
-                // 防落盘：异常早退路径同样自愈（窗口期可能已有保存落地）
-                _healSettingsAfterPresetWindow(!!presetName);
+                // 防落盘（仅路 a）：异常早退路径同样自愈（窗口期可能已有保存落地）
+                _healSettingsAfterPresetWindow(PRESET_APPLY_MODE === 'oaiSettings' && !!presetName);
                 // ⚠️ 2026-08-27 异常早退路径同样释放单飞锁，避免死锁（后续生成永久阻塞在 acquire）。
                 if (!presetLockReleased) {
                     presetLockReleaseFn?.();
@@ -941,7 +1035,7 @@ export const aiCaller = {
             }
             // 异常早退路径同样强制重绘，覆盖可能残留的临时预设条目
             if (!presetUiRefreshed) {
-                _refreshPromptManagerAfterPresetRestore(presetBackup);
+                _refreshPromptManagerAfterPresetRestore(!!presetBackup || !!presetPmBackup);
                 presetUiRefreshed = true;
             }
             // ⚠️ 强制补刷 swipe 箭头（方案B，2026-08-23）：pipeline 曾临时 push 过 is_user:true 指令消息到
