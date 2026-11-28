@@ -41,15 +41,53 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 50px;
-    padding: 0 16px;
+    height: 44px;
+    padding: 0 12px;
     border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
     flex-shrink: 0;
     background: var(--bg-panel, #f9fafb);
 }
 
-.app-header .header-title {
+/* 顶栏按钮：统一 26px 高、12px 字、6px 圆角；顶栏内不投影，保持扁平干净 */
+.app-header .header-actions button:not(.header-close-btn) {
+    height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    border-radius: var(--radius-md, 6px);
+    box-shadow: none;
+}
+
+.app-header .header-actions .header-action-group {
+    gap: 6px;
+}
+
+/* 顶栏关闭按钮 */
+.header-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius-md, 6px);
+    color: var(--text-secondary, #4b5563);
     font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.header-close-btn:hover {
+    background-color: var(--bg-hover, #f3f4f6);
+    color: var(--text-primary, #111827);
+}
+
+.app-header .header-title {
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-primary, #111827);
     cursor: pointer;
@@ -62,7 +100,7 @@ body {
     flex: 1;
     display: flex;
     overflow: hidden;
-    height: calc(100vh - 50px);
+    height: calc(100vh - 44px);
 }
 
 /* === 左侧主导航（tab 模式，module-editor / nai-preset-switcher 共用） === */
@@ -102,6 +140,8 @@ body {
     color: var(--text-primary, #111827);
 }
 
+/* 选中态：回归重点色实心底 + 反白字（与模块详情里选中的按钮/标签同一语言，辨识度最高）。
+ * 移动端此时由下方媒体查询覆盖为「透明底 + 顶部指示条」，避免窄栏整块实心。 */
 .nav-item.active {
     background-color: var(--accent-color, #2563eb);
     color: var(--bg-app, #fff);
@@ -116,18 +156,16 @@ body {
 }
 
 /* === 左侧主导航：分组折叠模式（可选，给 .main-nav 加 .has-groups） ===
- * 单列导航的分组变体：分组头（可折叠）+ 树形子项。侧栏宽度沿用 .main-nav 的 50px，不加宽。
- * 分组靠「分组间分隔线 + 分区标题排版（小字号/加粗/字距）+ 子项左侧引导线」表达层级。
- * 不加 .has-groups 的 editor（如 nai-preset-switcher）保持上面 50px 平铺样式，互不影响。
- * 新增 editor 想用分组导航，只需按 .nav-group > .nav-group-head + .nav-sub > .nav-item 的结构写 HTML，
- * 并在 .main-nav 上加 .has-groups，无需再写私有样式。 */
+ * 单列导航的分组变体：分组头（可折叠）+ 子项。侧栏宽度沿用 .main-nav 的 50px，不加宽。
+ * 分组归属只靠「组下方一条分隔线」表达，不加外框、不加引导线、组头不加底色。
+ * 不加 .has-groups 的 editor（如 nai-preset-switcher）保持上面 50px 平铺样式，互不影响。 */
 .main-nav.has-groups {
     align-items: stretch;
     overflow-x: hidden;
     overflow-y: auto;
 }
 
-/* 每个分组 = 一个分区：整体用下分隔线包裹（折叠/展开都以分隔线收尾） */
+/* 每个分组 = 一个分区：组下方一条分隔线（不用外框/引导线） */
 .main-nav.has-groups .nav-group {
     width: 100%;
     padding-bottom: 6px;
@@ -135,27 +173,26 @@ body {
     border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
 }
 
-/* 分组正好是导航最后一项时不留下悬空的分隔线 */
 .main-nav.has-groups .nav-group:last-child {
     border-bottom: none;
 }
 
-/* 分组头：分区标题（不是 tab）—— 更小字号、加粗、字距 + 常规显箭头 */
+/* 分组头：分区标题（无底色，层级靠分隔线 + 排版） */
 .main-nav.has-groups .nav-group-head {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 2px;
     width: 100%;
-    height: 32px;
-    margin-bottom: 4px;
-    border-radius: 8px;
+    height: 30px;
+    margin-bottom: 2px;
+    border-radius: var(--radius-sm, 4px);
     cursor: pointer;
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.02em;
     color: var(--text-secondary, #4b5563);
-    transition: all 0.2s;
+    transition: background-color 0.15s ease, color 0.15s ease;
     user-select: none;
 }
 
@@ -164,7 +201,7 @@ body {
     color: var(--text-primary, #111827);
 }
 
-/* 分组内含当前视图：组头用 accent 文字提示位置 */
+/* 分组内含当前视图：组头转 accent 文字提示位置 */
 .main-nav.has-groups .nav-group.active > .nav-group-head {
     color: var(--accent-color, #2563eb);
 }
@@ -185,14 +222,11 @@ body {
     transform: rotate(90deg);
 }
 
-/* 子项容器：左侧引导线表达「这些属于上面的分组」 */
+/* 子项容器：外框已表达归属，不再画左侧引导线 */
 .main-nav.has-groups .nav-sub {
     display: none;
     flex-direction: column;
     gap: 2px;
-    margin: 2px 0 6px 2px;
-    padding-left: 3px;
-    border-left: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
 }
 
 .main-nav.has-groups .nav-group.expanded > .nav-sub {
@@ -202,10 +236,10 @@ body {
 /* 子项：与平铺 tab 同样的居中块（4 字折两行是既有观感），仅字号略小以示层级 */
 .main-nav.has-groups .nav-sub .nav-item {
     width: 100%;
-    height: 38px;
+    height: 36px;
     margin-bottom: 0;
-    padding: 2px 3px;
-    border-radius: 6px;
+    padding: 2px 4px;
+    border-radius: var(--radius-sm, 4px);
     font-size: 11px;
     line-height: 1.25;
 }
@@ -214,7 +248,7 @@ body {
     font-size: 11px;
 }
 
-/* 顶层项：保持平铺 tab 原样（分组已用下分隔线收尾，这里无需再加装饰） */
+/* 顶层项：不属于任何分组，保持平铺 tab 原样 */
 .main-nav.has-groups .nav-group + .nav-item {
     margin-top: 0;
 }
@@ -300,6 +334,51 @@ aside.module-list-panel {
     gap: 8px;
 }
 
+/* 左栏工具条：搜索框 30px 高、6px 圆角；添加按钮做成与输入框同高的方形图标按钮 */
+.list-toolbar input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: var(--radius-md, 6px);
+    background: var(--bg-input, #fff);
+    color: var(--text-input, #111827);
+    font-size: 12px;
+    font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.list-toolbar input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent-color, #2563eb);
+    box-shadow: 0 0 0 3px var(--ring-accent, rgba(37, 99, 235, 0.28));
+}
+
+.list-toolbar button {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
+    border-radius: var(--radius-md, 6px);
+    background: var(--bg-input, #fff);
+    color: var(--text-secondary, #4b5563);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.list-toolbar button:hover {
+    background: var(--bg-hover, #f3f4f6);
+    border-color: var(--text-muted, #9ca3af);
+    color: var(--text-primary, #111827);
+}
+
 .list-content {
     flex: 1;
     overflow-y: auto;
@@ -310,15 +389,14 @@ aside.module-list-panel {
 
 /* 列表项 */
 .module-list-item {
-    padding: 6px 8px 6px 10px;
-    margin-bottom: 0;
+    padding: 5px 8px 5px 10px;
+    margin-bottom: 1px;
     background-color: transparent;
     border: none;
     border-bottom: 1px solid var(--border-light, #f3f4f6);
-    /* 仅保留底部分割线 */
-    border-radius: 0;
+    border-radius: var(--radius-md, 6px);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -328,11 +406,14 @@ aside.module-list-panel {
     background-color: var(--bg-hover, #f3f4f6);
 }
 
+/* 选中：柔底 + 左侧 2px 强调条 + 名称转 accent */
 .module-list-item.active {
-    background-color: var(--bg-hover, #f3f4f6);
-    border-left: 3px solid var(--accent-color, #2563eb);
-    padding-left: 9px;
-    /* 补偿左边框宽度 */
+    background-color: var(--accent-soft, rgba(37, 99, 235, 0.1));
+    box-shadow: inset 2px 0 0 var(--accent-color, #2563eb);
+}
+
+.module-list-item.active .module-item-name {
+    color: var(--accent-color, #2563eb);
 }
 
 /* 列表项右侧操作区 */
@@ -377,8 +458,16 @@ aside.module-list-panel {
 }
 
 .module-item-name {
+    /* 列表主名称用 600 立起层级（导航 tab 是 500、元信息更轻），选中只换颜色不改字重 */
     font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.35;
     color: var(--text-primary, #111827);
+}
+
+/* 元信息（#par · 5）里的数字等宽，避免逐行抖动 */
+.module-item-header small {
+    font-variant-numeric: tabular-nums;
 }
 
 .module-item-tags {
@@ -387,14 +476,14 @@ aside.module-list-panel {
     flex-wrap: wrap;
 }
 
-/* Toggle Switch（列表项启用开关） */
+/* Toggle Switch（列表项启用开关）—— 轻量轨道，密排列表里不抢视线 */
 .toggle-switch {
     position: relative;
     display: inline-block;
-    width: 34px;
-    height: 20px;
+    width: 32px;
+    height: 18px;
     flex-shrink: 0;
-    margin-left: 10px;
+    margin-left: 8px;
 }
 
 .toggle-switch input {
@@ -410,9 +499,9 @@ aside.module-list-panel {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--bg-input, #fff);
-    border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
-    transition: .4s;
+    background-color: var(--border-color, rgba(128, 128, 128, 0.3));
+    border: none;
+    transition: background-color 0.2s ease;
     border-radius: 20px;
 }
 
@@ -423,14 +512,14 @@ aside.module-list-panel {
     width: 14px;
     left: 2px;
     bottom: 2px;
-    background-color: var(--text-muted, #9ca3af);
-    transition: .4s;
+    background-color: #fff;
+    transition: transform 0.2s ease;
     border-radius: 50%;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
 }
 
 input:checked+.slider {
     background-color: var(--accent-color, #2563eb);
-    border-color: var(--accent-color, #2563eb);
 }
 
 input:checked+.slider:before {
@@ -443,16 +532,18 @@ input:checked+.slider:before {
     padding: 8px 20px;
     background: var(--accent-color, #2563eb);
     color: var(--bg-app, #fff);
-    border: none;
-    border-radius: 4px;
+    border: 1px solid var(--accent-color, #2563eb);
+    border-radius: var(--radius-md, 6px);
     cursor: pointer;
     font-weight: 600;
     font-size: 14px;
-    transition: opacity 0.2s;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
 .btn-primary:hover {
-    opacity: 0.9;
+    background: var(--accent-hover, #3b82f6);
+    border-color: var(--accent-hover, #3b82f6);
 }
 
 .btn-secondary {
@@ -461,8 +552,16 @@ input:checked+.slider:before {
     background: var(--bg-input, #fff);
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
     color: var(--text-input, #111827);
-    border-radius: 4px;
+    border-radius: var(--radius-md, 6px);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
     cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-hover, #f3f4f6);
+    border-color: var(--border-color, rgba(128, 128, 128, 0.3));
+    color: var(--text-primary, #111827);
 }
 
 button:disabled,
@@ -558,18 +657,33 @@ button:disabled,
     background: var(--bg-input, #fff);
     color: var(--text-input, #111827);
     border: 1px solid var(--border-color, rgba(128, 128, 128, 0.3));
-    border-radius: 4px;
+    border-radius: var(--radius-md, 6px);
     font-size: 13px;
     font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* 聚焦：accent 边框 + 3px 柔光环（不改变布局尺寸） */
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent-color, #2563eb);
+    box-shadow: 0 0 0 3px var(--ring-accent, rgba(37, 99, 235, 0.28));
+}
+
+/* 分区小标题：保留重点色 + 下划线（可识别性优先），只把体量压小、字距收紧，
+ * 与「大标题」区分开的不是"变淡"，而是"变小 + 一条 accent 细分隔线"。 */
 .form-section-title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
+    letter-spacing: 0.02em;
     color: var(--accent-color, #2563eb);
-    margin-top: 15px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    margin-top: 16px;
+    margin-bottom: 8px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--accent-soft-strong, rgba(37, 99, 235, 0.16));
     grid-column: span 2;
 }
 
@@ -1129,7 +1243,6 @@ input[type="number"]::-webkit-inner-spin-button:hover {
        否则 accent 文字叠在 accent 底上会看不清。 */
     .nav-item.active {
         color: var(--accent-color);
-        font-weight: 600;
         background-color: transparent;
         box-shadow: inset 0 3px 0 var(--accent-color);
     }
@@ -1148,7 +1261,8 @@ input[type="number"]::-webkit-inner-spin-button:hover {
         white-space: nowrap;
     }
 
-    .header-actions button {
+    /* 顶栏按钮窄屏收窄（关闭按钮是固定 26×26 图标，不参与文字按钮的内边距压缩） */
+    .header-actions button:not(.header-close-btn) {
         padding: 4px 8px !important;
         font-size: 12px !important;
         white-space: nowrap;
@@ -1214,13 +1328,14 @@ input[type="number"]::-webkit-inner-spin-button:hover {
         overflow: visible;
     }
 
-    /* 桌面用分隔线/分区标题区分分组，底部横排栏里不需要，统一成平铺 tab 外观 */
+    /* 桌面用外框分组，底部横排栏里不需要，统一成平铺 tab 外观 */
     .main-nav.has-groups .nav-group {
         flex: 1;
         display: flex;
-        padding-bottom: 0;
-        margin-bottom: 0;
-        border-bottom: none;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 0;
     }
 
     .main-nav.has-groups .nav-group-head {

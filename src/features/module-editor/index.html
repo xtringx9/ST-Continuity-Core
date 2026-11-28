@@ -21,19 +21,14 @@
         </div>
         <div class="header-actions">
             <span id="module-header-actions" class="header-action-group">
-                <button id="header-import-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;"
-                    data-i18n="ccore_btn_import">导入</button>
-                <button id="header-export-btn" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;"
-                    data-i18n="ccore_btn_export">导出</button>
-                <button id="header-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;"
-                    data-i18n="ccore_btn_save">保存</button>
+                <button id="header-import-btn" class="btn-secondary" data-i18n="ccore_btn_import">导入</button>
+                <button id="header-export-btn" class="btn-secondary" data-i18n="ccore_btn_export">导出</button>
+                <button id="header-save-btn" class="btn-primary" data-i18n="ccore_btn_save">保存</button>
             </span>
             <span id="generator-header-actions" class="header-action-group" style="display:none;">
-                <button id="header-gen-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 13px;"
-                    data-i18n="ccore_btn_save">保存</button>
+                <button id="header-gen-save-btn" class="btn-primary" data-i18n="ccore_btn_save">保存</button>
             </span>
-            <button id="close-btn"
-                style="background:none; border:none; color:var(--text-primary); font-size:20px; cursor:pointer;">✕</button>
+            <button id="close-btn" class="header-close-btn">✕</button>
         </div>
     </header>
 
@@ -92,9 +87,8 @@
                 <!-- 左侧：模块列表 -->
                 <aside class="module-list-panel">
                     <div class="list-toolbar">
-                        <input type="text" data-i18n-placeholder="ccore_search_placeholder" placeholder="搜索模块..."
-                            style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
-                        <button style="padding: 6px 10px; cursor: pointer;">+</button>
+                        <input type="text" data-i18n-placeholder="ccore_search_placeholder" placeholder="搜索模块...">
+                        <button title="新增">+</button>
                     </div>
                     <div class="list-content" id="module-list">
                         <!-- 列表项将由 JS 生成 -->
@@ -119,9 +113,8 @@
                 <!-- 左侧：生成内容列表 -->
                 <aside class="module-list-panel">
                     <div class="list-toolbar">
-                        <input type="text" id="gen-search" data-i18n-placeholder="ccore_search_generator" placeholder="搜索生成内容..."
-                            style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
-                        <button id="btn-add-generator" style="padding: 6px 10px; cursor: pointer;">+</button>
+                        <input type="text" id="gen-search" data-i18n-placeholder="ccore_search_generator" placeholder="搜索生成内容...">
+                        <button id="btn-add-generator" title="新增">+</button>
                     </div>
                     <div class="list-content" id="gen-list">
                         <!-- 列表项将由 GeneratorSettings.js 生成 -->
@@ -139,8 +132,7 @@
             <div id="view-profiles" class="view-section">
                 <aside class="binding-tree-panel">
                     <div class="list-toolbar">
-                        <input type="text" id="binding-tree-search" data-i18n-placeholder="ccore_binding_search_placeholder" placeholder="搜索角色..."
-                            style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-input);">
+                        <input type="text" id="binding-tree-search" data-i18n-placeholder="ccore_binding_search_placeholder" placeholder="搜索角色...">
                     </div>
                     <div class="list-content" id="binding-tree-list">
                         <!-- 角色树由 JS 生成 -->
