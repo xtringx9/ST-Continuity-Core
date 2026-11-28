@@ -128,6 +128,14 @@ export function renderGlobalSettings(doc, settings, onChange) {
                     <input type="text" id="global-time-format" value="${settings.timeFormat || ''}">
                 </div>
 
+                <div class="form-group form-full-width">
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                        <input type="checkbox" id="global-show-generator-in-messages" ${settings.showGeneratorInMessages ? 'checked' : ''} style="margin:0;">
+                        <span>${translate('ccore_label_global_show_generator_in_messages')}</span>
+                    </label>
+                    <div style="font-size:11px;color:var(--text-muted,#999);margin-top:4px;">${translate('ccore_hint_global_show_generator_in_messages')}</div>
+                </div>
+
                 <div class="spacer-bottom"></div>
             </div>
         </div>
@@ -163,6 +171,7 @@ export function renderGlobalSettings(doc, settings, onChange) {
         settings.externalStyles = doc.getElementById('global-external-styles').value;
         settings.bottomStyles = doc.getElementById('global-bottom-styles').value;
         settings.timeFormat = doc.getElementById('global-time-format').value;
+        settings.showGeneratorInMessages = doc.getElementById('global-show-generator-in-messages').checked;
 
         if (onChange) onChange();
     };

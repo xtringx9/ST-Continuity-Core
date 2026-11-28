@@ -651,6 +651,8 @@ export function normalizeConfig(config, extension_config = null) {
             containerStyles: config.globalSettings?.containerStyles || '${customStyles}',
             bottomStyles: config.globalSettings?.bottomStyles || '${customStyles}',
             timeFormat: config.globalSettings?.timeFormat || '${year}-${month}-${day} ${weekday} ${hour}:${minute}:${second}',
+            // 生成内容是否在消息底部内联展示（默认关闭，走「生成内容总览」面板查看）
+            showGeneratorInMessages: config.globalSettings?.showGeneratorInMessages === true,
         },
         modules: [],
         asyncConfig: normalizeAsyncConfig(config.asyncConfig),

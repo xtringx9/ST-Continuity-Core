@@ -439,6 +439,7 @@ export class EntryButton {
         const items = [
             { action: 'editor', icon: 'fa-cog', title: '打开编辑器' },
             { action: 'history', icon: 'fa-clock-rotate-left', title: '生成记录' },
+            { action: 'content', icon: 'fa-layer-group', title: '生成内容总览' },
             { action: 'reader', icon: 'fa-book-open', title: '图文阅读器' },
             { action: 'summary', icon: 'fa-table-list', title: '模块汇总' },
             { action: 'mobile', icon: 'fa-mobile-screen', title: '手机模式' },
@@ -601,6 +602,9 @@ export class EntryButton {
             }
             case 'history':
                 window.openGenerationRecords?.({ view: 'list' });
+                break;
+            case 'content':
+                window.openGeneratorContentBrowser?.();
                 break;
             case 'summary':
                 openContextBottomAsModal();

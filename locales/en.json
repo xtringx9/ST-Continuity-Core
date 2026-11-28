@@ -105,6 +105,8 @@
     "ccore_title_global_style_config": "Global Style Config",
     "ccore_title_other_settings": "Other Settings",
     "ccore_label_global_time_format": "Time Format",
+    "ccore_label_global_show_generator_in_messages": "Show generated content inline under messages",
+    "ccore_hint_global_show_generator_in_messages": "When off, generated content is viewed in the \"Generated Content\" overview panel instead of inline under each message (module display is unaffected).",
     "ccore_label_theme": "Theme",
     "ccore_option_theme_light": "Light",
     "ccore_option_theme_dark": "Dark",

@@ -105,6 +105,8 @@
     "ccore_title_global_style_config": "全局样式配置",
     "ccore_title_other_settings": "其他设置",
     "ccore_label_global_time_format": "时间格式",
+    "ccore_label_global_show_generator_in_messages": "在消息底部内联显示生成内容",
+    "ccore_hint_global_show_generator_in_messages": "关闭后，生成内容不再逐条内联到消息下方，改在「生成内容总览」面板集中查看（模块展示不受影响）。",
     "ccore_label_theme": "界面主题",
     "ccore_option_theme_light": "浅色",
     "ccore_option_theme_dark": "深色",

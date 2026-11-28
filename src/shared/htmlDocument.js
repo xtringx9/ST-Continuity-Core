@@ -237,12 +237,11 @@ function nextDocId() {
 }
 
 /**
- * 把整页 HTML 组装成「惰性占位」标记（不直接产出 iframe）。
- * 占位在可见时才由 iframeRenderer 的基础脚本挂载成子 iframe，不可见时销毁。
- * @param {string} rawHtml 整页 HTML（splitHtmlDocument 返回的 doc）
- * @returns {string} `<div class="ccore-gen-lazy" data-ccore-doc="..."></div>`
+ * 整页 HTML → 完整文档串的核心管线（提取样式/脚本、剥壳、消毒、重组）。
+ * @param {string} rawHtml 整页 HTML
+ * @returns {{ srcdoc: string, docId: string }} 已转义的 srcdoc 与唯一 docId
  */
-export function buildDocumentFrame(rawHtml) {
+function assembleDocument(rawHtml) {
     let html = String(rawHtml || '').replace(/\r\n?/g, '\n');
 
     // 1) 把 <style> 全部提出来（可能在 head 里，混在正文里也一并提取）
@@ -288,10 +287,29 @@ export function buildDocumentFrame(rawHtml) {
 
     // 6) srcdoc 属性转义（& 先转，再转引号；属性用双引号包裹）
     const srcdoc = documentHtml.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    return { srcdoc, docId };
+}
 
-    // 7) 只输出「惰性占位」，不直接输出 iframe：
-    //    折叠（display:none / content-visibility:hidden）时元素没有布局盒 → 不创建文档，零解析零脚本；
-    //    真正被渲染出来时才由 iframeRenderer 的基础脚本挂成带沙盒的子 iframe（方案甲：不可见即销毁）。
-    //    文档串先存在属性里，是纯字符串、不触发解析，展开那一刻才会建文档。
+/** 沙盒令牌：脚本/交互能跑，但无 same-origin、不能导航顶层 */
+const DOC_SANDBOX_TOKEN = 'allow-scripts allow-popups allow-forms';
+
+/**
+ * 整页 HTML → 惰性占位（消息底部用）：折叠时零解析、可见才由 iframeRenderer 挂载、不可见即销毁。
+ * @param {string} rawHtml 整页 HTML（splitHtmlDocument 返回的 doc）
+ * @returns {string} `<div class="ccore-gen-lazy" data-doc-id="..." data-ccore-doc="..."></div>`
+ */
+export function buildDocumentFrame(rawHtml) {
+    const { srcdoc, docId } = assembleDocument(rawHtml);
+    // 文档串先存在属性里，是纯字符串、不触发解析，展开那一刻才会建文档。
     return `<div class="ccore-gen-lazy" data-doc-id="${docId}" data-ccore-doc="${srcdoc}"></div>`;
+}
+
+/**
+ * 整页 HTML → 直接产出带沙盒的子 iframe（总览面板用：不需要惰性，随分页一次性渲染）。
+ * @param {string} rawHtml 整页 HTML（splitHtmlDocument 返回的 doc）
+ * @returns {string} `<iframe class="ccore-gen-doc" sandbox="..." data-doc-id="..." srcdoc="...">`
+ */
+export function buildDocumentIframe(rawHtml) {
+    const { srcdoc, docId } = assembleDocument(rawHtml);
+    return `<iframe class="ccore-gen-doc" sandbox="${DOC_SANDBOX_TOKEN}" frameborder="0" data-doc-id="${docId}" srcdoc="${srcdoc}"></iframe>`;
 }

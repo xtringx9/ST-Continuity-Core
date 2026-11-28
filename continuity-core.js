@@ -72,6 +72,9 @@ import { populateSendHijackOptions } from "./src/ui/extensionSettingsManager.js"
 // 供 moduleAiGenerator / messageAiButton / EntryButton 调用，避免反向 import 循环依赖）
 import "./src/features/generation-records/generationRecordsPanel.js";
 
+// 生成内容总览面板（副作用导入：挂载 window.openGeneratorContentBrowser，供 EntryButton 调用）
+import "./src/features/generator-content-browser/generatorContentBrowser.js";
+
 // infoLog("♥️ Continuity Core LOADED!");
 
 jQuery(async function () {

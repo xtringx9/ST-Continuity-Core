@@ -218,6 +218,18 @@ export function readAllGeneratorContents(mesId, genName, outerSwipeId, { include
 }
 
 /**
+ * 列出某楼层已存在的生成内容名（不含 'modules'）。
+ * 含已从配置删除、但仍有历史内容的名称——总览面板据此能看到"全部"生成内容。
+ * @param {number} mesId
+ * @returns {string[]} 生成内容名数组
+ */
+export function listGeneratorNames(mesId) {
+    const bag = floorBridge.get(mesId, GENERATORS_KEY);
+    if (!bag || typeof bag !== 'object') return [];
+    return Object.keys(bag).filter(n => n !== 'modules');
+}
+
+/**
  * 追加一个新版本（innerSwipeId = 当前最大 + 1），并设为当前激活版本。
  * @param {number} mesId
  * @param {string} genName

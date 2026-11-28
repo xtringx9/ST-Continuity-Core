@@ -351,8 +351,12 @@ export async function updateUItoMsgBottom(targetMesIds = null) {
             finalString = replaceNestedRawWithStyles(finalString, modulesForThisMessage);
             // 内容锚点兜底：全文匹配失败时按「模块名+主键」解析内嵌片段替换（增量 file 变化也能命中）
             finalString = replaceNestedByAnchors(finalString, anchorIndex);
-            // 追加普通 generator 内容（无则空串，不影响模块注入）
-            finalString += buildGeneratorMessageHtml(Number(messageIndex));
+            // 追加普通 generator 内容（无则空串，不影响模块注入）。
+            // 开关：globalSettings.showGeneratorInMessages 默认关闭，关闭时不内联展示，
+            // 生成内容改由「生成内容总览」面板集中查看（模块展示不受影响）。
+            if (configManager.getGlobalSettings().showGeneratorInMessages === true) {
+                finalString += buildGeneratorMessageHtml(Number(messageIndex));
+            }
             injectHtmlToIframe(container, finalString);
         }
 
