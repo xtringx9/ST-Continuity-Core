@@ -22,6 +22,7 @@ import { generateModuleFormat } from '../../modules/promptGenerator.js';
 import { handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd } from './DragHandler.js';
 import { persistScroll, restoreScroll } from '../../shared/scrollPersistence.js';
 import { getTheme, getNextTheme, applyTheme, saveTheme } from '../../shared/themeScheme.js';
+import { applyVersionText, formatVersion } from '../../shared/version.js';
 
 // === 状态管理 ===
 let originalModules = []; // 保存时用于比较的原始模块列表
@@ -70,6 +71,23 @@ function applyI18nToStaticElements(doc) {
 }
 
 /**
+ * 顶栏版本号：优先读扩展根目录的 manifest.json（ST 唯一认的版本源），
+ * 读不到时回退 shared/version.js 的 APP_VERSION（applyVersionText 内部处理）。
+ * @param {Document} iframeDoc iframe 文档对象
+ */
+function syncHeaderVersion(iframeDoc) {
+    const el = iframeDoc.getElementById('header-version');
+    if (!el) return;
+
+    try {
+        applyVersionText(el, new URL('../../../manifest.json', iframeDoc.baseURI));
+    } catch (err) {
+        el.textContent = formatVersion(null);
+        debugLog('[Version] manifest.json 地址解析失败，使用兜底版本', err);
+    }
+}
+
+/**
  * 复制文本到剪贴板（兼容非安全上下文，如 HTTP 局域网）
  */
 async function copyToClipboard(text) {
@@ -101,6 +119,9 @@ export function initModuleEditor(iframeDocument) {
 
     // 应用静态文本翻译 — iframe 内 ST 的 MutationObserver 不会运行，需手动遍历
     applyI18nToStaticElements(doc);
+
+    // 顶栏版本号（以 manifest.json 为准，异步补写；失败时保持常量兜底）
+    syncHeaderVersion(doc);
 
     // 从 localStorage 加载上次打开的页面
     activeViewSectionId = localStorage.getItem('continuity_editor_last_tab') || 'view-modules';

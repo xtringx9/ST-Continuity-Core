@@ -31,6 +31,7 @@ import {
     loadSettingsToUI,
 } from '../../ui/extensionSettingsManager.js';
 import { sendToBackend } from '../../services/backendService.js';
+import { applyVersionText } from '../../shared/version.js';
 
 
 export class SettingsPanel {
@@ -71,6 +72,19 @@ export class SettingsPanel {
         }
         const settingsHtml = await response.text();
         $('#extensions_settings').append(settingsHtml);
+
+        // 版本号：以 manifest.json 为准（与编辑器顶栏同源），取不到时回退常量
+        this._applyVersionInfo();
+    }
+
+    /**
+     * 填充设置面板右上角的版本号（与编辑器顶栏共用 shared/version.js）。
+     * 先写兜底值再异步用 manifest.json 覆盖（ST 只认 manifest 的 version）。
+     */
+    _applyVersionInfo() {
+        const el = document.querySelector('#extensions_settings .continuity-version-info');
+        if (!el) return;
+        applyVersionText(el, `${extensionFolderPath}/manifest.json`, { withName: true });
     }
 
     _bindEvents() {
