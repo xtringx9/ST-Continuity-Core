@@ -37,6 +37,7 @@ import { buildStyledProcessResult } from './context-ui/processResultBuilder.js';
 import { buildNestedAnchorIndex, replaceNestedByAnchors } from './context-ui/nestedModuleAnchors.js';
 import { renderCurrentMessageContext } from './context-ui/inlineMessageRenderer.js';
 import { IframeModal } from '../shared/IframeModal.js';
+import { renderMarkdownToSafeHtml } from '../shared/messageRenderer.js';
 
 // context-bottom-ui.css 路径（与原底部汇总一致，复用同一套样式）
 const contextBottomCssUrl = new URL('../../assets/css/context-bottom-ui.css', import.meta.url).href;
@@ -138,6 +139,24 @@ function genEscapeHtml(text) {
         .replace(/'/g, '&#039;');
 }
 
+/**
+ * 生成内容正文渲染：走与 ST 正文同源的 markdown + 消毒管线（shared/messageRenderer）。
+ * - 换行/粗斜体/引用/表格/代码块按 markdown 处理（showdown simpleLineBreaks，纯文本单换行也保留）
+ * - 文本自带的 <style> 会被保留，但其选择器统一加 `.ccore-generator-block ` 前缀，
+ *   避免污染同一个 iframe 里的模块块；脚本一律被 DOMPurify 清掉
+ * - 渲染失败时回退为转义纯文本（保证不把原文当 HTML 注入）
+ * @param {string} text 已过 filters 的原文
+ * @returns {string} 可安全 innerHTML 的 HTML
+ */
+function renderGeneratorText(text) {
+    try {
+        return renderMarkdownToSafeHtml(text, { stylePrefix: '.ccore-generator-block ' });
+    } catch (e) {
+        errorLog('[GeneratorRender] markdown 渲染失败，回退纯文本', e);
+        return genEscapeHtml(text);
+    }
+}
+
 /** 顺序应用生成内容的过滤正则（只影响展示文本，不改动落库原文）。 */
 function applyGeneratorFilters(text, filters) {
     let out = text;
@@ -199,7 +218,7 @@ function buildGeneratorMessageHtml(mesId) {
             for (const text of Object.values(versions)) {
                 const filtered = applyGeneratorFilters(text, gen.filters);
                 if (!filtered.trim()) continue;
-                singles.push(wrapGeneratorTemplate(gen.customStyles, genEscapeHtml(filtered)));
+                singles.push(wrapGeneratorTemplate(gen.customStyles, renderGeneratorText(filtered)));
             }
             if (singles.length === 0) continue;
             const hasMulti = gen.multiContainerStyles && gen.multiContainerStyles.trim();

@@ -247,3 +247,68 @@ details.module-data[open]>summary::before {
 .continuity-custom-styles-container * {
     text-shadow: none;
 }
+
+/* 11. 生成内容（generator）容器：无模板时的兜底排版
+   ⚠️ 2026-11-28：此前 .ccore-generator-block / .ccore-gen-plain 在本文件及全仓库 .css 中
+   均无任何规则 → 不配 customStyles 的生成内容：换行被折叠成空格（原文多行变一整段）、
+   字号/字体/颜色全用 iframe 默认值（且因不在 .context-bottom-wrapper 内，连 Noto Sans SC 都继承不到）。
+   注意：生成内容块由 contextBottomUI 追加在模块容器之后，是 #cc-iframe-content-root 的直接子节点，
+   字体不能依赖 .context-bottom-wrapper，这里显式声明。 */
+.ccore-generator-block {
+    margin: 4px 0;
+    font-family: "Noto Sans SC", sans-serif;
+    /* 正文档次：与模块数据（12px）区分；ST 主字号未同步进 iframe，故给固定值兜底 */
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--SmartThemeBodyColor);
+    word-wrap: break-word;
+}
+
+/* 未配 customStyles 时的回退层。
+   ⚠️ 2026-11-28：生成内容已统一走 markdown 渲染（showdown + DOMPurify，与 ST 正文同源），
+   所以这里**不能**用 white-space: pre-wrap —— <p> 之间的源码换行会被当成空白行撑出双倍行距。
+   纯文本的单换行由 showdown 的 simpleLineBreaks 转成 <br>，段落间距由 <p> 提供。 */
+.ccore-gen-plain {
+    white-space: normal;
+}
+
+/* markdown 产物排版兜底：iframe 内没有 ST 的 .mes_text 样式，浏览器默认值（p/blockquote 外边距、
+   pre 溢出、img 原始尺寸）在窄容器里会明显跑版，这里给最小可用规则。 */
+.ccore-gen-plain p {
+    margin: 0 0 0.6em;
+}
+
+.ccore-gen-plain p:last-child {
+    margin-bottom: 0;
+}
+
+.ccore-gen-plain ul,
+.ccore-gen-plain ol {
+    margin: 0.5em 0;
+    padding-left: 1.4em;
+}
+
+.ccore-gen-plain blockquote {
+    margin: 0.5em 0;
+    padding-left: 8px;
+    border-left: 2px solid var(--SmartThemeQuoteColor);
+    color: var(--SmartThemeQuoteColor);
+}
+
+.ccore-gen-plain code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.92em;
+}
+
+.ccore-gen-plain pre {
+    margin: 0.5em 0;
+    padding: 6px 8px;
+    overflow-x: auto;
+    border-radius: 4px;
+    background: rgba(127, 127, 127, 0.12);
+}
+
+.ccore-gen-plain img {
+    max-width: 100%;
+    height: auto;
+}

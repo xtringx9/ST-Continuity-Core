@@ -25,7 +25,6 @@ import {
     characters,
     user_avatar,
     messageFormatting,
-    converter,
     getThumbnailUrl,
     getPastCharacterChats,
     getRequestHeaders,
@@ -42,10 +41,9 @@ import {
     getCurrentPresetName,
 } from '../../../../../regex/engine.js';
 import { extension_settings } from '../../../../../../extensions.js';
-import { encodeStyleTags, decodeStyleTags } from '../../../../../../chats.js';
 import { timestampToMoment } from '../../../../../../utils.js';
-import { DOMPurify } from '../../../../../../../lib.js';
 import { debugLog, errorLog, infoLog } from '../../utils/logger.js';
+import { renderMarkdownToSafeHtml } from '../../shared/messageRenderer.js';
 import { initChatManager, setChatManagerDoc } from './ChatManager.js';
 import { getAvatarThumbUrl, getAvatarFullUrl } from '../../shared/characterBridge.js';
 import { getTheme, getNextTheme, applyTheme, saveTheme } from '../../shared/themeScheme.js';
@@ -767,28 +765,11 @@ function renderHistoricalText(rawText, mes, index) {
     // 3. 正则（自己组装 + 自己应用，复刻 getRegexedString 的过滤逻辑）
     let out = applyRegexToText(rawText, mes, placement, depth);
 
-    // 4. markdown（showdown）
+    // 4+5. markdown + 消毒（共用 shared/messageRenderer，与 messageFormatting 同源管线）
     try {
-        out = converter.makeHtml(out);
+        out = renderMarkdownToSafeHtml(out, { stylePrefix: '.mes_text ' });
     } catch (e) {
-        debugLog(LOG_TAG, `楼层 ${index} markdown 转换失败，退回原文:`, e);
-        return rawText;
-    }
-
-    // 5. 消毒（与 messageFormatting 一致）
-    const sanitizeConfig = {
-        RETURN_DOM: false,
-        RETURN_DOM_FRAGMENT: false,
-        RETURN_TRUSTED_TYPE: false,
-        MESSAGE_SANITIZE: true,
-        ADD_TAGS: ['custom-style'],
-    };
-    try {
-        out = encodeStyleTags(out);
-        out = DOMPurify.sanitize(out, sanitizeConfig);
-        out = decodeStyleTags(out, { prefix: '.mes_text ' });
-    } catch (e) {
-        debugLog(LOG_TAG, `楼层 ${index} 消毒失败，返回原文:`, e);
+        debugLog(LOG_TAG, `楼层 ${index} 渲染失败，退回原文:`, e);
         return rawText;
     }
 
