@@ -69,6 +69,78 @@ function rerunContentScripts(root) {
 }
 
 /**
+ * 整页生成内容的惰性挂载（方案甲：可见才挂载、不可见即销毁）。
+ * 占位元素之所以能当信号：折叠（display:none / 闭合 details / content-visibility:hidden）
+ * 时元素没有布局盒 → getClientRects() 为空；被渲染出来才有盒。
+ * ⚠️ 不用 IntersectionObserver 的 isIntersecting 做唯一判据：模板里常有 max-height + overflow-y:auto
+ *    的滚动容器，滚出视窗只是被滚动裁掉（有盒但不相交），那不是折叠，必须保持挂载，
+ *    否则滚动时会反复销毁/重建文档。IO 只用来在布局变化时触发一次复核。
+ */
+const lazyMountScript = `
+    // 沙盒子 iframe 的高度回传桥：沙盒无 allow-same-origin，文档内拿不到 frameElement，
+    // 由文档脚本 postMessage({__ccore:'ccDocHeight', id, h})，这里据 data-doc-id 匹配并设高。
+    if (!window.__ccDocHeightBound) {
+        window.__ccDocHeightBound = true;
+        window.addEventListener('message', function (e) {
+            var d = e.data;
+            if (!d || d.__ccore !== 'ccDocHeight') return;
+            var id = String(d.id || '');
+            var h = Number(d.h);
+            if (!/^[A-Za-z0-9_-]+$/.test(id) || !isFinite(h) || h <= 0) return;
+            var f = document.querySelector('.ccore-gen-doc[data-doc-id="' + id + '"]');
+            if (f && Math.abs(parseFloat(f.style.height || '0') - h) > 1) {
+                f.style.minHeight = '0px';
+                f.style.height = h + 'px';
+            }
+        });
+    }
+
+    window.ccoreLazyMountAll = function (root) {
+        if (!root || !root.querySelectorAll) return;
+        var nodes = root.querySelectorAll('.ccore-gen-lazy');
+        for (var i = 0; i < nodes.length; i++) {
+            (function (el) {
+                if (el.__ccLazy) { el.__ccLazy.refresh(); return; }
+                var frame = null;
+                function isRendered() {
+                    return el.getClientRects().length > 0;
+                }
+                function unmount() {
+                    if (frame) { frame.remove(); frame = null; }
+                }
+                function mount() {
+                    if (frame || !el.isConnected) return;
+                    var doc = el.getAttribute('data-ccore-doc');
+                    if (!doc) return;
+                    frame = document.createElement('iframe');
+                    frame.className = 'ccore-gen-doc';
+                    frame.setAttribute('frameborder', '0');
+                    // 沙盒隔离：允许脚本/弹窗/表单，但不给 same-origin、不允许导航顶层。
+                    // 页面自带的按钮/交互脚本能跑，但拿不到父页面、cookie、localStorage，也跳不动整个聊天页。
+                    frame.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
+                    var id = el.getAttribute('data-doc-id');
+                    if (id) frame.setAttribute('data-doc-id', id);
+                    frame.setAttribute('srcdoc', doc);
+                    el.appendChild(frame);
+                }
+                function refresh() {
+                    if (!el.isConnected) return;
+                    if (isRendered()) mount(); else unmount();
+                }
+                el.__ccLazy = { refresh: refresh };
+                if (window.IntersectionObserver) {
+                    var io = new window.IntersectionObserver(function () { refresh(); }, { threshold: 0 });
+                    io.observe(el);
+                    el.__ccLazy.io = io;
+                }
+                refresh();
+            })(nodes[i]);
+        }
+    };
+    window.ccoreLazyMountAll(document.getElementById('${CONTENT_ROOT_ID}'));
+`;
+
+/**
  * 确保 iframe 基础交互脚本就位（增量更新不会重跑 body 脚本，这里补齐）。
  * interactionScript 幂等赋函数；resizeScript 自带 observer guard，重复执行不泄漏。
  */
@@ -77,7 +149,9 @@ function ensureBaseScripts(iframe) {
     if (!win || win.__ccBaseReady) return;
     const doc = iframe.contentDocument;
     if (!doc || !doc.body) return;
-    if (typeof win.toggleVariableDisplay === 'function' && typeof win.updateHeight === 'function') {
+    if (typeof win.toggleVariableDisplay === 'function'
+        && typeof win.updateHeight === 'function'
+        && typeof win.ccoreLazyMountAll === 'function') {
         win.__ccBaseReady = true;
         return;
     }
@@ -88,6 +162,7 @@ function ensureBaseScripts(iframe) {
     };
     run(interactionScript);
     run(resizeScript);
+    run(lazyMountScript);
     win.__ccBaseReady = true;
 }
 
@@ -121,6 +196,12 @@ export function injectHtmlToIframe(container, htmlString) {
         contentRoot.innerHTML = htmlString;
         rerunContentScripts(contentRoot);
         ensureBaseScripts(iframe);
+        // 新注入的整页占位要重新登记（折叠态只登记观察、不挂载）
+        try {
+            iframe.contentWindow?.ccoreLazyMountAll?.(contentRoot);
+        } catch (e) {
+            // 跨域等异常一律忽略：占位保持未挂载，不影响其它内容
+        }
         // ⚠️ 2026-08-25 自愈：swipe/瞬态窄宽把 iframe 压成窄条后，仅替换内层内容不会重置宽度。
         //   这里每次更新都重设 width:100%，配合容器 CSS(min-width/flex:0 0 100%)强制撑满，
         //   让窄状态在后续任何内容变化时恢复正常全宽。
@@ -136,7 +217,7 @@ export function injectHtmlToIframe(container, htmlString) {
 <!DOCTYPE html>
 <html>
 <head><link rel="stylesheet" href="./scripts/extensions/third-party/ST-Continuity-Core/assets/css/context-bottom-ui.css"></head>
-<body style="margin:0;padding:0;background:transparent;"><div id="${CONTENT_ROOT_ID}">${htmlString}</div><script>${interactionScript}</script><script>${resizeScript}</script></body>
+<body style="margin:0;padding:0;background:transparent;"><div id="${CONTENT_ROOT_ID}">${htmlString}</div><script>${interactionScript}</script><script>${resizeScript}</script><script>${lazyMountScript}</script></body>
 </html>`;
 
     // 继承 ST 主题（消息内 iframe 保持透明背景，不继承 ST body 背景）

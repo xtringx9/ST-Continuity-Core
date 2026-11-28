@@ -275,6 +275,14 @@ details.module-data[open]>summary::before {
     background: transparent;
 }
 
+/* 整页内容的惰性占位：折叠时不挂载子 iframe（零解析、零脚本），被渲染出来才挂载。
+   min-height:1px 是必要的——空 div 的 getClientRects() 可能为空，导致"已渲染"判定失败；
+   有 1px 的布局盒才能稳定区分"被渲染"与"被折叠"（折叠时祖先无布局盒，返回空列表）。 */
+.ccore-gen-lazy {
+    display: block;
+    min-height: 1px;
+}
+
 /* 未配 customStyles 时的回退层。
    ⚠️ 2026-11-28：生成内容已统一走 markdown 渲染（showdown + DOMPurify，与 ST 正文同源），
    所以这里**不能**用 white-space: pre-wrap —— <p> 之间的源码换行会被当成空白行撑出双倍行距。

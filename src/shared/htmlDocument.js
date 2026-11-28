@@ -1,11 +1,18 @@
 // src/shared/htmlDocument.js
-// 生成内容「整页 HTML」渲染：把模型输出的完整文档放进一个独立 srcdoc 子 iframe。
+// 生成内容「整页 HTML」渲染：把模型输出的完整文档放进一个独立的沙盒子 iframe（srcdoc）。
 //
 // 为什么不复用片段管线（shared/messageRenderer）：
 //   片段管线会给每条 CSS 选择器加作用域前缀 → `:root` / `html` / `body` 变成
 //   `.ccore-generator-block :root` 这种永远匹配不到的选择器；而整页作品的主题恰恰写在
 //   这些选择器上（CSS 变量、body 背景），加前缀后整页配色会整体塌掉。
 //   独立文档 = 它自己的 :root/html/body，CSS 按原样生效，且与外层消息、同层模块天然隔离。
+//
+// 脚本与安全：
+//   页面自带的内联 <script>（按钮/交互）会被保留、放到 body 末尾，在沙盒子 iframe 里运行；
+//   内联事件处理器（onclick/onchange 等）也一并保留（经 CCORE_DOC_SANITIZE 专用 hook 放行），
+//   否则纯 onclick 驱动的交互页面按钮会全部失效。
+//   沙盒仅 allow-scripts / allow-popups / allow-forms，不给 same-origin、不允许顶层导航，
+//   脚本/处理器能操作自己的 DOM，但碰不到父页面、cookie、localStorage。带 src 的外链脚本丢弃。
 //
 // 判定规则（无配置项）：
 //   1. 围栏块（``` 或 ~~~）里的内容像整页 → 取该块（模型常先写一句说明再给围栏）
@@ -47,7 +54,8 @@ function dropLoneFence(text) {
  * @returns {{before:string, doc:string, after:string}|null} 没有整页文档时返回 null
  */
 export function splitHtmlDocument(text) {
-    const raw = String(text || '');
+    // 统一换行：模型输出常有 CRLF(\r\n)，围栏/行首匹配都按 \n 来，先归一
+    const raw = String(text || '').replace(/\r\n?/g, '\n');
     if (!raw.trim()) return null;
 
     // 1) 围栏块优先：枚举「开围栏 × 闭合围栏」候选，挑最像"文档本体"的那个区间。
@@ -129,20 +137,56 @@ export function splitHtmlDocument(text) {
     };
 }
 
-/** 片段消毒配置：MESSAGE_SANITIZE:false 关闭 ST 的 class → custom-* 改名（整页 CSS 用原类名） */
+/** 片段消毒配置：
+ *  - MESSAGE_SANITIZE:false 关闭 ST 的 class → custom-* 改名（整页 CSS 用原类名）
+ *  - CCORE_DOC_SANITIZE:true 是自定义标记，配合下方 hook 放行内联事件处理器（onclick 等） */
 const DOC_SANITIZE_CONFIG = {
     RETURN_DOM: false,
     RETURN_DOM_FRAGMENT: false,
     RETURN_TRUSTED_TYPE: false,
     MESSAGE_SANITIZE: false,
+    CCORE_DOC_SANITIZE: true,
 };
 
-/** 明确的危险标签先物理摘掉（DOMPurify 是主防线，这里是保险） */
+// 放行整页文档里的内联事件处理器（onclick/onchange…）。
+// 安全依据：文档运行在无 same-origin 的沙盒子 iframe 里，这些处理器只能作用于文档自己的 DOM，
+// 碰不到父页面/聊天数据；若不保留，纯 onclick 驱动的交互页面按钮会全部失效。
+let docAttrHookInstalled = false;
+function ensureDocAttrHook() {
+    if (docAttrHookInstalled) return;
+    docAttrHookInstalled = true;
+    DOMPurify.addHook('uponSanitizeAttribute', (node, data, config) => {
+        if (!config || !config.CCORE_DOC_SANITIZE) return;
+        if (data.attrName && /^on/i.test(data.attrName)) {
+            data.forceKeepAttr = true;
+        }
+    });
+}
+
+/** 明确的危险标签先物理摘掉（DOMPurify 是主防线，这里是保险）。
+ *  ⚠️ <script> 不在这里删：内联脚本会先在 extractInlineScripts 里取出、消毒后再放回 body 末尾，
+ *     让页面自带的按钮/交互脚本能在沙盒子 iframe 里运行；带 src 的外链脚本一律丢弃。 */
 function stripDangerousTags(html) {
     return html
-        .replace(/<script\b[\s\S]*?<\/script>/gi, '')
         .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, '')
         .replace(/<(link|base|meta|object|embed)\b[^>]*>/gi, '');
+}
+
+/**
+ * 提取内联 <script>（供沙盒内运行）：
+ * - 带 src 的外链脚本直接丢弃（不加载远程代码）
+ * - 正文里又出现 </script> 的视为畸形，丢弃
+ * 返回去掉脚本的 HTML + 脚本正文数组（消毒后再拼回 body 末尾）。
+ */
+function extractInlineScripts(html) {
+    const scripts = [];
+    const out = html.replace(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi, (match, attrs, content) => {
+        if (/\bsrc\s*=/i.test(attrs)) return '';
+        if (/<\/script/i.test(content)) return '';
+        scripts.push(content);
+        return '';
+    });
+    return { html: out, scripts };
 }
 
 /** CSS 清洗：去 @import；不允许外链媒体时把外链 url() 去掉（与 ST 消息渲染同策略） */
@@ -160,8 +204,10 @@ function sanitizeCss(css) {
     return out;
 }
 
-/** 子 iframe 高度自适应：srcdoc 文档内部自己量高并回写 frameElement 高度 */
-const RESIZE_SCRIPT = `
+/** 子 iframe 高度自适应：沙盒（无 allow-same-origin）下拿不到 frameElement，改用 postMessage 回传高度 */
+function makeResizeScript(docId) {
+    const idLiteral = JSON.stringify(docId);
+    return `
 (function () {
     if (window.__ccDocResize) return;
     window.__ccDocResize = true;
@@ -170,11 +216,8 @@ const RESIZE_SCRIPT = `
             var doc = document.documentElement;
             var body = document.body;
             var h = Math.max(doc ? doc.scrollHeight : 0, body ? body.scrollHeight : 0);
-            var frame = window.frameElement;
-            if (frame && h > 0 && Math.abs(parseFloat(frame.style.height || '0') - h) > 1) {
-                // 覆盖 CSS 里的兜底最小高度，保证按内容精确贴合
-                frame.style.minHeight = '0px';
-                frame.style.height = h + 'px';
+            if (h > 0 && window.parent && window.parent.postMessage) {
+                window.parent.postMessage({ __ccore: 'ccDocHeight', id: ${idLiteral}, h: h }, '*');
             }
         } catch (e) { /* 跨域等异常一律忽略，保持初始高度 */ }
     }
@@ -184,14 +227,23 @@ const RESIZE_SCRIPT = `
     notify();
 })();
 `;
+}
+
+// 占位 id 计数器（唯一标识，供 postMessage 高度回传时匹配到对应 iframe）
+let docSeq = 0;
+function nextDocId() {
+    docSeq += 1;
+    return 'ccdoc-' + docSeq + '-' + Date.now().toString(36);
+}
 
 /**
- * 把整页 HTML 组装成可内联渲染的子 iframe 标记。
- * @param {string} rawHtml 整页 HTML（extractHtmlDocument 的返回值）
- * @returns {string} `<iframe class="ccore-gen-doc" srcdoc="...">`
+ * 把整页 HTML 组装成「惰性占位」标记（不直接产出 iframe）。
+ * 占位在可见时才由 iframeRenderer 的基础脚本挂载成子 iframe，不可见时销毁。
+ * @param {string} rawHtml 整页 HTML（splitHtmlDocument 返回的 doc）
+ * @returns {string} `<div class="ccore-gen-lazy" data-ccore-doc="..."></div>`
  */
 export function buildDocumentFrame(rawHtml) {
-    let html = String(rawHtml || '');
+    let html = String(rawHtml || '').replace(/\r\n?/g, '\n');
 
     // 1) 把 <style> 全部提出来（可能在 head 里，混在正文里也一并提取）
     const cssList = [];
@@ -200,7 +252,7 @@ export function buildDocumentFrame(rawHtml) {
         return '';
     });
 
-    // 2) 去掉文档外壳（我们重建 head/body），并摘掉明确的危险标签
+    // 2) 去掉文档外壳（我们重建 head/body）
     html = html
         .replace(/<!DOCTYPE[^>]*>/gi, '')
         .replace(/<\/?html\b[^>]*>/gi, '')
@@ -208,9 +260,13 @@ export function buildDocumentFrame(rawHtml) {
         .replace(/<\/head\s*>/gi, '')
         .replace(/<\/?body\b[^>]*>/gi, '')
         .replace(/<title\b[^>]*>[\s\S]*?<\/title\s*>/gi, '');
-    html = stripDangerousTags(html);
 
-    // 3) 片段消毒（关闭 class 改名；脚本/事件属性由 DOMPurify 清）
+    // 3) 先取出内联脚本（消毒后再放回 body 末尾），其余危险标签摘掉
+    const extracted = extractInlineScripts(html);
+    html = stripDangerousTags(extracted.html);
+
+    // 4) 片段消毒（关闭 class 改名；放行内联 onclick，脚本/事件属性其余规则由 DOMPurify 兜底）
+    ensureDocAttrHook();
     let bodyHtml = '';
     try {
         bodyHtml = DOMPurify.sanitize(html, DOC_SANITIZE_CONFIG);
@@ -219,15 +275,23 @@ export function buildDocumentFrame(rawHtml) {
         bodyHtml = '';
     }
 
-    // 4) 重组文档：保留原文档的 head 样式，正文来自消毒后的片段
+    // 5) 重组文档：head 放样式；正文 = 消毒后的片段 + 页面自带脚本（沙盒内运行）+ 高度脚本
     const styleBlock = cssList.length ? `<style>${cssList.join('\n')}</style>` : '';
+    const userScripts = extracted.scripts.length
+        ? extracted.scripts.map(s => `<script>${s}</script>`).join('\n')
+        : '';
+    const docId = nextDocId();
     const documentHtml = '<!DOCTYPE html><html><head><meta charset="utf-8">'
         + '<style>html,body{margin:0;padding:0;}</style>'
         + styleBlock
-        + `</head><body>${bodyHtml}<script>${RESIZE_SCRIPT}</script></body></html>`;
+        + `</head><body>${bodyHtml}${userScripts}<script>${makeResizeScript(docId)}</script></body></html>`;
 
-    // 5) srcdoc 属性转义（& 先转，再转引号；属性用双引号包裹）
-    //    不设 scrolling="no"：万一高度脚本没跑起来，宁可出现内部滚动条，也不要裁掉内容
+    // 6) srcdoc 属性转义（& 先转，再转引号；属性用双引号包裹）
     const srcdoc = documentHtml.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-    return `<iframe class="ccore-gen-doc" frameborder="0" srcdoc="${srcdoc}"></iframe>`;
+
+    // 7) 只输出「惰性占位」，不直接输出 iframe：
+    //    折叠（display:none / content-visibility:hidden）时元素没有布局盒 → 不创建文档，零解析零脚本；
+    //    真正被渲染出来时才由 iframeRenderer 的基础脚本挂成带沙盒的子 iframe（方案甲：不可见即销毁）。
+    //    文档串先存在属性里，是纯字符串、不触发解析，展开那一刻才会建文档。
+    return `<div class="ccore-gen-lazy" data-doc-id="${docId}" data-ccore-doc="${srcdoc}"></div>`;
 }
